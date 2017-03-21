@@ -26,7 +26,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	fmt.Println("[Read .estafette.yaml file successfully]")
+	fmt.Println("[Finished reading .estafette.yaml file successfully]")
 
 	// get current working directory
 	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
@@ -36,7 +36,7 @@ func main() {
 
 	for n, p := range estafetteManifest.Pipelines {
 
-		fmt.Printf("[Starting pipeline %v]\n", n)
+		fmt.Printf("[Starting pipeline '%v']\n", n)
 
 		// set default for shell path or override if set in yaml file
 		shellPath := "/bin/bash"
@@ -44,9 +44,15 @@ func main() {
 			shellPath = p.Shell
 		}
 
+		// set default for working directory or override if set in yaml file
+		workingDirectory := "/estafette-work"
+		if p.WorkingDirectory != "" {
+			workingDirectory = p.WorkingDirectory
+		}
+
 		// run docker with image and steps from yaml
-		fmt.Printf("[Running command 'docker run --rm --entrypoint \"\" -v %v:/estafette -w /estafette %v %v -c %v']\n", dir, p.ContainerImage, shellPath, strings.Join(p.Commands, ";"))
-		cmd := exec.Command("docker", "run", "--rm", "--entrypoint", "", "-v", fmt.Sprintf("%v:/estafette", dir), "-w", "/estafette", p.ContainerImage, shellPath, "-c", strings.Join(p.Commands, ";"))
+		fmt.Printf("[Running command 'docker run --rm --entrypoint \"\" -v %v:%v -w %v %v %v -c %v']\n", dir, workingDirectory, workingDirectory, p.ContainerImage, shellPath, strings.Join(p.Commands, ";"))
+		cmd := exec.Command("docker", "run", "--rm", "--entrypoint", "", "-v", fmt.Sprintf("%v:%v", dir, workingDirectory), "-w", workingDirectory, p.ContainerImage, shellPath, "-c", strings.Join(p.Commands, ";"))
 		stdout, err := cmd.StdoutPipe()
 		if err != nil {
 			log.Fatal(err)
@@ -87,7 +93,7 @@ func main() {
 			}
 		}
 
-		fmt.Printf("[Finished pipeline %v successfully]\n", n)
+		fmt.Printf("[Finished pipeline '%v' successfully]\n", n)
 		os.Exit(0)
 	}
 }

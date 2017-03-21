@@ -8,9 +8,10 @@ type estafetteManifest struct {
 }
 
 type estafettePipeline struct {
-	ContainerImage string   `yaml:"image,omitempty"`
-	Shell          string   `yaml:"shell,omitempty"`
-	Commands       []string `yaml:"commands,omitempty"`
+	ContainerImage   string   `yaml:"image,omitempty"`
+	Shell            string   `yaml:"shell,omitempty"`
+	WorkingDirectory string   `yaml:"workingDirectory,omitempty"`
+	Commands         []string `yaml:"commands,omitempty"`
 }
 
 // UnmarshalYAML parses the .estafette.yaml file into an estafetteManifest object
