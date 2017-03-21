@@ -36,6 +36,8 @@ func main() {
 
 	dir = strings.Replace(filepath.ToSlash(dir), "C:", "/c", 1)
 
+	fmt.Printf("[Running %v pipelines]\n", len(estafetteManifest.Pipelines))
+
 	for n, p := range estafetteManifest.Pipelines {
 
 		fmt.Printf("[Starting pipeline '%v']\n", n)
@@ -96,6 +98,7 @@ func main() {
 		}
 
 		fmt.Printf("[Finished pipeline '%v' successfully]\n", n)
-		os.Exit(0)
 	}
+
+	os.Exit(0)
 }
