@@ -9,6 +9,7 @@ type estafetteManifest struct {
 
 type estafettePipeline struct {
 	ContainerImage string   `yaml:"image,omitempty"`
+	Shell          string   `yaml:"shell,omitempty"`
 	Commands       []string `yaml:"commands,omitempty"`
 }
 

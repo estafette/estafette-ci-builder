@@ -36,8 +36,14 @@ func main() {
 
 		fmt.Printf("Pipeline name: %v\n", n)
 
+		// set default for shell path or override if set in yaml file
+		shellPath := "/bin/bash"
+		if p.Shell != "" {
+			shellPath = p.Shell
+		}
+
 		// run docker with image and steps from yaml
-		cmd := exec.Command("docker", "run", "--rm", "--entrypoint", "", "-v", fmt.Sprintf("%v:/estafette", dir), "-w", "/estafette", p.ContainerImage, "/bin/bash", "-c", strings.Join(p.Commands, ";"))
+		cmd := exec.Command("docker", "run", "--rm", "--entrypoint", "", "-v", fmt.Sprintf("%v:/estafette", dir), "-w", "/estafette", p.ContainerImage, shellPath, "-c", strings.Join(p.Commands, ";"))
 		stdout, err := cmd.StdoutPipe()
 		if err != nil {
 			log.Fatal(err)
