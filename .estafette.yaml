@@ -8,4 +8,4 @@ pipelines:
     image: golang:1.8.0-alpine
     commands:
     - go test -v ./...
-    - CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o ./publish/$LABEL_APP .
+    - CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o ./publish/estafette-ci-builder .

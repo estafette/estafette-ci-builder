@@ -16,7 +16,7 @@ import (
 func main() {
 
 	// read yaml
-	data, err := ioutil.ReadFile("./.estafette.yaml")
+	data, err := ioutil.ReadFile(".estafette.yaml")
 	if err != nil {
 		log.Fatal(err)
 	}
