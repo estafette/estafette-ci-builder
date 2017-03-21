@@ -51,8 +51,8 @@ func main() {
 		}
 
 		// run docker with image and steps from yaml
-		fmt.Printf("[Running command 'docker run --rm --entrypoint \"\" -v %v:%v -w %v %v %v -c %v']\n", dir, workingDirectory, workingDirectory, p.ContainerImage, shellPath, strings.Join(p.Commands, ";"))
-		cmd := exec.Command("docker", "run", "--rm", "--entrypoint", "", "-v", fmt.Sprintf("%v:%v", dir, workingDirectory), "-w", workingDirectory, p.ContainerImage, shellPath, "-c", strings.Join(p.Commands, ";"))
+		fmt.Printf("[Running command 'docker run --privileged --rm --entrypoint \"\" -v %v:%v -w %v %v %v -c %v']\n", dir, workingDirectory, workingDirectory, p.ContainerImage, shellPath, strings.Join(p.Commands, ";"))
+		cmd := exec.Command("docker", "run", "--privileged", "--rm", "--entrypoint", "", "-v", fmt.Sprintf("%v:%v", dir, workingDirectory), "-w", workingDirectory, p.ContainerImage, shellPath, "-c", strings.Join(p.Commands, ";"))
 		stdout, err := cmd.StdoutPipe()
 		if err != nil {
 			log.Fatal(err)
