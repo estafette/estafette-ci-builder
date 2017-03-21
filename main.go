@@ -16,6 +16,7 @@ import (
 func main() {
 
 	// read yaml
+	fmt.Println("[Reading .estafette.yaml file]")
 	data, err := ioutil.ReadFile(".estafette.yaml")
 	if err != nil {
 		log.Fatal(err)
@@ -24,7 +25,8 @@ func main() {
 	if err := estafetteManifest.UnmarshalYAML(data); err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("%+v\n", estafetteManifest)
+
+	fmt.Println("[Read .estafette.yaml file successfully]")
 
 	// get current working directory
 	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
@@ -34,7 +36,7 @@ func main() {
 
 	for n, p := range estafetteManifest.Pipelines {
 
-		fmt.Printf("Pipeline name: %v\n", n)
+		fmt.Printf("[Starting pipeline %v]\n", n)
 
 		// set default for shell path or override if set in yaml file
 		shellPath := "/bin/bash"
@@ -76,13 +78,15 @@ func main() {
 				// syscall is generally platform dependent, WaitStatus is
 				// defined for both Unix and Windows and in both cases has
 				// an ExitStatus() method with the same signature.
-				if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
-					log.Printf("Exit Status: %d", status.ExitStatus())
+				if status, ok := exiterr.Sys().(syscall.WaitStatus); ok && status.ExitStatus() > 0 {
 					os.Exit(status.ExitStatus())
 				}
 			} else {
 				log.Fatal(err)
 			}
 		}
+
+		fmt.Printf("[Finished pipeline %v successfully]\n", n)
+		os.Exit(0)
 	}
 }
