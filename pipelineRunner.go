@@ -85,7 +85,7 @@ func runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (s
 	argsSlice = append(argsSlice, "--entrypoint=\"\"")
 	argsSlice = append(argsSlice, fmt.Sprintf("--volume=\"%v:%v\"", dir, p.WorkingDirectory))
 	argsSlice = append(argsSlice, "--volume=\"/var/run/docker.sock:/var/run/docker.sock\"")
-	argsSlice = append(argsSlice, fmt.Sprintf("--workdir==\"%v\"", p.WorkingDirectory))
+	argsSlice = append(argsSlice, fmt.Sprintf("--workdir=\"%v\"", p.WorkingDirectory))
 	if envvars != nil && len(envvars) > 0 {
 		for k, v := range envvars {
 			argsSlice = append(argsSlice, fmt.Sprintf("--env=\"%v=%v\"", k, v))
