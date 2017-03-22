@@ -79,8 +79,8 @@ func runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (s
 	// add docker command and options
 	argsSlice := make([]string, 0)
 	argsSlice = append(argsSlice, "run")
-	argsSlice = append(argsSlice, "--privileged=\"true\"")
-	argsSlice = append(argsSlice, "--rm=\"true\"")
+	argsSlice = append(argsSlice, "--privileged")
+	argsSlice = append(argsSlice, "--rm")
 	argsSlice = append(argsSlice, "--entrypoint=\"\"")
 	argsSlice = append(argsSlice, fmt.Sprintf("--volume=\"%v:%v\"", dir, p.WorkingDirectory))
 	argsSlice = append(argsSlice, "--volume=\"/var/run/docker.sock:/var/run/docker.sock\"")
