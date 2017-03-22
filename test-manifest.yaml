@@ -6,7 +6,7 @@ labels:
 pipelines:
   build:
     image: golang:1.8.0-alpine
-    workingDirectory: /go/src/github.com/estafette/estafette-ci-builder
+    workDir: /go/src/github.com/estafette/estafette-ci-builder
     commands:
     - go test -v ./...
     - CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o ./publish/estafette-ci-builder .

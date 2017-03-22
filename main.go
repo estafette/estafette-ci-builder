@@ -29,9 +29,9 @@ func main() {
 
 	fmt.Printf("[estafette] Running %v pipelines\n", len(manifest.Pipelines))
 
-	for n, p := range manifest.Pipelines {
+	for _, p := range manifest.Pipelines {
 
-		fmt.Printf("[estafette] Starting pipeline '%v'\n", n)
+		fmt.Printf("[estafette] Starting pipeline '%v'\n", p.Name)
 
 		// set default for shell path or override if set in yaml file
 		shellPath := "/bin/sh"
@@ -111,7 +111,7 @@ func main() {
 			}
 		}
 
-		fmt.Printf("[estafette] Finished pipeline '%v' successfully\n", n)
+		fmt.Printf("[estafette] Finished pipeline '%v' successfully\n", p.Name)
 	}
 
 	os.Exit(0)
