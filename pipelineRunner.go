@@ -42,11 +42,15 @@ func runDockerPull(p estafettePipeline) (stat dockerPullStat, err error) {
 
 	start := time.Now()
 
-	fmt.Printf("[estafette] Running command 'docker pull %v'\n", p.ContainerImage)
-	dockerPullCmd := exec.Command("docker", "pull", p.ContainerImage)
+	cmd := "docker"
 
-	// make sure to kill the process when this function exits
-	defer dockerPullCmd.Process.Kill()
+	// add docker command and options
+	argsSlice := make([]string, 0)
+	argsSlice = append(argsSlice, "pull")
+	argsSlice = append(argsSlice, p.ContainerImage)
+
+	fmt.Printf("[estafette] Running command '%v %v'\n", cmd, strings.Join(argsSlice, " "))
+	dockerPullCmd := exec.Command(cmd, argsSlice...)
 
 	// run and wait until completion
 	if err := dockerPullCmd.Run(); err != nil {
@@ -72,9 +76,8 @@ func runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (s
 
 	cmd := "docker"
 
-	argsSlice := make([]string, 0)
-
 	// add docker command and options
+	argsSlice := make([]string, 0)
 	argsSlice = append(argsSlice, "run")
 	argsSlice = append(argsSlice, "--privileged=\"true\"")
 	argsSlice = append(argsSlice, "--rm=\"true\"")
@@ -96,11 +99,8 @@ func runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (s
 	argsSlice = append(argsSlice, "-c")
 	argsSlice = append(argsSlice, strings.Join(p.Commands, ";"))
 
-	fmt.Printf("[estafette] Running command '%v %v\n", cmd, strings.Join(argsSlice, " "))
+	fmt.Printf("[estafette] Running command '%v %v'\n", cmd, strings.Join(argsSlice, " "))
 	dockerRunCmd := exec.Command(cmd, argsSlice...)
-
-	// make sure to kill the process when this function exits
-	defer dockerRunCmd.Process.Kill()
 
 	// pipe logs
 	stdout, err := dockerRunCmd.StdoutPipe()
