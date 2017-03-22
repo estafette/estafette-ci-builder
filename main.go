@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -16,29 +15,21 @@ import (
 func main() {
 
 	// read yaml
-	fmt.Println("[estafette] Reading .estafette.yaml file...")
-	data, err := ioutil.ReadFile(".estafette.yaml")
+	manifest, err := readManifest(".estafette.yaml")
 	if err != nil {
 		log.Fatal(err)
 	}
-	var estafetteManifest estafetteManifest
-	if err := estafetteManifest.UnmarshalYAML(data); err != nil {
-		log.Fatal(err)
-	}
-
-	fmt.Println("[estafette] Finished reading .estafette.yaml file successfully")
 
 	// get current working directory
 	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	dir = strings.Replace(filepath.ToSlash(dir), "C:", "/c", 1)
 
-	fmt.Printf("[estafette] Running %v pipelines\n", len(estafetteManifest.Pipelines))
+	fmt.Printf("[estafette] Running %v pipelines\n", len(manifest.Pipelines))
 
-	for n, p := range estafetteManifest.Pipelines {
+	for n, p := range manifest.Pipelines {
 
 		fmt.Printf("[estafette] Starting pipeline '%v'\n", n)
 

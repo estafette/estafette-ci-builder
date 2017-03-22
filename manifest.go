@@ -1,6 +1,11 @@
 package main
 
-import yaml "gopkg.in/yaml.v2"
+import (
+	"fmt"
+	"io/ioutil"
+
+	yaml "gopkg.in/yaml.v2"
+)
 
 type estafetteManifest struct {
 	Labels    map[string]string            `yaml:"labels,omitempty"`
@@ -15,6 +20,23 @@ type estafettePipeline struct {
 }
 
 // UnmarshalYAML parses the .estafette.yaml file into an estafetteManifest object
-func (c *estafetteManifest) UnmarshalYAML(data []byte) error {
+func (c *estafetteManifest) unmarshalYAML(data []byte) error {
 	return yaml.Unmarshal(data, c)
+}
+
+func readManifest(manifestPath string) (manifest estafetteManifest, err error) {
+
+	fmt.Printf("[estafette] Reading %v file...", manifestPath)
+
+	data, err := ioutil.ReadFile(manifestPath)
+	if err != nil {
+		return manifest, err
+	}
+	if err := manifest.unmarshalYAML(data); err != nil {
+		return manifest, err
+	}
+
+	fmt.Printf("[estafette] Finished reading %vfile successfully", manifestPath)
+
+	return
 }
