@@ -27,7 +27,7 @@ func main() {
 
 	envvars := collectEstafetteEnvvars(manifest)
 
-	statsSlice := make([]estafettePipelineStat, len(manifest.Pipelines))
+	statsSlice := make([]estafettePipelineStat, 0)
 
 	for _, p := range manifest.Pipelines {
 		stat, err := runPipeline(dir, envvars, *p)
@@ -49,21 +49,27 @@ func main() {
 
 func renderStats(statsSlice []estafettePipelineStat) {
 
-	data := make([][]string, len(statsSlice))
+	data := make([][]string, 0)
 
 	dockerPullDurationTotal := 0.0
 	dockerRunDurationTotal := 0.0
 	for _, s := range statsSlice {
-		data = append(data, []string{s.Pipeline.Name, s.Pipeline.ContainerImage, fmt.Sprintf("%.0f", s.DockerPullStat.Duration.Seconds()), fmt.Sprintf("%.0f", s.DockerRunStat.Duration.Seconds())})
+		data = append(data, []string{
+			s.Pipeline.Name,
+			s.Pipeline.ContainerImage,
+			fmt.Sprintf("%.0f", s.DockerPullStat.Duration.Seconds()),
+			fmt.Sprintf("%.0f", s.DockerRunStat.Duration.Seconds()),
+			fmt.Sprintf("%.0f", s.DockerPullStat.Duration.Seconds()+s.DockerRunStat.Duration.Seconds()),
+		})
 
 		dockerPullDurationTotal += s.DockerPullStat.Duration.Seconds()
 		dockerRunDurationTotal += s.DockerRunStat.Duration.Seconds()
 	}
 
 	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"Pipeline", "Image", "Pull (s)", "Run (s)"})
-	table.SetFooter([]string{"", "Total", fmt.Sprintf("%.0f", dockerPullDurationTotal), fmt.Sprintf("%.0f", dockerRunDurationTotal)}) // Add Footer
-	table.SetBorder(false)                                                                                                            // Set Border to false
-	table.AppendBulk(data)                                                                                                            // Add Bulk Data
+	table.SetHeader([]string{"Pipeline", "Image", "Pull (s)", "Run (s)", "Total (s)"})
+	table.SetFooter([]string{"", "Total", fmt.Sprintf("%.0f", dockerPullDurationTotal), fmt.Sprintf("%.0f", dockerRunDurationTotal), fmt.Sprintf("%.0f", dockerPullDurationTotal+dockerRunDurationTotal)})
+	table.SetBorder(false)
+	table.AppendBulk(data)
 	table.Render()
 }
