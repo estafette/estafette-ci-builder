@@ -16,7 +16,7 @@ import (
 func main() {
 
 	// read yaml
-	fmt.Println("[Reading .estafette.yaml file]")
+	fmt.Println("[estafette] Reading .estafette.yaml file...")
 	data, err := ioutil.ReadFile(".estafette.yaml")
 	if err != nil {
 		log.Fatal(err)
@@ -26,7 +26,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	fmt.Println("[Finished reading .estafette.yaml file successfully]")
+	fmt.Println("[estafette] Finished reading .estafette.yaml file successfully")
 
 	// get current working directory
 	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
@@ -36,14 +36,14 @@ func main() {
 
 	dir = strings.Replace(filepath.ToSlash(dir), "C:", "/c", 1)
 
-	fmt.Printf("[Running %v pipelines]\n", len(estafetteManifest.Pipelines))
+	fmt.Printf("[estafette] Running %v pipelines\n", len(estafetteManifest.Pipelines))
 
 	for n, p := range estafetteManifest.Pipelines {
 
-		fmt.Printf("[Starting pipeline '%v']\n", n)
+		fmt.Printf("[estafette] Starting pipeline '%v'\n", n)
 
 		// set default for shell path or override if set in yaml file
-		shellPath := "/bin/bash"
+		shellPath := "/bin/sh"
 		if p.Shell != "" {
 			shellPath = p.Shell
 		}
@@ -54,34 +54,14 @@ func main() {
 			workingDirectory = p.WorkingDirectory
 		}
 
-		// run docker with image and commands from yaml
-		fmt.Printf("[Running command 'docker run --privileged --rm --entrypoint \"\" -v %v:%v -v /var/run/docker.sock:/var/run/docker.sock -w %v %v %v -c %v']\n", dir, workingDirectory, workingDirectory, p.ContainerImage, shellPath, strings.Join(p.Commands, ";"))
-		cmd := exec.Command("docker", "run", "--privileged", "--rm", "--entrypoint", "", "-v", fmt.Sprintf("%v:%v", dir, workingDirectory), "-v", "/var/run/docker.sock:/var/run/docker.sock", "-w", workingDirectory, p.ContainerImage, shellPath, "-c", strings.Join(p.Commands, ";"))
-		stdout, err := cmd.StdoutPipe()
-		if err != nil {
-			log.Fatal(err)
-		}
-		stderr, err := cmd.StderrPipe()
-		if err != nil {
-			log.Fatal(err)
-		}
-		if err := cmd.Start(); err != nil {
+		// pull docker image
+		fmt.Printf("[estafette] Running command 'docker pull %v'\n", p.ContainerImage)
+		dockerPullCmd := exec.Command("docker", "pull", p.ContainerImage)
+		if err := dockerPullCmd.Start(); err != nil {
 			log.Fatal(err)
 		}
 
-		// read command's stdout and stderr line by line
-		multi := io.MultiReader(stdout, stderr)
-
-		in := bufio.NewScanner(multi)
-
-		for in.Scan() {
-			log.Printf(in.Text()) // write each line to your log, or anything you need
-		}
-		if err := in.Err(); err != nil {
-			log.Printf("error: %s", err)
-		}
-
-		if err := cmd.Wait(); err != nil {
+		if err := dockerPullCmd.Wait(); err != nil {
 			if exiterr, ok := err.(*exec.ExitError); ok {
 				// The program has exited with an exit code != 0
 
@@ -97,7 +77,50 @@ func main() {
 			}
 		}
 
-		fmt.Printf("[Finished pipeline '%v' successfully]\n", n)
+		// run docker with image and commands from yaml
+		fmt.Printf("[estafette] Running command 'docker run --privileged --rm --entrypoint \"\" -v %v:%v -v /var/run/docker.sock:/var/run/docker.sock -w %v %v %v -c %v'\n", dir, workingDirectory, workingDirectory, p.ContainerImage, shellPath, strings.Join(p.Commands, ";"))
+		dockerRunCmd := exec.Command("docker", "run", "--privileged", "--rm", "--entrypoint", "", "-v", fmt.Sprintf("%v:%v", dir, workingDirectory), "-v", "/var/run/docker.sock:/var/run/docker.sock", "-w", workingDirectory, p.ContainerImage, shellPath, "-c", strings.Join(p.Commands, ";"))
+		stdout, err := dockerRunCmd.StdoutPipe()
+		if err != nil {
+			log.Fatal(err)
+		}
+		stderr, err := dockerRunCmd.StderrPipe()
+		if err != nil {
+			log.Fatal(err)
+		}
+		if err := dockerRunCmd.Start(); err != nil {
+			log.Fatal(err)
+		}
+
+		// read command's stdout and stderr line by line
+		multi := io.MultiReader(stdout, stderr)
+
+		in := bufio.NewScanner(multi)
+
+		for in.Scan() {
+			log.Printf(in.Text()) // write each line to your log, or anything you need
+		}
+		if err := in.Err(); err != nil {
+			log.Printf("[estafette] Error: %s", err)
+		}
+
+		if err := dockerRunCmd.Wait(); err != nil {
+			if exiterr, ok := err.(*exec.ExitError); ok {
+				// The program has exited with an exit code != 0
+
+				// This works on both Unix and Windows. Although package
+				// syscall is generally platform dependent, WaitStatus is
+				// defined for both Unix and Windows and in both cases has
+				// an ExitStatus() method with the same signature.
+				if status, ok := exiterr.Sys().(syscall.WaitStatus); ok && status.ExitStatus() > 0 {
+					os.Exit(status.ExitStatus())
+				}
+			} else {
+				log.Fatal(err)
+			}
+		}
+
+		fmt.Printf("[estafette] Finished pipeline '%v' successfully\n", n)
 	}
 
 	os.Exit(0)
