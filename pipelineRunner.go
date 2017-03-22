@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"os"
 	"os/exec"
 	"strings"
 	"syscall"
 	"time"
+	"unicode"
 )
 
 type dockerPullStat struct {
@@ -63,13 +65,39 @@ func runDockerPull(p estafettePipeline) (stat dockerPullStat, err error) {
 	return
 }
 
-func runDockerRun(dir string, p estafettePipeline) (stat dockerRunStat, err error) {
+func runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (stat dockerRunStat, err error) {
 
 	// run docker with image and commands from yaml
 	start := time.Now()
 
-	fmt.Printf("[estafette] Running command 'docker run --privileged --rm --entrypoint \"\" -v %v:%v -v /var/run/docker.sock:/var/run/docker.sock -w %v %v %v -c %v'\n", dir, p.WorkingDirectory, p.WorkingDirectory, p.ContainerImage, p.Shell, strings.Join(p.Commands, ";"))
-	dockerRunCmd := exec.Command("docker", "run", "--privileged", "--rm", "--entrypoint", "", "-v", fmt.Sprintf("%v:%v", dir, p.WorkingDirectory), "-v", "/var/run/docker.sock:/var/run/docker.sock", "-w", p.WorkingDirectory, p.ContainerImage, p.Shell, "-c", strings.Join(p.Commands, ";"))
+	cmd := "docker"
+
+	argsSlice := make([]string, 0)
+
+	// add docker command and options
+	argsSlice = append(argsSlice, "run")
+	argsSlice = append(argsSlice, "--privileged=\"true\"")
+	argsSlice = append(argsSlice, "--rm=\"true\"")
+	argsSlice = append(argsSlice, "--entrypoint=\"\"")
+	argsSlice = append(argsSlice, fmt.Sprintf("--volume=\"%v:%v\"", dir, p.WorkingDirectory))
+	argsSlice = append(argsSlice, "--volume=\"/var/run/docker.sock:/var/run/docker.sock\"")
+	argsSlice = append(argsSlice, fmt.Sprintf("--workdir==\"%v\"", p.WorkingDirectory))
+	if envvars != nil && len(envvars) > 0 {
+		for k, v := range envvars {
+			argsSlice = append(argsSlice, fmt.Sprintf("--env=\"%v=%v\"", k, v))
+		}
+	}
+
+	// the actual container to run
+	argsSlice = append(argsSlice, p.ContainerImage)
+
+	// the commands to execute in the container
+	argsSlice = append(argsSlice, p.Shell)
+	argsSlice = append(argsSlice, "-c")
+	argsSlice = append(argsSlice, strings.Join(p.Commands, ";"))
+
+	fmt.Printf("[estafette] Running command '%v %v\n", cmd, strings.Join(argsSlice, " "))
+	dockerRunCmd := exec.Command(cmd, argsSlice...)
 
 	// make sure to kill the process when this function exits
 	defer dockerRunCmd.Process.Kill()
@@ -118,7 +146,51 @@ func runDockerRun(dir string, p estafettePipeline) (stat dockerRunStat, err erro
 	return
 }
 
-func runPipeline(dir string, p estafettePipeline) (stat estafettePipelineStat, err error) {
+// https://gist.github.com/elwinar/14e1e897fdbe4d3432e1
+func toUpperSnake(in string) string {
+	runes := []rune(in)
+	length := len(runes)
+
+	var out []rune
+	for i := 0; i < length; i++ {
+		if i > 0 && unicode.IsUpper(runes[i]) && ((i+1 < length && unicode.IsLower(runes[i+1])) || unicode.IsLower(runes[i-1])) {
+			out = append(out, '_')
+		}
+		out = append(out, unicode.ToUpper(runes[i]))
+	}
+
+	return string(out)
+}
+
+func collectEstafetteEnvvars(m estafetteManifest) (envvars map[string]string) {
+
+	envvars = map[string]string{}
+
+	for _, e := range os.Environ() {
+		kvPair := strings.Split(e, "=")
+		if len(kvPair) == 2 {
+			envvarName := kvPair[0]
+			envvarValue := kvPair[1]
+
+			if strings.HasPrefix(envvarName, "ESTAFETTE_") {
+				envvars[envvarName] = envvarValue
+			}
+		}
+	}
+
+	// add the labels as envvars
+	if m.Labels != nil && len(m.Labels) > 0 {
+		for key, value := range m.Labels {
+
+			envvarName := "ESTAFETTE_LABEL_" + toUpperSnake(key)
+			envvars[envvarName] = value
+		}
+	}
+
+	return
+}
+
+func runPipeline(dir string, envvars map[string]string, p estafettePipeline) (stat estafettePipelineStat, err error) {
 
 	fmt.Printf("[estafette] Starting pipeline '%v'\n", p.Name)
 
@@ -128,7 +200,7 @@ func runPipeline(dir string, p estafettePipeline) (stat estafettePipelineStat, e
 		return
 	}
 
-	stat.DockerRunStat, err = runDockerRun(dir, p)
+	stat.DockerRunStat, err = runDockerRun(dir, envvars, p)
 	if err != nil {
 		return
 	}

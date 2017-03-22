@@ -23,8 +23,10 @@ func main() {
 
 	fmt.Printf("[estafette] Running %v pipelines\n", len(manifest.Pipelines))
 
+	envvars := collectEstafetteEnvvars(manifest)
+
 	for _, p := range manifest.Pipelines {
-		stat, err := runPipeline(dir, *p)
+		stat, err := runPipeline(dir, envvars, *p)
 		if err != nil {
 			os.Exit(1)
 		}
