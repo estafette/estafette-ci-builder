@@ -24,6 +24,7 @@ type dockerRunStat struct {
 }
 
 type estafettePipelineStat struct {
+	Pipeline       estafettePipeline
 	DockerPullStat dockerPullStat
 	DockerRunStat  dockerRunStat
 }
@@ -191,6 +192,8 @@ func collectEstafetteEnvvars(m estafetteManifest) (envvars map[string]string) {
 }
 
 func runPipeline(dir string, envvars map[string]string, p estafettePipeline) (stat estafettePipelineStat, err error) {
+
+	stat.Pipeline = p
 
 	fmt.Printf("[estafette] Starting pipeline '%v'\n", p.Name)
 
