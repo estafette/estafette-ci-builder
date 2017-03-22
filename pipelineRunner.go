@@ -39,20 +39,16 @@ func (c *estafettePipelineStat) ExitCode() int {
 func runDockerPull(p estafettePipeline) (stat dockerPullStat, err error) {
 
 	start := time.Now()
+
 	fmt.Printf("[estafette] Running command 'docker pull %v'\n", p.ContainerImage)
 	dockerPullCmd := exec.Command("docker", "pull", p.ContainerImage)
-	if err := dockerPullCmd.Start(); err != nil {
-		return stat, err
-	}
 
-	if err := dockerPullCmd.Wait(); err != nil {
+	// make sure to kill the process when this function exits
+	defer dockerPullCmd.Process.Kill()
+
+	// run and wait until completion
+	if err := dockerPullCmd.Run(); err != nil {
 		if exiterr, ok := err.(*exec.ExitError); ok {
-			// The program has exited with an exit code != 0
-
-			// This works on both Unix and Windows. Although package
-			// syscall is generally platform dependent, WaitStatus is
-			// defined for both Unix and Windows and in both cases has
-			// an ExitStatus() method with the same signature.
 			if status, ok := exiterr.Sys().(syscall.WaitStatus); ok && status.ExitStatus() > 0 {
 				stat.ExitCode = status.ExitStatus()
 				return stat, err
@@ -61,6 +57,7 @@ func runDockerPull(p estafettePipeline) (stat dockerPullStat, err error) {
 			return stat, err
 		}
 	}
+
 	stat.Duration = time.Since(start)
 
 	return
@@ -73,6 +70,11 @@ func runDockerRun(dir string, p estafettePipeline) (stat dockerRunStat, err erro
 
 	fmt.Printf("[estafette] Running command 'docker run --privileged --rm --entrypoint \"\" -v %v:%v -v /var/run/docker.sock:/var/run/docker.sock -w %v %v %v -c %v'\n", dir, p.WorkingDirectory, p.WorkingDirectory, p.ContainerImage, p.Shell, strings.Join(p.Commands, ";"))
 	dockerRunCmd := exec.Command("docker", "run", "--privileged", "--rm", "--entrypoint", "", "-v", fmt.Sprintf("%v:%v", dir, p.WorkingDirectory), "-v", "/var/run/docker.sock:/var/run/docker.sock", "-w", p.WorkingDirectory, p.ContainerImage, p.Shell, "-c", strings.Join(p.Commands, ";"))
+
+	// make sure to kill the process when this function exits
+	defer dockerRunCmd.Process.Kill()
+
+	// pipe logs
 	stdout, err := dockerRunCmd.StdoutPipe()
 	if err != nil {
 		return stat, err
@@ -81,30 +83,27 @@ func runDockerRun(dir string, p estafettePipeline) (stat dockerRunStat, err erro
 	if err != nil {
 		return stat, err
 	}
+
+	// start
 	if err := dockerRunCmd.Start(); err != nil {
 		return stat, err
 	}
 
-	// read command's stdout and stderr line by line
+	// tail logs
 	multi := io.MultiReader(stdout, stderr)
 
 	in := bufio.NewScanner(multi)
 
 	for in.Scan() {
-		log.Printf(in.Text()) // write each line to your log, or anything you need
+		log.Printf("[%v] %s", p.Name, in.Text()) // write each line to your log, or anything you need
 	}
 	if err := in.Err(); err != nil {
-		log.Printf("[estafette] Error: %s", err)
+		log.Printf("[%v] Error: %s", p.Name, err)
 	}
 
+	// wait for completion
 	if err := dockerRunCmd.Wait(); err != nil {
 		if exiterr, ok := err.(*exec.ExitError); ok {
-			// The program has exited with an exit code != 0
-
-			// This works on both Unix and Windows. Although package
-			// syscall is generally platform dependent, WaitStatus is
-			// defined for both Unix and Windows and in both cases has
-			// an ExitStatus() method with the same signature.
 			if status, ok := exiterr.Sys().(syscall.WaitStatus); ok && status.ExitStatus() > 0 {
 				stat.ExitCode = status.ExitStatus()
 				return stat, err
@@ -113,6 +112,7 @@ func runDockerRun(dir string, p estafettePipeline) (stat dockerRunStat, err erro
 			return stat, err
 		}
 	}
+
 	stat.Duration = time.Since(start)
 
 	return
