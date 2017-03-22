@@ -30,6 +30,9 @@ func TestCollectEstafetteEnvvars(t *testing.T) {
 		_, exists := envvars["ESTAFETTE_LABEL_APP"]
 		assert.True(t, exists)
 		assert.Equal(t, "estafette-ci-builder", envvars["ESTAFETTE_LABEL_APP"])
+
+		// clean up
+		os.Unsetenv("ESTAFETTE_LABEL_APP")
 	})
 
 	t.Run("ReturnsOneLabelAsEstafetteLabelLabelWithSnakeCasing", func(t *testing.T) {
@@ -43,6 +46,9 @@ func TestCollectEstafetteEnvvars(t *testing.T) {
 		_, exists := envvars["ESTAFETTE_LABEL_OWNING_TEAM"]
 		assert.True(t, exists)
 		assert.Equal(t, "estafette-ci-team", envvars["ESTAFETTE_LABEL_OWNING_TEAM"])
+
+		// clean up
+		os.Unsetenv("ESTAFETTE_LABEL_OWNING_TEAM")
 	})
 
 	t.Run("ReturnsTwoLabelsAsEstafetteLabelLabel", func(t *testing.T) {
@@ -61,6 +67,9 @@ func TestCollectEstafetteEnvvars(t *testing.T) {
 		assert.True(t, exists)
 		assert.Equal(t, "estafette-ci-team", envvars["ESTAFETTE_LABEL_TEAM"])
 
+		// clean up
+		os.Unsetenv("ESTAFETTE_LABEL_APP")
+		os.Unsetenv("ESTAFETTE_LABEL_TEAM")
 	})
 
 	t.Run("ReturnsOneEnvvarStartingWithEstafette", func(t *testing.T) {
@@ -122,5 +131,6 @@ func TestCollectEstafetteEnvvars(t *testing.T) {
 
 		// clean up
 		os.Unsetenv("ESTAFETTE_VERSION")
+		os.Unsetenv("ESTAFETTE_LABEL_APP")
 	})
 }

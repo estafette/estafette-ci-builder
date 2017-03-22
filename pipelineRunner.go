@@ -84,9 +84,9 @@ func runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (s
 	argsSlice = append(argsSlice, "--rm")
 	argsSlice = append(argsSlice, "--entrypoint")
 	argsSlice = append(argsSlice, "")
-	argsSlice = append(argsSlice, fmt.Sprintf("--volume=%v:%v", dir, p.WorkingDirectory))
+	argsSlice = append(argsSlice, fmt.Sprintf("--volume=%v:%v", dir, os.ExpandEnv(p.WorkingDirectory)))
 	argsSlice = append(argsSlice, "--volume=/var/run/docker.sock:/var/run/docker.sock")
-	argsSlice = append(argsSlice, fmt.Sprintf("--workdir=%v", p.WorkingDirectory))
+	argsSlice = append(argsSlice, fmt.Sprintf("--workdir=%v", os.ExpandEnv(p.WorkingDirectory)))
 	if envvars != nil && len(envvars) > 0 {
 		for k, v := range envvars {
 			argsSlice = append(argsSlice, "-e")
@@ -100,7 +100,7 @@ func runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (s
 	// the commands to execute in the container
 	argsSlice = append(argsSlice, p.Shell)
 	argsSlice = append(argsSlice, "-c")
-	argsSlice = append(argsSlice, strings.Join(p.Commands, ";"))
+	argsSlice = append(argsSlice, os.ExpandEnv(strings.Join(p.Commands, ";")))
 
 	fmt.Printf("[estafette] Running command '%v %v'\n", cmd, strings.Join(argsSlice, " "))
 	dockerRunCmd := exec.Command(cmd, argsSlice...)
@@ -187,6 +187,8 @@ func collectEstafetteEnvvars(m estafetteManifest) (envvars map[string]string) {
 
 			envvarName := "ESTAFETTE_LABEL_" + toUpperSnake(key)
 			envvars[envvarName] = value
+
+			os.Setenv(envvarName, value)
 		}
 	}
 
