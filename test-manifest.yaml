@@ -13,6 +13,7 @@ pipelines:
 
   bake:
     image: docker:17.03.0-ce
+    shell: /bin/bash
     commands:
     - cp Dockerfile ./publish
     - docker build -t estafette-ci-builder ./publish

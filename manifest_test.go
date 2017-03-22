@@ -47,4 +47,44 @@ func TestReadManifest(t *testing.T) {
 		assert.Equal(t, "cp Dockerfile ./publish", manifest.Pipelines[1].Commands[0])
 		assert.Equal(t, "docker build -t estafette-ci-builder ./publish", manifest.Pipelines[1].Commands[1])
 	})
+
+	t.Run("ReturnsWorkDirDefaultIfMissing", func(t *testing.T) {
+
+		// act
+		manifest, err := readManifest("test-manifest.yaml")
+
+		assert.Nil(t, err)
+
+		assert.Equal(t, "/go/src/github.com/estafette/estafette-ci-builder", manifest.Pipelines[0].WorkingDirectory)
+	})
+
+	t.Run("ReturnsWorkDirIfSet", func(t *testing.T) {
+
+		// act
+		manifest, err := readManifest("test-manifest.yaml")
+
+		assert.Nil(t, err)
+
+		assert.Equal(t, "/estafette-work", manifest.Pipelines[1].WorkingDirectory)
+	})
+
+	t.Run("ReturnsShellDefaultIfMissing", func(t *testing.T) {
+
+		// act
+		manifest, err := readManifest("test-manifest.yaml")
+
+		assert.Nil(t, err)
+
+		assert.Equal(t, "/bin/sh", manifest.Pipelines[0].Shell)
+	})
+
+	t.Run("ReturnsShellIfSet", func(t *testing.T) {
+
+		// act
+		manifest, err := readManifest("test-manifest.yaml")
+
+		assert.Nil(t, err)
+
+		assert.Equal(t, "/bin/bash", manifest.Pipelines[1].Shell)
+	})
 }

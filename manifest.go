@@ -71,6 +71,16 @@ func (c *estafetteManifest) unmarshalYAML(data []byte) error {
 				// set estafettePipeline name
 				p.Name = t.Key.(string)
 
+				// set default for Shell if not set
+				if p.Shell == "" {
+					p.Shell = "/bin/sh"
+				}
+
+				// set default for WorkingDirectory if not set
+				if p.WorkingDirectory == "" {
+					p.WorkingDirectory = "/estafette-work"
+				}
+
 				// add pipeline
 				c.Pipelines = append(c.Pipelines, &p)
 			}
