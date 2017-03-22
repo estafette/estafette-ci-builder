@@ -6,7 +6,6 @@ labels:
 pipelines:
   build:
     image: golang:1.8.0-alpine
-    shell: /bin/sh
     workingDirectory: /go/src/github.com/estafette/estafette-ci-builder
     commands:
     - go test -v ./...
@@ -14,7 +13,6 @@ pipelines:
 
   bake:
     image: docker:17.03.0-ce
-    shell: /bin/sh
     commands:
     - cp Dockerfile ./publish
     - docker build -t estafette-ci-builder ./publish
