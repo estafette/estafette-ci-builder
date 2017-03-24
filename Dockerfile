@@ -1,4 +1,4 @@
-FROM travix/gocd-agent-gcloud:17.2.0
+FROM travix/gocd-agent-gcloud:17.3.0
 
 MAINTAINER estafette.io
 
