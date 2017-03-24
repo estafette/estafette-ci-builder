@@ -29,6 +29,8 @@ func main() {
 
 	statsSlice := make([]estafettePipelineStat, 0)
 
+	exitCode := 0
+
 	for _, p := range manifest.Pipelines {
 		stat, err := runPipeline(dir, envvars, *p)
 		if err != nil {
@@ -36,7 +38,8 @@ func main() {
 		}
 
 		if stat.ExitCode() > 0 {
-			os.Exit(stat.ExitCode())
+			exitCode = stat.ExitCode()
+			break
 		}
 
 		statsSlice = append(statsSlice, stat)
@@ -44,7 +47,7 @@ func main() {
 
 	renderStats(statsSlice)
 
-	os.Exit(0)
+	os.Exit(exitCode)
 }
 
 func renderStats(statsSlice []estafettePipelineStat) {

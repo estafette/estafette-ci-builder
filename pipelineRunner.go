@@ -125,10 +125,10 @@ func runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (s
 	in := bufio.NewScanner(multi)
 
 	for in.Scan() {
-		fmt.Printf("[estafette|%v] %s", p.Name, in.Text()) // write each line to your log, or anything you need
+		fmt.Printf("[estafette|%v] %s\n", p.Name, in.Text()) // write each line to your log, or anything you need
 	}
 	if err := in.Err(); err != nil {
-		fmt.Printf("[estafette|%v] Error: %s", p.Name, err)
+		fmt.Printf("[estafette|%v] Error: %s\n", p.Name, err)
 	}
 
 	// wait for completion
