@@ -21,7 +21,7 @@ pipelines:
     - ls -latr ./publish
     - rm -rf ./publish
 
-  push-to-docker-hub:
+  push-to-gcr-io:
     image: docker:17.03.0-ce
     commands:
     - docker login --email=1234@5678.com --username=_json_key --password='${ESTAFETTE_GCR_PASSWORD}' https://gcr.io
