@@ -45,4 +45,6 @@ COPY estafette-ci-builder /usr/bin/
 COPY ./docker-entrypoint.sh /
 RUN chmod 500 /docker-entrypoint.sh
 
+USER go
+
 CMD ["/docker-entrypoint.sh"]
