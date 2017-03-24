@@ -4,22 +4,16 @@ MAINTAINER estafette.io
 
 # build time environment variables
 ENV GO_VERSION=17.3.0 \
-    GO_BUILD_VERSION=17.3.0-4704 \
-    USER_NAME=go \
-    USER_ID=1000 \
-    GROUP_NAME=root
+    GO_BUILD_VERSION=17.3.0-4704
 
 # install go.cd agent
-RUN adduser -D -u ${USER_ID} -h /var/go -G ${GROUP_NAME} ${USER_NAME} \
-    && apk --update-cache upgrade \
+RUN apk --update-cache upgrade \
     && apk add --update-cache \
       openjdk8-jre-base \
       git \
       bash \
       curl \
       openssh-client \
-      ca-certificates \
-    && update-ca-certificates \
     && rm /var/cache/apk/* \
     && curl -fSL "https://download.gocd.io/binaries/${GO_BUILD_VERSION}/generic/go-agent-${GO_BUILD_VERSION}.zip" -o /tmp/go-agent.zip \
     && unzip /tmp/go-agent.zip -d / \
