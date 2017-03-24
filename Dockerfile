@@ -19,7 +19,8 @@ RUN apk --update-cache upgrade \
     && unzip /tmp/go-agent.zip -d / \
     && rm /tmp/go-agent.zip \
     && mv go-agent-${GO_VERSION} /var/lib/go-agent \
-    && mkdir -p /var/log/go-agent
+    && mkdir -p /var/log/go-agent \
+    && sed -i -e "s_root:/root_root:/var/go_" /etc/passwd
 
 # runtime environment variables
 ENV LANG="en_US.utf8" \
