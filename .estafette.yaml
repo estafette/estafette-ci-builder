@@ -24,5 +24,5 @@ pipelines:
   push-to-gcr-io:
     image: docker:17.03.0-ce
     commands:
-    - docker login --email=1234@5678.com --username=_json_key --password='${ESTAFETTE_GCR_PASSWORD}' https://gcr.io
+    - docker login --username=_json_key --password='${ESTAFETTE_GCR_PASSWORD}' https://gcr.io
     - docker push gcr.io/${ESTAFETTE_GCR_PROJECT}/${ESTAFETTE_LABEL_APP}:${ESTAFETTE_BUILD_VERSION}
