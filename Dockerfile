@@ -30,6 +30,7 @@ ENV LANG="en_US.utf8" \
     AGENT_MAX_MEM=256m \
     AGENT_MEM=128m \
     AGENT_RESOURCES="" \
+    HOME="/var/go" \
     GO_SERVER_URL=https://localhost:8154/go
 
 # copy builder
