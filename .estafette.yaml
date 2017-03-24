@@ -18,7 +18,6 @@ pipelines:
     - cp Dockerfile ./publish
     - cp docker-entrypoint.sh ./publish
     - docker build -t gcr.io/${ESTAFETTE_GCR_PROJECT}/${ESTAFETTE_LABEL_APP}:${ESTAFETTE_BUILD_VERSION} ./publish
-    - ls -latr ./publish
     - rm -rf ./publish
 
   push-to-gcr-io:
