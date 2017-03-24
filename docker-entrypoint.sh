@@ -46,11 +46,14 @@ log4j.appender.ConsoleAppender.layout=org.apache.log4j.PatternLayout
 log4j.appender.ConsoleAppender.layout.ConversionPattern=%d{ISO8601} [%-9t] %-5p %-16c{4}:%L %x- %m%n
 EOL
 
+serverUrl=${GO_SERVER_URL/https/http}
+serverUrl=${serverUrl/8154/8153}
+
 # wait for server to be available
-until curl -ksLo /dev/null "${GO_SERVER_URL}"
+until curl -ksLo /dev/null "${serverUrl}"
 do
   sleep 5
-  echo "Waiting for ${GO_SERVER_URL}"
+  echo "Waiting for ${serverUrl}"
 done
 
 # run dockerd
