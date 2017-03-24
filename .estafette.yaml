@@ -16,7 +16,7 @@ pipelines:
     commands:
     - docker info
     - cp Dockerfile ./publish
-    - cp supervisord.conf ./publish
+    - cp dind.sh ./publish
     - docker build -t gcr.io/travix-com/${ESTAFETTE_LABEL_APP}:${ESTAFETTE_BUILD_VERSION} ./publish
     - ls -latr ./publish
     - rm -rf ./publish

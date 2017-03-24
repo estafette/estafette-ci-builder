@@ -3,7 +3,7 @@ FROM travix/gocd-agent-gcloud:17.3.0
 MAINTAINER estafette.io
 
 COPY estafette-ci-builder /opt/estafette/
-COPY supervisord.conf /etc/supervisord.conf
+COPY dind.sh /
 
 # add to path
 RUN sed -i -e "s_export PATH=_export PATH=/opt/estafette:_" /var/go/.profile
