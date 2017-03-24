@@ -99,7 +99,7 @@ func runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (s
 	// the commands to execute in the container
 	argsSlice = append(argsSlice, p.Shell)
 	argsSlice = append(argsSlice, "-c")
-	argsSlice = append(argsSlice, os.ExpandEnv(strings.Join(p.Commands, "; ")))
+	argsSlice = append(argsSlice, os.ExpandEnv(strings.Join(p.Commands, ";")))
 
 	fmt.Printf("[estafette] Running command '%v %v'\n", cmd, strings.Join(argsSlice, " "))
 	dockerRunCmd := exec.Command(cmd, argsSlice...)
