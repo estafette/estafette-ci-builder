@@ -13,7 +13,6 @@ RUN apk --update-cache upgrade \
       git \
       bash \
       curl \
-      openssh-client \
     && rm /var/cache/apk/* \
     && curl -fSL "https://download.gocd.io/binaries/${GO_BUILD_VERSION}/generic/go-agent-${GO_BUILD_VERSION}.zip" -o /tmp/go-agent.zip \
     && unzip /tmp/go-agent.zip -d / \
@@ -31,7 +30,6 @@ ENV LANG="en_US.utf8" \
     AGENT_MAX_MEM=256m \
     AGENT_MEM=128m \
     AGENT_RESOURCES="" \
-    HOME="/var/go" \
     GO_SERVER_URL=https://localhost:8154/go
 
 # copy builder
