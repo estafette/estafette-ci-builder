@@ -17,6 +17,9 @@ RUN adduser -D -u ${USER_ID} -h /var/go -G ${GROUP_NAME} ${USER_NAME} \
       git \
       bash \
       curl \
+      openssh-client \
+      ca-certificates \
+    && update-ca-certificates \
     && rm /var/cache/apk/* \
     && curl -fSL "https://download.gocd.io/binaries/${GO_BUILD_VERSION}/generic/go-agent-${GO_BUILD_VERSION}.zip" -o /tmp/go-agent.zip \
     && unzip /tmp/go-agent.zip -d / \
