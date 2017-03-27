@@ -23,7 +23,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	fmt.Printf("[estafette] Running %v pipelines\n", len(manifest.Pipelines))
+	fmt.Printf("[ estafette ] Running %v pipelines\n", len(manifest.Pipelines))
 
 	envvars := collectEstafetteEnvvars(manifest)
 

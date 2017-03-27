@@ -49,7 +49,7 @@ func runDockerPull(p estafettePipeline) (stat dockerPullStat, err error) {
 	argsSlice = append(argsSlice, "pull")
 	argsSlice = append(argsSlice, p.ContainerImage)
 
-	fmt.Printf("[estafette] Running command '%v %v'\n", cmd, strings.Join(argsSlice, " "))
+	fmt.Printf("[ estafette ] Running command '%v %v'\n", cmd, strings.Join(argsSlice, " "))
 	dockerPullCmd := exec.Command(cmd, argsSlice...)
 
 	// run and wait until completion
@@ -101,7 +101,7 @@ func runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (s
 	argsSlice = append(argsSlice, "-c")
 	argsSlice = append(argsSlice, os.ExpandEnv(strings.Join(p.Commands, ";")))
 
-	fmt.Printf("[estafette] Running command '%v %v'\n", cmd, strings.Join(argsSlice, " "))
+	fmt.Printf("[ estafette ] Running command '%v %v'\n", cmd, strings.Join(argsSlice, " "))
 	dockerRunCmd := exec.Command(cmd, argsSlice...)
 
 	// pipe logs
@@ -125,10 +125,10 @@ func runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (s
 	in := bufio.NewScanner(multi)
 
 	for in.Scan() {
-		fmt.Printf("[estafette | %v] %s\n", p.Name, in.Text()) // write each line to your log, or anything you need
+		fmt.Printf("[ estafette | %v ] %s\n", p.Name, in.Text()) // write each line to your log, or anything you need
 	}
 	if err := in.Err(); err != nil {
-		fmt.Printf("[estafette | %v] Error: %s\n", p.Name, err)
+		fmt.Printf("[ estafette | %v ] Error: %s\n", p.Name, err)
 	}
 
 	// wait for completion
@@ -198,7 +198,7 @@ func runPipeline(dir string, envvars map[string]string, p estafettePipeline) (st
 
 	stat.Pipeline = p
 
-	fmt.Printf("[estafette] Starting pipeline '%v'\n", p.Name)
+	fmt.Printf("[ estafette ] Starting pipeline '%v'\n", p.Name)
 
 	// pull docker image
 	stat.DockerPullStat, err = runDockerPull(p)
@@ -211,7 +211,7 @@ func runPipeline(dir string, envvars map[string]string, p estafettePipeline) (st
 		return
 	}
 
-	fmt.Printf("[estafette] Finished pipeline '%v' successfully\n", p.Name)
+	fmt.Printf("[ estafette ] Finished pipeline '%v' successfully\n", p.Name)
 
 	return
 }
