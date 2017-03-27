@@ -85,6 +85,7 @@ func runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (s
 	argsSlice = append(argsSlice, "")
 	argsSlice = append(argsSlice, fmt.Sprintf("--volume=%v:%v", dir, os.ExpandEnv(p.WorkingDirectory)))
 	argsSlice = append(argsSlice, "--volume=/var/run/docker.sock:/var/run/docker.sock")
+	argsSlice = append(argsSlice, "--volume=/var/run/secrets/kubernetes.io/serviceaccount:/var/run/secrets/kubernetes.io/serviceaccount")
 	argsSlice = append(argsSlice, fmt.Sprintf("--workdir=%v", os.ExpandEnv(p.WorkingDirectory)))
 	if envvars != nil && len(envvars) > 0 {
 		for k, v := range envvars {
