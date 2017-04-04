@@ -81,7 +81,7 @@ func runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (s
 	argsSlice = append(argsSlice, "run")
 	argsSlice = append(argsSlice, "--privileged")
 	argsSlice = append(argsSlice, "--rm")
-	argsSlice = append(argsSlice, fmt.Sprintf("--entrypoint=%v", p.Shell))
+	argsSlice = append(argsSlice, "--entrypoint")
 	argsSlice = append(argsSlice, "")
 	argsSlice = append(argsSlice, fmt.Sprintf("--volume=%v:%v", dir, os.ExpandEnv(p.WorkingDirectory)))
 	argsSlice = append(argsSlice, "--volume=/var/run/docker.sock:/var/run/docker.sock")
@@ -98,6 +98,7 @@ func runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (s
 	argsSlice = append(argsSlice, p.ContainerImage)
 
 	// the commands to execute in the container
+	argsSlice = append(argsSlice, p.Shell)
 	argsSlice = append(argsSlice, "-c")
 	argsSlice = append(argsSlice, "\"set -e;"+os.ExpandEnv(strings.Join(p.Commands, ";"))+"\"")
 
