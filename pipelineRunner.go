@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -10,6 +11,9 @@ import (
 	"syscall"
 	"time"
 	"unicode"
+
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/client"
 )
 
 type dockerPullStat struct {
@@ -42,26 +46,16 @@ func runDockerPull(p estafettePipeline) (stat dockerPullStat, err error) {
 
 	start := time.Now()
 
-	cmd := "docker"
+	fmt.Printf("[estafette] Pulling docker container '%v'\n", p.ContainerImage)
 
-	// add docker command and options
-	argsSlice := make([]string, 0)
-	argsSlice = append(argsSlice, "pull")
-	argsSlice = append(argsSlice, p.ContainerImage)
+	cli, err := client.NewEnvClient()
+	if err != nil {
+		return stat, err
+	}
 
-	fmt.Printf("[estafette] Running command '%v %v'\n", cmd, strings.Join(argsSlice, " "))
-	dockerPullCmd := exec.Command(cmd, argsSlice...)
-
-	// run and wait until completion
-	if err := dockerPullCmd.Run(); err != nil {
-		if exiterr, ok := err.(*exec.ExitError); ok {
-			if status, ok := exiterr.Sys().(syscall.WaitStatus); ok && status.ExitStatus() > 0 {
-				stat.ExitCode = status.ExitStatus()
-				return stat, err
-			}
-		} else {
-			return stat, err
-		}
+	_, err = cli.ImagePull(context.Background(), p.ContainerImage, types.ImagePullOptions{})
+	if err != nil {
+		return stat, err
 	}
 
 	stat.Duration = time.Since(start)
