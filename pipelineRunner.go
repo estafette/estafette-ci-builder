@@ -142,14 +142,28 @@ func runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (s
 
 		// strip first 8 bytes, they contain docker control characters (https://github.com/docker/docker/issues/7375)
 		logLine := in.Text()
+		output := os.Stdout
 		if len(logLine) > 8 {
+
+			headers := []byte(logLine[0:8])
+
+			// first byte contains the streamType
+			// -   0: stdin (will be written on stdout)
+			// -   1: stdout
+			// -   2: stderr
+			streamType := headers[0]
+
+			if streamType == 2 {
+				output = os.Stderr
+			}
+
 			logLine = logLine[8:]
 		}
 
-		fmt.Printf("[estafette] [%v] %v\n", p.Name, logLine)
+		fmt.Fprintf(output, "[estafette] [%v] %v\n", p.Name, logLine)
 	}
 	if err := in.Err(); err != nil {
-		fmt.Printf("[estafette] [%v] Error: %v\n", p.Name, err)
+		fmt.Fprintf(os.Stderr, "[estafette] [%v] Error: %v\n", p.Name, err)
 	}
 
 	// wait for container to stop run

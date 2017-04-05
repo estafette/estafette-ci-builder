@@ -34,12 +34,14 @@ func main() {
 	for _, p := range manifest.Pipelines {
 		stat, err := runPipeline(dir, envvars, *p)
 		if err != nil {
-			log.Fatal(err)
+			exitCode = 1
+			fmt.Fprintf(os.Stderr, "[estafette] Error: %v\n", err)
+			break
 		}
 
 		if stat.ExitCode() > 0 {
 			exitCode = stat.ExitCode()
-			fmt.Printf("[estafette] Exit code: %v", exitCode)
+			fmt.Fprintf(os.Stderr, "[estafette] Exit code: %v", exitCode)
 			break
 		}
 
