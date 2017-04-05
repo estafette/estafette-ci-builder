@@ -77,8 +77,12 @@
 			"revisionTime": "2017-04-04T16:55:13Z"
 		},
 		{
+			"checksumSHA1": "BHWRYLuNJly1Asgi2s/OQiS+LJU=",
 			"path": "github.com/docker/docker/api/types/reference",
-			"revision": ""
+			"revision": "c6d412e329c85f32a4b2269b49aaa0794affcf88",
+			"revisionTime": "2017-03-23T23:07:51Z",
+			"version": "v17.03.1-ce",
+			"versionExact": "v17.03.1-ce"
 		},
 		{
 			"checksumSHA1": "93qfc2M61FdF62qeGXZHWpVSK8k=",
