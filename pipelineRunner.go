@@ -58,6 +58,28 @@ func runDockerPull(p estafettePipeline) (stat dockerPullStat, err error) {
 		return stat, err
 	}
 
+	// cmd := "docker"
+
+	// // add docker command and options
+	// argsSlice := make([]string, 0)
+	// argsSlice = append(argsSlice, "pull")
+	// argsSlice = append(argsSlice, p.ContainerImage)
+
+	// fmt.Printf("[estafette] Running command '%v %v'\n", cmd, strings.Join(argsSlice, " "))
+	// dockerPullCmd := exec.Command(cmd, argsSlice...)
+
+	// // run and wait until completion
+	// if err := dockerPullCmd.Run(); err != nil {
+	// 	if exiterr, ok := err.(*exec.ExitError); ok {
+	// 		if status, ok := exiterr.Sys().(syscall.WaitStatus); ok && status.ExitStatus() > 0 {
+	// 			stat.ExitCode = status.ExitStatus()
+	// 			return stat, err
+	// 		}
+	// 	} else {
+	// 		return stat, err
+	// 	}
+	// }
+
 	stat.Duration = time.Since(start)
 
 	return

@@ -34,7 +34,7 @@ func main() {
 	for _, p := range manifest.Pipelines {
 		stat, err := runPipeline(dir, envvars, *p)
 		if err != nil {
-			os.Exit(1)
+			log.Fatal(err)
 		}
 
 		if stat.ExitCode() > 0 {
