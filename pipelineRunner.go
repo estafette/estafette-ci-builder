@@ -4,16 +4,15 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"strings"
-	"syscall"
 	"time"
 	"unicode"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 )
 
@@ -59,29 +58,9 @@ func runDockerPull(p estafettePipeline) (stat dockerPullStat, err error) {
 	if err != nil {
 		return stat, err
 	}
+
+	// wait for image pull to finish
 	ioutil.ReadAll(rc)
-
-	// cmd := "docker"
-
-	// // add docker command and options
-	// argsSlice := make([]string, 0)
-	// argsSlice = append(argsSlice, "pull")
-	// argsSlice = append(argsSlice, p.ContainerImage)
-
-	// fmt.Printf("[estafette] Running command '%v %v'\n", cmd, strings.Join(argsSlice, " "))
-	// dockerPullCmd := exec.Command(cmd, argsSlice...)
-
-	// // run and wait until completion
-	// if err := dockerPullCmd.Run(); err != nil {
-	// 	if exiterr, ok := err.(*exec.ExitError); ok {
-	// 		if status, ok := exiterr.Sys().(syscall.WaitStatus); ok && status.ExitStatus() > 0 {
-	// 			stat.ExitCode = status.ExitStatus()
-	// 			return stat, err
-	// 		}
-	// 	} else {
-	// 		return stat, err
-	// 	}
-	// }
 
 	stat.Duration = time.Since(start)
 
@@ -93,118 +72,72 @@ func runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (s
 	// run docker with image and commands from yaml
 	start := time.Now()
 
-	// ctx := context.Background()
-	// cli, err := client.NewEnvClient()
-	// if err != nil {
-	// 	return stat, err
-	// }
+	ctx := context.Background()
+	cli, err := client.NewEnvClient()
+	if err != nil {
+		return stat, err
+	}
 
-	// cmdSlice := make([]string, 0)
-	// cmdSlice = append(cmdSlice, p.Shell)
-	// cmdSlice = append(cmdSlice, "-c")
-	// cmdSlice = append(cmdSlice, "set -e;"+os.ExpandEnv(strings.Join(p.Commands, ";")))
+	// define commands
+	cmdSlice := make([]string, 0)
+	cmdSlice = append(cmdSlice, p.Shell)
+	cmdSlice = append(cmdSlice, "-c")
+	cmdSlice = append(cmdSlice, "set -e;"+os.ExpandEnv(strings.Join(p.Commands, ";")))
 
-	// resp, err := cli.ContainerCreate(ctx, &container.Config{
-
-	// 	// Hostname        string              // Hostname
-	// 	// Domainname      string              // Domainname
-	// 	// User            string              // User that will run the command(s) inside the container, also support user:group
-	// 	// AttachStdin     bool                // Attach the standard input, makes possible user interaction
-	// 	// AttachStdout    bool                // Attach the standard output
-	// 	// AttachStderr    bool                // Attach the standard error
-	// 	// ExposedPorts    nat.PortSet         `json:",omitempty"` // List of exposed ports
-	// 	// Tty             bool                // Attach standard streams to a tty, including stdin if it is not closed.
-	// 	// OpenStdin       bool                // Open stdin
-	// 	// StdinOnce       bool                // If true, close stdin after the 1 attached client disconnects.
-	// 	// Env             []string            // List of environment variable to set in the container
-	// 	// Cmd             strslice.StrSlice   // Command to run when starting the container
-	// 	// Healthcheck     *HealthConfig       `json:",omitempty"` // Healthcheck describes how to check the container is healthy
-	// 	// ArgsEscaped     bool                `json:",omitempty"` // True if command is already escaped (Windows specific)
-	// 	// Image           string              // Name of the image as it was passed by the operator (e.g. could be symbolic)
-	// 	// Volumes         map[string]struct{} // List of volumes (mounts) used for the container
-	// 	// WorkingDir      string              // Current directory (PWD) in the command will be launched
-	// 	// Entrypoint      strslice.StrSlice   // Entrypoint to run when starting the container
-	// 	// NetworkDisabled bool                `json:",omitempty"` // Is network disabled
-	// 	// MacAddress      string              `json:",omitempty"` // Mac Address of the container
-	// 	// OnBuild         []string            // ONBUILD metadata that were defined on the image Dockerfile
-	// 	// Labels          map[string]string   // List of labels set to this container
-	// 	// StopSignal      string              `json:",omitempty"` // Signal to stop a container
-	// 	// StopTimeout     *int                `json:",omitempty"` // Timeout (in seconds) to stop a container
-	// 	// Shell           strslice.StrSlice   `json:",omitempty"` // Shell for shell-form of RUN, CMD, ENTRYPOINT
-
-	// 	Image: p.ContainerImage,
-	// 	Cmd:   cmdSlice,
-	// }, nil, nil, "")
-	// if err != nil {
-	// 	return stat, err
-	// }
-
-	// if err := cli.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{}); err != nil {
-	// 	return stat, err
-	// }
-
-	// if _, err = cli.ContainerWait(ctx, resp.ID); err != nil {
-	// 	return stat, err
-	// }
-
-	// out, err := cli.ContainerLogs(ctx, resp.ID, types.ContainerLogsOptions{ShowStdout: true})
-	// if err != nil {
-	// 	return stat, err
-	// }
-
-	// io.Copy(os.Stdout, out)
-
-	cmd := "docker"
-
-	// add docker command and options
-	argsSlice := make([]string, 0)
-	argsSlice = append(argsSlice, "run")
-	argsSlice = append(argsSlice, "--privileged")
-	argsSlice = append(argsSlice, "--rm")
-	argsSlice = append(argsSlice, "--entrypoint")
-	argsSlice = append(argsSlice, "")
-	argsSlice = append(argsSlice, fmt.Sprintf("--volume=%v:%v", dir, os.ExpandEnv(p.WorkingDirectory)))
-	argsSlice = append(argsSlice, "--volume=/var/run/docker.sock:/var/run/docker.sock")
-	argsSlice = append(argsSlice, "--volume=/var/run/secrets/kubernetes.io/serviceaccount:/var/run/secrets/kubernetes.io/serviceaccount")
-	argsSlice = append(argsSlice, fmt.Sprintf("--workdir=%v", os.ExpandEnv(p.WorkingDirectory)))
+	// define envvars
+	envVars := make([]string, 0)
 	if envvars != nil && len(envvars) > 0 {
 		for k, v := range envvars {
-			argsSlice = append(argsSlice, "-e")
-			argsSlice = append(argsSlice, fmt.Sprintf("\"%v=%v\"", k, v))
+			envVars = append(envVars, fmt.Sprintf("\"%v=%v\"", k, v))
 		}
 	}
 
-	// the actual container to run
-	argsSlice = append(argsSlice, p.ContainerImage)
+	// define entrypoint
+	entrypoint := make([]string, 0)
+	entrypoint = append(entrypoint, "")
 
-	// the commands to execute in the container
-	argsSlice = append(argsSlice, p.Shell)
-	argsSlice = append(argsSlice, "-c")
-	argsSlice = append(argsSlice, "set -e;"+os.ExpandEnv(strings.Join(p.Commands, ";")))
+	// define binds
+	binds := make([]string, 0)
+	binds = append(binds, fmt.Sprintf("%v:%v", dir, os.ExpandEnv(p.WorkingDirectory)))
+	binds = append(binds, "/var/run/docker.sock:/var/run/docker.sock")
+	binds = append(binds, "/var/run/secrets/kubernetes.io/serviceaccount:/var/run/secrets/kubernetes.io/serviceaccount")
 
-	fmt.Printf("[estafette] Running command '%v %v'\n", cmd, strings.Join(argsSlice, " "))
-	dockerRunCmd := exec.Command(cmd, argsSlice...)
-
-	// pipe logs
-	stdout, err := dockerRunCmd.StdoutPipe()
+	// create container
+	resp, err := cli.ContainerCreate(ctx, &container.Config{
+		AttachStdout: true,
+		AttachStderr: true,
+		Env:          envVars,
+		Cmd:          cmdSlice,
+		Image:        p.ContainerImage,
+		WorkingDir:   os.ExpandEnv(p.WorkingDirectory),
+		Entrypoint:   entrypoint,
+	}, &container.HostConfig{
+		Binds:      binds,
+		AutoRemove: true,
+		Privileged: true,
+	}, &network.NetworkingConfig{}, "")
 	if err != nil {
 		return stat, err
 	}
-	stderr, err := dockerRunCmd.StderrPipe()
+
+	// start container
+	if err := cli.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{}); err != nil {
+		return stat, err
+	}
+
+	// follow logs
+	rc, err := cli.ContainerLogs(ctx, resp.ID, types.ContainerLogsOptions{
+		ShowStdout: true,
+		ShowStderr: true,
+		Follow:     true,
+	})
+	defer rc.Close()
 	if err != nil {
 		return stat, err
 	}
 
-	// start
-	if err := dockerRunCmd.Start(); err != nil {
-		return stat, err
-	}
-
-	// tail logs
-	multi := io.MultiReader(stdout, stderr)
-
-	in := bufio.NewScanner(multi)
-
+	// stream logs to stdout with buffering
+	in := bufio.NewScanner(rc)
 	for in.Scan() {
 		fmt.Printf("[estafette] [%v] %s\n", p.Name, in.Text()) // write each line to your log, or anything you need
 	}
@@ -212,16 +145,9 @@ func runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (s
 		fmt.Printf("[estafette] [%v] Error: %s\n", p.Name, err)
 	}
 
-	// wait for completion
-	if err := dockerRunCmd.Wait(); err != nil {
-		if exiterr, ok := err.(*exec.ExitError); ok {
-			if status, ok := exiterr.Sys().(syscall.WaitStatus); ok && status.ExitStatus() > 0 {
-				stat.ExitCode = status.ExitStatus()
-				return stat, err
-			}
-		} else {
-			return stat, err
-		}
+	// wait for container to stop run
+	if _, err = cli.ContainerWait(ctx, resp.ID); err != nil {
+		return stat, err
 	}
 
 	stat.Duration = time.Since(start)
