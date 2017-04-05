@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"strings"
@@ -53,10 +54,12 @@ func runDockerPull(p estafettePipeline) (stat dockerPullStat, err error) {
 		return stat, err
 	}
 
-	_, err = cli.ImagePull(context.Background(), p.ContainerImage, types.ImagePullOptions{})
+	rc, err := cli.ImagePull(context.Background(), p.ContainerImage, types.ImagePullOptions{})
+	defer rc.Close()
 	if err != nil {
 		return stat, err
 	}
+	ioutil.ReadAll(rc)
 
 	// cmd := "docker"
 
