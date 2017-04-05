@@ -1,9 +1,9 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -137,8 +137,14 @@ func runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (s
 	}
 
 	// stream logs to stdout with buffering
-	if _, err := io.Copy(os.Stdout, rc); err != nil {
-		return stat, err
+	in := bufio.NewScanner(rc)
+	for in.Scan() {
+
+		// strip first 8 bytes, they contain docker control characters (https://github.com/docker/docker/issues/7375)
+		fmt.Printf("[estafette] [%v] %v\n", p.Name, in.Text()[8:])
+	}
+	if err := in.Err(); err != nil {
+		fmt.Printf("[estafette] [%v] Error: %v\n", p.Name, err)
 	}
 
 	// wait for container to stop run
