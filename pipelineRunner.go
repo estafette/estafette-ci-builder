@@ -141,7 +141,12 @@ func runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (s
 	for in.Scan() {
 
 		// strip first 8 bytes, they contain docker control characters (https://github.com/docker/docker/issues/7375)
-		fmt.Printf("[estafette] [%v] %v\n", p.Name, in.Text()[8:])
+		logLine := in.Text()
+		if len(logLine) > 8 {
+			logLine = logLine[8:]
+		}
+
+		fmt.Printf("[estafette] [%v] %v\n", p.Name, logLine)
 	}
 	if err := in.Err(); err != nil {
 		fmt.Printf("[estafette] [%v] Error: %v\n", p.Name, err)
