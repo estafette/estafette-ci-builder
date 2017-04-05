@@ -53,12 +53,7 @@ func runDockerPull(p estafettePipeline) (stat dockerPullStat, err error) {
 		return stat, err
 	}
 
-	containerImage := p.ContainerImage
-	if !strings.Contains(containerImage, "/") {
-		containerImage = "docker.io/library/" + containerImage
-	}
-
-	_, err = cli.ImagePull(context.Background(), containerImage, types.ImagePullOptions{})
+	_, err = cli.ImagePull(context.Background(), p.ContainerImage, types.ImagePullOptions{})
 	if err != nil {
 		return stat, err
 	}
