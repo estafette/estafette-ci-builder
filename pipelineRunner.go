@@ -1,9 +1,9 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -137,12 +137,8 @@ func runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (s
 	}
 
 	// stream logs to stdout with buffering
-	in := bufio.NewScanner(rc)
-	for in.Scan() {
-		fmt.Printf("[estafette] [%v] %v\n", p.Name, in.Text()) // write each line to your log, or anything you need
-	}
-	if err := in.Err(); err != nil {
-		fmt.Printf("[estafette] [%v] Error: %v\n", p.Name, err)
+	if _, err := io.Copy(os.Stdout, rc); err != nil {
+		return stat, err
 	}
 
 	// wait for container to stop run
