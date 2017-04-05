@@ -47,10 +47,12 @@
 			"revisionTime": "2017-04-04T16:55:13Z"
 		},
 		{
-			"checksumSHA1": "On8Z2ak/FE4i11b4owiJ7z8zXn8=",
+			"checksumSHA1": "jD8mLL/Crue26TkvsFEykrJeRtE=",
 			"path": "github.com/docker/docker/api/types/container",
-			"revision": "f6b7dc983782e5800bdfd901f963494df9fbb0b7",
-			"revisionTime": "2017-04-04T16:55:13Z"
+			"revision": "c6d412e329c85f32a4b2269b49aaa0794affcf88",
+			"revisionTime": "2017-03-23T23:07:51Z",
+			"version": "v17.03.1-ce",
+			"versionExact": "v17.03.1-ce"
 		},
 		{
 			"checksumSHA1": "fzeGodcTcWuV18AT0BcvB4EFByo=",

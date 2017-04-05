@@ -39,6 +39,7 @@ func main() {
 
 		if stat.ExitCode() > 0 {
 			exitCode = stat.ExitCode()
+			fmt.Printf("[estafette] Exit code: %v", exitCode)
 			break
 		}
 
