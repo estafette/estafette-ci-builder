@@ -1,7 +1,6 @@
 package main
 
 import (
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"strings"
@@ -27,23 +26,12 @@ func toUpperSnake(in string) string {
 
 func getCommandOutput(name string, arg ...string) (string, error) {
 
-	cmd := exec.Command(name, arg...)
-	err := cmd.Run()
+	out, err := exec.Command(name, arg...).Output()
 	if err != nil {
 		return "", err
 	}
 
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return "", err
-	}
-
-	bytes, err := ioutil.ReadAll(stdout)
-	if err != nil {
-		return "", err
-	}
-
-	return string(bytes), nil
+	return string(out), nil
 }
 
 func setEstafetteGlobalEnvvars() error {
