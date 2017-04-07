@@ -148,8 +148,13 @@ func runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (e
 	}
 
 	// wait for container to stop run
-	if _, err = cli.ContainerWait(ctx, resp.ID); err != nil {
+	exitCode, err := cli.ContainerWait(ctx, resp.ID)
+	if err != nil {
 		return err
+	}
+
+	if exitCode > 0 {
+		return fmt.Errorf("Failed with exit code: %v", exitCode)
 	}
 
 	return
