@@ -37,6 +37,7 @@ Options:
       --default-gateway value                 Container default gateway IPv4 address
       --default-gateway-v6 value              Container default gateway IPv6 address
       --default-runtime string                Default OCI runtime for containers (default "runc")
+      --default-shm-size bytes                Set the default shm size for containers (default 64 MiB)
       --default-ulimit value                  Default ulimits for containers (default [])
       --disable-legacy-registry               Disable contacting legacy registries
       --dns value                             DNS server to use (default [])
@@ -63,7 +64,7 @@ Options:
       --label value                           Set key=value labels to the daemon (default [])
       --live-restore                          Enable live restore of docker when containers are still running (Linux only)
       --log-driver string                     Default driver for container logs (default "json-file")
-  -l, --log-level string                      Set the logging level ("debug", "info", "warn", "error", "fatal") (default "info")
+  -l, --log-level string                      Set the logging level ("debug"|"info"|"warn"|"error"|"fatal") (default "info")
       --log-opt value                         Default log driver options for containers (default map[])
       --max-concurrent-downloads int          Set the max concurrent downloads for each pull (default 3)
       --max-concurrent-uploads int            Set the max concurrent uploads for each push (default 5)
@@ -715,7 +716,7 @@ with the `--exec-opt` flag. All the flag's options have the `native` prefix. A
 single `native.cgroupdriver` option is available.
 
 The `native.cgroupdriver` option specifies the management of the container's
-cgroups. You can specify only specify `cgroupfs` or `systemd`. If you specify
+cgroups. You can only specify `cgroupfs` or `systemd`. If you specify
 `systemd` and it is not available, the system errors out. If you omit the
 `native.cgroupdriver` option,` cgroupfs` is used.
 
@@ -730,8 +731,8 @@ Setting this option applies to all containers the daemon launches.
 Also Windows Container makes use of `--exec-opt` for special purpose. Docker user
 can specify default container isolation technology with this, for example:
 
-```bash
-$ sudo dockerd --exec-opt isolation=hyperv
+```console
+> dockerd --exec-opt isolation=hyperv
 ```
 
 Will make `hyperv` the default isolation technology on Windows. If no isolation
@@ -745,7 +746,6 @@ To set the DNS server for all Docker containers, use:
 ```bash
 $ sudo dockerd --dns 8.8.8.8
 ```
-
 
 To set the DNS search domain for all Docker containers, use:
 
@@ -1152,6 +1152,7 @@ This is a full example of the allowed configuration options on Linux:
 	"cluster-advertise": "",
 	"max-concurrent-downloads": 3,
 	"max-concurrent-uploads": 5,
+	"default-shm-size": "64M",
 	"shutdown-timeout": 15,
 	"debug": true,
 	"hosts": [],
@@ -1189,6 +1190,7 @@ This is a full example of the allowed configuration options on Linux:
 	"seccomp-profile": "",
 	"insecure-registries": [],
 	"disable-legacy-registry": false,
+	"no-new-privileges": false,
 	"default-runtime": "runc",
 	"oom-score-adjust": -500,
 	"runtimes": {
@@ -1285,6 +1287,7 @@ The list of currently supported options that can be reconfigured is this:
   be used to run containers
 - `authorization-plugin`: specifies the authorization plugins to use.
 - `insecure-registries`: it replaces the daemon insecure registries with a new set of insecure registries. If some existing insecure registries in daemon's configuration are not in newly reloaded insecure resgitries, these existing ones will be removed from daemon's config.
+- `registry-mirrors`: it replaces the daemon registry mirrors with a new set of registry mirrors. If some existing registry mirrors in daemon's configuration are not in newly reloaded registry mirrors, these existing ones will be removed from daemon's config.
 
 Updating and reloading the cluster configurations such as `--cluster-store`,
 `--cluster-advertise` and `--cluster-store-opts` will take effect only if
