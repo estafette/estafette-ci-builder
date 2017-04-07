@@ -165,16 +165,16 @@ func runPipeline(dir string, envvars map[string]string, p estafettePipeline) (re
 	dockerPullStart := time.Now()
 	result.DockerPullError = runDockerPull(p)
 	result.DockerPullDuration = time.Since(dockerPullStart)
-	if err != nil {
-		return
+	if result.DockerPullError != nil {
+		return result, result.DockerPullError
 	}
 
 	// run commands in docker container
 	dockerRunStart := time.Now()
 	result.DockerRunError = runDockerRun(dir, envvars, p)
 	result.DockerRunDuration = time.Since(dockerRunStart)
-	if err != nil {
-		return
+	if result.DockerRunError != nil {
+		return result, result.DockerRunError
 	}
 
 	fmt.Printf("[estafette] Finished pipeline '%v' successfully\n", p.Name)
@@ -184,6 +184,7 @@ func runPipeline(dir string, envvars map[string]string, p estafettePipeline) (re
 
 type estafetteRunPipelinesResult struct {
 	PipelineResults []estafettePipelineRunResult
+	Errors          []error
 }
 
 func runPipelines(manifest estafetteManifest, dir string, envvars map[string]string) (result estafetteRunPipelinesResult, firstErr error) {
