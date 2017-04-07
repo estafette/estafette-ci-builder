@@ -17,6 +17,7 @@ import (
 
 type estafettePipelineRunResult struct {
 	Pipeline           estafettePipeline
+	DockerImageSize    int64
 	DockerPullDuration time.Duration
 	DockerPullError    error
 	DockerRunDuration  time.Duration
@@ -47,6 +48,26 @@ func runDockerPull(p estafettePipeline) (err error) {
 	}
 
 	return
+}
+
+func getDockerImageSize(p estafettePipeline) (totalSize int64, err error) {
+
+	cli, err := client.NewEnvClient()
+	if err != nil {
+		return totalSize, err
+	}
+
+	items, err := cli.ImageHistory(context.Background(), p.ContainerImage)
+	//summaries, err := cli.ImageList(context.Background(), type.ImageListOptions{})
+	if err != nil {
+		return totalSize, err
+	}
+
+	for _, item := range items {
+		totalSize += item.Size
+	}
+
+	return totalSize, nil
 }
 
 func runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (err error) {
@@ -173,6 +194,13 @@ func runPipeline(dir string, envvars map[string]string, p estafettePipeline) (re
 	if result.DockerPullError != nil {
 		return result, result.DockerPullError
 	}
+
+	// set docker image size
+	size, err := getDockerImageSize(p)
+	if err != nil {
+		return result, err
+	}
+	result.DockerImageSize = size
 
 	// run commands in docker container
 	dockerRunStart := time.Now()
