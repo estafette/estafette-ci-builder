@@ -21,8 +21,10 @@ Usage:	docker container prune [OPTIONS]
 Remove all stopped containers
 
 Options:
-  -f, --force   Do not prompt for confirmation
-      --help    Print usage
+Options:
+      --filter filter   Provide filter values (e.g. 'until=<timestamp>')
+  -f, --force           Do not prompt for confirmation
+      --help            Print usage
 ```
 
 ## Description

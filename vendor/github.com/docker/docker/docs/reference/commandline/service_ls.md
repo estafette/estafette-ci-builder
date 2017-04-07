@@ -24,9 +24,10 @@ Aliases:
   ls, list
 
 Options:
-  -f, --filter value   Filter output based on conditions provided
-      --help           Print usage
-  -q, --quiet          Only display IDs
+  -f, --filter filter   Filter output based on conditions provided
+      --format string   Pretty-print services using a Go template
+      --help            Print usage
+  -q, --quiet           Only display IDs
 ```
 
 ## Description
@@ -109,9 +110,6 @@ ID            NAME   MODE        REPLICAS  IMAGE
 0bcjwfh8ychr  redis  replicated  1/1       redis:3.0.6
 ```
 
-<<<<<<< HEAD
-## Related information
-=======
 ### Formatting
 
 The formatting options (`--format`) pretty-prints services output
@@ -142,7 +140,6 @@ fm6uf97exkul: global 5/5
 ```
 
 ## Related commands
->>>>>>> 40dbbd3... Merge pull request #30804 from mstanleyjones/cli_fixups
 
 * [service create](service_create.md)
 * [service inspect](service_inspect.md)

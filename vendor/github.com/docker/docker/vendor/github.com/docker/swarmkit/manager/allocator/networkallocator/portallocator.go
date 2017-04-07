@@ -17,12 +17,12 @@ const (
 	dynamicPortEnd = 32767
 
 	// The start of master port range which will hold all the
-	// allocation state of ports allocated so far regerdless of
+	// allocation state of ports allocated so far regardless of
 	// whether it was user defined or not.
 	masterPortStart = 1
 
 	// The end of master port range which will hold all the
-	// allocation state of ports allocated so far regerdless of
+	// allocation state of ports allocated so far regardless of
 	// whether it was user defined or not.
 	masterPortEnd = 65535
 )
@@ -138,7 +138,7 @@ func newPortSpace(protocol api.PortConfig_Protocol) (*portSpace, error) {
 	}, nil
 }
 
-// getPortConfigkey returns a map key for doing set operations with
+// getPortConfigKey returns a map key for doing set operations with
 // ports. The key consists of name, protocol and target port which
 // uniquely identifies a port within a single Endpoint.
 func getPortConfigKey(p *api.PortConfig) api.PortConfig {
@@ -298,6 +298,10 @@ func (pa *portAllocator) portsAllocatedInHostPublishMode(s *api.Service) bool {
 }
 
 func (pa *portAllocator) isPortsAllocated(s *api.Service) bool {
+	return pa.isPortsAllocatedOnInit(s, false)
+}
+
+func (pa *portAllocator) isPortsAllocatedOnInit(s *api.Service, onInit bool) bool {
 	// If service has no user-defined endpoint and allocated endpoint,
 	// we assume it is allocated and return true.
 	if s.Endpoint == nil && s.Spec.Endpoint == nil {
@@ -305,7 +309,7 @@ func (pa *portAllocator) isPortsAllocated(s *api.Service) bool {
 	}
 
 	// If service has allocated endpoint while has no user-defined endpoint,
-	// we assume allocated endpoints are redudant, and they need deallocated.
+	// we assume allocated endpoints are redundant, and they need deallocated.
 	// If service has no allocated endpoint while has user-defined endpoint,
 	// we assume it is not allocated.
 	if (s.Endpoint != nil && s.Spec.Endpoint == nil) ||
@@ -344,6 +348,13 @@ func (pa *portAllocator) isPortsAllocated(s *api.Service) bool {
 			continue
 		}
 		if portConfig.PublishedPort == 0 && portStates.delState(portConfig) == nil {
+			return false
+		}
+
+		// If SwarmPort was not defined by user and the func
+		// is called during allocator initialization state then
+		// we are not allocated.
+		if portConfig.PublishedPort == 0 && onInit {
 			return false
 		}
 	}

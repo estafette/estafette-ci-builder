@@ -23,6 +23,7 @@ Initialize a swarm
 Options:
       --advertise-addr string           Advertised address (format: <ip|interface>[:port])
       --autolock                        Enable manager autolocking (requiring an unlock key to start a stopped manager)
+      --availability string             Availability of the node ("active"|"pause"|"drain") (default "active")
       --cert-expiry duration            Validity period for node certificates (ns|us|ms|s|m|h) (default 2160h0m0s)
       --dispatcher-heartbeat duration   Dispatcher heartbeat period (ns|us|ms|s|m|h) (default 5s)
       --external-ca external-ca         Specifications of one or more certificate signing endpoints
@@ -149,7 +150,8 @@ by passing `--availability=drain` to `docker swarm init`.
 ## Related commands
 
 * [swarm join](swarm_join.md)
-* [swarm leave](swarm_leave.md)
-* [swarm update](swarm_update.md)
 * [swarm join-token](swarm_join_token.md)
-* [node rm](node_rm.md)
+* [swarm leave](swarm_leave.md)
+* [swarm unlock](swarm_unlock.md)
+* [swarm unlock-key](swarm_unlock_key.md)
+* [swarm update](swarm_update.md)
