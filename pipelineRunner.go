@@ -164,6 +164,7 @@ func runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (s
 	}
 	if err := in.Err(); err != nil {
 		fmt.Fprintf(os.Stderr, "[estafette] [%v] Error: %v\n", p.Name, err)
+		return stat, err
 	}
 
 	// wait for container to stop run
