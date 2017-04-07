@@ -162,7 +162,8 @@ func (c *Cluster) resolveSystemAddrViaSubnetCheck() (net.IP, error) {
 	var systemInterface string
 
 	// List Docker-managed subnets
-	v4Subnets, v6Subnets := c.config.NetworkSubnetsProvider.Subnets()
+	v4Subnets := c.config.NetworkSubnetsProvider.V4Subnets()
+	v6Subnets := c.config.NetworkSubnetsProvider.V6Subnets()
 
 ifaceLoop:
 	for _, intf := range interfaces {

@@ -4,10 +4,11 @@ import (
 	"errors"
 	"io"
 
+	"golang.org/x/net/context"
+
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/spf13/cobra"
-	"golang.org/x/net/context"
 )
 
 type exportOptions struct {

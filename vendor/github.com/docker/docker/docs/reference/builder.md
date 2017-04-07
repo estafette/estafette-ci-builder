@@ -199,8 +199,8 @@ directive:
 
 ```Dockerfile
 # About my dockerfile
-# directive=value
 FROM ImageName
+# directive=value
 ```
 
 The unknown directive is treated as a comment due to not being recognized. In
@@ -405,9 +405,9 @@ Here is an example `.dockerignore` file:
 
 ```
 # comment
-*/temp*
-*/*/temp*
-temp?
+    */temp*
+    */*/temp*
+    temp?
 ```
 
 This file causes the following build behavior:
@@ -711,7 +711,7 @@ it instead, as it enables setting any metadata you require, and can be viewed
 easily, for example with `docker inspect`. To set a label corresponding to the
 `MAINTAINER` field you could use:
 
-    LABEL maintainer="SvenDowideit@home.org.au"
+    LABEL maintainer "SvenDowideit@home.org.au"
 
 This will then be visible from `docker inspect` with the other labels.
 
@@ -1029,7 +1029,7 @@ the final executable receives the Unix signals by using `exec` and `gosu`
 commands:
 
 ```bash
-#!/usr/bin/env bash
+#!/bin/bash
 set -e
 
 if [ "$1" = 'postgres' ]; then
@@ -1743,6 +1743,6 @@ FROM ubuntu
 RUN echo moo > oink
 # Will output something like ===> 695d7793cbe4
 
-# You'll now have two images, 907ad6c2736f with /bar, and 695d7793cbe4 with
+# You᾿ll now have two images, 907ad6c2736f with /bar, and 695d7793cbe4 with
 # /oink.
 ```

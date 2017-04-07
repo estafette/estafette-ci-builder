@@ -18,10 +18,9 @@ import (
 	"github.com/docker/swarmkit/manager/state/store"
 	"github.com/docker/swarmkit/protobuf/ptypes"
 	"github.com/docker/swarmkit/watch"
-	gogotypes "github.com/gogo/protobuf/types"
 )
 
-const defaultMonitor = 5 * time.Second
+const defaultMonitor = 30 * time.Second
 
 // Supervisor supervises a set of updates. It's responsible for keeping track of updates,
 // shutting them down and replacing them.
@@ -156,34 +155,10 @@ func (u *Updater) Run(ctx context.Context, slots []orchestrator.Slot) {
 		u.startUpdate(ctx, service.ID)
 	}
 
-	var (
-		parallelism            = 1
-		delay                  time.Duration
-		failureAction          = api.UpdateConfig_PAUSE
-		allowedFailureFraction = float32(0)
-		monitoringPeriod       = defaultMonitor
-	)
-
-	updateConfig := service.Spec.Update
-	if service.UpdateStatus != nil && service.UpdateStatus.State == api.UpdateStatus_ROLLBACK_STARTED {
-		updateConfig = service.Spec.Rollback
+	parallelism := 0
+	if service.Spec.Update != nil {
+		parallelism = int(service.Spec.Update.Parallelism)
 	}
-
-	if updateConfig != nil {
-		failureAction = updateConfig.FailureAction
-		allowedFailureFraction = updateConfig.MaxFailureRatio
-		parallelism = int(updateConfig.Parallelism)
-		delay = updateConfig.Delay
-
-		var err error
-		if updateConfig.Monitor != nil {
-			monitoringPeriod, err = gogotypes.DurationFromProto(updateConfig.Monitor)
-			if err != nil {
-				monitoringPeriod = defaultMonitor
-			}
-		}
-	}
-
 	if parallelism == 0 {
 		// TODO(aluzzardi): We could try to optimize unlimited parallelism by performing updates in a single
 		// goroutine using a batch transaction.
@@ -196,9 +171,26 @@ func (u *Updater) Run(ctx context.Context, slots []orchestrator.Slot) {
 	wg.Add(parallelism)
 	for i := 0; i < parallelism; i++ {
 		go func() {
-			u.worker(ctx, slotQueue, delay)
+			u.worker(ctx, slotQueue)
 			wg.Done()
 		}()
+	}
+
+	failureAction := api.UpdateConfig_PAUSE
+	allowedFailureFraction := float32(0)
+	monitoringPeriod := defaultMonitor
+
+	if service.Spec.Update != nil {
+		failureAction = service.Spec.Update.FailureAction
+		allowedFailureFraction = service.Spec.Update.MaxFailureRatio
+
+		if service.Spec.Update.Monitor != nil {
+			var err error
+			monitoringPeriod, err = ptypes.Duration(service.Spec.Update.Monitor)
+			if err != nil {
+				monitoringPeriod = defaultMonitor
+			}
+		}
 	}
 
 	var failedTaskWatch chan events.Event
@@ -310,7 +302,7 @@ slotsLoop:
 	}
 }
 
-func (u *Updater) worker(ctx context.Context, queue <-chan orchestrator.Slot, delay time.Duration) {
+func (u *Updater) worker(ctx context.Context, queue <-chan orchestrator.Slot) {
 	for slot := range queue {
 		// Do we have a task with the new spec in desired state = RUNNING?
 		// If so, all we have to do to complete the update is remove the
@@ -352,7 +344,12 @@ func (u *Updater) worker(ctx context.Context, queue <-chan orchestrator.Slot, de
 			}
 		}
 
-		if delay != 0 {
+		if u.newService.Spec.Update != nil && (u.newService.Spec.Update.Delay.Seconds != 0 || u.newService.Spec.Update.Delay.Nanos != 0) {
+			delay, err := ptypes.Duration(&u.newService.Spec.Update.Delay)
+			if err != nil {
+				log.G(ctx).WithError(err).Error("invalid update delay")
+				continue
+			}
 			select {
 			case <-time.After(delay):
 			case <-u.stopChan:
@@ -409,11 +406,7 @@ func (u *Updater) updateTask(ctx context.Context, slot orchestrator.Slot, update
 	}
 
 	if delayStartCh != nil {
-		select {
-		case <-delayStartCh:
-		case <-u.stopChan:
-			return nil
-		}
+		<-delayStartCh
 	}
 
 	// Wait for the new task to come up.
@@ -463,11 +456,7 @@ func (u *Updater) useExistingTask(ctx context.Context, slot orchestrator.Slot, e
 		}
 
 		if delayStartCh != nil {
-			select {
-			case <-delayStartCh:
-			case <-u.stopChan:
-				return nil
-			}
+			<-delayStartCh
 		}
 	}
 

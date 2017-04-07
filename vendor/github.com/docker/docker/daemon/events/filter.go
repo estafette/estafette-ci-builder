@@ -1,9 +1,9 @@
 package events
 
 import (
-	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/reference"
 )
 
 // Filter can filter out docker events from a stream
@@ -102,9 +102,9 @@ func (ef *Filter) matchImage(ev events.Message) bool {
 }
 
 func stripTag(image string) string {
-	ref, err := reference.ParseNormalizedNamed(image)
+	ref, err := reference.ParseNamed(image)
 	if err != nil {
 		return image
 	}
-	return reference.FamiliarName(ref)
+	return ref.Name()
 }

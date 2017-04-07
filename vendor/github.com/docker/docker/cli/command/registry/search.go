@@ -118,7 +118,7 @@ func runSearch(dockerCli *command.DockerCli, opts searchOptions) error {
 	return nil
 }
 
-// searchResultsByStars sorts search results in descending order by number of stars.
+// SearchResultsByStars sorts search results in descending order by number of stars.
 type searchResultsByStars []registrytypes.SearchResult
 
 func (r searchResultsByStars) Len() int           { return len(r) }

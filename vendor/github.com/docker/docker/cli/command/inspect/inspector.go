@@ -5,12 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"strings"
 	"text/template"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/cli"
-	"github.com/docker/docker/pkg/templates"
+	"github.com/docker/docker/utils/templates"
 )
 
 // Inspector defines an interface to implement to process elements
@@ -61,16 +60,17 @@ func Inspect(out io.Writer, references []string, tmplStr string, getRef GetRefFu
 		return cli.StatusError{StatusCode: 64, Status: err.Error()}
 	}
 
-	var inspectErrs []string
+	var inspectErr error
 	for _, ref := range references {
 		element, raw, err := getRef(ref)
 		if err != nil {
-			inspectErrs = append(inspectErrs, err.Error())
-			continue
+			inspectErr = err
+			break
 		}
 
 		if err := inspector.Inspect(element, raw); err != nil {
-			inspectErrs = append(inspectErrs, err.Error())
+			inspectErr = err
+			break
 		}
 	}
 
@@ -78,11 +78,8 @@ func Inspect(out io.Writer, references []string, tmplStr string, getRef GetRefFu
 		logrus.Errorf("%s\n", err)
 	}
 
-	if len(inspectErrs) != 0 {
-		return cli.StatusError{
-			StatusCode: 1,
-			Status:     strings.Join(inspectErrs, "\n"),
-		}
+	if inspectErr != nil {
+		return cli.StatusError{StatusCode: 1, Status: inspectErr.Error()}
 	}
 	return nil
 }

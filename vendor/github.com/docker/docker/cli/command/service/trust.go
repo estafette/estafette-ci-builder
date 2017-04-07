@@ -5,13 +5,14 @@ import (
 	"fmt"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/distribution/reference"
+	"github.com/docker/distribution/digest"
+	distreference "github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/cli/trust"
+	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 	"github.com/docker/notary/tuf/data"
-	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
@@ -23,36 +24,41 @@ func resolveServiceImageDigest(dockerCli *command.DockerCli, service *swarm.Serv
 		return nil
 	}
 
-	ref, err := reference.ParseAnyReference(service.TaskTemplate.ContainerSpec.Image)
-	if err != nil {
-		return errors.Wrapf(err, "invalid reference %s", service.TaskTemplate.ContainerSpec.Image)
+	image := service.TaskTemplate.ContainerSpec.Image
+
+	// We only attempt to resolve the digest if the reference
+	// could be parsed as a digest reference. Specifying an image ID
+	// is valid but not resolvable. There is no warning message for
+	// an image ID because it's valid to use one.
+	if _, err := digest.ParseDigest(image); err == nil {
+		return nil
 	}
 
-	// If reference does not have digest (is not canonical nor image id)
-	if _, ok := ref.(reference.Digested); !ok {
-		namedRef, ok := ref.(reference.Named)
+	ref, err := reference.ParseNamed(image)
+	if err != nil {
+		return fmt.Errorf("Could not parse image reference %s", service.TaskTemplate.ContainerSpec.Image)
+	}
+	if _, ok := ref.(reference.Canonical); !ok {
+		ref = reference.WithDefaultTag(ref)
+
+		taggedRef, ok := ref.(reference.NamedTagged)
 		if !ok {
-			return errors.New("failed to resolve image digest using content trust: reference is not named")
-		}
-		namedRef = reference.TagNameOnly(namedRef)
-		taggedRef, ok := namedRef.(reference.NamedTagged)
-		if !ok {
-			return errors.New("failed to resolve image digest using content trust: reference is not tagged")
+			// This should never happen because a reference either
+			// has a digest, or WithDefaultTag would give it a tag.
+			return errors.New("Failed to resolve image digest using content trust: reference is missing a tag")
 		}
 
 		resolvedImage, err := trustedResolveDigest(context.Background(), dockerCli, taggedRef)
 		if err != nil {
-			return errors.Wrap(err, "failed to resolve image digest using content trust")
+			return fmt.Errorf("Failed to resolve image digest using content trust: %v", err)
 		}
-		resolvedFamiliar := reference.FamiliarString(resolvedImage)
-		logrus.Debugf("resolved image tag to %s using content trust", resolvedFamiliar)
-		service.TaskTemplate.ContainerSpec.Image = resolvedFamiliar
+		logrus.Debugf("resolved image tag to %s using content trust", resolvedImage.String())
+		service.TaskTemplate.ContainerSpec.Image = resolvedImage.String()
 	}
-
 	return nil
 }
 
-func trustedResolveDigest(ctx context.Context, cli *command.DockerCli, ref reference.NamedTagged) (reference.Canonical, error) {
+func trustedResolveDigest(ctx context.Context, cli *command.DockerCli, ref reference.NamedTagged) (distreference.Canonical, error) {
 	repoInfo, err := registry.ParseRepositoryInfo(ref)
 	if err != nil {
 		return nil, err
@@ -67,12 +73,12 @@ func trustedResolveDigest(ctx context.Context, cli *command.DockerCli, ref refer
 
 	t, err := notaryRepo.GetTargetByName(ref.Tag(), trust.ReleasesRole, data.CanonicalTargetsRole)
 	if err != nil {
-		return nil, trust.NotaryError(repoInfo.Name.Name(), err)
+		return nil, trust.NotaryError(repoInfo.FullName(), err)
 	}
 	// Only get the tag if it's in the top level targets role or the releases delegation role
 	// ignore it if it's in any other delegation roles
 	if t.Role != trust.ReleasesRole && t.Role != data.CanonicalTargetsRole {
-		return nil, trust.NotaryError(repoInfo.Name.Name(), fmt.Errorf("No trust data for %s", reference.FamiliarString(ref)))
+		return nil, trust.NotaryError(repoInfo.FullName(), fmt.Errorf("No trust data for %s", ref.String()))
 	}
 
 	logrus.Debugf("retrieving target for %s role\n", t.Role)
@@ -83,6 +89,8 @@ func trustedResolveDigest(ctx context.Context, cli *command.DockerCli, ref refer
 
 	dgst := digest.NewDigestFromHex("sha256", hex.EncodeToString(h))
 
-	// Allow returning canonical reference with tag
-	return reference.WithDigest(ref, dgst)
+	// Using distribution reference package to make sure that adding a
+	// digest does not erase the tag. When the two reference packages
+	// are unified, this will no longer be an issue.
+	return distreference.WithDigest(ref, dgst)
 }

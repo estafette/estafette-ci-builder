@@ -6,7 +6,6 @@ import (
 	"github.com/docker/docker/cli/command/image"
 	"github.com/docker/docker/cli/command/network"
 	"github.com/docker/docker/cli/command/volume"
-	"github.com/docker/docker/opts"
 	"github.com/spf13/cobra"
 )
 
@@ -31,21 +30,21 @@ func NewNetworkPruneCommand(dockerCli *command.DockerCli) *cobra.Command {
 }
 
 // RunContainerPrune executes a prune command for containers
-func RunContainerPrune(dockerCli *command.DockerCli, filter opts.FilterOpt) (uint64, string, error) {
-	return container.RunPrune(dockerCli, filter)
+func RunContainerPrune(dockerCli *command.DockerCli) (uint64, string, error) {
+	return container.RunPrune(dockerCli)
 }
 
 // RunVolumePrune executes a prune command for volumes
-func RunVolumePrune(dockerCli *command.DockerCli, filter opts.FilterOpt) (uint64, string, error) {
+func RunVolumePrune(dockerCli *command.DockerCli) (uint64, string, error) {
 	return volume.RunPrune(dockerCli)
 }
 
 // RunImagePrune executes a prune command for images
-func RunImagePrune(dockerCli *command.DockerCli, all bool, filter opts.FilterOpt) (uint64, string, error) {
-	return image.RunPrune(dockerCli, all, filter)
+func RunImagePrune(dockerCli *command.DockerCli, all bool) (uint64, string, error) {
+	return image.RunPrune(dockerCli, all)
 }
 
 // RunNetworkPrune executes a prune command for networks
-func RunNetworkPrune(dockerCli *command.DockerCli, filter opts.FilterOpt) (uint64, string, error) {
-	return network.RunPrune(dockerCli, filter)
+func RunNetworkPrune(dockerCli *command.DockerCli) (uint64, string, error) {
+	return network.RunPrune(dockerCli)
 }

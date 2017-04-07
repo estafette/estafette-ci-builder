@@ -31,10 +31,7 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 	case libcontainerd.StateExit:
 		// if container's AutoRemove flag is set, remove it after clean up
 		autoRemove := func() {
-			c.Lock()
-			ar := c.HostConfig.AutoRemove
-			c.Unlock()
-			if ar {
+			if c.HostConfig.AutoRemove {
 				if err := daemon.ContainerRm(c.ID, &types.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil {
 					logrus.Errorf("can't remove container %s: %v", c.ID, err)
 				}
@@ -93,7 +90,7 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 			execConfig.Running = false
 			execConfig.StreamConfig.Wait()
 			if err := execConfig.CloseStreams(); err != nil {
-				logrus.Errorf("failed to cleanup exec %s streams: %s", c.ID, err)
+				logrus.Errorf("%s: %s", c.ID, err)
 			}
 
 			// remove the exec command from the container's store only and not the

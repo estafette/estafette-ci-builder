@@ -16,13 +16,16 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/pkg/system"
+	"github.com/docker/docker/utils"
 	"github.com/docker/docker/volume"
 	"github.com/opencontainers/runc/libcontainer/label"
 	"golang.org/x/sys/unix"
 )
 
 const (
-	containerSecretMountPath = "/run/secrets"
+	// DefaultSHMSize is the default size (64MB) of the SHM which will be mounted in the container
+	DefaultSHMSize           int64 = 67108864
+	containerSecretMountPath       = "/run/secrets"
 )
 
 // Container holds the fields specific to unixen implementations.
@@ -66,7 +69,7 @@ func (container *Container) CreateDaemonEnvironment(tty bool, linkedEnv []string
 	// because the env on the container can override certain default values
 	// we need to replace the 'env' keys where they match and append anything
 	// else.
-	env = ReplaceOrAppendEnvValues(env, container.Config.Env)
+	env = utils.ReplaceOrAppendEnvValues(env, container.Config.Env)
 	return env
 }
 

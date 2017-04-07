@@ -74,27 +74,16 @@ type NetworkInfo interface {
 	// gossip cluster. For non-dynamic overlay networks and bridge networks it returns an
 	// empty slice
 	Peers() []networkdb.PeerInfo
-	//Services returns a map of services keyed by the service name with the details
-	//of all the tasks that belong to the service. Applicable only in swarm mode.
-	Services() map[string]ServiceInfo
 }
 
 // EndpointWalker is a client provided function which will be used to walk the Endpoints.
 // When the function returns true, the walk will stop.
 type EndpointWalker func(ep Endpoint) bool
 
-// ipInfo is the reverse mapping from IP to service name to serve the PTR query.
-// extResolver is set if an externl server resolves a service name to this IP.
-// Its an indication to defer PTR queries also to that external server.
-type ipInfo struct {
-	name        string
-	extResolver bool
-}
-
 type svcInfo struct {
 	svcMap     map[string][]net.IP
 	svcIPv6Map map[string][]net.IP
-	ipMap      map[string]*ipInfo
+	ipMap      map[string]string
 	service    map[string][]servicePorts
 }
 
@@ -109,11 +98,6 @@ type servicePorts struct {
 	portName string
 	proto    string
 	target   []serviceTarget
-}
-
-type networkDBTable struct {
-	name    string
-	objType driverapi.ObjectType
 }
 
 // IpamConf contains all the ipam related configurations for a network
@@ -216,7 +200,7 @@ type network struct {
 	attachable   bool
 	inDelete     bool
 	ingress      bool
-	driverTables []networkDBTable
+	driverTables []string
 	dynamic      bool
 	sync.Mutex
 }
@@ -892,7 +876,7 @@ func (n *network) CreateEndpoint(name string, options ...EndpointOption) (Endpoi
 	}
 
 	if _, err = n.EndpointByName(name); err == nil {
-		return nil, types.ForbiddenErrorf("endpoint with name %s already exists in network %s", name, n.Name())
+		return nil, types.ForbiddenErrorf("service endpoint with name %s already exists", name)
 	}
 
 	ep := &endpoint{name: name, generic: make(map[string]interface{}), iface: &endpointInterface{}}
@@ -1085,12 +1069,10 @@ func (n *network) updateSvcRecord(ep *endpoint, localEps []*endpoint, isAdd bool
 	}
 }
 
-func addIPToName(ipMap map[string]*ipInfo, name string, ip net.IP) {
+func addIPToName(ipMap map[string]string, name string, ip net.IP) {
 	reverseIP := netutils.ReverseIP(ip.String())
 	if _, ok := ipMap[reverseIP]; !ok {
-		ipMap[reverseIP] = &ipInfo{
-			name: name,
-		}
+		ipMap[reverseIP] = name
 	}
 }
 
@@ -1126,8 +1108,6 @@ func (n *network) addSvcRecords(name string, epIP net.IP, epIPv6 net.IP, ipMapUp
 		return
 	}
 
-	logrus.Debugf("(%s).addSvcRecords(%s, %s, %s, %t)", n.ID()[0:7], name, epIP, epIPv6, ipMapUpdate)
-
 	c := n.getController()
 	c.Lock()
 	defer c.Unlock()
@@ -1136,7 +1116,7 @@ func (n *network) addSvcRecords(name string, epIP net.IP, epIPv6 net.IP, ipMapUp
 		sr = svcInfo{
 			svcMap:     make(map[string][]net.IP),
 			svcIPv6Map: make(map[string][]net.IP),
-			ipMap:      make(map[string]*ipInfo),
+			ipMap:      make(map[string]string),
 		}
 		c.svcRecords[n.ID()] = sr
 	}
@@ -1160,8 +1140,6 @@ func (n *network) deleteSvcRecords(name string, epIP net.IP, epIPv6 net.IP, ipMa
 	if n.ingress {
 		return
 	}
-
-	logrus.Debugf("(%s).deleteSvcRecords(%s, %s, %s, %t)", n.ID()[0:7], name, epIP, epIPv6, ipMapUpdate)
 
 	c := n.getController()
 	c.Lock()
@@ -1615,18 +1593,11 @@ func (n *network) Labels() map[string]string {
 	return lbls
 }
 
-func (n *network) TableEventRegister(tableName string, objType driverapi.ObjectType) error {
-	if !driverapi.IsValidType(objType) {
-		return fmt.Errorf("invalid object type %v in registering table, %s", objType, tableName)
-	}
-
-	t := networkDBTable{
-		name:    tableName,
-		objType: objType,
-	}
+func (n *network) TableEventRegister(tableName string) error {
 	n.Lock()
 	defer n.Unlock()
-	n.driverTables = append(n.driverTables, t)
+
+	n.driverTables = append(n.driverTables, tableName)
 	return nil
 }
 
@@ -1640,8 +1611,8 @@ func (n *network) ResolveName(req string, ipType int) ([]net.IP, bool) {
 
 	c := n.getController()
 	c.Lock()
-	defer c.Unlock()
 	sr, ok := c.svcRecords[n.ID()]
+	c.Unlock()
 
 	if !ok {
 		return nil, false
@@ -1649,6 +1620,7 @@ func (n *network) ResolveName(req string, ipType int) ([]net.IP, bool) {
 
 	req = strings.TrimSuffix(req, ".")
 	var ip []net.IP
+	n.Lock()
 	ip, ok = sr.svcMap[req]
 
 	if ipType == types.IPv6 {
@@ -1661,6 +1633,7 @@ func (n *network) ResolveName(req string, ipType int) ([]net.IP, bool) {
 		}
 		ip = sr.svcIPv6Map[req]
 	}
+	n.Unlock()
 
 	if ip != nil {
 		ipLocal := make([]net.IP, len(ip))
@@ -1671,28 +1644,13 @@ func (n *network) ResolveName(req string, ipType int) ([]net.IP, bool) {
 	return nil, ipv6Miss
 }
 
-func (n *network) HandleQueryResp(name string, ip net.IP) {
-	c := n.getController()
-	c.Lock()
-	defer c.Unlock()
-	sr, ok := c.svcRecords[n.ID()]
-
-	if !ok {
-		return
-	}
-
-	ipStr := netutils.ReverseIP(ip.String())
-
-	if ipInfo, ok := sr.ipMap[ipStr]; ok {
-		ipInfo.extResolver = true
-	}
-}
-
 func (n *network) ResolveIP(ip string) string {
+	var svc string
+
 	c := n.getController()
 	c.Lock()
-	defer c.Unlock()
 	sr, ok := c.svcRecords[n.ID()]
+	c.Unlock()
 
 	if !ok {
 		return ""
@@ -1700,13 +1658,15 @@ func (n *network) ResolveIP(ip string) string {
 
 	nwName := n.Name()
 
-	ipInfo, ok := sr.ipMap[ip]
+	n.Lock()
+	defer n.Unlock()
+	svc, ok = sr.ipMap[ip]
 
-	if !ok || ipInfo.extResolver {
-		return ""
+	if ok {
+		return svc + "." + nwName
 	}
 
-	return ipInfo.name + "." + nwName
+	return svc
 }
 
 func (n *network) ResolveService(name string) ([]*net.SRV, []net.IP) {
@@ -1730,8 +1690,8 @@ func (n *network) ResolveService(name string) ([]*net.SRV, []net.IP) {
 	svcName := strings.Join(parts[2:], ".")
 
 	c.Lock()
-	defer c.Unlock()
 	sr, ok := c.svcRecords[n.ID()]
+	c.Unlock()
 
 	if !ok {
 		return nil, nil

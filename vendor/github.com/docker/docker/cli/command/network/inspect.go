@@ -10,9 +10,8 @@ import (
 )
 
 type inspectOptions struct {
-	format  string
-	names   []string
-	verbose bool
+	format string
+	names  []string
 }
 
 func newInspectCommand(dockerCli *command.DockerCli) *cobra.Command {
@@ -29,7 +28,6 @@ func newInspectCommand(dockerCli *command.DockerCli) *cobra.Command {
 	}
 
 	cmd.Flags().StringVarP(&opts.format, "format", "f", "", "Format the output using the given Go template")
-	cmd.Flags().BoolVarP(&opts.verbose, "verbose", "v", false, "Verbose output for diagnostics")
 
 	return cmd
 }
@@ -40,7 +38,7 @@ func runInspect(dockerCli *command.DockerCli, opts inspectOptions) error {
 	ctx := context.Background()
 
 	getNetFunc := func(name string) (interface{}, []byte, error) {
-		return client.NetworkInspectWithRaw(ctx, name, opts.verbose)
+		return client.NetworkInspectWithRaw(ctx, name)
 	}
 
 	return inspect.Inspect(dockerCli.Out(), opts.names, opts.format, getNetFunc)

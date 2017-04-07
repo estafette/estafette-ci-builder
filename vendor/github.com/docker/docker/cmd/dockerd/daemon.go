@@ -26,12 +26,10 @@ import (
 	systemrouter "github.com/docker/docker/api/server/router/system"
 	"github.com/docker/docker/api/server/router/volume"
 	"github.com/docker/docker/builder/dockerfile"
-	cliconfig "github.com/docker/docker/cli/config"
-	"github.com/docker/docker/cli/debug"
 	cliflags "github.com/docker/docker/cli/flags"
+	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/cluster"
-	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/libcontainerd"
@@ -45,6 +43,7 @@ import (
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
+	"github.com/docker/docker/utils"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/spf13/pflag"
 )
@@ -55,7 +54,7 @@ const (
 
 // DaemonCli represents the daemon CLI.
 type DaemonCli struct {
-	*config.Config
+	*daemon.Config
 	configFile *string
 	flags      *pflag.FlagSet
 
@@ -69,14 +68,14 @@ func NewDaemonCli() *DaemonCli {
 	return &DaemonCli{}
 }
 
-func migrateKey(config *config.Config) (err error) {
+func migrateKey(config *daemon.Config) (err error) {
 	// No migration necessary on Windows
 	if runtime.GOOS == "windows" {
 		return nil
 	}
 
 	// Migrate trust key if exists at ~/.docker/key.json and owned by current user
-	oldPath := filepath.Join(cliconfig.Dir(), cliflags.DefaultTrustKeyFile)
+	oldPath := filepath.Join(cliconfig.ConfigDir(), cliflags.DefaultTrustKeyFile)
 	newPath := filepath.Join(getDaemonConfDir(config.Root), cliflags.DefaultTrustKeyFile)
 	if _, statErr := os.Stat(newPath); os.IsNotExist(statErr) && currentUserIsOwner(oldPath) {
 		defer func() {
@@ -137,7 +136,7 @@ func (cli *DaemonCli) start(opts daemonOptions) (err error) {
 	}
 
 	if cli.Config.Debug {
-		debug.Enable()
+		utils.EnableDebug()
 	}
 
 	if cli.Config.Experimental {
@@ -227,7 +226,7 @@ func (cli *DaemonCli) start(opts daemonOptions) (err error) {
 
 		// It's a bad idea to bind to TCP without tlsverify.
 		if proto == "tcp" && (serverConfig.TLSConfig == nil || serverConfig.TLSConfig.ClientAuth != tls.RequireAndVerifyClientCert) {
-			logrus.Warn("[!] DON'T BIND ON ANY IP ADDRESS WITHOUT setting --tlsverify IF YOU DON'T KNOW WHAT YOU'RE DOING [!]")
+			logrus.Warn("[!] DON'T BIND ON ANY IP ADDRESS WITHOUT setting -tlsverify IF YOU DON'T KNOW WHAT YOU'RE DOING [!]")
 		}
 		ls, err := listeners.Init(proto, addr, serverConfig.SocketGroup, serverConfig.TLSConfig)
 		if err != nil {
@@ -260,9 +259,6 @@ func (cli *DaemonCli) start(opts daemonOptions) (err error) {
 		cli.stop()
 		<-stopc // wait for daemonCli.start() to return
 	})
-
-	// Notify that the API is active, but before daemon is set up.
-	preNotifySystem()
 
 	d, err := daemon.NewDaemon(cli.Config, registryService, containerdRemote)
 	if err != nil {
@@ -339,7 +335,7 @@ func (cli *DaemonCli) start(opts daemonOptions) (err error) {
 }
 
 func (cli *DaemonCli) reloadConfig() {
-	reload := func(config *config.Config) {
+	reload := func(config *daemon.Config) {
 
 		// Revalidate and reload the authorization plugins
 		if err := validateAuthzPlugins(config.AuthorizationPlugins, cli.d.PluginStore); err != nil {
@@ -354,20 +350,20 @@ func (cli *DaemonCli) reloadConfig() {
 		}
 
 		if config.IsValueSet("debug") {
-			debugEnabled := debug.IsEnabled()
+			debugEnabled := utils.IsDebugEnabled()
 			switch {
 			case debugEnabled && !config.Debug: // disable debug
-				debug.Disable()
+				utils.DisableDebug()
 				cli.api.DisableProfiler()
 			case config.Debug && !debugEnabled: // enable debug
-				debug.Enable()
+				utils.EnableDebug()
 				cli.api.EnableProfiler()
 			}
 
 		}
 	}
 
-	if err := config.Reload(*cli.configFile, cli.flags, reload); err != nil {
+	if err := daemon.ReloadConfiguration(*cli.configFile, cli.flags, reload); err != nil {
 		logrus.Error(err)
 	}
 }
@@ -399,24 +395,24 @@ func shutdownDaemon(d *daemon.Daemon) {
 	}
 }
 
-func loadDaemonCliConfig(opts daemonOptions) (*config.Config, error) {
-	conf := opts.daemonConfig
+func loadDaemonCliConfig(opts daemonOptions) (*daemon.Config, error) {
+	config := opts.daemonConfig
 	flags := opts.flags
-	conf.Debug = opts.common.Debug
-	conf.Hosts = opts.common.Hosts
-	conf.LogLevel = opts.common.LogLevel
-	conf.TLS = opts.common.TLS
-	conf.TLSVerify = opts.common.TLSVerify
-	conf.CommonTLSOptions = config.CommonTLSOptions{}
+	config.Debug = opts.common.Debug
+	config.Hosts = opts.common.Hosts
+	config.LogLevel = opts.common.LogLevel
+	config.TLS = opts.common.TLS
+	config.TLSVerify = opts.common.TLSVerify
+	config.CommonTLSOptions = daemon.CommonTLSOptions{}
 
 	if opts.common.TLSOptions != nil {
-		conf.CommonTLSOptions.CAFile = opts.common.TLSOptions.CAFile
-		conf.CommonTLSOptions.CertFile = opts.common.TLSOptions.CertFile
-		conf.CommonTLSOptions.KeyFile = opts.common.TLSOptions.KeyFile
+		config.CommonTLSOptions.CAFile = opts.common.TLSOptions.CAFile
+		config.CommonTLSOptions.CertFile = opts.common.TLSOptions.CertFile
+		config.CommonTLSOptions.KeyFile = opts.common.TLSOptions.KeyFile
 	}
 
 	if opts.configFile != "" {
-		c, err := config.MergeDaemonConfigurations(conf, flags, opts.configFile)
+		c, err := daemon.MergeDaemonConfigurations(config, flags, opts.configFile)
 		if err != nil {
 			if flags.Changed(flagDaemonConfigFile) || !os.IsNotExist(err) {
 				return nil, fmt.Errorf("unable to configure the Docker daemon with file %s: %v\n", opts.configFile, err)
@@ -425,11 +421,11 @@ func loadDaemonCliConfig(opts daemonOptions) (*config.Config, error) {
 		// the merged configuration can be nil if the config file didn't exist.
 		// leave the current configuration as it is if when that happens.
 		if c != nil {
-			conf = c
+			config = c
 		}
 	}
 
-	if err := config.Validate(conf); err != nil {
+	if err := daemon.ValidateConfiguration(config); err != nil {
 		return nil, err
 	}
 
@@ -446,20 +442,20 @@ func loadDaemonCliConfig(opts daemonOptions) (*config.Config, error) {
 	// }
 	// config.Labels = newLabels
 	//
-	if _, err := config.GetConflictFreeLabels(conf.Labels); err != nil {
+	if _, err := daemon.GetConflictFreeLabels(config.Labels); err != nil {
 		logrus.Warnf("Engine labels with duplicate keys and conflicting values have been deprecated: %s", err)
 	}
 
 	// Regardless of whether the user sets it to true or false, if they
 	// specify TLSVerify at all then we need to turn on TLS
-	if conf.IsValueSet(cliflags.FlagTLSVerify) {
-		conf.TLS = true
+	if config.IsValueSet(cliflags.FlagTLSVerify) {
+		config.TLS = true
 	}
 
 	// ensure that the log level is the one set after merging configurations
-	cliflags.SetLogLevel(conf.LogLevel)
+	cliflags.SetLogLevel(config.LogLevel)
 
-	return conf, nil
+	return config, nil
 }
 
 func initRouter(s *apiserver.Server, d *daemon.Daemon, c *cluster.Cluster) {
@@ -491,7 +487,7 @@ func initRouter(s *apiserver.Server, d *daemon.Daemon, c *cluster.Cluster) {
 		}
 	}
 
-	s.InitRouter(debug.IsEnabled(), routers...)
+	s.InitRouter(utils.IsDebugEnabled(), routers...)
 }
 
 func (cli *DaemonCli) initMiddlewares(s *apiserver.Server, cfg *apiserver.Config) error {
@@ -520,7 +516,7 @@ func (cli *DaemonCli) initMiddlewares(s *apiserver.Server, cfg *apiserver.Config
 // plugins present on the host and available to the daemon
 func validateAuthzPlugins(requestedPlugins []string, pg plugingetter.PluginGetter) error {
 	for _, reqPlugin := range requestedPlugins {
-		if _, err := pg.Get(reqPlugin, authorization.AuthZApiImplements, plugingetter.Lookup); err != nil {
+		if _, err := pg.Get(reqPlugin, authorization.AuthZApiImplements, plugingetter.LOOKUP); err != nil {
 			return err
 		}
 	}

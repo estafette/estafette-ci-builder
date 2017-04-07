@@ -21,7 +21,6 @@ Usage:  docker build [OPTIONS] PATH | URL | -
 Build an image from a Dockerfile
 
 Options:
-      --add-host value          Add a custom host-to-IP mapping (host:ip) (default [])
       --build-arg value         Set build-time variables (default [])
       --cache-from value        Images to consider as cache sources (default [])
       --cgroup-parent string    Optional parent cgroup for the container
@@ -50,7 +49,7 @@ Options:
   -q, --quiet                   Suppress the build output and print image ID on success
       --rm                      Remove intermediate containers after a successful build (default true)
       --security-opt value      Security Options (default [])
-      --shm-size bytes          Size of /dev/shm
+      --shm-size string         Size of /dev/shm, default value is 64MB.
                                 The format is `<number><unit>`. `number` must be greater than `0`.
                                 Unit is optional and can be `b` (bytes), `k` (kilobytes), `m` (megabytes),
                                 or `g` (gigabytes). If you omit the unit, the system uses bytes.
@@ -262,7 +261,7 @@ Successfully built 377c409b35e4
 This sends the URL `http://server/ctx.tar.gz` to the Docker daemon, which
 downloads and extracts the referenced tarball. The `-f ctx/Dockerfile`
 parameter specifies a path inside `ctx.tar.gz` to the `Dockerfile` that is used
-to build the image. Any `ADD` commands in that `Dockerfile` that refers to local
+to build the image. Any `ADD` commands in that `Dockerfile` that refer to local
 paths must be relative to the root of the contents inside `ctx.tar.gz`. In the
 example above, the tarball contains a directory `ctx/`, so the `ADD
 ctx/container.cfg /` operation works as expected.
@@ -433,19 +432,12 @@ Linux namespaces. On Microsoft Windows, you can specify these values:
 
 Specifying the `--isolation` flag without a value is the same as setting `--isolation="default"`.
 
-### Add entries to container hosts file (--add-host)
-
-You can add other hosts into a container's `/etc/hosts` file by using one or
-more `--add-host` flags. This example adds a static address for a host named
-`docker`:
-
-    $ docker build --add-host=docker:10.180.0.1 .
 
 ### Squash an image's layers (--squash) **Experimental Only**
 
 Once the image is built, squash the new layers into a new image with a single
 new layer. Squashing does not destroy any existing image, rather it creates a new
-image with the content of the squashed layers. This effectively makes it look
+image with the content of the squshed layers. This effectively makes it look
 like all `Dockerfile` commands were created with a single layer. The build
 cache is preserved with this method.
 
@@ -456,4 +448,3 @@ space.
 **Note**: using this option you may see significantly more space used due to
 storing two copies of the image, one for the build cache with all the cache
 layers in tact, and one for the squashed version.
-

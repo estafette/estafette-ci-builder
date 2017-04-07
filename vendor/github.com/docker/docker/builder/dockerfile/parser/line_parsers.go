@@ -252,7 +252,7 @@ func parseStringsWhitespaceDelimited(rest string, d *Directive) (*Node, map[stri
 	return rootnode, nil, nil
 }
 
-// parseString just wraps the string in quotes and returns a working node.
+// parsestring just wraps the string in quotes and returns a working node.
 func parseString(rest string, d *Directive) (*Node, map[string]bool, error) {
 	if rest == "" {
 		return nil, nil, nil

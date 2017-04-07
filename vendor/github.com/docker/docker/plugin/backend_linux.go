@@ -17,10 +17,9 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/distribution/digest"
 	"github.com/docker/distribution/manifest/schema2"
-	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/distribution"
 	progressutils "github.com/docker/docker/distribution/utils"
 	"github.com/docker/docker/distribution/xfer"
@@ -31,16 +30,10 @@ import (
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/plugin/v2"
-	refstore "github.com/docker/docker/reference"
-	"github.com/opencontainers/go-digest"
+	"github.com/docker/docker/reference"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
-
-var acceptedPluginFilterTags = map[string]bool{
-	"enabled":    true,
-	"capability": true,
-}
 
 // Disable deactivates a plugin. This means resources (volumes, networks) cant use them.
 func (pm *Manager) Disable(refOrID string, config *types.PluginDisableConfig) error {
@@ -132,7 +125,7 @@ func (s *tempConfigStore) Put(c []byte) (digest.Digest, error) {
 
 func (s *tempConfigStore) Get(d digest.Digest) ([]byte, error) {
 	if d != s.configDigest {
-		return nil, fmt.Errorf("digest not found")
+		return nil, digest.ErrDigestNotFound
 	}
 	return s.config, nil
 }
@@ -233,16 +226,13 @@ func (pm *Manager) Upgrade(ctx context.Context, ref reference.Named, name string
 	defer pm.muGC.RUnlock()
 
 	// revalidate because Pull is public
-	nameref, err := reference.ParseNormalizedNamed(name)
+	nameref, err := reference.ParseNamed(name)
 	if err != nil {
 		return errors.Wrapf(err, "failed to parse %q", name)
 	}
-	name = reference.FamiliarString(reference.TagNameOnly(nameref))
+	name = reference.WithDefaultTag(nameref).String()
 
 	tmpRootFSDir, err := ioutil.TempDir(pm.tmpDir(), ".rootfs")
-	if err != nil {
-		return err
-	}
 	defer os.RemoveAll(tmpRootFSDir)
 
 	dm := &downloadManager{
@@ -281,20 +271,17 @@ func (pm *Manager) Pull(ctx context.Context, ref reference.Named, name string, m
 	defer pm.muGC.RUnlock()
 
 	// revalidate because Pull is public
-	nameref, err := reference.ParseNormalizedNamed(name)
+	nameref, err := reference.ParseNamed(name)
 	if err != nil {
 		return errors.Wrapf(err, "failed to parse %q", name)
 	}
-	name = reference.FamiliarString(reference.TagNameOnly(nameref))
+	name = reference.WithDefaultTag(nameref).String()
 
 	if err := pm.config.Store.validateName(name); err != nil {
 		return err
 	}
 
 	tmpRootFSDir, err := ioutil.TempDir(pm.tmpDir(), ".rootfs")
-	if err != nil {
-		return err
-	}
 	defer os.RemoveAll(tmpRootFSDir)
 
 	dm := &downloadManager{
@@ -330,41 +317,10 @@ func (pm *Manager) Pull(ctx context.Context, ref reference.Named, name string, m
 }
 
 // List displays the list of plugins and associated metadata.
-func (pm *Manager) List(pluginFilters filters.Args) ([]types.Plugin, error) {
-	if err := pluginFilters.Validate(acceptedPluginFilterTags); err != nil {
-		return nil, err
-	}
-
-	enabledOnly := false
-	disabledOnly := false
-	if pluginFilters.Include("enabled") {
-		if pluginFilters.ExactMatch("enabled", "true") {
-			enabledOnly = true
-		} else if pluginFilters.ExactMatch("enabled", "false") {
-			disabledOnly = true
-		} else {
-			return nil, fmt.Errorf("Invalid filter 'enabled=%s'", pluginFilters.Get("enabled"))
-		}
-	}
-
+func (pm *Manager) List() ([]types.Plugin, error) {
 	plugins := pm.config.Store.GetAll()
 	out := make([]types.Plugin, 0, len(plugins))
-
-next:
 	for _, p := range plugins {
-		if enabledOnly && !p.PluginObj.Enabled {
-			continue
-		}
-		if disabledOnly && p.PluginObj.Enabled {
-			continue
-		}
-		if pluginFilters.Include("capability") {
-			for _, f := range p.GetTypes() {
-				if !pluginFilters.Match("capability", f.Capability) {
-					continue next
-				}
-			}
-		}
 		out = append(out, p.PluginObj)
 	}
 	return out, nil
@@ -377,7 +333,7 @@ func (pm *Manager) Push(ctx context.Context, name string, metaHeader http.Header
 		return err
 	}
 
-	ref, err := reference.ParseNormalizedNamed(p.Name())
+	ref, err := reference.ParseNamed(p.Name())
 	if err != nil {
 		return errors.Wrapf(err, "plugin has invalid name %v for push", p.Name())
 	}
@@ -455,8 +411,8 @@ func (r *pluginReference) References(id digest.Digest) []reference.Named {
 	return []reference.Named{r.name}
 }
 
-func (r *pluginReference) ReferencesByName(ref reference.Named) []refstore.Association {
-	return []refstore.Association{
+func (r *pluginReference) ReferencesByName(ref reference.Named) []reference.Association {
+	return []reference.Association{
 		{
 			Ref: r.name,
 			ID:  r.pluginID,
@@ -466,7 +422,7 @@ func (r *pluginReference) ReferencesByName(ref reference.Named) []refstore.Assoc
 
 func (r *pluginReference) Get(ref reference.Named) (digest.Digest, error) {
 	if r.name.String() != ref.String() {
-		return digest.Digest(""), refstore.ErrDoesNotExist
+		return digest.Digest(""), reference.ErrDoesNotExist
 	}
 	return r.pluginID, nil
 }
@@ -671,25 +627,25 @@ func (pm *Manager) CreateFromContext(ctx context.Context, tarCtx io.ReadCloser, 
 	pm.muGC.RLock()
 	defer pm.muGC.RUnlock()
 
-	ref, err := reference.ParseNormalizedNamed(options.RepoName)
+	ref, err := reference.ParseNamed(options.RepoName)
 	if err != nil {
 		return errors.Wrapf(err, "failed to parse reference %v", options.RepoName)
 	}
 	if _, ok := ref.(reference.Canonical); ok {
 		return errors.Errorf("canonical references are not permitted")
 	}
-	name := reference.FamiliarString(reference.TagNameOnly(ref))
+	taggedRef := reference.WithDefaultTag(ref)
+	name := taggedRef.String()
 
 	if err := pm.config.Store.validateName(name); err != nil { // fast check, real check is in createPlugin()
 		return err
 	}
 
 	tmpRootFSDir, err := ioutil.TempDir(pm.tmpDir(), ".rootfs")
+	defer os.RemoveAll(tmpRootFSDir)
 	if err != nil {
 		return errors.Wrap(err, "failed to create temp directory")
 	}
-	defer os.RemoveAll(tmpRootFSDir)
-
 	var configJSON []byte
 	rootFS := splitConfigRootFSFromTar(tarCtx, &configJSON)
 
@@ -699,7 +655,7 @@ func (pm *Manager) CreateFromContext(ctx context.Context, tarCtx io.ReadCloser, 
 	}
 	defer rootFSBlob.Close()
 	gzw := gzip.NewWriter(rootFSBlob)
-	layerDigester := digest.Canonical.Digester()
+	layerDigester := digest.Canonical.New()
 	rootFSReader := io.TeeReader(rootFS, io.MultiWriter(gzw, layerDigester.Hash()))
 
 	if err := chrootarchive.Untar(rootFSReader, tmpRootFSDir, nil); err != nil {
@@ -761,7 +717,7 @@ func (pm *Manager) CreateFromContext(ctx context.Context, tarCtx io.ReadCloser, 
 	if err != nil {
 		return err
 	}
-	p.PluginObj.PluginReference = name
+	p.PluginObj.PluginReference = taggedRef.String()
 
 	pm.config.LogPluginEvent(p.PluginObj.ID, name, "create")
 

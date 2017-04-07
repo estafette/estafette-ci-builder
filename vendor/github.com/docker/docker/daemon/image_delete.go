@@ -5,12 +5,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/errors"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/reference"
 )
 
 type conflictType int
@@ -61,9 +61,9 @@ const (
 // FIXME: remove ImageDelete's dependency on Daemon, then move to the graph
 // package. This would require that we no longer need the daemon to determine
 // whether images are being used by a stopped or running container.
-func (daemon *Daemon) ImageDelete(imageRef string, force, prune bool) ([]types.ImageDeleteResponseItem, error) {
+func (daemon *Daemon) ImageDelete(imageRef string, force, prune bool) ([]types.ImageDelete, error) {
 	start := time.Now()
-	records := []types.ImageDeleteResponseItem{}
+	records := []types.ImageDelete{}
 
 	imgID, err := daemon.GetImageID(imageRef)
 	if err != nil {
@@ -89,7 +89,7 @@ func (daemon *Daemon) ImageDelete(imageRef string, force, prune bool) ([]types.I
 			}
 		}
 
-		parsedRef, err := reference.ParseNormalizedNamed(imageRef)
+		parsedRef, err := reference.ParseNamed(imageRef)
 		if err != nil {
 			return nil, err
 		}
@@ -99,7 +99,7 @@ func (daemon *Daemon) ImageDelete(imageRef string, force, prune bool) ([]types.I
 			return nil, err
 		}
 
-		untaggedRecord := types.ImageDeleteResponseItem{Untagged: reference.FamiliarString(parsedRef)}
+		untaggedRecord := types.ImageDelete{Untagged: parsedRef.String()}
 
 		daemon.LogImageEvent(imgID.String(), imgID.String(), "untag")
 		records = append(records, untaggedRecord)
@@ -126,7 +126,7 @@ func (daemon *Daemon) ImageDelete(imageRef string, force, prune bool) ([]types.I
 							return records, err
 						}
 
-						untaggedRecord := types.ImageDeleteResponseItem{Untagged: reference.FamiliarString(repoRef)}
+						untaggedRecord := types.ImageDelete{Untagged: repoRef.String()}
 						records = append(records, untaggedRecord)
 					} else {
 						remainingRefs = append(remainingRefs, repoRef)
@@ -162,7 +162,7 @@ func (daemon *Daemon) ImageDelete(imageRef string, force, prune bool) ([]types.I
 					return nil, err
 				}
 
-				untaggedRecord := types.ImageDeleteResponseItem{Untagged: reference.FamiliarString(parsedRef)}
+				untaggedRecord := types.ImageDelete{Untagged: parsedRef.String()}
 
 				daemon.LogImageEvent(imgID.String(), imgID.String(), "untag")
 				records = append(records, untaggedRecord)
@@ -232,8 +232,7 @@ func (daemon *Daemon) getContainerUsingImage(imageID image.ID) *container.Contai
 // optional tag or digest reference. If tag or digest is omitted, the default
 // tag is used. Returns the resolved image reference and an error.
 func (daemon *Daemon) removeImageRef(ref reference.Named) (reference.Named, error) {
-	ref = reference.TagNameOnly(ref)
-
+	ref = reference.WithDefaultTag(ref)
 	// Ignore the boolean value returned, as far as we're concerned, this
 	// is an idempotent operation and it's okay if the reference didn't
 	// exist in the first place.
@@ -245,9 +244,9 @@ func (daemon *Daemon) removeImageRef(ref reference.Named) (reference.Named, erro
 // removeAllReferencesToImageID attempts to remove every reference to the given
 // imgID from this daemon's store of repository tag/digest references. Returns
 // on the first encountered error. Removed references are logged to this
-// daemon's event service. An "Untagged" types.ImageDeleteResponseItem is added to the
+// daemon's event service. An "Untagged" types.ImageDelete is added to the
 // given list of records.
-func (daemon *Daemon) removeAllReferencesToImageID(imgID image.ID, records *[]types.ImageDeleteResponseItem) error {
+func (daemon *Daemon) removeAllReferencesToImageID(imgID image.ID, records *[]types.ImageDelete) error {
 	imageRefs := daemon.referenceStore.References(imgID.Digest())
 
 	for _, imageRef := range imageRefs {
@@ -256,7 +255,7 @@ func (daemon *Daemon) removeAllReferencesToImageID(imgID image.ID, records *[]ty
 			return err
 		}
 
-		untaggedRecord := types.ImageDeleteResponseItem{Untagged: reference.FamiliarString(parsedRef)}
+		untaggedRecord := types.ImageDelete{Untagged: parsedRef.String()}
 
 		daemon.LogImageEvent(imgID.String(), imgID.String(), "untag")
 		*records = append(*records, untaggedRecord)
@@ -296,7 +295,7 @@ func (idc *imageDeleteConflict) Error() string {
 // conflict is encountered, it will be returned immediately without deleting
 // the image. If quiet is true, any encountered conflicts will be ignored and
 // the function will return nil immediately without deleting the image.
-func (daemon *Daemon) imageDeleteHelper(imgID image.ID, records *[]types.ImageDeleteResponseItem, force, prune, quiet bool) error {
+func (daemon *Daemon) imageDeleteHelper(imgID image.ID, records *[]types.ImageDelete, force, prune, quiet bool) error {
 	// First, determine if this image has any conflicts. Ignore soft conflicts
 	// if force is true.
 	c := conflictHard
@@ -332,9 +331,9 @@ func (daemon *Daemon) imageDeleteHelper(imgID image.ID, records *[]types.ImageDe
 	}
 
 	daemon.LogImageEvent(imgID.String(), imgID.String(), "delete")
-	*records = append(*records, types.ImageDeleteResponseItem{Deleted: imgID.String()})
+	*records = append(*records, types.ImageDelete{Deleted: imgID.String()})
 	for _, removedLayer := range removedLayers {
-		*records = append(*records, types.ImageDeleteResponseItem{Deleted: removedLayer.ChainID.String()})
+		*records = append(*records, types.ImageDelete{Deleted: removedLayer.ChainID.String()})
 	}
 
 	if !prune || parent == "" {

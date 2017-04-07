@@ -77,8 +77,10 @@ services:
     # Mapping values can be strings, numbers or null
     # Booleans are not allowed - must be quoted
     environment:
-      BAZ: baz_from_service_def
-      QUX:
+      RACK_ENV: development
+      SHOW: 'true'
+      SESSION_SECRET:
+      BAZ: 3
     # environment:
     #   - RACK_ENV=development
     #   - SHOW=true

@@ -2,12 +2,12 @@ package volume
 
 import (
 	"fmt"
-	"strings"
+
+	"golang.org/x/net/context"
 
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/spf13/cobra"
-	"golang.org/x/net/context"
 )
 
 type removeOptions struct {
@@ -16,7 +16,7 @@ type removeOptions struct {
 	volumes []string
 }
 
-func newRemoveCommand(dockerCli command.Cli) *cobra.Command {
+func newRemoveCommand(dockerCli *command.DockerCli) *cobra.Command {
 	var opts removeOptions
 
 	cmd := &cobra.Command{
@@ -38,22 +38,22 @@ func newRemoveCommand(dockerCli command.Cli) *cobra.Command {
 	return cmd
 }
 
-func runRemove(dockerCli command.Cli, opts *removeOptions) error {
+func runRemove(dockerCli *command.DockerCli, opts *removeOptions) error {
 	client := dockerCli.Client()
 	ctx := context.Background()
-
-	var errs []string
+	status := 0
 
 	for _, name := range opts.volumes {
 		if err := client.VolumeRemove(ctx, name, opts.force); err != nil {
-			errs = append(errs, err.Error())
+			fmt.Fprintf(dockerCli.Err(), "%s\n", err)
+			status = 1
 			continue
 		}
 		fmt.Fprintf(dockerCli.Out(), "%s\n", name)
 	}
 
-	if len(errs) > 0 {
-		return fmt.Errorf("%s", strings.Join(errs, "\n"))
+	if status != 0 {
+		return cli.StatusError{StatusCode: status}
 	}
 	return nil
 }

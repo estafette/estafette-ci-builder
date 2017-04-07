@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/utils"
 )
 
 // Container holds fields specific to the Windows implementation. See
@@ -16,7 +17,6 @@ type Container struct {
 	CommonContainer
 
 	// Fields below here are platform specific.
-	NetworkSharedContainerID string
 }
 
 // ExitStatus provides exit reasons for a container.
@@ -30,7 +30,7 @@ func (container *Container) CreateDaemonEnvironment(_ bool, linkedEnv []string) 
 	// because the env on the container can override certain default values
 	// we need to replace the 'env' keys where they match and append anything
 	// else.
-	return ReplaceOrAppendEnvValues(linkedEnv, container.Config.Env)
+	return utils.ReplaceOrAppendEnvValues(linkedEnv, container.Config.Env)
 }
 
 // UnmountIpcMounts unmounts Ipc related mounts.

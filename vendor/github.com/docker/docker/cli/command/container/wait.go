@@ -1,14 +1,14 @@
 package container
 
 import (
-	"errors"
 	"fmt"
 	"strings"
+
+	"golang.org/x/net/context"
 
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/spf13/cobra"
-	"golang.org/x/net/context"
 )
 
 type waitOptions struct {
@@ -39,12 +39,12 @@ func runWait(dockerCli *command.DockerCli, opts *waitOptions) error {
 		status, err := dockerCli.Client().ContainerWait(ctx, container)
 		if err != nil {
 			errs = append(errs, err.Error())
-			continue
+		} else {
+			fmt.Fprintf(dockerCli.Out(), "%d\n", status)
 		}
-		fmt.Fprintf(dockerCli.Out(), "%d\n", status)
 	}
 	if len(errs) > 0 {
-		return errors.New(strings.Join(errs, "\n"))
+		return fmt.Errorf("%s", strings.Join(errs, "\n"))
 	}
 	return nil
 }

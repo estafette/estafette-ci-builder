@@ -1,12 +1,13 @@
 package container
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"strings"
 	"sync"
 	"time"
+
+	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/events"
@@ -15,7 +16,6 @@ import (
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/cli/command/formatter"
 	"github.com/spf13/cobra"
-	"golang.org/x/net/context"
 )
 
 type statsOptions struct {
@@ -173,13 +173,14 @@ func runStats(dockerCli *command.DockerCli, opts *statsOptions) error {
 		var errs []string
 		cStats.mu.Lock()
 		for _, c := range cStats.cs {
-			if err := c.GetError(); err != nil {
-				errs = append(errs, err.Error())
+			cErr := c.GetError()
+			if cErr != nil {
+				errs = append(errs, fmt.Sprintf("%s: %v", c.Name, cErr))
 			}
 		}
 		cStats.mu.Unlock()
 		if len(errs) > 0 {
-			return errors.New(strings.Join(errs, "\n"))
+			return fmt.Errorf("%s", strings.Join(errs, ", "))
 		}
 	}
 
@@ -213,7 +214,7 @@ func runStats(dockerCli *command.DockerCli, opts *statsOptions) error {
 			ccstats = append(ccstats, c.GetStatistics())
 		}
 		cStats.mu.Unlock()
-		if err = formatter.ContainerStatsWrite(statsCtx, ccstats, daemonOSType); err != nil {
+		if err = formatter.ContainerStatsWrite(statsCtx, ccstats); err != nil {
 			break
 		}
 		if len(cStats.cs) == 0 && !showAll {

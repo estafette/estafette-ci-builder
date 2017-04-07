@@ -19,9 +19,9 @@ import (
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/manager/state"
 	"github.com/docker/swarmkit/manager/state/store"
+	"github.com/docker/swarmkit/protobuf/ptypes"
 	"github.com/docker/swarmkit/remotes"
 	"github.com/docker/swarmkit/watch"
-	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
@@ -106,7 +106,6 @@ type nodeUpdate struct {
 // Dispatcher is responsible for dispatching tasks and tracking agent health.
 type Dispatcher struct {
 	mu                   sync.Mutex
-	wg                   sync.WaitGroup
 	nodes                *nodeStore
 	store                *store.MemoryStore
 	mgrQueue             *watch.Queue
@@ -134,6 +133,7 @@ type Dispatcher struct {
 }
 
 // New returns Dispatcher with cluster interface(usually raft.Node).
+// NOTE: each handler which does something with raft must add to Dispatcher.wg
 func New(cluster Cluster, c *Config) *Dispatcher {
 	d := &Dispatcher{
 		nodes:                 newNodeStore(c.HeartbeatPeriod, c.HeartbeatEpsilon, c.GracePeriodMultiplier, c.RateLimitPeriod),
@@ -190,7 +190,7 @@ func (d *Dispatcher) Run(ctx context.Context) error {
 				return err
 			}
 			if err == nil && len(clusters) == 1 {
-				heartbeatPeriod, err := gogotypes.DurationFromProto(clusters[0].Spec.Dispatcher.HeartbeatPeriod)
+				heartbeatPeriod, err := ptypes.Duration(clusters[0].Spec.Dispatcher.HeartbeatPeriod)
 				if err == nil && heartbeatPeriod > 0 {
 					d.config.HeartbeatPeriod = heartbeatPeriod
 				}
@@ -216,9 +216,6 @@ func (d *Dispatcher) Run(ctx context.Context) error {
 
 	defer cancel()
 	d.ctx, d.cancel = context.WithCancel(ctx)
-	ctx = d.ctx
-	d.wg.Add(1)
-	defer d.wg.Done()
 	d.mu.Unlock()
 
 	publishManagers := func(peers []*api.Peer) {
@@ -243,17 +240,17 @@ func (d *Dispatcher) Run(ctx context.Context) error {
 		case ev := <-peerWatcher:
 			publishManagers(ev.([]*api.Peer))
 		case <-d.processUpdatesTrigger:
-			d.processUpdates(ctx)
+			d.processUpdates()
 			batchTimer.Reset(maxBatchInterval)
 		case <-batchTimer.C:
-			d.processUpdates(ctx)
+			d.processUpdates()
 			batchTimer.Reset(maxBatchInterval)
 		case v := <-configWatcher:
 			cluster := v.(state.EventUpdateCluster)
 			d.mu.Lock()
 			if cluster.Cluster.Spec.Dispatcher.HeartbeatPeriod != nil {
 				// ignore error, since Spec has passed validation before
-				heartbeatPeriod, _ := gogotypes.DurationFromProto(cluster.Cluster.Spec.Dispatcher.HeartbeatPeriod)
+				heartbeatPeriod, _ := ptypes.Duration(cluster.Cluster.Spec.Dispatcher.HeartbeatPeriod)
 				if heartbeatPeriod != d.config.HeartbeatPeriod {
 					// only call d.nodes.updatePeriod when heartbeatPeriod changes
 					d.config.HeartbeatPeriod = heartbeatPeriod
@@ -263,7 +260,7 @@ func (d *Dispatcher) Run(ctx context.Context) error {
 			d.networkBootstrapKeys = cluster.Cluster.NetworkBootstrapKeys
 			d.mu.Unlock()
 			d.keyMgrQueue.Publish(cluster.Cluster.NetworkBootstrapKeys)
-		case <-ctx.Done():
+		case <-d.ctx.Done():
 			return nil
 		}
 	}
@@ -290,20 +287,17 @@ func (d *Dispatcher) Stop() error {
 	d.mgrQueue.Close()
 	d.keyMgrQueue.Close()
 
-	d.wg.Wait()
-
 	return nil
 }
 
-func (d *Dispatcher) isRunningLocked() (context.Context, error) {
+func (d *Dispatcher) isRunningLocked() error {
 	d.mu.Lock()
 	if !d.isRunning() {
 		d.mu.Unlock()
-		return nil, grpc.Errorf(codes.Aborted, "dispatcher is stopped")
+		return grpc.Errorf(codes.Aborted, "dispatcher is stopped")
 	}
-	ctx := d.ctx
 	d.mu.Unlock()
-	return ctx, nil
+	return nil
 }
 
 func (d *Dispatcher) markNodesUnknown(ctx context.Context) error {
@@ -383,7 +377,7 @@ func (d *Dispatcher) isRunning() bool {
 // markNodeReady updates the description of a node, updates its address, and sets status to READY
 // this is used during registration when a new node description is provided
 // and during node updates when the node description changes
-func (d *Dispatcher) markNodeReady(ctx context.Context, nodeID string, description *api.NodeDescription, addr string) error {
+func (d *Dispatcher) markNodeReady(nodeID string, description *api.NodeDescription, addr string) error {
 	d.nodeUpdatesLock.Lock()
 	d.nodeUpdates[nodeID] = nodeUpdate{
 		status: &api.NodeStatus{
@@ -402,8 +396,8 @@ func (d *Dispatcher) markNodeReady(ctx context.Context, nodeID string, descripti
 	if numUpdates >= maxBatchItems {
 		select {
 		case d.processUpdatesTrigger <- struct{}{}:
-		case <-ctx.Done():
-			return ctx.Err()
+		case <-d.ctx.Done():
+			return d.ctx.Err()
 		}
 
 	}
@@ -411,8 +405,8 @@ func (d *Dispatcher) markNodeReady(ctx context.Context, nodeID string, descripti
 	// Wait until the node update batch happens before unblocking register.
 	d.processUpdatesLock.Lock()
 	select {
-	case <-ctx.Done():
-		return ctx.Err()
+	case <-d.ctx.Done():
+		return d.ctx.Err()
 	default:
 	}
 	d.processUpdatesCond.Wait()
@@ -437,8 +431,7 @@ func nodeIPFromContext(ctx context.Context) (string, error) {
 // register is used for registration of node with particular dispatcher.
 func (d *Dispatcher) register(ctx context.Context, nodeID string, description *api.NodeDescription) (string, error) {
 	// prevent register until we're ready to accept it
-	dctx, err := d.isRunningLocked()
-	if err != nil {
+	if err := d.isRunningLocked(); err != nil {
 		return "", err
 	}
 
@@ -460,7 +453,7 @@ func (d *Dispatcher) register(ctx context.Context, nodeID string, description *a
 		log.G(ctx).Debugf(err.Error())
 	}
 
-	if err := d.markNodeReady(dctx, nodeID, description, addr); err != nil {
+	if err := d.markNodeReady(nodeID, description, addr); err != nil {
 		return "", err
 	}
 
@@ -503,8 +496,7 @@ func (d *Dispatcher) UpdateTaskStatus(ctx context.Context, r *api.UpdateTaskStat
 	}
 	log := log.G(ctx).WithFields(fields)
 
-	dctx, err := d.isRunningLocked()
-	if err != nil {
+	if err := d.isRunningLocked(); err != nil {
 		return nil, err
 	}
 
@@ -550,13 +542,13 @@ func (d *Dispatcher) UpdateTaskStatus(ctx context.Context, r *api.UpdateTaskStat
 	if numUpdates >= maxBatchItems {
 		select {
 		case d.processUpdatesTrigger <- struct{}{}:
-		case <-dctx.Done():
+		case <-d.ctx.Done():
 		}
 	}
 	return nil, nil
 }
 
-func (d *Dispatcher) processUpdates(ctx context.Context) {
+func (d *Dispatcher) processUpdates() {
 	var (
 		taskUpdates map[string]*api.TaskStatus
 		nodeUpdates map[string]nodeUpdate
@@ -579,7 +571,7 @@ func (d *Dispatcher) processUpdates(ctx context.Context) {
 		return
 	}
 
-	log := log.G(ctx).WithFields(logrus.Fields{
+	log := log.G(d.ctx).WithFields(logrus.Fields{
 		"method": "(*Dispatcher).processUpdates",
 	})
 
@@ -669,8 +661,7 @@ func (d *Dispatcher) Tasks(r *api.TasksRequest, stream api.Dispatcher_TasksServe
 	}
 	nodeID := nodeInfo.NodeID
 
-	dctx, err := d.isRunningLocked()
-	if err != nil {
+	if err := d.isRunningLocked(); err != nil {
 		return err
 	}
 
@@ -772,8 +763,8 @@ func (d *Dispatcher) Tasks(r *api.TasksRequest, stream api.Dispatcher_TasksServe
 				break batchingLoop
 			case <-stream.Context().Done():
 				return stream.Context().Err()
-			case <-dctx.Done():
-				return dctx.Err()
+			case <-d.ctx.Done():
+				return d.ctx.Err()
 			}
 		}
 
@@ -792,8 +783,7 @@ func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatche
 	}
 	nodeID := nodeInfo.NodeID
 
-	dctx, err := d.isRunningLocked()
-	if err != nil {
+	if err := d.isRunningLocked(); err != nil {
 		return err
 	}
 
@@ -841,6 +831,11 @@ func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatche
 		}
 		var newSecrets []*api.Secret
 		for _, secretRef := range container.Secrets {
+			// Empty ID prefix will return all secrets. Bail if there is no SecretID
+			if secretRef.SecretID == "" {
+				log.Debugf("invalid secret reference")
+				continue
+			}
 			secretID := secretRef.SecretID
 			log := log.WithFields(logrus.Fields{
 				"secret.id":   secretID,
@@ -850,15 +845,21 @@ func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatche
 			if len(tasksUsingSecret[secretID]) == 0 {
 				tasksUsingSecret[secretID] = make(map[string]struct{})
 
-				secret := store.GetSecret(readTx, secretID)
-				if secret == nil {
-					log.Debug("secret not found")
+				secrets, err := store.FindSecrets(readTx, store.ByIDPrefix(secretID))
+				if err != nil {
+					log.WithError(err).Errorf("error retrieving secret")
+					continue
+				}
+				if len(secrets) != 1 {
+					log.Debugf("secret not found")
 					continue
 				}
 
-				// If the secret was found, add this secret to
-				// our set that we send down.
-				newSecrets = append(newSecrets, secret)
+				// If the secret was found and there was one result
+				// (there should never be more than one because of the
+				// uniqueness constraint), add this secret to our
+				// initial set that we send down.
+				newSecrets = append(newSecrets, secrets[0])
 			}
 			tasksUsingSecret[secretID][t.ID] = struct{}{}
 		}
@@ -1074,8 +1075,8 @@ func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatche
 				break batchingLoop
 			case <-stream.Context().Done():
 				return stream.Context().Err()
-			case <-dctx.Done():
-				return dctx.Err()
+			case <-d.ctx.Done():
+				return d.ctx.Err()
 			}
 		}
 
@@ -1196,14 +1197,16 @@ func (d *Dispatcher) moveTasksToOrphaned(nodeID string) error {
 
 // markNodeNotReady sets the node state to some state other than READY
 func (d *Dispatcher) markNodeNotReady(id string, state api.NodeStatus_State, message string) error {
-	dctx, err := d.isRunningLocked()
-	if err != nil {
+	if err := d.isRunningLocked(); err != nil {
 		return err
 	}
 
 	// Node is down. Add it to down nodes so that we can keep
 	// track of tasks assigned to the node.
-	var node *api.Node
+	var (
+		node *api.Node
+		err  error
+	)
 	d.store.View(func(readTx store.ReadTx) {
 		node = store.GetNode(readTx, id)
 		if node == nil {
@@ -1216,7 +1219,7 @@ func (d *Dispatcher) markNodeNotReady(id string, state api.NodeStatus_State, mes
 
 	expireFunc := func() {
 		if err := d.moveTasksToOrphaned(id); err != nil {
-			log.G(dctx).WithError(err).Error(`failed to move all tasks to "ORPHANED" state`)
+			log.G(context.TODO()).WithError(err).Error(`failed to move all tasks to "ORPHANED" state`)
 		}
 
 		d.downNodes.Delete(id)
@@ -1240,7 +1243,7 @@ func (d *Dispatcher) markNodeNotReady(id string, state api.NodeStatus_State, mes
 	if numUpdates >= maxBatchItems {
 		select {
 		case d.processUpdatesTrigger <- struct{}{}:
-		case <-dctx.Done():
+		case <-d.ctx.Done():
 		}
 	}
 
@@ -1261,7 +1264,7 @@ func (d *Dispatcher) Heartbeat(ctx context.Context, r *api.HeartbeatRequest) (*a
 	}
 
 	period, err := d.nodes.Heartbeat(nodeInfo.NodeID, r.SessionID)
-	return &api.HeartbeatResponse{Period: period}, err
+	return &api.HeartbeatResponse{Period: *ptypes.DurationProto(period)}, err
 }
 
 func (d *Dispatcher) getManagers() []*api.WeightedPeer {
@@ -1288,8 +1291,7 @@ func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_Sessio
 	}
 	nodeID := nodeInfo.NodeID
 
-	dctx, err := d.isRunningLocked()
-	if err != nil {
+	if err := d.isRunningLocked(); err != nil {
 		return err
 	}
 
@@ -1308,7 +1310,7 @@ func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_Sessio
 			log.G(ctx).Debugf(err.Error())
 		}
 		// update the node description
-		if err := d.markNodeReady(dctx, nodeID, r.Description, addr); err != nil {
+		if err := d.markNodeReady(nodeID, r.Description, addr); err != nil {
 			return err
 		}
 	}
@@ -1399,7 +1401,7 @@ func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_Sessio
 			return stream.Context().Err()
 		case <-node.Disconnect:
 			disconnect = true
-		case <-dctx.Done():
+		case <-d.ctx.Done():
 			disconnect = true
 		case ev := <-keyMgrUpdates:
 			netKeys = ev.([]*api.EncryptionKey)

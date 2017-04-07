@@ -19,6 +19,9 @@ import math "math"
 import google_protobuf "github.com/gogo/protobuf/protoc-gen-gogo/descriptor"
 
 import strings "strings"
+import github_com_gogo_protobuf_proto "github.com/gogo/protobuf/proto"
+import sort "sort"
+import strconv "strconv"
 import reflect "reflect"
 
 import io "io"
@@ -69,77 +72,121 @@ func init() {
 	proto.RegisterExtension(E_Deepcopy)
 	proto.RegisterExtension(E_TlsAuthorization)
 }
-func (m *TLSAuthorization) Marshal() (dAtA []byte, err error) {
+func (this *TLSAuthorization) GoString() string {
+	if this == nil {
+		return "nil"
+	}
+	s := make([]string, 0, 6)
+	s = append(s, "&plugin.TLSAuthorization{")
+	if this.Roles != nil {
+		s = append(s, "Roles: "+fmt.Sprintf("%#v", this.Roles)+",\n")
+	}
+	if this.Insecure != nil {
+		s = append(s, "Insecure: "+valueToGoStringPlugin(this.Insecure, "bool")+",\n")
+	}
+	if this.XXX_unrecognized != nil {
+		s = append(s, "XXX_unrecognized:"+fmt.Sprintf("%#v", this.XXX_unrecognized)+",\n")
+	}
+	s = append(s, "}")
+	return strings.Join(s, "")
+}
+func valueToGoStringPlugin(v interface{}, typ string) string {
+	rv := reflect.ValueOf(v)
+	if rv.IsNil() {
+		return "nil"
+	}
+	pv := reflect.Indirect(rv).Interface()
+	return fmt.Sprintf("func(v %v) *%v { return &v } ( %#v )", typ, typ, pv)
+}
+func extensionToGoStringPlugin(m github_com_gogo_protobuf_proto.Message) string {
+	e := github_com_gogo_protobuf_proto.GetUnsafeExtensionsMap(m)
+	if e == nil {
+		return "nil"
+	}
+	s := "proto.NewUnsafeXXX_InternalExtensions(map[int32]proto.Extension{"
+	keys := make([]int, 0, len(e))
+	for k := range e {
+		keys = append(keys, int(k))
+	}
+	sort.Ints(keys)
+	ss := []string{}
+	for _, k := range keys {
+		ss = append(ss, strconv.Itoa(k)+": "+e[int32(k)].GoString())
+	}
+	s += strings.Join(ss, ",") + "})"
+	return s
+}
+func (m *TLSAuthorization) Marshal() (data []byte, err error) {
 	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	data = make([]byte, size)
+	n, err := m.MarshalTo(data)
 	if err != nil {
 		return nil, err
 	}
-	return dAtA[:n], nil
+	return data[:n], nil
 }
 
-func (m *TLSAuthorization) MarshalTo(dAtA []byte) (int, error) {
+func (m *TLSAuthorization) MarshalTo(data []byte) (int, error) {
 	var i int
 	_ = i
 	var l int
 	_ = l
 	if len(m.Roles) > 0 {
 		for _, s := range m.Roles {
-			dAtA[i] = 0xa
+			data[i] = 0xa
 			i++
 			l = len(s)
 			for l >= 1<<7 {
-				dAtA[i] = uint8(uint64(l)&0x7f | 0x80)
+				data[i] = uint8(uint64(l)&0x7f | 0x80)
 				l >>= 7
 				i++
 			}
-			dAtA[i] = uint8(l)
+			data[i] = uint8(l)
 			i++
-			i += copy(dAtA[i:], s)
+			i += copy(data[i:], s)
 		}
 	}
 	if m.Insecure != nil {
-		dAtA[i] = 0x10
+		data[i] = 0x10
 		i++
 		if *m.Insecure {
-			dAtA[i] = 1
+			data[i] = 1
 		} else {
-			dAtA[i] = 0
+			data[i] = 0
 		}
 		i++
 	}
 	if m.XXX_unrecognized != nil {
-		i += copy(dAtA[i:], m.XXX_unrecognized)
+		i += copy(data[i:], m.XXX_unrecognized)
 	}
 	return i, nil
 }
 
-func encodeFixed64Plugin(dAtA []byte, offset int, v uint64) int {
-	dAtA[offset] = uint8(v)
-	dAtA[offset+1] = uint8(v >> 8)
-	dAtA[offset+2] = uint8(v >> 16)
-	dAtA[offset+3] = uint8(v >> 24)
-	dAtA[offset+4] = uint8(v >> 32)
-	dAtA[offset+5] = uint8(v >> 40)
-	dAtA[offset+6] = uint8(v >> 48)
-	dAtA[offset+7] = uint8(v >> 56)
+func encodeFixed64Plugin(data []byte, offset int, v uint64) int {
+	data[offset] = uint8(v)
+	data[offset+1] = uint8(v >> 8)
+	data[offset+2] = uint8(v >> 16)
+	data[offset+3] = uint8(v >> 24)
+	data[offset+4] = uint8(v >> 32)
+	data[offset+5] = uint8(v >> 40)
+	data[offset+6] = uint8(v >> 48)
+	data[offset+7] = uint8(v >> 56)
 	return offset + 8
 }
-func encodeFixed32Plugin(dAtA []byte, offset int, v uint32) int {
-	dAtA[offset] = uint8(v)
-	dAtA[offset+1] = uint8(v >> 8)
-	dAtA[offset+2] = uint8(v >> 16)
-	dAtA[offset+3] = uint8(v >> 24)
+func encodeFixed32Plugin(data []byte, offset int, v uint32) int {
+	data[offset] = uint8(v)
+	data[offset+1] = uint8(v >> 8)
+	data[offset+2] = uint8(v >> 16)
+	data[offset+3] = uint8(v >> 24)
 	return offset + 4
 }
-func encodeVarintPlugin(dAtA []byte, offset int, v uint64) int {
+func encodeVarintPlugin(data []byte, offset int, v uint64) int {
 	for v >= 1<<7 {
-		dAtA[offset] = uint8(v&0x7f | 0x80)
+		data[offset] = uint8(v&0x7f | 0x80)
 		v >>= 7
 		offset++
 	}
-	dAtA[offset] = uint8(v)
+	data[offset] = uint8(v)
 	return offset + 1
 }
 func (m *TLSAuthorization) Size() (n int) {
@@ -193,8 +240,8 @@ func valueToStringPlugin(v interface{}) string {
 	pv := reflect.Indirect(rv).Interface()
 	return fmt.Sprintf("*%v", pv)
 }
-func (m *TLSAuthorization) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
+func (m *TLSAuthorization) Unmarshal(data []byte) error {
+	l := len(data)
 	iNdEx := 0
 	for iNdEx < l {
 		preIndex := iNdEx
@@ -206,7 +253,7 @@ func (m *TLSAuthorization) Unmarshal(dAtA []byte) error {
 			if iNdEx >= l {
 				return io.ErrUnexpectedEOF
 			}
-			b := dAtA[iNdEx]
+			b := data[iNdEx]
 			iNdEx++
 			wire |= (uint64(b) & 0x7F) << shift
 			if b < 0x80 {
@@ -234,7 +281,7 @@ func (m *TLSAuthorization) Unmarshal(dAtA []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := dAtA[iNdEx]
+				b := data[iNdEx]
 				iNdEx++
 				stringLen |= (uint64(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -249,7 +296,7 @@ func (m *TLSAuthorization) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Roles = append(m.Roles, string(dAtA[iNdEx:postIndex]))
+			m.Roles = append(m.Roles, string(data[iNdEx:postIndex]))
 			iNdEx = postIndex
 		case 2:
 			if wireType != 0 {
@@ -263,7 +310,7 @@ func (m *TLSAuthorization) Unmarshal(dAtA []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := dAtA[iNdEx]
+				b := data[iNdEx]
 				iNdEx++
 				v |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -274,7 +321,7 @@ func (m *TLSAuthorization) Unmarshal(dAtA []byte) error {
 			m.Insecure = &b
 		default:
 			iNdEx = preIndex
-			skippy, err := skipPlugin(dAtA[iNdEx:])
+			skippy, err := skipPlugin(data[iNdEx:])
 			if err != nil {
 				return err
 			}
@@ -284,7 +331,7 @@ func (m *TLSAuthorization) Unmarshal(dAtA []byte) error {
 			if (iNdEx + skippy) > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
+			m.XXX_unrecognized = append(m.XXX_unrecognized, data[iNdEx:iNdEx+skippy]...)
 			iNdEx += skippy
 		}
 	}
@@ -294,8 +341,8 @@ func (m *TLSAuthorization) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func skipPlugin(dAtA []byte) (n int, err error) {
-	l := len(dAtA)
+func skipPlugin(data []byte) (n int, err error) {
+	l := len(data)
 	iNdEx := 0
 	for iNdEx < l {
 		var wire uint64
@@ -306,7 +353,7 @@ func skipPlugin(dAtA []byte) (n int, err error) {
 			if iNdEx >= l {
 				return 0, io.ErrUnexpectedEOF
 			}
-			b := dAtA[iNdEx]
+			b := data[iNdEx]
 			iNdEx++
 			wire |= (uint64(b) & 0x7F) << shift
 			if b < 0x80 {
@@ -324,7 +371,7 @@ func skipPlugin(dAtA []byte) (n int, err error) {
 					return 0, io.ErrUnexpectedEOF
 				}
 				iNdEx++
-				if dAtA[iNdEx-1] < 0x80 {
+				if data[iNdEx-1] < 0x80 {
 					break
 				}
 			}
@@ -341,7 +388,7 @@ func skipPlugin(dAtA []byte) (n int, err error) {
 				if iNdEx >= l {
 					return 0, io.ErrUnexpectedEOF
 				}
-				b := dAtA[iNdEx]
+				b := data[iNdEx]
 				iNdEx++
 				length |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -364,7 +411,7 @@ func skipPlugin(dAtA []byte) (n int, err error) {
 					if iNdEx >= l {
 						return 0, io.ErrUnexpectedEOF
 					}
-					b := dAtA[iNdEx]
+					b := data[iNdEx]
 					iNdEx++
 					innerWire |= (uint64(b) & 0x7F) << shift
 					if b < 0x80 {
@@ -375,7 +422,7 @@ func skipPlugin(dAtA []byte) (n int, err error) {
 				if innerWireType == 4 {
 					break
 				}
-				next, err := skipPlugin(dAtA[start:])
+				next, err := skipPlugin(data[start:])
 				if err != nil {
 					return 0, err
 				}
@@ -402,7 +449,7 @@ var (
 func init() { proto.RegisterFile("plugin.proto", fileDescriptorPlugin) }
 
 var fileDescriptorPlugin = []byte{
-	// 254 bytes of a gzipped FileDescriptorProto
+	// 259 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0xe2, 0xe2, 0x29, 0xc8, 0x29, 0x4d,
 	0xcf, 0xcc, 0xd3, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x12, 0x4b, 0xc9, 0x4f, 0xce, 0x4e, 0x2d,
 	0x82, 0xf0, 0x92, 0x4a, 0xd3, 0xf4, 0x20, 0xb2, 0x52, 0x0a, 0xe9, 0xf9, 0xf9, 0xe9, 0x39, 0xa9,
@@ -416,7 +463,8 @@ var fileDescriptorPlugin = []byte{
 	0x58, 0x4a, 0x8a, 0x4a, 0x53, 0x83, 0xe0, 0x1a, 0xad, 0x2a, 0xb8, 0x04, 0x4b, 0x72, 0x8a, 0xe3,
 	0x13, 0x51, 0xdc, 0x22, 0x87, 0xc5, 0xb4, 0x92, 0x8c, 0xfc, 0x14, 0x98, 0x61, 0x2f, 0x9f, 0xf6,
 	0x2a, 0x2b, 0x30, 0x6a, 0x70, 0x1b, 0x69, 0xe8, 0x61, 0x0f, 0x03, 0x3d, 0x74, 0xef, 0x05, 0x09,
-	0x94, 0xe4, 0x14, 0xa3, 0x88, 0x38, 0x49, 0x9c, 0x78, 0x28, 0xc7, 0x70, 0xe3, 0xa1, 0x1c, 0x43,
-	0xc3, 0x23, 0x39, 0xc6, 0x13, 0x8f, 0xe4, 0x18, 0x2f, 0x3c, 0x92, 0x63, 0x7c, 0xf0, 0x48, 0x8e,
-	0x11, 0x10, 0x00, 0x00, 0xff, 0xff, 0xe7, 0x4c, 0x2c, 0xf3, 0x67, 0x01, 0x00, 0x00,
+	0x94, 0xe4, 0x14, 0xa3, 0x88, 0x38, 0xc9, 0x9c, 0x78, 0x28, 0xc7, 0x70, 0xe3, 0xa1, 0x1c, 0xc3,
+	0x87, 0x87, 0x72, 0x8c, 0x0d, 0x8f, 0xe4, 0x18, 0x4f, 0x3c, 0x92, 0x63, 0xbc, 0xf0, 0x48, 0x8e,
+	0xf1, 0xc1, 0x23, 0x39, 0x46, 0x40, 0x00, 0x00, 0x00, 0xff, 0xff, 0x04, 0x4e, 0xf8, 0x38, 0x6b,
+	0x01, 0x00, 0x00,
 }

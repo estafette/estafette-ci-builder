@@ -27,7 +27,7 @@ Options:
       --help   Print usage
 ```
 
-## Description
+## Descriptino
 
 Lists the stacks.
 

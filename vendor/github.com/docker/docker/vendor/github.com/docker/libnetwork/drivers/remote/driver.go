@@ -1,7 +1,6 @@
 package remote
 
 import (
-	"errors"
 	"fmt"
 	"net"
 
@@ -116,10 +115,6 @@ func (d *driver) NetworkFree(id string) error {
 func (d *driver) EventNotify(etype driverapi.EventType, nid, tableName, key string, value []byte) {
 }
 
-func (d *driver) DecodeTableEntry(tablename string, key string, value []byte) (string, map[string]string) {
-	return "", nil
-}
-
 func (d *driver) CreateNetwork(id string, options map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
 	create := &api.CreateNetworkRequest{
 		NetworkID: id,
@@ -137,7 +132,7 @@ func (d *driver) DeleteNetwork(nid string) error {
 
 func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo, epOptions map[string]interface{}) error {
 	if ifInfo == nil {
-		return errors.New("must not be called with nil InterfaceInfo")
+		return fmt.Errorf("must not be called with nil InterfaceInfo")
 	}
 
 	reqIface := &api.EndpointInterface{}

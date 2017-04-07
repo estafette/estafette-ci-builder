@@ -13,11 +13,7 @@ import (
 	"github.com/vishvananda/netns"
 )
 
-const (
-	SizeofLinkStats32 = 0x5c
-	SizeofLinkStats64 = 0xd8
-	IFLA_STATS64      = 0x17 // syscall pkg does not contain this one
-)
+const SizeofLinkStats = 0x5c
 
 const (
 	TUNTAP_MODE_TUN  TuntapMode = syscall.IFF_TUN
@@ -787,12 +783,6 @@ func (h *Handle) LinkAdd(link Link) error {
 		}
 	} else if gretap, ok := link.(*Gretap); ok {
 		addGretapAttrs(gretap, linkInfo)
-	} else if iptun, ok := link.(*Iptun); ok {
-		addIptunAttrs(iptun, linkInfo)
-	} else if vti, ok := link.(*Vti); ok {
-		addVtiAttrs(vti, linkInfo)
-	} else if vrf, ok := link.(*Vrf); ok {
-		addVrfAttrs(vrf, linkInfo)
 	}
 
 	req.AddData(linkInfo)
@@ -959,7 +949,7 @@ func execGetLink(req *nl.NetlinkRequest) (Link, error) {
 		return nil, fmt.Errorf("Link not found")
 
 	case len(msgs) == 1:
-		return LinkDeserialize(nil, msgs[0])
+		return linkDeserialize(msgs[0])
 
 	default:
 		return nil, fmt.Errorf("More than one link found")
@@ -968,7 +958,7 @@ func execGetLink(req *nl.NetlinkRequest) (Link, error) {
 
 // linkDeserialize deserializes a raw message received from netlink into
 // a link object.
-func LinkDeserialize(hdr *syscall.NlMsghdr, m []byte) (Link, error) {
+func linkDeserialize(m []byte) (Link, error) {
 	msg := nl.DeserializeIfInfomsg(m)
 
 	attrs, err := nl.ParseRouteAttr(m[msg.Len():])
@@ -980,12 +970,8 @@ func LinkDeserialize(hdr *syscall.NlMsghdr, m []byte) (Link, error) {
 	if msg.Flags&syscall.IFF_PROMISC != 0 {
 		base.Promisc = 1
 	}
-	var (
-		link     Link
-		stats32  []byte
-		stats64  []byte
-		linkType string
-	)
+	var link Link
+	linkType := ""
 	for _, attr := range attrs {
 		switch attr.Attr.Type {
 		case syscall.IFLA_LINKINFO:
@@ -1020,12 +1006,6 @@ func LinkDeserialize(hdr *syscall.NlMsghdr, m []byte) (Link, error) {
 						link = &Macvtap{}
 					case "gretap":
 						link = &Gretap{}
-					case "ipip":
-						link = &Iptun{}
-					case "vti":
-						link = &Vti{}
-					case "vrf":
-						link = &Vrf{}
 					default:
 						link = &GenericLink{LinkType: linkType}
 					}
@@ -1049,12 +1029,6 @@ func LinkDeserialize(hdr *syscall.NlMsghdr, m []byte) (Link, error) {
 						parseMacvtapData(link, data)
 					case "gretap":
 						parseGretapData(link, data)
-					case "ipip":
-						parseIptunData(link, data)
-					case "vti":
-						parseVtiData(link, data)
-					case "vrf":
-						parseVrfData(link, data)
 					}
 				}
 			}
@@ -1081,35 +1055,15 @@ func LinkDeserialize(hdr *syscall.NlMsghdr, m []byte) (Link, error) {
 		case syscall.IFLA_IFALIAS:
 			base.Alias = string(attr.Value[:len(attr.Value)-1])
 		case syscall.IFLA_STATS:
-			stats32 = attr.Value[:]
-		case IFLA_STATS64:
-			stats64 = attr.Value[:]
+			base.Statistics = parseLinkStats(attr.Value[:])
 		case nl.IFLA_XDP:
 			xdp, err := parseLinkXdp(attr.Value[:])
 			if err != nil {
 				return nil, err
 			}
 			base.Xdp = xdp
-		case syscall.IFLA_PROTINFO | syscall.NLA_F_NESTED:
-			if hdr != nil && hdr.Type == syscall.RTM_NEWLINK &&
-				msg.Family == syscall.AF_BRIDGE {
-				attrs, err := nl.ParseRouteAttr(attr.Value[:])
-				if err != nil {
-					return nil, err
-				}
-				base.Protinfo = parseProtinfo(attrs)
-			}
-		case syscall.IFLA_OPERSTATE:
-			base.OperState = LinkOperState(uint8(attr.Value[0]))
 		}
 	}
-
-	if stats64 != nil {
-		base.Statistics = parseLinkStats64(stats64)
-	} else if stats32 != nil {
-		base.Statistics = parseLinkStats32(stats32)
-	}
-
 	// Links that don't have IFLA_INFO_KIND are hardware devices
 	if link == nil {
 		link = &Device{}
@@ -1142,7 +1096,7 @@ func (h *Handle) LinkList() ([]Link, error) {
 
 	var res []Link
 	for _, m := range msgs {
-		link, err := LinkDeserialize(nil, m)
+		link, err := linkDeserialize(m)
 		if err != nil {
 			return nil, err
 		}
@@ -1191,7 +1145,7 @@ func linkSubscribe(newNs, curNs netns.NsHandle, ch chan<- LinkUpdate, done <-cha
 			}
 			for _, m := range msgs {
 				ifmsg := nl.DeserializeIfInfomsg(m.Data)
-				link, err := LinkDeserialize(&m.Header, m.Data)
+				link, err := linkDeserialize(m.Data)
 				if err != nil {
 					return
 				}
@@ -1536,12 +1490,8 @@ func parseGretapData(link Link, data []syscall.NetlinkRouteAttr) {
 	}
 }
 
-func parseLinkStats32(data []byte) *LinkStatistics {
-	return (*LinkStatistics)((*LinkStatistics32)(unsafe.Pointer(&data[0:SizeofLinkStats32][0])).to64())
-}
-
-func parseLinkStats64(data []byte) *LinkStatistics {
-	return (*LinkStatistics)((*LinkStatistics64)(unsafe.Pointer(&data[0:SizeofLinkStats64][0])))
+func parseLinkStats(data []byte) *LinkStatistics {
+	return (*LinkStatistics)(unsafe.Pointer(&data[0:SizeofLinkStats][0]))
 }
 
 func addXdpAttrs(xdp *LinkXdp, req *nl.NetlinkRequest) {
@@ -1567,97 +1517,4 @@ func parseLinkXdp(data []byte) (*LinkXdp, error) {
 		}
 	}
 	return xdp, nil
-}
-
-func addIptunAttrs(iptun *Iptun, linkInfo *nl.RtAttr) {
-	data := nl.NewRtAttrChild(linkInfo, nl.IFLA_INFO_DATA, nil)
-
-	ip := iptun.Local.To4()
-	if ip != nil {
-		nl.NewRtAttrChild(data, nl.IFLA_IPTUN_LOCAL, []byte(ip))
-	}
-
-	ip = iptun.Remote.To4()
-	if ip != nil {
-		nl.NewRtAttrChild(data, nl.IFLA_IPTUN_REMOTE, []byte(ip))
-	}
-
-	if iptun.Link != 0 {
-		nl.NewRtAttrChild(data, nl.IFLA_IPTUN_LINK, nl.Uint32Attr(iptun.Link))
-	}
-	nl.NewRtAttrChild(data, nl.IFLA_IPTUN_PMTUDISC, nl.Uint8Attr(iptun.PMtuDisc))
-	nl.NewRtAttrChild(data, nl.IFLA_IPTUN_TTL, nl.Uint8Attr(iptun.Ttl))
-	nl.NewRtAttrChild(data, nl.IFLA_IPTUN_TOS, nl.Uint8Attr(iptun.Tos))
-}
-
-func parseIptunData(link Link, data []syscall.NetlinkRouteAttr) {
-	iptun := link.(*Iptun)
-	for _, datum := range data {
-		switch datum.Attr.Type {
-		case nl.IFLA_IPTUN_LOCAL:
-			iptun.Local = net.IP(datum.Value[0:4])
-		case nl.IFLA_IPTUN_REMOTE:
-			iptun.Remote = net.IP(datum.Value[0:4])
-		case nl.IFLA_IPTUN_TTL:
-			iptun.Ttl = uint8(datum.Value[0])
-		case nl.IFLA_IPTUN_TOS:
-			iptun.Tos = uint8(datum.Value[0])
-		case nl.IFLA_IPTUN_PMTUDISC:
-			iptun.PMtuDisc = uint8(datum.Value[0])
-		}
-	}
-}
-
-func addVtiAttrs(vti *Vti, linkInfo *nl.RtAttr) {
-	data := nl.NewRtAttrChild(linkInfo, nl.IFLA_INFO_DATA, nil)
-
-	ip := vti.Local.To4()
-	if ip != nil {
-		nl.NewRtAttrChild(data, nl.IFLA_VTI_LOCAL, []byte(ip))
-	}
-
-	ip = vti.Remote.To4()
-	if ip != nil {
-		nl.NewRtAttrChild(data, nl.IFLA_VTI_REMOTE, []byte(ip))
-	}
-
-	if vti.Link != 0 {
-		nl.NewRtAttrChild(data, nl.IFLA_VTI_LINK, nl.Uint32Attr(vti.Link))
-	}
-
-	nl.NewRtAttrChild(data, nl.IFLA_VTI_IKEY, htonl(vti.IKey))
-	nl.NewRtAttrChild(data, nl.IFLA_VTI_OKEY, htonl(vti.OKey))
-}
-
-func parseVtiData(link Link, data []syscall.NetlinkRouteAttr) {
-	vti := link.(*Vti)
-	for _, datum := range data {
-		switch datum.Attr.Type {
-		case nl.IFLA_VTI_LOCAL:
-			vti.Local = net.IP(datum.Value[0:4])
-		case nl.IFLA_VTI_REMOTE:
-			vti.Remote = net.IP(datum.Value[0:4])
-		case nl.IFLA_VTI_IKEY:
-			vti.IKey = ntohl(datum.Value[0:4])
-		case nl.IFLA_VTI_OKEY:
-			vti.OKey = ntohl(datum.Value[0:4])
-		}
-	}
-}
-
-func addVrfAttrs(vrf *Vrf, linkInfo *nl.RtAttr) {
-	data := nl.NewRtAttrChild(linkInfo, nl.IFLA_INFO_DATA, nil)
-	b := make([]byte, 4)
-	native.PutUint32(b, uint32(vrf.Table))
-	nl.NewRtAttrChild(data, nl.IFLA_VRF_TABLE, b)
-}
-
-func parseVrfData(link Link, data []syscall.NetlinkRouteAttr) {
-	vrf := link.(*Vrf)
-	for _, datum := range data {
-		switch datum.Attr.Type {
-		case nl.IFLA_VRF_TABLE:
-			vrf.Table = native.Uint32(datum.Value[0:4])
-		}
-	}
 }

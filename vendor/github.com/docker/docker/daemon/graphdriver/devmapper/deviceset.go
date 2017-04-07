@@ -380,7 +380,10 @@ func (devices *DeviceSet) isDeviceIDFree(deviceID int) bool {
 	var mask byte
 	i := deviceID % 8
 	mask = (1 << uint(i))
-	return (devices.deviceIDMap[deviceID/8] & mask) == 0
+	if (devices.deviceIDMap[deviceID/8] & mask) != 0 {
+		return false
+	}
+	return true
 }
 
 // Should be called with devices.Lock() held.
@@ -477,10 +480,11 @@ func (devices *DeviceSet) loadDeviceFilesOnStart() error {
 }
 
 // Should be called with devices.Lock() held.
-func (devices *DeviceSet) unregisterDevice(hash string) error {
-	logrus.Debugf("devmapper: unregisterDevice(%v)", hash)
+func (devices *DeviceSet) unregisterDevice(id int, hash string) error {
+	logrus.Debugf("devmapper: unregisterDevice(%v, %v)", id, hash)
 	info := &devInfo{
-		Hash: hash,
+		Hash:     hash,
+		DeviceID: id,
 	}
 
 	delete(devices.Devices, hash)
@@ -828,7 +832,7 @@ func (devices *DeviceSet) createRegisterDevice(hash string) (*devInfo, error) {
 	}
 
 	if err := devices.closeTransaction(); err != nil {
-		devices.unregisterDevice(hash)
+		devices.unregisterDevice(deviceID, hash)
 		devicemapper.DeleteDevice(devices.getPoolDevName(), deviceID)
 		devices.markDeviceIDFree(deviceID)
 		return nil, err
@@ -858,7 +862,6 @@ func (devices *DeviceSet) takeSnapshot(hash string, baseInfo *devInfo, size uint
 				if err != devicemapper.ErrEnxio {
 					return err
 				}
-				devinfo = nil
 			} else {
 				defer devices.deactivateDevice(baseInfo)
 			}
@@ -929,7 +932,7 @@ func (devices *DeviceSet) createRegisterSnapDevice(hash string, baseInfo *devInf
 	}
 
 	if err := devices.closeTransaction(); err != nil {
-		devices.unregisterDevice(hash)
+		devices.unregisterDevice(deviceID, hash)
 		devicemapper.DeleteDevice(devices.getPoolDevName(), deviceID)
 		devices.markDeviceIDFree(deviceID)
 		return err
@@ -1397,7 +1400,10 @@ func (devices *DeviceSet) saveTransactionMetaData() error {
 }
 
 func (devices *DeviceSet) removeTransactionMetaData() error {
-	return os.RemoveAll(devices.transactionMetaFile())
+	if err := os.RemoveAll(devices.transactionMetaFile()); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (devices *DeviceSet) rollbackTransaction() error {
@@ -2004,7 +2010,7 @@ func (devices *DeviceSet) deleteTransaction(info *devInfo, syncDelete bool) erro
 	}
 
 	if err == nil {
-		if err := devices.unregisterDevice(info.Hash); err != nil {
+		if err := devices.unregisterDevice(info.DeviceID, info.Hash); err != nil {
 			return err
 		}
 		// If device was already in deferred delete state that means
@@ -2402,7 +2408,11 @@ func (devices *DeviceSet) UnmountDevice(hash, mountPath string) error {
 	}
 	logrus.Debug("devmapper: Unmount done")
 
-	return devices.deactivateDevice(info)
+	if err := devices.deactivateDevice(info); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // HasDevice returns true if the device metadata exists.

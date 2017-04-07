@@ -5,22 +5,21 @@ import (
 
 	"golang.org/x/net/context"
 
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
-	"github.com/docker/docker/opts"
 	units "github.com/docker/go-units"
 	"github.com/spf13/cobra"
 )
 
 type pruneOptions struct {
-	force  bool
-	all    bool
-	filter opts.FilterOpt
+	force bool
+	all   bool
 }
 
 // NewPruneCommand returns a new cobra prune command for images
 func NewPruneCommand(dockerCli *command.DockerCli) *cobra.Command {
-	opts := pruneOptions{filter: opts.NewFilterOpt()}
+	var opts pruneOptions
 
 	cmd := &cobra.Command{
 		Use:   "prune [OPTIONS]",
@@ -43,7 +42,6 @@ func NewPruneCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags := cmd.Flags()
 	flags.BoolVarP(&opts.force, "force", "f", false, "Do not prompt for confirmation")
 	flags.BoolVarP(&opts.all, "all", "a", false, "Remove all unused images, not just dangling ones")
-	flags.Var(&opts.filter, "filter", "Provide filter values (e.g. 'until=<timestamp>')")
 
 	return cmd
 }
@@ -56,7 +54,7 @@ Are you sure you want to continue?`
 )
 
 func runPrune(dockerCli *command.DockerCli, opts pruneOptions) (spaceReclaimed uint64, output string, err error) {
-	pruneFilters := opts.filter.Value()
+	pruneFilters := filters.NewArgs()
 	pruneFilters.Add("dangling", fmt.Sprintf("%v", !opts.all))
 
 	warning := danglingWarning
@@ -89,6 +87,6 @@ func runPrune(dockerCli *command.DockerCli, opts pruneOptions) (spaceReclaimed u
 
 // RunPrune calls the Image Prune API
 // This returns the amount of space reclaimed and a detailed output string
-func RunPrune(dockerCli *command.DockerCli, all bool, filter opts.FilterOpt) (uint64, string, error) {
-	return runPrune(dockerCli, pruneOptions{force: true, all: all, filter: filter})
+func RunPrune(dockerCli *command.DockerCli, all bool) (uint64, string, error) {
+	return runPrune(dockerCli, pruneOptions{force: true, all: all})
 }

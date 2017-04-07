@@ -1,16 +1,19 @@
 package plugin
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"strings"
 
-	"github.com/docker/distribution/reference"
+	distreference "github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
+	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/cli/command/image"
 	"github.com/docker/docker/pkg/jsonmessage"
+	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -28,7 +31,7 @@ type pluginOptions struct {
 
 func loadPullFlags(opts *pluginOptions, flags *pflag.FlagSet) {
 	flags.BoolVar(&opts.grantPerms, "grant-all-permissions", false, "Grant all permissions necessary to run the plugin")
-	command.AddTrustVerificationFlags(flags)
+	command.AddTrustedFlags(flags, true)
 }
 
 func newInstallCommand(dockerCli *command.DockerCli) *cobra.Command {
@@ -53,6 +56,20 @@ func newInstallCommand(dockerCli *command.DockerCli) *cobra.Command {
 	return cmd
 }
 
+func getRepoIndexFromUnnormalizedRef(ref distreference.Named) (*registrytypes.IndexInfo, error) {
+	named, err := reference.ParseNamed(ref.Name())
+	if err != nil {
+		return nil, err
+	}
+
+	repoInfo, err := registry.ParseRepositoryInfo(named)
+	if err != nil {
+		return nil, err
+	}
+
+	return repoInfo.Index, nil
+}
+
 type pluginRegistryService struct {
 	registry.Service
 }
@@ -72,27 +89,41 @@ func newRegistryService() registry.Service {
 }
 
 func buildPullConfig(ctx context.Context, dockerCli *command.DockerCli, opts pluginOptions, cmdName string) (types.PluginInstallOptions, error) {
-	// Names with both tag and digest will be treated by the daemon
-	// as a pull by digest with a local name for the tag
-	// (if no local name is provided).
-	ref, err := reference.ParseNormalizedNamed(opts.remote)
+	// Parse name using distribution reference package to support name
+	// containing both tag and digest. Names with both tag and digest
+	// will be treated by the daemon as a pull by digest with
+	// an alias for the tag (if no alias is provided).
+	ref, err := distreference.ParseNamed(opts.remote)
 	if err != nil {
 		return types.PluginInstallOptions{}, err
 	}
 
-	repoInfo, err := registry.ParseRepositoryInfo(ref)
+	index, err := getRepoIndexFromUnnormalizedRef(ref)
 	if err != nil {
 		return types.PluginInstallOptions{}, err
 	}
 
+	repoInfoIndex, err := getRepoIndexFromUnnormalizedRef(ref)
+	if err != nil {
+		return types.PluginInstallOptions{}, err
+	}
 	remote := ref.String()
 
-	_, isCanonical := ref.(reference.Canonical)
+	_, isCanonical := ref.(distreference.Canonical)
 	if command.IsTrusted() && !isCanonical {
-		ref = reference.TagNameOnly(ref)
-		nt, ok := ref.(reference.NamedTagged)
-		if !ok {
-			return types.PluginInstallOptions{}, fmt.Errorf("invalid name: %s", ref.String())
+		var nt reference.NamedTagged
+		named, err := reference.ParseNamed(ref.Name())
+		if err != nil {
+			return types.PluginInstallOptions{}, err
+		}
+		if tagged, ok := ref.(distreference.Tagged); ok {
+			nt, err = reference.WithTag(named, tagged.Tag())
+			if err != nil {
+				return types.PluginInstallOptions{}, err
+			}
+		} else {
+			named = reference.WithDefaultTag(named)
+			nt = named.(reference.NamedTagged)
 		}
 
 		ctx := context.Background()
@@ -100,16 +131,17 @@ func buildPullConfig(ctx context.Context, dockerCli *command.DockerCli, opts plu
 		if err != nil {
 			return types.PluginInstallOptions{}, err
 		}
-		remote = reference.FamiliarString(trusted)
+		remote = trusted.String()
 	}
 
-	authConfig := command.ResolveAuthConfig(ctx, dockerCli, repoInfo.Index)
+	authConfig := command.ResolveAuthConfig(ctx, dockerCli, index)
 
 	encodedAuth, err := command.EncodeAuthToBase64(authConfig)
 	if err != nil {
 		return types.PluginInstallOptions{}, err
 	}
-	registryAuthFunc := command.RegistryAuthenticationPrivilegedFunc(dockerCli, repoInfo.Index, cmdName)
+
+	registryAuthFunc := command.RegistryAuthenticationPrivilegedFunc(dockerCli, repoInfoIndex, cmdName)
 
 	options := types.PluginInstallOptions{
 		RegistryAuth:          encodedAuth,
@@ -127,14 +159,15 @@ func buildPullConfig(ctx context.Context, dockerCli *command.DockerCli, opts plu
 func runInstall(dockerCli *command.DockerCli, opts pluginOptions) error {
 	var localName string
 	if opts.localName != "" {
-		aref, err := reference.ParseNormalizedNamed(opts.localName)
+		aref, err := reference.ParseNamed(opts.localName)
 		if err != nil {
 			return err
 		}
-		if _, ok := aref.(reference.Canonical); ok {
+		aref = reference.WithDefaultTag(aref)
+		if _, ok := aref.(reference.NamedTagged); !ok {
 			return fmt.Errorf("invalid name: %s", opts.localName)
 		}
-		localName = reference.FamiliarString(reference.TagNameOnly(aref))
+		localName = aref.String()
 	}
 
 	ctx := context.Background()
@@ -144,7 +177,7 @@ func runInstall(dockerCli *command.DockerCli, opts pluginOptions) error {
 	}
 	responseBody, err := dockerCli.Client().PluginInstall(ctx, localName, options)
 	if err != nil {
-		if strings.Contains(err.Error(), "(image) when fetching") {
+		if strings.Contains(err.Error(), "target is image") {
 			return errors.New(err.Error() + " - Use `docker image pull`")
 		}
 		return err
@@ -163,6 +196,13 @@ func acceptPrivileges(dockerCli *command.DockerCli, name string) func(privileges
 		for _, privilege := range privileges {
 			fmt.Fprintf(dockerCli.Out(), " - %s: %v\n", privilege.Name, privilege.Value)
 		}
-		return command.PromptForConfirmation(dockerCli.In(), dockerCli.Out(), "Do you grant the above permissions?"), nil
+
+		fmt.Fprint(dockerCli.Out(), "Do you grant the above permissions? [y/N] ")
+		reader := bufio.NewReader(dockerCli.In())
+		line, _, err := reader.ReadLine()
+		if err != nil {
+			return false, err
+		}
+		return strings.ToLower(string(line)) == "y", nil
 	}
 }

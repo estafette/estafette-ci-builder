@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 set -e
 
 # This file is used to auto-generate Dockerfiles for making debs via 'make deb'
@@ -54,6 +54,7 @@ for version in "${versions[@]}"; do
 		libapparmor-dev # for "sys/apparmor.h"
 		libdevmapper-dev # for "libdevmapper.h"
 		libltdl-dev # for pkcs11 "ltdl.h"
+		libsqlite3-dev # for "sqlite3.h"
 		pkg-config # for detecting things like libsystemd-journal dynamically
 		vim-common # tini dep
 	)

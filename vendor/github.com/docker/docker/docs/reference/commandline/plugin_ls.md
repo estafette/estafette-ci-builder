@@ -24,19 +24,14 @@ Aliases:
   ls, list
 
 Options:
-  -f, --filter filter   Provide filter values (e.g. 'enabled=true')
-      --format string   Pretty-print plugins using a Go template
-      --help            Print usage
-      --no-trunc        Don't truncate output
-  -q, --quiet           Only display plugin IDs
+      --help	   Print usage
+      --no-trunc   Don't truncate output
 ```
 
 ## Description
 
 Lists all the plugins that are currently installed. You can install plugins
 using the [`docker plugin install`](plugin_install.md) command.
-You can also filter using the `-f` or `--filter` flag.
-Refer to the [filtering](#filtering) section for more information about available filter options.
 
 ## Examples
 

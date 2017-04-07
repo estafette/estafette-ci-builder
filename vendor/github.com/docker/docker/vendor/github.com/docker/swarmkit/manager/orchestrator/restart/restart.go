@@ -12,7 +12,7 @@ import (
 	"github.com/docker/swarmkit/manager/orchestrator"
 	"github.com/docker/swarmkit/manager/state"
 	"github.com/docker/swarmkit/manager/state/store"
-	gogotypes "github.com/gogo/protobuf/types"
+	"github.com/docker/swarmkit/protobuf/ptypes"
 	"golang.org/x/net/context"
 )
 
@@ -156,7 +156,7 @@ func (r *Supervisor) Restart(ctx context.Context, tx store.Tx, cluster *api.Clus
 	if n == nil || n.Spec.Availability != api.NodeAvailabilityDrain {
 		if t.Spec.Restart != nil && t.Spec.Restart.Delay != nil {
 			var err error
-			restartDelay, err = gogotypes.DurationFromProto(t.Spec.Restart.Delay)
+			restartDelay, err = ptypes.Duration(t.Spec.Restart.Delay)
 			if err != nil {
 				log.G(ctx).WithError(err).Error("invalid restart delay; using default")
 				restartDelay = orchestrator.DefaultRestartDelay
@@ -226,7 +226,7 @@ func (r *Supervisor) shouldRestart(ctx context.Context, t *api.Task, service *ap
 		return true
 	}
 
-	window, err := gogotypes.DurationFromProto(t.Spec.Restart.Window)
+	window, err := ptypes.Duration(t.Spec.Restart.Window)
 	if err != nil {
 		log.G(ctx).WithError(err).Error("invalid restart lookback window")
 		return restartInfo.totalRestarts < t.Spec.Restart.MaxAttempts

@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 set -e
 
 # usage: ./generate.sh [versions]
@@ -76,6 +76,7 @@ for version in "${versions[@]}"; do
 		libdevmapper-dev # for "libdevmapper.h"
 		libltdl-dev # for pkcs11 "ltdl.h"
 		libseccomp-dev  # for "seccomp.h" & "libseccomp.so"
+		libsqlite3-dev # for "sqlite3.h"
 		pkg-config # for detecting things like libsystemd-journal dynamically
 		vim-common # tini dep
 	)

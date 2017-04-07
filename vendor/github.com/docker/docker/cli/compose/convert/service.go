@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/docker/docker/api/types"
@@ -15,6 +14,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/opts"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
+	"github.com/docker/go-connections/nat"
 )
 
 const defaultNetwork = "default"
@@ -57,7 +57,7 @@ func convertService(
 ) (swarm.ServiceSpec, error) {
 	name := namespace.Scope(service.Name)
 
-	endpoint, err := convertEndpointSpec(service.Deploy.EndpointMode, service.Ports)
+	endpoint, err := convertEndpointSpec(service.Ports)
 	if err != nil {
 		return swarm.ServiceSpec{}, err
 	}
@@ -186,6 +186,7 @@ func convertServiceNetworks(
 	}
 
 	sort.Sort(byNetworkTarget(nets))
+
 	return nets, nil
 }
 
@@ -366,6 +367,7 @@ func convertResources(source composetypes.Resources) (*swarm.ResourceRequirement
 		}
 	}
 	return resources, nil
+
 }
 
 type byPublishedPort []swarm.PortConfig
@@ -374,35 +376,30 @@ func (a byPublishedPort) Len() int           { return len(a) }
 func (a byPublishedPort) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a byPublishedPort) Less(i, j int) bool { return a[i].PublishedPort < a[j].PublishedPort }
 
-func convertEndpointSpec(endpointMode string, source []composetypes.ServicePortConfig) (*swarm.EndpointSpec, error) {
+func convertEndpointSpec(source []string) (*swarm.EndpointSpec, error) {
 	portConfigs := []swarm.PortConfig{}
-	for _, port := range source {
-		portConfig := swarm.PortConfig{
-			Protocol:      swarm.PortConfigProtocol(port.Protocol),
-			TargetPort:    port.Target,
-			PublishedPort: port.Published,
-			PublishMode:   swarm.PortConfigPublishMode(port.Mode),
-		}
-		portConfigs = append(portConfigs, portConfig)
+	ports, portBindings, err := nat.ParsePortSpecs(source)
+	if err != nil {
+		return nil, err
 	}
 
+	for port := range ports {
+		portConfigs = append(
+			portConfigs,
+			opts.ConvertPortToPortConfig(port, portBindings)...)
+	}
+
+	// Sorting to make sure these are always in the same order
 	sort.Sort(byPublishedPort(portConfigs))
-	return &swarm.EndpointSpec{
-		Mode:  swarm.ResolutionMode(strings.ToLower(endpointMode)),
-		Ports: portConfigs,
-	}, nil
+
+	return &swarm.EndpointSpec{Ports: portConfigs}, nil
 }
 
-func convertEnvironment(source map[string]*string) []string {
+func convertEnvironment(source map[string]string) []string {
 	var output []string
 
 	for name, value := range source {
-		switch value {
-		case nil:
-			output = append(output, name)
-		default:
-			output = append(output, fmt.Sprintf("%s=%s", name, *value))
-		}
+		output = append(output, fmt.Sprintf("%s=%s", name, value))
 	}
 
 	return output

@@ -1,7 +1,7 @@
 package networkdb
 
 import (
-	"errors"
+	"fmt"
 	"time"
 
 	"github.com/hashicorp/memberlist"
@@ -90,7 +90,7 @@ func (nDB *NetworkDB) sendNodeEvent(event NodeEvent_Type) error {
 	select {
 	case <-notifyCh:
 	case <-time.After(broadcastTimeout):
-		return errors.New("timed out broadcasting node event")
+		return fmt.Errorf("timed out broadcasting node event")
 	}
 
 	return nil

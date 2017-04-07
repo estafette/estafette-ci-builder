@@ -145,23 +145,6 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 	return nil
 }
 
-func (d *driver) DecodeTableEntry(tablename string, key string, value []byte) (string, map[string]string) {
-	if tablename != ovPeerTable {
-		logrus.Errorf("DecodeTableEntry: unexpected table name %s", tablename)
-		return "", nil
-	}
-
-	var peer PeerRecord
-	if err := proto.Unmarshal(value, &peer); err != nil {
-		logrus.Errorf("DecodeTableEntry: failed to unmarshal peer record for key %s: %v", key, err)
-		return "", nil
-	}
-
-	return key, map[string]string{
-		"Host IP": peer.TunnelEndpointIP,
-	}
-}
-
 func (d *driver) EventNotify(etype driverapi.EventType, nid, tableName, key string, value []byte) {
 	if tableName != ovPeerTable {
 		logrus.Errorf("Unexpected table notification for table %s received", tableName)

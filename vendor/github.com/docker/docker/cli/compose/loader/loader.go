@@ -2,20 +2,17 @@ package loader
 
 import (
 	"fmt"
+	"os"
 	"path"
 	"reflect"
 	"regexp"
 	"sort"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/cli/compose/interpolation"
 	"github.com/docker/docker/cli/compose/schema"
-	"github.com/docker/docker/cli/compose/template"
 	"github.com/docker/docker/cli/compose/types"
-	"github.com/docker/docker/opts"
-	runconfigopts "github.com/docker/docker/runconfig/opts"
-	"github.com/docker/go-connections/nat"
+	"github.com/docker/docker/runconfig/opts"
 	units "github.com/docker/go-units"
 	shellwords "github.com/mattn/go-shellwords"
 	"github.com/mitchellh/mapstructure"
@@ -70,17 +67,13 @@ func Load(configDetails types.ConfigDetails) (*types.Config, error) {
 	}
 
 	cfg := types.Config{}
-	lookupEnv := func(k string) (string, bool) {
-		v, ok := configDetails.Environment[k]
-		return v, ok
-	}
 	if services, ok := configDict["services"]; ok {
-		servicesConfig, err := interpolation.Interpolate(services.(types.Dict), "service", lookupEnv)
+		servicesConfig, err := interpolation.Interpolate(services.(types.Dict), "service", os.LookupEnv)
 		if err != nil {
 			return nil, err
 		}
 
-		servicesList, err := LoadServices(servicesConfig, configDetails.WorkingDir, lookupEnv)
+		servicesList, err := loadServices(servicesConfig, configDetails.WorkingDir)
 		if err != nil {
 			return nil, err
 		}
@@ -89,12 +82,12 @@ func Load(configDetails types.ConfigDetails) (*types.Config, error) {
 	}
 
 	if networks, ok := configDict["networks"]; ok {
-		networksConfig, err := interpolation.Interpolate(networks.(types.Dict), "network", lookupEnv)
+		networksConfig, err := interpolation.Interpolate(networks.(types.Dict), "network", os.LookupEnv)
 		if err != nil {
 			return nil, err
 		}
 
-		networksMapping, err := LoadNetworks(networksConfig)
+		networksMapping, err := loadNetworks(networksConfig)
 		if err != nil {
 			return nil, err
 		}
@@ -103,12 +96,12 @@ func Load(configDetails types.ConfigDetails) (*types.Config, error) {
 	}
 
 	if volumes, ok := configDict["volumes"]; ok {
-		volumesConfig, err := interpolation.Interpolate(volumes.(types.Dict), "volume", lookupEnv)
+		volumesConfig, err := interpolation.Interpolate(volumes.(types.Dict), "volume", os.LookupEnv)
 		if err != nil {
 			return nil, err
 		}
 
-		volumesMapping, err := LoadVolumes(volumesConfig)
+		volumesMapping, err := loadVolumes(volumesConfig)
 		if err != nil {
 			return nil, err
 		}
@@ -117,12 +110,12 @@ func Load(configDetails types.ConfigDetails) (*types.Config, error) {
 	}
 
 	if secrets, ok := configDict["secrets"]; ok {
-		secretsConfig, err := interpolation.Interpolate(secrets.(types.Dict), "secret", lookupEnv)
+		secretsConfig, err := interpolation.Interpolate(secrets.(types.Dict), "secret", os.LookupEnv)
 		if err != nil {
 			return nil, err
 		}
 
-		secretsMapping, err := LoadSecrets(secretsConfig, configDetails.WorkingDir)
+		secretsMapping, err := loadSecrets(secretsConfig, configDetails.WorkingDir)
 		if err != nil {
 			return nil, err
 		}
@@ -232,34 +225,18 @@ func transformHook(
 	switch target {
 	case reflect.TypeOf(types.External{}):
 		return transformExternal(data)
-	case reflect.TypeOf(types.HealthCheckTest{}):
-		return transformHealthCheckTest(data)
-	case reflect.TypeOf(types.ShellCommand{}):
-		return transformShellCommand(data)
-	case reflect.TypeOf(types.StringList{}):
-		return transformStringList(data)
-	case reflect.TypeOf(map[string]string{}):
-		return transformMapStringString(data)
+	case reflect.TypeOf(make(map[string]string, 0)):
+		return transformMapStringString(source, target, data)
 	case reflect.TypeOf(types.UlimitsConfig{}):
 		return transformUlimits(data)
 	case reflect.TypeOf(types.UnitBytes(0)):
-		return transformSize(data)
-	case reflect.TypeOf([]types.ServicePortConfig{}):
-		return transformServicePort(data)
+		return loadSize(data)
 	case reflect.TypeOf(types.ServiceSecretConfig{}):
 		return transformServiceSecret(data)
-	case reflect.TypeOf(types.StringOrNumberList{}):
-		return transformStringOrNumberList(data)
-	case reflect.TypeOf(map[string]*types.ServiceNetworkConfig{}):
-		return transformServiceNetworkMap(data)
-	case reflect.TypeOf(types.MappingWithEquals{}):
-		return transformMappingOrList(data, "=", true), nil
-	case reflect.TypeOf(types.Labels{}):
-		return transformMappingOrList(data, "=", false), nil
-	case reflect.TypeOf(types.MappingWithColon{}):
-		return transformMappingOrList(data, ":", false), nil
-	case reflect.TypeOf(types.ServiceVolumeConfig{}):
-		return transformServiceVolumeConfig(data)
+	}
+	switch target.Kind() {
+	case reflect.Struct:
+		return transformStruct(source, target, data)
 	}
 	return data, nil
 }
@@ -272,7 +249,13 @@ func convertToStringKeysRecursive(value interface{}, keyPrefix string) (interfac
 		for key, entry := range mapping {
 			str, ok := key.(string)
 			if !ok {
-				return nil, formatInvalidKeyError(keyPrefix, key)
+				var location string
+				if keyPrefix == "" {
+					location = "at top level"
+				} else {
+					location = fmt.Sprintf("in %s", keyPrefix)
+				}
+				return nil, fmt.Errorf("Non-string key %s: %#v", location, key)
 			}
 			var newKeyPrefix string
 			if keyPrefix == "" {
@@ -303,23 +286,11 @@ func convertToStringKeysRecursive(value interface{}, keyPrefix string) (interfac
 	return value, nil
 }
 
-func formatInvalidKeyError(keyPrefix string, key interface{}) error {
-	var location string
-	if keyPrefix == "" {
-		location = "at top level"
-	} else {
-		location = fmt.Sprintf("in %s", keyPrefix)
-	}
-	return fmt.Errorf("Non-string key %s: %#v", location, key)
-}
-
-// LoadServices produces a ServiceConfig map from a compose file Dict
-// the servicesDict is not validated if directly used. Use Load() to enable validation
-func LoadServices(servicesDict types.Dict, workingDir string, lookupEnv template.Mapping) ([]types.ServiceConfig, error) {
+func loadServices(servicesDict types.Dict, workingDir string) ([]types.ServiceConfig, error) {
 	var services []types.ServiceConfig
 
 	for name, serviceDef := range servicesDict {
-		serviceConfig, err := LoadService(name, serviceDef.(types.Dict), workingDir, lookupEnv)
+		serviceConfig, err := loadService(name, serviceDef.(types.Dict), workingDir)
 		if err != nil {
 			return nil, err
 		}
@@ -329,78 +300,77 @@ func LoadServices(servicesDict types.Dict, workingDir string, lookupEnv template
 	return services, nil
 }
 
-// LoadService produces a single ServiceConfig from a compose file Dict
-// the serviceDict is not validated if directly used. Use Load() to enable validation
-func LoadService(name string, serviceDict types.Dict, workingDir string, lookupEnv template.Mapping) (*types.ServiceConfig, error) {
+func loadService(name string, serviceDict types.Dict, workingDir string) (*types.ServiceConfig, error) {
 	serviceConfig := &types.ServiceConfig{}
 	if err := transform(serviceDict, serviceConfig); err != nil {
 		return nil, err
 	}
 	serviceConfig.Name = name
 
-	if err := resolveEnvironment(serviceConfig, workingDir, lookupEnv); err != nil {
+	if err := resolveEnvironment(serviceConfig, serviceDict, workingDir); err != nil {
 		return nil, err
 	}
 
-	resolveVolumePaths(serviceConfig.Volumes, workingDir, lookupEnv)
+	if err := resolveVolumePaths(serviceConfig.Volumes, workingDir); err != nil {
+		return nil, err
+	}
+
 	return serviceConfig, nil
 }
 
-func updateEnvironment(environment map[string]*string, vars map[string]*string, lookupEnv template.Mapping) {
-	for k, v := range vars {
-		interpolatedV, ok := lookupEnv(k)
-		if (v == nil || *v == "") && ok {
-			// lookupEnv is prioritized over vars
-			environment[k] = &interpolatedV
-		} else {
-			environment[k] = v
-		}
-	}
-}
+func resolveEnvironment(serviceConfig *types.ServiceConfig, serviceDict types.Dict, workingDir string) error {
+	environment := make(map[string]string)
 
-func resolveEnvironment(serviceConfig *types.ServiceConfig, workingDir string, lookupEnv template.Mapping) error {
-	environment := make(map[string]*string)
+	if envFileVal, ok := serviceDict["env_file"]; ok {
+		envFiles := loadStringOrListOfStrings(envFileVal)
 
-	if len(serviceConfig.EnvFile) > 0 {
 		var envVars []string
 
-		for _, file := range serviceConfig.EnvFile {
+		for _, file := range envFiles {
 			filePath := absPath(workingDir, file)
-			fileVars, err := runconfigopts.ParseEnvFile(filePath)
+			fileVars, err := opts.ParseEnvFile(filePath)
 			if err != nil {
 				return err
 			}
 			envVars = append(envVars, fileVars...)
 		}
-		updateEnvironment(environment,
-			runconfigopts.ConvertKVStringsToMapWithNil(envVars), lookupEnv)
+
+		for k, v := range opts.ConvertKVStringsToMap(envVars) {
+			environment[k] = v
+		}
 	}
 
-	updateEnvironment(environment, serviceConfig.Environment, lookupEnv)
+	for k, v := range serviceConfig.Environment {
+		environment[k] = v
+	}
+
 	serviceConfig.Environment = environment
+
 	return nil
 }
 
-func resolveVolumePaths(volumes []types.ServiceVolumeConfig, workingDir string, lookupEnv template.Mapping) {
-	for i, volume := range volumes {
-		if volume.Type != "bind" {
+func resolveVolumePaths(volumes []string, workingDir string) error {
+	for i, mapping := range volumes {
+		parts := strings.SplitN(mapping, ":", 2)
+		if len(parts) == 1 {
 			continue
 		}
 
-		volume.Source = absPath(workingDir, expandUser(volume.Source, lookupEnv))
-		volumes[i] = volume
+		if strings.HasPrefix(parts[0], ".") {
+			parts[0] = absPath(workingDir, parts[0])
+		}
+		parts[0] = expandUser(parts[0])
+
+		volumes[i] = strings.Join(parts, ":")
 	}
+
+	return nil
 }
 
 // TODO: make this more robust
-func expandUser(path string, lookupEnv template.Mapping) string {
+func expandUser(path string) string {
 	if strings.HasPrefix(path, "~") {
-		home, ok := lookupEnv("HOME")
-		if !ok {
-			logrus.Warn("cannot expand '~', because the environment lacks HOME")
-			return path
-		}
-		return strings.Replace(path, "~", home, 1)
+		return strings.Replace(path, "~", os.Getenv("HOME"), 1)
 	}
 	return path
 }
@@ -419,9 +389,7 @@ func transformUlimits(data interface{}) (interface{}, error) {
 	}
 }
 
-// LoadNetworks produces a NetworkConfig map from a compose file Dict
-// the source Dict is not validated if directly used. Use Load() to enable validation
-func LoadNetworks(source types.Dict) (map[string]types.NetworkConfig, error) {
+func loadNetworks(source types.Dict) (map[string]types.NetworkConfig, error) {
 	networks := make(map[string]types.NetworkConfig)
 	err := transform(source, &networks)
 	if err != nil {
@@ -436,38 +404,23 @@ func LoadNetworks(source types.Dict) (map[string]types.NetworkConfig, error) {
 	return networks, nil
 }
 
-// LoadVolumes produces a VolumeConfig map from a compose file Dict
-// the source Dict is not validated if directly used. Use Load() to enable validation
-func LoadVolumes(source types.Dict) (map[string]types.VolumeConfig, error) {
+func loadVolumes(source types.Dict) (map[string]types.VolumeConfig, error) {
 	volumes := make(map[string]types.VolumeConfig)
 	err := transform(source, &volumes)
 	if err != nil {
 		return volumes, err
 	}
 	for name, volume := range volumes {
-		if volume.External.External {
-			template := "conflicting parameters \"external\" and %q specified for volume %q"
-			if volume.Driver != "" {
-				return nil, fmt.Errorf(template, "driver", name)
-			}
-			if len(volume.DriverOpts) > 0 {
-				return nil, fmt.Errorf(template, "driver_opts", name)
-			}
-			if len(volume.Labels) > 0 {
-				return nil, fmt.Errorf(template, "labels", name)
-			}
-			if volume.External.Name == "" {
-				volume.External.Name = name
-				volumes[name] = volume
-			}
+		if volume.External.External && volume.External.Name == "" {
+			volume.External.Name = name
+			volumes[name] = volume
 		}
 	}
 	return volumes, nil
 }
 
-// LoadSecrets produces a SecretConfig map from a compose file Dict
-// the source Dict is not validated if directly used. Use Load() to enable validation
-func LoadSecrets(source types.Dict, workingDir string) (map[string]types.SecretConfig, error) {
+// TODO: remove duplicate with networks/volumes
+func loadSecrets(source types.Dict, workingDir string) (map[string]types.SecretConfig, error) {
 	secrets := make(map[string]types.SecretConfig)
 	if err := transform(source, &secrets); err != nil {
 		return secrets, err
@@ -491,17 +444,87 @@ func absPath(workingDir string, filepath string) string {
 	return path.Join(workingDir, filepath)
 }
 
-func transformMapStringString(data interface{}) (interface{}, error) {
+func transformStruct(
+	source reflect.Type,
+	target reflect.Type,
+	data interface{},
+) (interface{}, error) {
+	structValue, ok := data.(map[string]interface{})
+	if !ok {
+		// FIXME: this is necessary because of convertToStringKeysRecursive
+		structValue, ok = data.(types.Dict)
+		if !ok {
+			panic(fmt.Sprintf(
+				"transformStruct called with non-map type: %T, %s", data, data))
+		}
+	}
+
+	var err error
+	for i := 0; i < target.NumField(); i++ {
+		field := target.Field(i)
+		fieldTag := field.Tag.Get("compose")
+
+		yamlName := toYAMLName(field.Name)
+		value, ok := structValue[yamlName]
+		if !ok {
+			continue
+		}
+
+		structValue[yamlName], err = convertField(
+			fieldTag, reflect.TypeOf(value), field.Type, value)
+		if err != nil {
+			return nil, fmt.Errorf("field %s: %s", yamlName, err.Error())
+		}
+	}
+	return structValue, nil
+}
+
+func transformMapStringString(
+	source reflect.Type,
+	target reflect.Type,
+	data interface{},
+) (interface{}, error) {
 	switch value := data.(type) {
 	case map[string]interface{}:
-		return toMapStringString(value, false), nil
+		return toMapStringString(value), nil
 	case types.Dict:
-		return toMapStringString(value, false), nil
+		return toMapStringString(value), nil
 	case map[string]string:
 		return value, nil
 	default:
 		return data, fmt.Errorf("invalid type %T for map[string]string", value)
 	}
+}
+
+func convertField(
+	fieldTag string,
+	source reflect.Type,
+	target reflect.Type,
+	data interface{},
+) (interface{}, error) {
+	switch fieldTag {
+	case "":
+		return data, nil
+	case "healthcheck":
+		return loadHealthcheck(data)
+	case "list_or_dict_equals":
+		return loadMappingOrList(data, "="), nil
+	case "list_or_dict_colon":
+		return loadMappingOrList(data, ":"), nil
+	case "list_or_struct_map":
+		return loadListOrStructMap(data, target)
+	case "string_or_list":
+		return loadStringOrListOfStrings(data), nil
+	case "list_of_strings_or_numbers":
+		return loadListOfStringsOrNumbers(data), nil
+	case "shell_command":
+		return loadShellCommand(data)
+	case "size":
+		return loadSize(data)
+	case "-":
+		return nil, nil
+	}
+	return data, nil
 }
 
 func transformExternal(data interface{}) (interface{}, error) {
@@ -517,41 +540,6 @@ func transformExternal(data interface{}) (interface{}, error) {
 	}
 }
 
-func transformServicePort(data interface{}) (interface{}, error) {
-	switch entries := data.(type) {
-	case []interface{}:
-		// We process the list instead of individual items here.
-		// The reason is that one entry might be mapped to multiple ServicePortConfig.
-		// Therefore we take an input of a list and return an output of a list.
-		ports := []interface{}{}
-		for _, entry := range entries {
-			switch value := entry.(type) {
-			case int:
-				v, err := toServicePortConfigs(fmt.Sprint(value))
-				if err != nil {
-					return data, err
-				}
-				ports = append(ports, v...)
-			case string:
-				v, err := toServicePortConfigs(value)
-				if err != nil {
-					return data, err
-				}
-				ports = append(ports, v...)
-			case types.Dict:
-				ports = append(ports, value)
-			case map[string]interface{}:
-				ports = append(ports, value)
-			default:
-				return data, fmt.Errorf("invalid type %T for port", value)
-			}
-		}
-		return ports, nil
-	default:
-		return data, fmt.Errorf("invalid type %T for port", entries)
-	}
-}
-
 func transformServiceSecret(data interface{}) (interface{}, error) {
 	switch value := data.(type) {
 	case string:
@@ -563,23 +551,18 @@ func transformServiceSecret(data interface{}) (interface{}, error) {
 	default:
 		return data, fmt.Errorf("invalid type %T for external", value)
 	}
+
 }
 
-func transformServiceVolumeConfig(data interface{}) (interface{}, error) {
-	switch value := data.(type) {
-	case string:
-		return parseVolume(value)
-	case types.Dict:
-		return data, nil
-	case map[string]interface{}:
-		return data, nil
-	default:
-		return data, fmt.Errorf("invalid type %T for service volume", value)
+func toYAMLName(name string) string {
+	nameParts := fieldNameRegexp.FindAllString(name, -1)
+	for i, p := range nameParts {
+		nameParts[i] = strings.ToLower(p)
 	}
-
+	return strings.Join(nameParts, "_")
 }
 
-func transformServiceNetworkMap(value interface{}) (interface{}, error) {
+func loadListOrStructMap(value interface{}, target reflect.Type) (interface{}, error) {
 	if list, ok := value.([]interface{}); ok {
 		mapValue := map[interface{}]interface{}{}
 		for _, name := range list {
@@ -587,71 +570,64 @@ func transformServiceNetworkMap(value interface{}) (interface{}, error) {
 		}
 		return mapValue, nil
 	}
+
 	return value, nil
 }
 
-func transformStringOrNumberList(value interface{}) (interface{}, error) {
+func loadListOfStringsOrNumbers(value interface{}) []string {
 	list := value.([]interface{})
 	result := make([]string, len(list))
 	for i, item := range list {
 		result[i] = fmt.Sprint(item)
 	}
-	return result, nil
+	return result
 }
 
-func transformStringList(data interface{}) (interface{}, error) {
-	switch value := data.(type) {
-	case string:
-		return []string{value}, nil
-	case []interface{}:
-		return value, nil
-	default:
-		return data, fmt.Errorf("invalid type %T for string list", value)
+func loadStringOrListOfStrings(value interface{}) []string {
+	if list, ok := value.([]interface{}); ok {
+		result := make([]string, len(list))
+		for i, item := range list {
+			result[i] = fmt.Sprint(item)
+		}
+		return result
 	}
+	return []string{value.(string)}
 }
 
-func transformMappingOrList(mappingOrList interface{}, sep string, allowNil bool) interface{} {
-	switch value := mappingOrList.(type) {
-	case types.Dict:
-		return toMapStringString(value, allowNil)
-	case ([]interface{}):
-		result := make(map[string]interface{})
-		for _, value := range value {
+func loadMappingOrList(mappingOrList interface{}, sep string) map[string]string {
+	if mapping, ok := mappingOrList.(types.Dict); ok {
+		return toMapStringString(mapping)
+	}
+	if list, ok := mappingOrList.([]interface{}); ok {
+		result := make(map[string]string)
+		for _, value := range list {
 			parts := strings.SplitN(value.(string), sep, 2)
-			key := parts[0]
-			switch {
-			case len(parts) == 1 && allowNil:
-				result[key] = nil
-			case len(parts) == 1 && !allowNil:
-				result[key] = ""
-			default:
-				result[key] = parts[1]
+			if len(parts) == 1 {
+				result[parts[0]] = ""
+			} else {
+				result[parts[0]] = parts[1]
 			}
 		}
 		return result
 	}
-	panic(fmt.Errorf("expected a map or a list, got %T: %#v", mappingOrList, mappingOrList))
+	panic(fmt.Errorf("expected a map or a slice, got: %#v", mappingOrList))
 }
 
-func transformShellCommand(value interface{}) (interface{}, error) {
+func loadShellCommand(value interface{}) (interface{}, error) {
 	if str, ok := value.(string); ok {
 		return shellwords.Parse(str)
 	}
 	return value, nil
 }
 
-func transformHealthCheckTest(data interface{}) (interface{}, error) {
-	switch value := data.(type) {
-	case string:
-		return append([]string{"CMD-SHELL"}, value), nil
-	case []interface{}:
-		return value, nil
-	default:
-		return value, fmt.Errorf("invalid type %T for healthcheck.test", value)
+func loadHealthcheck(value interface{}) (interface{}, error) {
+	if str, ok := value.(string); ok {
+		return append([]string{"CMD-SHELL"}, str), nil
 	}
+	return value, nil
 }
 
-func transformSize(value interface{}) (int64, error) {
+func loadSize(value interface{}) (int64, error) {
 	switch value := value.(type) {
 	case int:
 		return int64(value), nil
@@ -661,54 +637,17 @@ func transformSize(value interface{}) (int64, error) {
 	panic(fmt.Errorf("invalid type for size %T", value))
 }
 
-func toServicePortConfigs(value string) ([]interface{}, error) {
-	var portConfigs []interface{}
-
-	ports, portBindings, err := nat.ParsePortSpecs([]string{value})
-	if err != nil {
-		return nil, err
-	}
-	// We need to sort the key of the ports to make sure it is consistent
-	keys := []string{}
-	for port := range ports {
-		keys = append(keys, string(port))
-	}
-	sort.Strings(keys)
-
-	for _, key := range keys {
-		// Reuse ConvertPortToPortConfig so that it is consistent
-		portConfig, err := opts.ConvertPortToPortConfig(nat.Port(key), portBindings)
-		if err != nil {
-			return nil, err
-		}
-		for _, p := range portConfig {
-			portConfigs = append(portConfigs, types.ServicePortConfig{
-				Protocol:  string(p.Protocol),
-				Target:    p.TargetPort,
-				Published: p.PublishedPort,
-				Mode:      string(p.PublishMode),
-			})
-		}
-	}
-
-	return portConfigs, nil
-}
-
-func toMapStringString(value map[string]interface{}, allowNil bool) map[string]interface{} {
-	output := make(map[string]interface{})
+func toMapStringString(value map[string]interface{}) map[string]string {
+	output := make(map[string]string)
 	for key, value := range value {
-		output[key] = toString(value, allowNil)
+		output[key] = toString(value)
 	}
 	return output
 }
 
-func toString(value interface{}, allowNil bool) interface{} {
-	switch {
-	case value != nil:
-		return fmt.Sprint(value)
-	case allowNil:
-		return nil
-	default:
+func toString(value interface{}) string {
+	if value == nil {
 		return ""
 	}
+	return fmt.Sprint(value)
 }

@@ -80,12 +80,7 @@ func (daemon *Daemon) rmLink(container *container.Container, name string) error 
 func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemove, removeVolume bool) (err error) {
 	if container.IsRunning() {
 		if !forceRemove {
-			state := container.StateString()
-			procedure := "Stop the container before attempting removal or force remove"
-			if state == "paused" {
-				procedure = "Unpause and then " + strings.ToLower(procedure)
-			}
-			err := fmt.Errorf("You cannot remove a %s container %s. %s", state, container.ID, procedure)
+			err := fmt.Errorf("You cannot remove a running container %s. Stop the container before attempting removal or use -f", container.ID)
 			return apierrors.NewRequestConflictError(err)
 		}
 		if err := daemon.Kill(container); err != nil {
@@ -95,7 +90,7 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemo
 
 	// stop collection of stats for the container regardless
 	// if stats are currently getting collected.
-	daemon.statsCollector.StopCollection(container)
+	daemon.statsCollector.stopCollection(container)
 
 	if err = daemon.containerStop(container, 3); err != nil {
 		return err

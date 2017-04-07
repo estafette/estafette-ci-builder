@@ -22,11 +22,9 @@ List the tasks in the stack
 
 Options:
   -f, --filter filter   Filter output based on conditions provided
-      --format string   Pretty-print tasks using a Go template
       --help            Print usage
       --no-resolve      Do not map IDs to Names
       --no-trunc        Do not truncate output
-  -q, --quiet           Only display task IDs
 ```
 
 ## Description

@@ -3,12 +3,13 @@ package container
 import (
 	"fmt"
 
+	"golang.org/x/net/context"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	dockeropts "github.com/docker/docker/opts"
 	"github.com/spf13/cobra"
-	"golang.org/x/net/context"
 )
 
 type commitOptions struct {

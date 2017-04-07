@@ -13,7 +13,7 @@ import (
 	"github.com/spf13/pflag"
 )
 
-func newUpdateCommand(dockerCli command.Cli) *cobra.Command {
+func newUpdateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	opts := swarmOptions{}
 
 	cmd := &cobra.Command{
@@ -36,24 +36,24 @@ func newUpdateCommand(dockerCli command.Cli) *cobra.Command {
 	return cmd
 }
 
-func runUpdate(dockerCli command.Cli, flags *pflag.FlagSet, opts swarmOptions) error {
+func runUpdate(dockerCli *command.DockerCli, flags *pflag.FlagSet, opts swarmOptions) error {
 	client := dockerCli.Client()
 	ctx := context.Background()
 
 	var updateFlags swarm.UpdateFlags
 
-	swarmInspect, err := client.SwarmInspect(ctx)
+	swarm, err := client.SwarmInspect(ctx)
 	if err != nil {
 		return err
 	}
 
-	prevAutoLock := swarmInspect.Spec.EncryptionConfig.AutoLockManagers
+	prevAutoLock := swarm.Spec.EncryptionConfig.AutoLockManagers
 
-	opts.mergeSwarmSpec(&swarmInspect.Spec, flags)
+	opts.mergeSwarmSpec(&swarm.Spec, flags)
 
-	curAutoLock := swarmInspect.Spec.EncryptionConfig.AutoLockManagers
+	curAutoLock := swarm.Spec.EncryptionConfig.AutoLockManagers
 
-	err = client.SwarmUpdate(ctx, swarmInspect.Version, swarmInspect.Spec, updateFlags)
+	err = client.SwarmUpdate(ctx, swarm.Version, swarm.Spec, updateFlags)
 	if err != nil {
 		return err
 	}

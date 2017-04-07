@@ -1,14 +1,15 @@
 package plugin
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"strings"
 
-	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/pkg/jsonmessage"
+	"github.com/docker/docker/reference"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -49,21 +50,31 @@ func runUpgrade(dockerCli *command.DockerCli, opts pluginOptions) error {
 	if opts.remote == "" {
 		opts.remote = p.PluginReference
 	}
-	remote, err := reference.ParseNormalizedNamed(opts.remote)
+	remote, err := reference.ParseNamed(opts.remote)
 	if err != nil {
 		return errors.Wrap(err, "error parsing remote upgrade image reference")
 	}
-	remote = reference.TagNameOnly(remote)
+	remote = reference.WithDefaultTag(remote)
 
-	old, err := reference.ParseNormalizedNamed(p.PluginReference)
+	old, err := reference.ParseNamed(p.PluginReference)
 	if err != nil {
 		return errors.Wrap(err, "error parsing current image reference")
 	}
-	old = reference.TagNameOnly(old)
+	old = reference.WithDefaultTag(old)
 
-	fmt.Fprintf(dockerCli.Out(), "Upgrading plugin %s from %s to %s\n", p.Name, reference.FamiliarString(old), reference.FamiliarString(remote))
+	fmt.Fprintf(dockerCli.Out(), "Upgrading plugin %s from %s to %s\n", p.Name, old, remote)
 	if !opts.skipRemoteCheck && remote.String() != old.String() {
-		if !command.PromptForConfirmation(dockerCli.In(), dockerCli.Out(), "Plugin images do not match, are you sure?") {
+		_, err := fmt.Fprint(dockerCli.Out(), "Plugin images do not match, are you sure? ")
+		if err != nil {
+			return errors.Wrap(err, "error writing to stdout")
+		}
+
+		rdr := bufio.NewReader(dockerCli.In())
+		line, _, err := rdr.ReadLine()
+		if err != nil {
+			return errors.Wrap(err, "error reading from stdin")
+		}
+		if strings.ToLower(string(line)) != "y" {
 			return errors.New("canceling upgrade request")
 		}
 	}

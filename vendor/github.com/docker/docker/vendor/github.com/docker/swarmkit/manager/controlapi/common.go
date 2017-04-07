@@ -94,11 +94,7 @@ func validateDriver(driver *api.Driver, pg plugingetter.PluginGetter, pluginType
 		return nil
 	}
 
-	if pg == nil {
-		return grpc.Errorf(codes.InvalidArgument, "plugin %s not supported", driver.Name)
-	}
-
-	p, err := pg.Get(driver.Name, pluginType, plugingetter.Lookup)
+	p, err := pg.Get(driver.Name, pluginType, plugingetter.LOOKUP)
 	if err != nil {
 		return grpc.Errorf(codes.InvalidArgument, "error during lookup of plugin %s", driver.Name)
 	}

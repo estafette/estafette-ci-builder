@@ -19,7 +19,7 @@ title: Managed plugin system
 * [Developing a plugin](index.md#developing-a-plugin)
 * [Debugging plugins](index.md#debugging-plugins)
 
-Docker Engine's plugin system allows you to install, start, stop, and remove
+Docker Engine's plugins system allows you to install, start, stop, and remove
 plugins using Docker Engine.
 
 For information about the legacy plugin system available in Docker Engine 1.12
@@ -34,7 +34,7 @@ Plugins are distributed as Docker images and can be hosted on Docker Hub or on
 a private registry.
 
 To install a plugin, use the `docker plugin install` command, which pulls the
-plugin from Docker Hub or your private registry, prompts you to grant
+plugin from Docker hub or your private registry, prompts you to grant
 permissions or capabilities if necessary, and enables the plugin.
 
 To check the status of installed plugins, use the `docker plugin ls` command.
@@ -62,7 +62,6 @@ enabled, and use it to create a volume.
     ```
 
     The plugin requests 2 privileges:
-    
     - It needs access to the `host` network.
     - It needs the `CAP_SYS_ADMIN` capability, which allows the plugin to run
     the `mount` command.
@@ -119,6 +118,63 @@ remove it, use the `docker plugin remove` command. For other available
 commands and options, see the
 [command line reference](../reference/commandline/index.md).
 
+## Service creation using plugins
+
+In swarm mode, it is possible to create a service that allows for attaching
+to networks or mounting volumes. Swarm schedules services based on plugin availability
+on a node. In this example, a volume plugin is installed on a swarm worker and a volume
+is created using the plugin. In the manager, a service is created with the relevant
+mount options. It can be observed that the service is scheduled to run on the worker
+node with the said volume plugin and volume.
+
+In the following example, node1 is the manager and node2 is the worker.
+
+1.  Prepare manager. In node 1:
+
+    ```bash
+    $ docker swarm init
+    Swarm initialized: current node (dxn1zf6l61qsb1josjja83ngz) is now a manager.
+    ```
+
+2. Join swarm, install plugin and create volume on worker. In node 2:
+
+    ```bash
+    $ docker swarm join \
+    --token SWMTKN-1-49nj1cmql0jkz5s954yi3oex3nedyz0fb0xx14ie39trti4wxv-8vxv8rssmk743ojnwacrr2e7c \
+    192.168.99.100:2377
+    ```
+
+    ```bash
+    $ docker plugin install tiborvass/sample-volume-plugin
+    latest: Pulling from tiborvass/sample-volume-plugin
+    eb9c16fbdc53: Download complete
+    Digest: sha256:00b42de88f3a3e0342e7b35fa62394b0a9ceb54d37f4c50be5d3167899994639
+    Status: Downloaded newer image for tiborvass/sample-volume-plugin:latest
+    Installed plugin tiborvass/sample-volume-plugin
+    ```
+
+    ```bash
+    $ docker volume create -d tiborvass/sample-volume-plugin --name pluginVol
+    ```
+
+3. Create a service using the plugin and volume. In node1:
+
+    ```bash
+    $ docker service create --name my-service --mount type=volume,volume-driver=tiborvass/sample-volume-plugin,source=pluginVol,destination=/tmp busybox top
+
+    $ docker service ls
+    z1sj8bb8jnfn  my-service   replicated  1/1       busybox:latest
+    ```
+    docker service ls shows service 1 instance of service running.
+
+4. Observe the task getting scheduled in node 2:
+
+    ```bash
+    {% raw %}
+    $ docker ps --format '{{.ID}}\t {{.Status}} {{.Names}} {{.Command}}'
+    83fc1e842599     Up 2 days my-service.1.9jn59qzn7nbc3m0zt1hij12xs "top"
+    {% endraw %}
+    ```
 
 ## Developing a plugin
 

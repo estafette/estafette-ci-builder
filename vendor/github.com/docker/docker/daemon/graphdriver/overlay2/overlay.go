@@ -27,7 +27,6 @@ import (
 	"github.com/docker/docker/pkg/directory"
 	"github.com/docker/docker/pkg/fsutils"
 	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/pkg/locker"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/kernel"
@@ -99,7 +98,6 @@ type Driver struct {
 	options       overlayOptions
 	naiveDiff     graphdriver.DiffDriver
 	supportsDType bool
-	locker        *locker.Locker
 }
 
 var (
@@ -182,7 +180,6 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		gidMaps:       gidMaps,
 		ctr:           graphdriver.NewRefCounter(graphdriver.NewFsChecker(graphdriver.FsMagicOverlay)),
 		supportsDType: supportsDType,
-		locker:        locker.New(),
 	}
 
 	d.naiveDiff = graphdriver.NewNaiveDiffDriver(d, uidMaps, gidMaps)
@@ -454,8 +451,6 @@ func (d *Driver) getLowerDirs(id string) ([]string, error) {
 
 // Remove cleans the directories that are created for this id.
 func (d *Driver) Remove(id string) error {
-	d.locker.Lock(id)
-	defer d.locker.Unlock(id)
 	dir := d.dir(id)
 	lid, err := ioutil.ReadFile(path.Join(dir, "link"))
 	if err == nil {
@@ -472,8 +467,6 @@ func (d *Driver) Remove(id string) error {
 
 // Get creates and mounts the required file system for the given id and returns the mount path.
 func (d *Driver) Get(id string, mountLabel string) (s string, err error) {
-	d.locker.Lock(id)
-	defer d.locker.Unlock(id)
 	dir := d.dir(id)
 	if _, err := os.Stat(dir); err != nil {
 		return "", err
@@ -560,8 +553,6 @@ func (d *Driver) Get(id string, mountLabel string) (s string, err error) {
 
 // Put unmounts the mount path created for the give id.
 func (d *Driver) Put(id string) error {
-	d.locker.Lock(id)
-	defer d.locker.Unlock(id)
 	dir := d.dir(id)
 	_, err := ioutil.ReadFile(path.Join(dir, lowerFile))
 	if err != nil {

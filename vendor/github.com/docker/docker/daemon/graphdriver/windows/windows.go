@@ -792,7 +792,11 @@ func (d *Driver) resolveID(id string) (string, error) {
 
 // setID stores the layerId in disk.
 func (d *Driver) setID(id, altID string) error {
-	return ioutil.WriteFile(filepath.Join(d.dir(id), "layerId"), []byte(altID), 0600)
+	err := ioutil.WriteFile(filepath.Join(d.dir(id), "layerId"), []byte(altID), 0600)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // getLayerChain returns the layer chain information.
@@ -842,16 +846,14 @@ func (fg *fileGetCloserWithBackupPrivileges) Get(filename string) (io.ReadCloser
 	var f *os.File
 	// Open the file while holding the Windows backup privilege. This ensures that the
 	// file can be opened even if the caller does not actually have access to it according
-	// to the security descriptor. Also use sequential file access to avoid depleting the
-	// standby list - Microsoft VSO Bug Tracker #9900466
+	// to the security descriptor.
 	err := winio.RunWithPrivilege(winio.SeBackupPrivilege, func() error {
 		path := longpath.AddPrefix(filepath.Join(fg.path, filename))
 		p, err := syscall.UTF16FromString(path)
 		if err != nil {
 			return err
 		}
-		const fileFlagSequentialScan = 0x08000000 // FILE_FLAG_SEQUENTIAL_SCAN
-		h, err := syscall.CreateFile(&p[0], syscall.GENERIC_READ, syscall.FILE_SHARE_READ, nil, syscall.OPEN_EXISTING, syscall.FILE_FLAG_BACKUP_SEMANTICS|fileFlagSequentialScan, 0)
+		h, err := syscall.CreateFile(&p[0], syscall.GENERIC_READ, syscall.FILE_SHARE_READ, nil, syscall.OPEN_EXISTING, syscall.FILE_FLAG_BACKUP_SEMANTICS, 0)
 		if err != nil {
 			return &os.PathError{Op: "open", Path: path, Err: err}
 		}

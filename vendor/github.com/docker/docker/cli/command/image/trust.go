@@ -9,17 +9,19 @@ import (
 	"path"
 	"sort"
 
+	"golang.org/x/net/context"
+
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/distribution/reference"
+	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/cli/trust"
+	"github.com/docker/docker/distribution"
 	"github.com/docker/docker/pkg/jsonmessage"
+	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 	"github.com/docker/notary/client"
 	"github.com/docker/notary/tuf/data"
-	"github.com/opencontainers/go-digest"
-	"golang.org/x/net/context"
 )
 
 type target struct {
@@ -30,7 +32,7 @@ type target struct {
 
 // trustedPush handles content trust pushing of an image
 func trustedPush(ctx context.Context, cli *command.DockerCli, repoInfo *registry.RepositoryInfo, ref reference.Named, authConfig types.AuthConfig, requestPrivilege types.RequestPrivilegeFunc) error {
-	responseBody, err := imagePushPrivileged(ctx, cli, authConfig, ref, requestPrivilege)
+	responseBody, err := imagePushPrivileged(ctx, cli, authConfig, ref.String(), requestPrivilege)
 	if err != nil {
 		return err
 	}
@@ -55,19 +57,17 @@ func PushTrustedReference(cli *command.DockerCli, repoInfo *registry.RepositoryI
 			return
 		}
 
-		var pushResult types.PushResult
+		var pushResult distribution.PushResult
 		err := json.Unmarshal(*aux, &pushResult)
-		if err == nil && pushResult.Tag != "" {
-			if dgst, err := digest.Parse(pushResult.Digest); err == nil {
-				h, err := hex.DecodeString(dgst.Hex())
-				if err != nil {
-					target = nil
-					return
-				}
-				target.Name = pushResult.Tag
-				target.Hashes = data.Hashes{string(dgst.Algorithm()): h}
-				target.Length = int64(pushResult.Size)
+		if err == nil && pushResult.Tag != "" && pushResult.Digest.Validate() == nil {
+			h, err := hex.DecodeString(pushResult.Digest.Hex())
+			if err != nil {
+				target = nil
+				return
 			}
+			target.Name = pushResult.Tag
+			target.Hashes = data.Hashes{string(pushResult.Digest.Algorithm()): h}
+			target.Length = int64(pushResult.Size)
 		}
 	}
 
@@ -129,15 +129,15 @@ func PushTrustedReference(cli *command.DockerCli, repoInfo *registry.RepositoryI
 
 		// Initialize the notary repository with a remotely managed snapshot key
 		if err := repo.Initialize([]string{rootKeyID}, data.CanonicalSnapshotRole); err != nil {
-			return trust.NotaryError(repoInfo.Name.Name(), err)
+			return trust.NotaryError(repoInfo.FullName(), err)
 		}
-		fmt.Fprintf(cli.Out(), "Finished initializing %q\n", repoInfo.Name.Name())
+		fmt.Fprintf(cli.Out(), "Finished initializing %q\n", repoInfo.FullName())
 		err = repo.AddTarget(target, data.CanonicalTargetsRole)
 	case nil:
 		// already initialized and we have successfully downloaded the latest metadata
 		err = addTargetToAllSignableRoles(repo, target)
 	default:
-		return trust.NotaryError(repoInfo.Name.Name(), err)
+		return trust.NotaryError(repoInfo.FullName(), err)
 	}
 
 	if err == nil {
@@ -145,11 +145,11 @@ func PushTrustedReference(cli *command.DockerCli, repoInfo *registry.RepositoryI
 	}
 
 	if err != nil {
-		fmt.Fprintf(cli.Out(), "Failed to sign %q:%s - %s\n", repoInfo.Name.Name(), tag, err.Error())
-		return trust.NotaryError(repoInfo.Name.Name(), err)
+		fmt.Fprintf(cli.Out(), "Failed to sign %q:%s - %s\n", repoInfo.FullName(), tag, err.Error())
+		return trust.NotaryError(repoInfo.FullName(), err)
 	}
 
-	fmt.Fprintf(cli.Out(), "Successfully signed %q:%s\n", repoInfo.Name.Name(), tag)
+	fmt.Fprintf(cli.Out(), "Successfully signed %q:%s\n", repoInfo.FullName(), tag)
 	return nil
 }
 
@@ -202,7 +202,7 @@ func addTargetToAllSignableRoles(repo *client.NotaryRepository, target *client.T
 }
 
 // imagePushPrivileged push the image
-func imagePushPrivileged(ctx context.Context, cli *command.DockerCli, authConfig types.AuthConfig, ref reference.Named, requestPrivilege types.RequestPrivilegeFunc) (io.ReadCloser, error) {
+func imagePushPrivileged(ctx context.Context, cli *command.DockerCli, authConfig types.AuthConfig, ref string, requestPrivilege types.RequestPrivilegeFunc) (io.ReadCloser, error) {
 	encodedAuth, err := command.EncodeAuthToBase64(authConfig)
 	if err != nil {
 		return nil, err
@@ -212,7 +212,7 @@ func imagePushPrivileged(ctx context.Context, cli *command.DockerCli, authConfig
 		PrivilegeFunc: requestPrivilege,
 	}
 
-	return cli.Client().ImagePush(ctx, reference.FamiliarString(ref), options)
+	return cli.Client().ImagePush(ctx, ref, options)
 }
 
 // trustedPull handles content trust pulling of an image
@@ -229,12 +229,12 @@ func trustedPull(ctx context.Context, cli *command.DockerCli, repoInfo *registry
 		// List all targets
 		targets, err := notaryRepo.ListTargets(trust.ReleasesRole, data.CanonicalTargetsRole)
 		if err != nil {
-			return trust.NotaryError(ref.Name(), err)
+			return trust.NotaryError(repoInfo.FullName(), err)
 		}
 		for _, tgt := range targets {
 			t, err := convertTarget(tgt.Target)
 			if err != nil {
-				fmt.Fprintf(cli.Out(), "Skipping target for %q\n", reference.FamiliarName(ref))
+				fmt.Fprintf(cli.Out(), "Skipping target for %q\n", repoInfo.Name())
 				continue
 			}
 			// Only list tags in the top level targets role or the releases delegation role - ignore
@@ -245,17 +245,17 @@ func trustedPull(ctx context.Context, cli *command.DockerCli, repoInfo *registry
 			refs = append(refs, t)
 		}
 		if len(refs) == 0 {
-			return trust.NotaryError(ref.Name(), fmt.Errorf("No trusted tags for %s", ref.Name()))
+			return trust.NotaryError(repoInfo.FullName(), fmt.Errorf("No trusted tags for %s", repoInfo.FullName()))
 		}
 	} else {
 		t, err := notaryRepo.GetTargetByName(tagged.Tag(), trust.ReleasesRole, data.CanonicalTargetsRole)
 		if err != nil {
-			return trust.NotaryError(ref.Name(), err)
+			return trust.NotaryError(repoInfo.FullName(), err)
 		}
 		// Only get the tag if it's in the top level targets role or the releases delegation role
 		// ignore it if it's in any other delegation roles
 		if t.Role != trust.ReleasesRole && t.Role != data.CanonicalTargetsRole {
-			return trust.NotaryError(ref.Name(), fmt.Errorf("No trust data for %s", tagged.Tag()))
+			return trust.NotaryError(repoInfo.FullName(), fmt.Errorf("No trust data for %s", tagged.Tag()))
 		}
 
 		logrus.Debugf("retrieving target for %s role\n", t.Role)
@@ -272,21 +272,24 @@ func trustedPull(ctx context.Context, cli *command.DockerCli, repoInfo *registry
 		if displayTag != "" {
 			displayTag = ":" + displayTag
 		}
-		fmt.Fprintf(cli.Out(), "Pull (%d of %d): %s%s@%s\n", i+1, len(refs), reference.FamiliarName(ref), displayTag, r.digest)
+		fmt.Fprintf(cli.Out(), "Pull (%d of %d): %s%s@%s\n", i+1, len(refs), repoInfo.Name(), displayTag, r.digest)
 
-		trustedRef, err := reference.WithDigest(reference.TrimNamed(ref), r.digest)
+		ref, err := reference.WithDigest(reference.TrimNamed(repoInfo), r.digest)
 		if err != nil {
 			return err
 		}
-		if err := imagePullPrivileged(ctx, cli, authConfig, reference.FamiliarString(trustedRef), requestPrivilege, false); err != nil {
+		if err := imagePullPrivileged(ctx, cli, authConfig, ref.String(), requestPrivilege, false); err != nil {
 			return err
 		}
 
-		tagged, err := reference.WithTag(reference.TrimNamed(ref), r.name)
+		tagged, err := reference.WithTag(repoInfo, r.name)
 		if err != nil {
 			return err
 		}
-
+		trustedRef, err := reference.WithDigest(reference.TrimNamed(repoInfo), r.digest)
+		if err != nil {
+			return err
+		}
 		if err := TagTrusted(ctx, cli, trustedRef, tagged); err != nil {
 			return err
 		}
@@ -342,12 +345,12 @@ func TrustedReference(ctx context.Context, cli *command.DockerCli, ref reference
 
 	t, err := notaryRepo.GetTargetByName(ref.Tag(), trust.ReleasesRole, data.CanonicalTargetsRole)
 	if err != nil {
-		return nil, trust.NotaryError(repoInfo.Name.Name(), err)
+		return nil, trust.NotaryError(repoInfo.FullName(), err)
 	}
 	// Only list tags in the top level targets role or the releases delegation role - ignore
 	// all other delegation roles
 	if t.Role != trust.ReleasesRole && t.Role != data.CanonicalTargetsRole {
-		return nil, trust.NotaryError(repoInfo.Name.Name(), fmt.Errorf("No trust data for %s", ref.Tag()))
+		return nil, trust.NotaryError(repoInfo.FullName(), fmt.Errorf("No trust data for %s", ref.Tag()))
 	}
 	r, err := convertTarget(t.Target)
 	if err != nil {
@@ -372,11 +375,7 @@ func convertTarget(t client.Target) (target, error) {
 
 // TagTrusted tags a trusted ref
 func TagTrusted(ctx context.Context, cli *command.DockerCli, trustedRef reference.Canonical, ref reference.NamedTagged) error {
-	// Use familiar references when interacting with client and output
-	familiarRef := reference.FamiliarString(ref)
-	trustedFamiliarRef := reference.FamiliarString(trustedRef)
+	fmt.Fprintf(cli.Out(), "Tagging %s as %s\n", trustedRef.String(), ref.String())
 
-	fmt.Fprintf(cli.Out(), "Tagging %s as %s\n", trustedFamiliarRef, familiarRef)
-
-	return cli.Client().ImageTag(ctx, trustedFamiliarRef, familiarRef)
+	return cli.Client().ImageTag(ctx, trustedRef.String(), ref.String())
 }

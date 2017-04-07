@@ -1,7 +1,7 @@
 package daemon
 
 import (
-	"errors"
+	"fmt"
 	"io"
 	"strconv"
 	"time"
@@ -21,16 +21,13 @@ import (
 // ContainerLogs hooks up a container's stdout and stderr streams
 // configured with the given struct.
 func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, config *backend.ContainerLogsConfig, started chan struct{}) error {
-	if !(config.ShowStdout || config.ShowStderr) {
-		return errors.New("You must choose at least one stream")
-	}
 	container, err := daemon.GetContainer(containerName)
 	if err != nil {
 		return err
 	}
 
-	if container.HostConfig.LogConfig.Type == "none" {
-		return logger.ErrReadLogsNotSupported
+	if !(config.ShowStdout || config.ShowStderr) {
+		return fmt.Errorf("You must choose at least one stream")
 	}
 
 	cLog, err := daemon.getLogger(container)
@@ -124,7 +121,7 @@ func (daemon *Daemon) getLogger(container *container.Container) (logger.Logger, 
 	if container.LogDriver != nil && container.IsRunning() {
 		return container.LogDriver, nil
 	}
-	return container.StartLogger()
+	return container.StartLogger(container.HostConfig.LogConfig)
 }
 
 // mergeLogConfig merges the daemon log config to the container's log config if the container's log driver is not specified.

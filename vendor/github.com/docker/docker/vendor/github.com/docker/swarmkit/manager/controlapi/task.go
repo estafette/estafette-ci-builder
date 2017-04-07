@@ -3,7 +3,6 @@ package controlapi
 import (
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/api/naming"
-	"github.com/docker/swarmkit/manager/orchestrator"
 	"github.com/docker/swarmkit/manager/state/store"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -98,11 +97,12 @@ func (s *Server) ListTasks(ctx context.Context, request *api.ListTasksRequest) (
 		default:
 			tasks, err = store.FindTasks(tx, store.All)
 		}
+	})
+	if err != nil {
+		return nil, err
+	}
 
-		if err != nil || request.Filters == nil {
-			return
-		}
-
+	if request.Filters != nil {
 		tasks = filterTasks(tasks,
 			func(e *api.Task) bool {
 				return filterContains(naming.Task(e), request.Filters.Names)
@@ -133,23 +133,7 @@ func (s *Server) ListTasks(ctx context.Context, request *api.ListTasksRequest) (
 				}
 				return false
 			},
-			func(e *api.Task) bool {
-				if !request.Filters.UpToDate {
-					return true
-				}
-
-				service := store.GetService(tx, e.ServiceID)
-				if service == nil {
-					return false
-				}
-
-				return !orchestrator.IsTaskDirty(service, e)
-			},
 		)
-	})
-
-	if err != nil {
-		return nil, err
 	}
 
 	return &api.ListTasksResponse{

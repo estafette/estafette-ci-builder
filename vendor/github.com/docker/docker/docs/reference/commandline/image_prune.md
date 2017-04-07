@@ -21,10 +21,9 @@ Usage:	docker image prune [OPTIONS]
 Remove unused images
 
 Options:
-  -a, --all             Remove all unused images, not just dangling ones
-      --filter filter   Provide filter values (e.g. 'until=<timestamp>')
-  -f, --force           Do not prompt for confirmation
-      --help            Print usage
+  -a, --all     Remove all unused images, not just dangling ones
+  -f, --force   Do not prompt for confirmation
+      --help    Print usage
 ```
 
 ## Description

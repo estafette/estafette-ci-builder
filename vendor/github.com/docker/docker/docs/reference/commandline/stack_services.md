@@ -22,10 +22,9 @@ Usage:	docker stack services [OPTIONS] STACK
 List the services in the stack
 
 Options:
-  -f, --filter filter   Filter output based on conditions provided
-      --format string   Pretty-print services using a Go template
-      --help            Print usage
-  -q, --quiet           Only display IDs
+  -f, --filter value   Filter output based on conditions provided
+      --help           Print usage
+  -q, --quiet          Only display IDs
 ```
 
 ## Description

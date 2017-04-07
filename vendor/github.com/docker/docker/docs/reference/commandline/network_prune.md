@@ -12,9 +12,8 @@ Usage:	docker network prune [OPTIONS]
 Remove all unused networks
 
 Options:
-      --filter filter   Provide filter values (e.g. 'until=<timestamp>')
-  -f, --force           Do not prompt for confirmation
-      --help            Print usage
+  -f, --force   Do not prompt for confirmation
+      --help    Print usage
 ```
 
 ## Description

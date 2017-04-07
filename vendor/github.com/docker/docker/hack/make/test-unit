@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 set -e
 
 # Run Docker's test suite, including sub-packages, and store their output as a bundle

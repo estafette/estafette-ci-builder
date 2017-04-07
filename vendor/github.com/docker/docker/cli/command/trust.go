@@ -12,20 +12,13 @@ var (
 	untrusted bool
 )
 
-// AddTrustVerificationFlags adds content trust flags to the provided flagset
-func AddTrustVerificationFlags(fs *pflag.FlagSet) {
-	trusted := getDefaultTrustState()
-	fs.BoolVar(&untrusted, "disable-content-trust", !trusted, "Skip image verification")
+// AddTrustedFlags adds content trust flags to the current command flagset
+func AddTrustedFlags(fs *pflag.FlagSet, verify bool) {
+	trusted, message := setupTrustedFlag(verify)
+	fs.BoolVar(&untrusted, "disable-content-trust", !trusted, message)
 }
 
-// AddTrustSigningFlags adds "signing" flags to the provided flagset
-func AddTrustSigningFlags(fs *pflag.FlagSet) {
-	trusted := getDefaultTrustState()
-	fs.BoolVar(&untrusted, "disable-content-trust", !trusted, "Skip image signing")
-}
-
-// getDefaultTrustState returns true if content trust is enabled through the $DOCKER_CONTENT_TRUST environment variable.
-func getDefaultTrustState() bool {
+func setupTrustedFlag(verify bool) (bool, string) {
 	var trusted bool
 	if e := os.Getenv("DOCKER_CONTENT_TRUST"); e != "" {
 		if t, err := strconv.ParseBool(e); t || err != nil {
@@ -33,11 +26,14 @@ func getDefaultTrustState() bool {
 			trusted = true
 		}
 	}
-	return trusted
+	message := "Skip image signing"
+	if verify {
+		message = "Skip image verification"
+	}
+	return trusted, message
 }
 
-// IsTrusted returns true if content trust is enabled, either through the $DOCKER_CONTENT_TRUST environment variable,
-// or through `--disabled-content-trust=false` on a command.
+// IsTrusted returns true if content trust is enabled
 func IsTrusted() bool {
 	return !untrusted
 }
