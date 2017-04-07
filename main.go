@@ -5,11 +5,22 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"github.com/olekukonko/tablewriter"
 )
 
+var (
+	version   string
+	branch    string
+	revision  string
+	buildDate string
+	goVersion = runtime.Version()
+)
+
 func main() {
+
+	fmt.Printf("[estafette] Starting estafette ci builder (version=%v, branch=%v, revision=%v, buildDate=%v, goVersion=%v)\n", version, branch, revision, buildDate, goVersion)
 
 	// read yaml
 	manifest, err := readManifest(".estafette.yaml")
