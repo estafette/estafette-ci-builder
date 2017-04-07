@@ -1,8 +1,11 @@
 package main
 
 import (
+	"io/ioutil"
 	"os"
+	"os/exec"
 	"strings"
+	"time"
 	"unicode"
 )
 
@@ -20,6 +23,58 @@ func toUpperSnake(in string) string {
 	}
 
 	return string(out)
+}
+
+func getCommandOutput(name string, arg ...string) (string, error) {
+
+	cmd := exec.Command(name, arg...)
+	err := cmd.Run()
+	if err != nil {
+		return "", err
+	}
+
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return "", err
+	}
+
+	bytes, err := ioutil.ReadAll(stdout)
+	if err != nil {
+		return "", err
+	}
+
+	return string(bytes), nil
+}
+
+func setEstafetteGlobalEnvvars() error {
+
+	// set git revision
+	revision, err := getCommandOutput("git", "rev-parse", "HEAD")
+	if err != nil {
+		return err
+	}
+	err = os.Setenv("ESTAFETTE_GIT_REVISION", revision)
+	if err != nil {
+		return err
+	}
+
+	// set git branch
+	branch, err := getCommandOutput("git", "rev-parse", "--abbrev-ref", "HEAD")
+	if err != nil {
+		return err
+	}
+	err = os.Setenv("ESTAFETTE_GIT_BRANCH", branch)
+	if err != nil {
+		return err
+	}
+
+	// set build datetime
+	err = os.Setenv("ESTAFETTE_BUILD_DATETIME", time.Now().UTC().Format(time.RFC3339))
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func collectEstafetteEnvvars(m estafetteManifest) (envvars map[string]string) {

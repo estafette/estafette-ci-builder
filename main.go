@@ -36,6 +36,11 @@ func main() {
 
 	fmt.Printf("[estafette] Running %v pipelines\n", len(manifest.Pipelines))
 
+	err = setEstafetteGlobalEnvvars()
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	envvars := collectEstafetteEnvvars(manifest)
 
 	result, firstErr := runPipelines(manifest, dir, envvars)
