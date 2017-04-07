@@ -67,7 +67,7 @@ func renderStats(result estafetteRunPipelinesResult) {
 	fmt.Println("")
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetHeader([]string{"Pipeline", "Image", "Pull (s)", "Run (s)", "Total (s)", "Status", "Detail"})
-	table.SetFooter([]string{"", "Total", fmt.Sprintf("%.0f", dockerPullDurationTotal), fmt.Sprintf("%.0f", dockerRunDurationTotal), fmt.Sprintf("%.0f", dockerPullDurationTotal+dockerRunDurationTotal)})
+	table.SetFooter([]string{"", "Total", fmt.Sprintf("%.0f", dockerPullDurationTotal), fmt.Sprintf("%.0f", dockerRunDurationTotal), fmt.Sprintf("%.0f", dockerPullDurationTotal+dockerRunDurationTotal), "", ""})
 	table.SetBorder(false)
 	table.AppendBulk(data)
 	table.Render()
