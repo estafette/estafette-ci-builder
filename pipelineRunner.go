@@ -8,7 +8,6 @@ import (
 	"os"
 	"strings"
 	"time"
-	"unicode"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -16,66 +15,47 @@ import (
 	"github.com/docker/docker/client"
 )
 
-type dockerPullStat struct {
-	ExitCode int
-	Duration time.Duration
+type estafettePipelineRunResult struct {
+	Pipeline           estafettePipeline
+	DockerPullDuration time.Duration
+	DockerPullError    error
+	DockerRunDuration  time.Duration
+	DockerRunError     error
+	Status             string
+	Detail             string
 }
 
-type dockerRunStat struct {
-	ExitCode int
-	Duration time.Duration
-}
-
-type estafettePipelineStat struct {
-	Pipeline       estafettePipeline
-	DockerPullStat dockerPullStat
-	DockerRunStat  dockerRunStat
-}
-
-func (c *estafettePipelineStat) ExitCode() int {
-	if c.DockerPullStat.ExitCode > 0 {
-		return c.DockerPullStat.ExitCode
-	}
-	if c.DockerRunStat.ExitCode > 0 {
-		return c.DockerRunStat.ExitCode
-	}
-	return 0
-}
-
-func runDockerPull(p estafettePipeline) (stat dockerPullStat, err error) {
-
-	start := time.Now()
+func runDockerPull(p estafettePipeline) (err error) {
 
 	fmt.Printf("[estafette] Pulling docker container '%v'\n", p.ContainerImage)
 
 	cli, err := client.NewEnvClient()
 	if err != nil {
-		return stat, err
+		return err
 	}
 
 	rc, err := cli.ImagePull(context.Background(), p.ContainerImage, types.ImagePullOptions{})
 	defer rc.Close()
 	if err != nil {
-		return stat, err
+		return err
 	}
 
 	// wait for image pull to finish
-	ioutil.ReadAll(rc)
-
-	stat.Duration = time.Since(start)
+	_, err = ioutil.ReadAll(rc)
+	if err != nil {
+		return err
+	}
 
 	return
 }
 
-func runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (stat dockerRunStat, err error) {
+func runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (err error) {
 
 	// run docker with image and commands from yaml
-	start := time.Now()
-
 	ctx := context.Background()
 	cli, err := client.NewEnvClient()
 	if err != nil {
-		return stat, err
+		return err
 	}
 
 	// define commands
@@ -117,12 +97,12 @@ func runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (s
 		Privileged: true,
 	}, &network.NetworkingConfig{}, "")
 	if err != nil {
-		return stat, err
+		return err
 	}
 
 	// start container
 	if err := cli.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{}); err != nil {
-		return stat, err
+		return err
 	}
 
 	// follow logs
@@ -133,7 +113,7 @@ func runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (s
 	})
 	defer rc.Close()
 	if err != nil {
-		return stat, err
+		return err
 	}
 
 	// stream logs to stdout with buffering
@@ -164,83 +144,87 @@ func runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (s
 	}
 	if err := in.Err(); err != nil {
 		fmt.Fprintf(os.Stderr, "[estafette] [%v] Error: %v\n", p.Name, err)
-		return stat, err
+		return err
 	}
 
 	// wait for container to stop run
 	if _, err = cli.ContainerWait(ctx, resp.ID); err != nil {
-		return stat, err
-	}
-
-	stat.Duration = time.Since(start)
-
-	return
-}
-
-// https://gist.github.com/elwinar/14e1e897fdbe4d3432e1
-func toUpperSnake(in string) string {
-	runes := []rune(in)
-	length := len(runes)
-
-	var out []rune
-	for i := 0; i < length; i++ {
-		if i > 0 && unicode.IsUpper(runes[i]) && ((i+1 < length && unicode.IsLower(runes[i+1])) || unicode.IsLower(runes[i-1])) {
-			out = append(out, '_')
-		}
-		out = append(out, unicode.ToUpper(runes[i]))
-	}
-
-	return string(out)
-}
-
-func collectEstafetteEnvvars(m estafetteManifest) (envvars map[string]string) {
-
-	envvars = map[string]string{}
-
-	for _, e := range os.Environ() {
-		kvPair := strings.Split(e, "=")
-		if len(kvPair) == 2 {
-			envvarName := kvPair[0]
-			envvarValue := kvPair[1]
-
-			if strings.HasPrefix(envvarName, "ESTAFETTE_") {
-				envvars[envvarName] = envvarValue
-			}
-		}
-	}
-
-	// add the labels as envvars
-	if m.Labels != nil && len(m.Labels) > 0 {
-		for key, value := range m.Labels {
-
-			envvarName := "ESTAFETTE_LABEL_" + toUpperSnake(key)
-			envvars[envvarName] = value
-
-			os.Setenv(envvarName, value)
-		}
+		return err
 	}
 
 	return
 }
 
-func runPipeline(dir string, envvars map[string]string, p estafettePipeline) (stat estafettePipelineStat, err error) {
+func runPipeline(dir string, envvars map[string]string, p estafettePipeline) (result estafettePipelineRunResult, err error) {
 
-	stat.Pipeline = p
+	result.Pipeline = p
 
 	fmt.Printf("[estafette] Starting pipeline '%v'\n", p.Name)
 
 	// pull docker image
-	stat.DockerPullStat, err = runDockerPull(p)
+	dockerPullStart := time.Now()
+	result.DockerPullError = runDockerPull(p)
+	result.DockerPullDuration = time.Since(dockerPullStart)
 	if err != nil {
 		return
 	}
 
-	stat.DockerRunStat, err = runDockerRun(dir, envvars, p)
+	// run commands in docker container
+	dockerRunStart := time.Now()
+	result.DockerRunError = runDockerRun(dir, envvars, p)
+	result.DockerRunDuration = time.Since(dockerRunStart)
 	if err != nil {
 		return
 	}
 
 	fmt.Printf("[estafette] Finished pipeline '%v' successfully\n", p.Name)
+
+	return
+}
+
+type estafetteRunPipelinesResult struct {
+	PipelineResults []estafettePipelineRunResult
+}
+
+func runPipelines(manifest estafetteManifest, dir string, envvars map[string]string) (result estafetteRunPipelinesResult, firstErr error) {
+
+	for _, p := range manifest.Pipelines {
+
+		if firstErr != nil {
+
+			// if an error has happened in one of the previous steps we still want to render the following steps in the result table
+			r := estafettePipelineRunResult{
+				Pipeline: *p,
+				Status:   "SKIPPED",
+			}
+			result.PipelineResults = append(result.PipelineResults, r)
+
+			continue
+		}
+
+		r, err := runPipeline(dir, envvars, *p)
+		if err != nil {
+			if firstErr == nil {
+				firstErr = err
+			}
+
+			r.Status = "FAILED"
+			if r.DockerPullError != nil {
+				r.Detail = r.DockerPullError.Error()
+			} else if r.DockerRunError != nil {
+				r.Detail = r.DockerRunError.Error()
+			} else {
+				r.Detail = err.Error()
+			}
+
+			result.PipelineResults = append(result.PipelineResults, r)
+
+			continue
+		}
+
+		r.Status = "SUCCEEDED"
+		result.PipelineResults = append(result.PipelineResults, r)
+	}
 
 	return
 }

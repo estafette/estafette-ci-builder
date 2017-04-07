@@ -27,54 +27,46 @@ func main() {
 
 	envvars := collectEstafetteEnvvars(manifest)
 
-	statsSlice := make([]estafettePipelineStat, 0)
+	result, firstErr := runPipelines(manifest, dir, envvars)
 
-	exitCode := 0
+	renderStats(result)
 
-	for _, p := range manifest.Pipelines {
-		stat, err := runPipeline(dir, envvars, *p)
-		if err != nil {
-			exitCode = 1
-			fmt.Fprintf(os.Stderr, "[estafette] Error: %v\n", err)
-			break
-		}
-
-		if stat.ExitCode() > 0 {
-			exitCode = stat.ExitCode()
-			fmt.Fprintf(os.Stderr, "[estafette] Exit code: %v", exitCode)
-			break
-		}
-
-		statsSlice = append(statsSlice, stat)
-	}
-
-	renderStats(statsSlice)
-
-	os.Exit(exitCode)
+	handleExit(firstErr)
 }
 
-func renderStats(statsSlice []estafettePipelineStat) {
+func handleExit(firstErr error) {
+
+	if firstErr != nil {
+		os.Exit(1)
+	}
+	os.Exit(0)
+}
+
+func renderStats(result estafetteRunPipelinesResult) {
 
 	data := make([][]string, 0)
 
 	dockerPullDurationTotal := 0.0
 	dockerRunDurationTotal := 0.0
-	for _, s := range statsSlice {
+	for _, s := range result.PipelineResults {
+
 		data = append(data, []string{
 			s.Pipeline.Name,
 			s.Pipeline.ContainerImage,
-			fmt.Sprintf("%.0f", s.DockerPullStat.Duration.Seconds()),
-			fmt.Sprintf("%.0f", s.DockerRunStat.Duration.Seconds()),
-			fmt.Sprintf("%.0f", s.DockerPullStat.Duration.Seconds()+s.DockerRunStat.Duration.Seconds()),
+			fmt.Sprintf("%.0f", s.DockerPullDuration.Seconds()),
+			fmt.Sprintf("%.0f", s.DockerRunDuration.Seconds()),
+			fmt.Sprintf("%.0f", s.DockerPullDuration.Seconds()+s.DockerRunDuration.Seconds()),
+			s.Status,
+			s.Detail,
 		})
 
-		dockerPullDurationTotal += s.DockerPullStat.Duration.Seconds()
-		dockerRunDurationTotal += s.DockerRunStat.Duration.Seconds()
+		dockerPullDurationTotal += s.DockerPullDuration.Seconds()
+		dockerRunDurationTotal += s.DockerRunDuration.Seconds()
 	}
 
 	fmt.Println("")
 	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"Pipeline", "Image", "Pull (s)", "Run (s)", "Total (s)"})
+	table.SetHeader([]string{"Pipeline", "Image", "Pull (s)", "Run (s)", "Total (s)", "Status", "Detail"})
 	table.SetFooter([]string{"", "Total", fmt.Sprintf("%.0f", dockerPullDurationTotal), fmt.Sprintf("%.0f", dockerRunDurationTotal), fmt.Sprintf("%.0f", dockerPullDurationTotal+dockerRunDurationTotal)})
 	table.SetBorder(false)
 	table.AppendBulk(data)
