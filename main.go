@@ -20,7 +20,7 @@ var (
 
 func main() {
 
-	fmt.Printf("[estafette] Starting estafette ci builder (version=%v, branch=%v, revision=%v, buildDate=%v, goVersion=%v)\n", version, branch, revision, buildDate, goVersion)
+	fmt.Printf("[estafette] Starting estafette-ci-builder (version=%v, branch=%v, revision=%v, buildDate=%v, goVersion=%v)\n", version, branch, revision, buildDate, goVersion)
 
 	// read yaml
 	manifest, err := readManifest(".estafette.yaml")
