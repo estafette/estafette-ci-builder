@@ -64,13 +64,23 @@ func renderStats(result estafetteRunPipelinesResult) {
 
 	dockerPullDurationTotal := 0.0
 	dockerRunDurationTotal := 0.0
+	var dockerImageSizeTotal int64
+
 	for _, s := range result.PipelineResults {
+
+		dockerImageSize := fmt.Sprintf("%v", s.DockerImageSize/1024/1024)
+		dockerPullDuration := fmt.Sprintf("%.0f", s.DockerPullDuration.Seconds())
+
+		if s.IsDockerImagePulled {
+			dockerImageSize = ""
+			dockerPullDuration = ""
+		}
 
 		data = append(data, []string{
 			s.Pipeline.Name,
 			s.Pipeline.ContainerImage,
-			fmt.Sprintf("%vMB", s.DockerImageSize/1024/1024),
-			fmt.Sprintf("%.0f", s.DockerPullDuration.Seconds()),
+			dockerImageSize,
+			dockerPullDuration,
 			fmt.Sprintf("%.0f", s.DockerRunDuration.Seconds()),
 			fmt.Sprintf("%.0f", s.DockerPullDuration.Seconds()+s.DockerRunDuration.Seconds()),
 			s.Status,
@@ -79,12 +89,13 @@ func renderStats(result estafetteRunPipelinesResult) {
 
 		dockerPullDurationTotal += s.DockerPullDuration.Seconds()
 		dockerRunDurationTotal += s.DockerRunDuration.Seconds()
+		dockerImageSizeTotal += s.DockerImageSize
 	}
 
 	fmt.Println("")
 	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"Pipeline", "Image", "Size", "Pull (s)", "Run (s)", "Total (s)", "Status", "Detail"})
-	table.SetFooter([]string{"", "", "Total", fmt.Sprintf("%.0f", dockerPullDurationTotal), fmt.Sprintf("%.0f", dockerRunDurationTotal), fmt.Sprintf("%.0f", dockerPullDurationTotal+dockerRunDurationTotal), "", ""})
+	table.SetHeader([]string{"Pipeline", "Image", "Size (MB)", "Pull (s)", "Run (s)", "Total (s)", "Status", "Detail"})
+	table.SetFooter([]string{"", "Total", fmt.Sprintf("%v", dockerImageSizeTotal/1024/1024), fmt.Sprintf("%.0f", dockerPullDurationTotal), fmt.Sprintf("%.0f", dockerRunDurationTotal), fmt.Sprintf("%.0f", dockerPullDurationTotal+dockerRunDurationTotal), "", ""})
 	table.SetBorder(false)
 	table.AppendBulk(data)
 	table.Render()

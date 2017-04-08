@@ -16,19 +16,49 @@ import (
 )
 
 type estafettePipelineRunResult struct {
-	Pipeline           estafettePipeline
-	DockerImageSize    int64
-	DockerPullDuration time.Duration
-	DockerPullError    error
-	DockerRunDuration  time.Duration
-	DockerRunError     error
-	Status             string
-	Detail             string
+	Pipeline            estafettePipeline
+	IsDockerImagePulled bool
+	DockerImageSize     int64
+	DockerPullDuration  time.Duration
+	DockerPullError     error
+	DockerRunDuration   time.Duration
+	DockerRunError      error
+	Status              string
+	Detail              string
+}
+
+func contains(s []string, e string) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
+}
+
+func isDockerImagePulled(p estafettePipeline) bool {
+
+	fmt.Printf("[estafette] Checking if docker image '%v' exists...\n", p.ContainerImage)
+
+	cli, err := client.NewEnvClient()
+	if err != nil {
+		return false
+	}
+
+	imageSummaries, err := cli.ImageList(context.Background(), types.ImageListOptions{})
+
+	for _, summary := range imageSummaries {
+		if contains(summary.RepoTags, p.ContainerImage) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func runDockerPull(p estafettePipeline) (err error) {
 
-	fmt.Printf("[estafette] Pulling docker container '%v'\n", p.ContainerImage)
+	fmt.Printf("[estafette] Pulling docker image '%v'\n", p.ContainerImage)
 
 	cli, err := client.NewEnvClient()
 	if err != nil {
@@ -187,20 +217,26 @@ func runPipeline(dir string, envvars map[string]string, p estafettePipeline) (re
 
 	fmt.Printf("[estafette] Starting pipeline '%v'\n", p.Name)
 
-	// pull docker image
-	dockerPullStart := time.Now()
-	result.DockerPullError = runDockerPull(p)
-	result.DockerPullDuration = time.Since(dockerPullStart)
-	if result.DockerPullError != nil {
-		return result, result.DockerPullError
-	}
+	result.IsDockerImagePulled = isDockerImagePulled(p)
 
-	// set docker image size
-	size, err := getDockerImageSize(p)
-	if err != nil {
-		return result, err
+	if !result.IsDockerImagePulled {
+
+		// pull docker image
+		dockerPullStart := time.Now()
+		result.DockerPullError = runDockerPull(p)
+		result.DockerPullDuration = time.Since(dockerPullStart)
+		if result.DockerPullError != nil {
+			return result, result.DockerPullError
+		}
+
+		// set docker image size
+		size, err := getDockerImageSize(p)
+		if err != nil {
+			return result, err
+		}
+		result.DockerImageSize = size
+
 	}
-	result.DockerImageSize = size
 
 	// run commands in docker container
 	dockerRunStart := time.Now()
