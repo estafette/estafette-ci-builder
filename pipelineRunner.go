@@ -43,15 +43,6 @@ func (result *estafettePipelineRunResult) HasErrors() bool {
 	return len(errors) > 0
 }
 
-func contains(s []string, e string) bool {
-	for _, a := range s {
-		if a == e {
-			return true
-		}
-	}
-	return false
-}
-
 func runPipeline(dir string, envvars map[string]string, p estafettePipeline) (result estafettePipelineRunResult, err error) {
 
 	result.Pipeline = p
