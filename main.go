@@ -43,18 +43,19 @@ func main() {
 
 	envvars := collectEstafetteEnvvars(manifest)
 
-	result, firstErr := runPipelines(manifest, dir, envvars)
+	result := runPipelines(manifest, dir, envvars)
 
 	renderStats(result)
 
-	handleExit(firstErr)
+	handleExit(result)
 }
 
-func handleExit(firstErr error) {
+func handleExit(result estafetteRunPipelinesResult) {
 
-	if firstErr != nil {
+	if result.HasErrors() {
 		os.Exit(1)
 	}
+
 	os.Exit(0)
 }
 
@@ -76,6 +77,13 @@ func renderStats(result estafetteRunPipelinesResult) {
 			dockerPullDuration = ""
 		}
 
+		detail := ""
+		if s.HasErrors() {
+			for _, err := range s.Errors() {
+				detail += err.Error()
+			}
+		}
+
 		data = append(data, []string{
 			s.Pipeline.Name,
 			s.Pipeline.ContainerImage,
@@ -84,7 +92,7 @@ func renderStats(result estafetteRunPipelinesResult) {
 			fmt.Sprintf("%.0f", s.DockerRunDuration.Seconds()),
 			fmt.Sprintf("%.0f", s.DockerPullDuration.Seconds()+s.DockerRunDuration.Seconds()),
 			s.Status,
-			s.Detail,
+			detail,
 		})
 
 		dockerPullDurationTotal += s.DockerPullDuration.Seconds()
