@@ -26,4 +26,4 @@ pipelines:
   slack-notify:
     image: docker:17.04.0-ce
     commands:
-    - | curl -X POST --data-urlencode 'payload={"channel": "#build-status", "username": "estafette-ci-builder", "text": "Build ${ESTAFETTE_BUILD_VERSION} for ${ESTAFETTE_LABEL_APP} has finished successfully!"}' ${ESTAFETTE_SLACK_WEBHOOK}
+    - > curl -X POST --data-urlencode 'payload={"channel": "#build-status", "username": "estafette-ci-builder", "text": "Build ${ESTAFETTE_BUILD_VERSION} for ${ESTAFETTE_LABEL_APP} has finished successfully!"}' ${ESTAFETTE_SLACK_WEBHOOK}
