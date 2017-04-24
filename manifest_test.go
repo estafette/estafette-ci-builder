@@ -51,7 +51,7 @@ func TestReadManifest(t *testing.T) {
 		assert.Equal(t, "docker:17.03.0-ce", manifest.Pipelines[2].ContainerImage)
 		assert.Equal(t, "docker login --username=${ESTAFETTE_DOCKER_HUB_USERNAME} --password='${ESTAFETTE_DOCKER_HUB_PASSWORD}'", manifest.Pipelines[2].Commands[0])
 		assert.Equal(t, "docker push estafette/${ESTAFETTE_LABEL_APP}:${ESTAFETTE_BUILD_VERSION}", manifest.Pipelines[2].Commands[1])
-		assert.Equal(t, "branch == 'master'", manifest.Pipelines[2].When)
+		assert.Equal(t, "status == 'succeeded' && branch == 'master'", manifest.Pipelines[2].When)
 
 		assert.Equal(t, "slack-notify", manifest.Pipelines[3].Name)
 		assert.Equal(t, "docker:17.03.0-ce", manifest.Pipelines[3].ContainerImage)
@@ -106,7 +106,7 @@ func TestReadManifest(t *testing.T) {
 
 		assert.Nil(t, err)
 
-		assert.Equal(t, "branch == 'master'", manifest.Pipelines[2].When)
+		assert.Equal(t, "status == 'succeeded' && branch == 'master'", manifest.Pipelines[2].When)
 	})
 
 	t.Run("ReturnsWhenDefaultIfMissing", func(t *testing.T) {

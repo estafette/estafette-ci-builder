@@ -22,8 +22,13 @@ pipelines:
     commands:
     - docker login --username=_json_key --password='${ESTAFETTE_GCR_PASSWORD}' https://gcr.io
     - docker push gcr.io/${ESTAFETTE_GCR_PROJECT}/${ESTAFETTE_LABEL_APP}:${ESTAFETTE_BUILD_VERSION}
+    when:
+      status == 'succeeded' &&
+      branch == 'master'
 
   slack-notify:
     image: docker:17.04.0-ce
     commands:
-    - 'curl -X POST --data-urlencode ''payload={"channel": "#build-status", "username": "estafette-ci-builder", "text": "Build ${ESTAFETTE_BUILD_VERSION} for ${ESTAFETTE_LABEL_APP} has finished successfully!"}'' ${ESTAFETTE_SLACK_WEBHOOK}'
+    - 'curl -X POST --data-urlencode ''payload={"channel": "#build-status", "username": "estafette-ci-builder", "text": "Build ${ESTAFETTE_BUILD_VERSION} for ${ESTAFETTE_LABEL_APP} has failed!"}'' ${ESTAFETTE_SLACK_WEBHOOK}'
+    when:
+      status == 'failed'
