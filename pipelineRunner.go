@@ -112,9 +112,7 @@ func runPipelines(manifest estafetteManifest, dir string, envvars map[string]str
 
 	for _, p := range manifest.Pipelines {
 
-		parameters := whenParameters()
-
-		whenEvaluationResult, err := whenEvaluator(p.When, parameters)
+		whenEvaluationResult, err := whenEvaluator(p.When, whenParameters())
 		if err != nil {
 			return
 		}
@@ -137,9 +135,9 @@ func runPipelines(manifest estafetteManifest, dir string, envvars map[string]str
 			r.Status = "SUCCEEDED"
 			result.PipelineResults = append(result.PipelineResults, r)
 
-		} else if result.HasErrors() {
+		} else {
 
-			// if an error has happened in one of the previous steps we still want to render the following steps in the result table
+			// if an error has happened in one of the previous steps or the when expression evaluates to false we still want to render the following steps in the result table
 			r := estafettePipelineRunResult{
 				Pipeline: *p,
 				Status:   "SKIPPED",
