@@ -17,3 +17,5 @@ pipelines:
     commands:
     - cp Dockerfile ./publish
     - docker build -t estafette-ci-builder ./publish
+    when:
+      branch == 'master'

@@ -67,6 +67,14 @@
 			"revision": ""
 		},
 		{
+			"checksumSHA1": "E2GUfIe6vO20j9fq/yKoNvNtsTY=",
+			"path": "github.com/Knetic/govaluate",
+			"revision": "4598e72a5762f7e683b840482a8bf9d19b1eb5e2",
+			"revisionTime": "2017-02-24T18:17:23Z",
+			"version": "2.3.0",
+			"versionExact": "2.3.0"
+		},
+		{
 			"path": "github.com/Microsoft/go-winio",
 			"revision": ""
 		},

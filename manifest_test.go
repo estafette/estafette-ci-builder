@@ -87,4 +87,24 @@ func TestReadManifest(t *testing.T) {
 
 		assert.Equal(t, "/bin/bash", manifest.Pipelines[1].Shell)
 	})
+
+	t.Run("ReturnsWhenIfSet", func(t *testing.T) {
+
+		// act
+		manifest, err := readManifest("test-manifest.yaml")
+
+		assert.Nil(t, err)
+
+		assert.Equal(t, "branch == 'master'", manifest.Pipelines[1].When)
+	})
+
+	t.Run("ReturnsWhenDefaultIfMissing", func(t *testing.T) {
+
+		// act
+		manifest, err := readManifest("test-manifest.yaml")
+
+		assert.Nil(t, err)
+
+		assert.Equal(t, "status == 'succeeded'", manifest.Pipelines[0].When)
+	})
 }

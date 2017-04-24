@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"time"
 )
 
@@ -111,31 +112,43 @@ func runPipelines(manifest estafetteManifest, dir string, envvars map[string]str
 
 	for _, p := range manifest.Pipelines {
 
-		if result.HasErrors() {
+		parameters := whenParameters()
+
+		whenEvaluationResult, err := whenEvaluator(p.When, parameters)
+		if err != nil {
+			return
+		}
+
+		if whenEvaluationResult {
+
+			r, err := runPipeline(dir, envvars, *p)
+			if err != nil {
+
+				os.Setenv("ESTAFETTE_BUILD_STATUS", "failed")
+
+				r.Status = "FAILED"
+				r.OtherError = err
+
+				result.PipelineResults = append(result.PipelineResults, r)
+
+				continue
+			}
+
+			r.Status = "SUCCEEDED"
+			result.PipelineResults = append(result.PipelineResults, r)
+
+		} else if result.HasErrors() {
 
 			// if an error has happened in one of the previous steps we still want to render the following steps in the result table
 			r := estafettePipelineRunResult{
 				Pipeline: *p,
 				Status:   "SKIPPED",
 			}
-			result.PipelineResults = append(result.PipelineResults, r)
-
-			continue
-		}
-
-		r, err := runPipeline(dir, envvars, *p)
-		if err != nil {
-
-			r.Status = "FAILED"
-			r.OtherError = err
 
 			result.PipelineResults = append(result.PipelineResults, r)
 
 			continue
 		}
-
-		r.Status = "SUCCEEDED"
-		result.PipelineResults = append(result.PipelineResults, r)
 	}
 
 	return

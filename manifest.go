@@ -18,6 +18,7 @@ type estafettePipeline struct {
 	Shell            string   `yaml:"shell,omitempty"`
 	WorkingDirectory string   `yaml:"workDir,omitempty"`
 	Commands         []string `yaml:"commands,omitempty"`
+	When             string   `yaml:"when,omitempty"`
 }
 
 // UnmarshalYAML parses the .estafette.yaml file into an estafetteManifest object
@@ -79,6 +80,11 @@ func (c *estafetteManifest) unmarshalYAML(data []byte) error {
 				// set default for WorkingDirectory if not set
 				if p.WorkingDirectory == "" {
 					p.WorkingDirectory = "/estafette-work"
+				}
+
+				// set default for When if not set
+				if p.When == "" {
+					p.When = "status == 'succeeded'"
 				}
 
 				// add pipeline
