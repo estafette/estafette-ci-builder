@@ -23,8 +23,7 @@ pipelines:
     - docker login --username=_json_key --password='${ESTAFETTE_GCR_PASSWORD}' https://gcr.io
     - docker push gcr.io/${ESTAFETTE_GCR_PROJECT}/${ESTAFETTE_LABEL_APP}:${ESTAFETTE_BUILD_VERSION}
     when:
-      status == 'succeeded' &&
-      branch == 'master'
+      status == 'succeeded'
 
   slack-notify:
     image: docker:17.04.0-ce
