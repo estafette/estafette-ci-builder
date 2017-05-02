@@ -20,6 +20,8 @@ func whenEvaluator(input string, parameters map[string]interface{}) (result bool
 
 	r, err := expression.Evaluate(parameters)
 
+	fmt.Printf("[estafette] Result of when expression \"%v\" is \"%v\"\n", input, r)
+
 	if result, ok := r.(bool); ok {
 		return result, err
 	}
