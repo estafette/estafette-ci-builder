@@ -31,7 +31,7 @@ func getCommandOutput(name string, arg ...string) (string, error) {
 		return "", err
 	}
 
-	return string(out), nil
+	return strings.TrimSpace(string(out)), nil
 }
 
 func setEstafetteGlobalEnvvars() error {

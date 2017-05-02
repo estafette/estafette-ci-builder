@@ -3,6 +3,8 @@ package main
 import (
 	"testing"
 
+	"strings"
+
 	"github.com/stretchr/testify/assert"
 )
 
@@ -25,63 +27,52 @@ func TestWhenEvaluator(t *testing.T) {
 		assert.True(t, result)
 	})
 
-	t.Run("ReturnsTrueIfInputEvaluatesToTrueWithoutParameters", func(t *testing.T) {
+	t.Run("ReturnsTrueIfInputEvaluatesToTrueWithParameters", func(t *testing.T) {
 
 		parameters := make(map[string]interface{}, 3)
 		parameters["branch"] = "master"
+		parameters["trigger"] = ""
+		parameters["status"] = "succeeded"
 
 		// act
-		result, _ := whenEvaluator("branch == 'master'", parameters)
+		result, _ := whenEvaluator("status == 'succeeded' && branch == 'master'", parameters)
 
 		assert.True(t, result)
 	})
 
+	t.Run("ReturnsTrueIfInputEvaluatesToTrueWithParameters", func(t *testing.T) {
+
+		parameters := make(map[string]interface{}, 3)
+		parameters["branch"] = "master"
+		parameters["trigger"] = ""
+		parameters["status"] = "succeeded"
+
+		// act
+		result, _ := whenEvaluator("status == 'succeeded' && branch == 'master'", parameters)
+
+		assert.True(t, result)
+	})
 }
 
-// parameters := make(map[string]interface{}, 3)
-// parameters["branch"] = "master"
-// parameters["trigger"] = "commit"
-// parameters["status"] = "succeeded"
+func TestWhenParameters(t *testing.T) {
 
-// AND
-// &&
+	t.Run("ReturnsMapWithBranchEqualToBranchWithoutTrailingNewline", func(t *testing.T) {
 
-// OR
-// ||
+		setEstafetteGlobalEnvvars()
 
-// NOT
-// !
+		// act
+		parameters := whenParameters()
 
-// EQUALS/IS
-// ==
+		assert.False(t, strings.Contains(parameters["branch"].(string), "\n"))
+	})
 
-// IN
-// in
+	t.Run("ReturnsMapWithStatusSetToSucceededByDefault", func(t *testing.T) {
 
-// CONTAINS
-// contains
+		setEstafetteGlobalEnvvars()
 
-// GREATHER THAN
-// >
+		// act
+		parameters := whenParameters()
 
-// LESS THAN
-// <
-
-// GREATHER THAN EQUALS
-// >=
-
-// LESS THAN EQUALS
-// <=
-
-// when:>
-//   branch in [master, development] &&
-//   trigger == commit
-
-// when:>
-//   branch == master &&
-//   trigger != manual
-
-// when:>
-//   branch == master ||
-//   (trigger == manual &&
-//   status in [succeeded, failed])
+		assert.Equal(t, "succeeded", parameters["status"])
+	})
+}
