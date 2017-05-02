@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"os"
 
 	"github.com/Knetic/govaluate"
@@ -12,6 +13,8 @@ func whenEvaluator(input string, parameters map[string]interface{}) (result bool
 	if input == "" {
 		return false, errors.New("When expression is empty")
 	}
+
+	fmt.Printf("[estafette] Evaluating expression '%v' with parameters '%v'\n", input, parameters)
 
 	expression, err := govaluate.NewEvaluableExpression(input)
 
