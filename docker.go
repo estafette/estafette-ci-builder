@@ -89,7 +89,7 @@ func runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (e
 
 	// define commands
 	cmdSlice := make([]string, 0)
-	cmdSlice = append(cmdSlice, "set -e;"+os.Expand(strings.Join(p.Commands, ";"), getEstafetteEnv))
+	cmdSlice = append(cmdSlice, "set -e;"+strings.Join(p.Commands, ";"))
 
 	// define envvars
 	envVars := make([]string, 0)
