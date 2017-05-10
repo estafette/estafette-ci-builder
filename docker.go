@@ -89,8 +89,6 @@ func runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (e
 
 	// define commands
 	cmdSlice := make([]string, 0)
-	cmdSlice = append(cmdSlice, p.Shell)
-	cmdSlice = append(cmdSlice, "-c")
 	cmdSlice = append(cmdSlice, "set -e;"+os.ExpandEnv(strings.Join(p.Commands, ";")))
 
 	// define envvars
@@ -103,7 +101,8 @@ func runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (e
 
 	// define entrypoint
 	entrypoint := make([]string, 0)
-	entrypoint = append(entrypoint, "")
+	entrypoint = append(entrypoint, p.Shell)
+	entrypoint = append(entrypoint, "-c")
 
 	// define binds
 	binds := make([]string, 0)
