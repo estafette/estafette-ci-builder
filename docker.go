@@ -89,7 +89,7 @@ func runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (e
 
 	// define commands
 	cmdSlice := make([]string, 0)
-	cmdSlice = append(cmdSlice, "set -e;"+os.ExpandEnv(strings.Join(p.Commands, ";")))
+	cmdSlice = append(cmdSlice, "set -e;"+os.Expand(strings.Join(p.Commands, ";"), getEstafetteEnv))
 
 	// define envvars
 	envVars := make([]string, 0)
@@ -106,7 +106,7 @@ func runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (e
 
 	// define binds
 	binds := make([]string, 0)
-	binds = append(binds, fmt.Sprintf("%v:%v", dir, os.ExpandEnv(p.WorkingDirectory)))
+	binds = append(binds, fmt.Sprintf("%v:%v", dir, os.Expand(p.WorkingDirectory, getEstafetteEnv)))
 	binds = append(binds, "/var/run/docker.sock:/var/run/docker.sock")
 	binds = append(binds, "/var/run/secrets/kubernetes.io/serviceaccount:/var/run/secrets/kubernetes.io/serviceaccount")
 
@@ -117,7 +117,7 @@ func runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (e
 		Env:          envVars,
 		Cmd:          cmdSlice,
 		Image:        p.ContainerImage,
-		WorkingDir:   os.ExpandEnv(p.WorkingDirectory),
+		WorkingDir:   os.Expand(p.WorkingDirectory, getEstafetteEnv),
 		Entrypoint:   entrypoint,
 	}, &container.HostConfig{
 		Binds:      binds,

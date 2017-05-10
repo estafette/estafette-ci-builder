@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"strings"
@@ -99,4 +100,13 @@ func collectEstafetteEnvvars(m estafetteManifest) (envvars map[string]string) {
 	}
 
 	return
+}
+
+func getEstafetteEnv(key string) string {
+
+	if strings.HasPrefix(key, "ESTAFETTE_") {
+		return os.Getenv(key)
+	}
+
+	return fmt.Sprintf("${%v}", key)
 }
