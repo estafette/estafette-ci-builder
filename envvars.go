@@ -87,9 +87,7 @@ func collectEstafetteEnvvars(m estafetteManifest) (envvars map[string]string) {
 	envvars = map[string]string{}
 
 	for _, e := range os.Environ() {
-		kvPair := strings.Split(e, "=")
-
-		fmt.Printf("[estafette] Reading envvar '%v'\n", e)
+		kvPair := strings.SplitN(e, "=", 2)
 
 		if len(kvPair) == 2 {
 			envvarName := kvPair[0]
