@@ -74,6 +74,16 @@ func setEstafetteGlobalEnvvars() error {
 
 func collectEstafetteEnvvars(m estafetteManifest) (envvars map[string]string) {
 
+	// set labels as envvars
+	if m.Labels != nil && len(m.Labels) > 0 {
+		for key, value := range m.Labels {
+
+			envvarName := "ESTAFETTE_LABEL_" + toUpperSnake(key)
+			os.Setenv(envvarName, value)
+		}
+	}
+
+	// return all envvars starting with ESTAFETTE_
 	envvars = map[string]string{}
 
 	for _, e := range os.Environ() {
@@ -85,17 +95,6 @@ func collectEstafetteEnvvars(m estafetteManifest) (envvars map[string]string) {
 			if strings.HasPrefix(envvarName, "ESTAFETTE_") {
 				envvars[envvarName] = envvarValue
 			}
-		}
-	}
-
-	// add the labels as envvars
-	if m.Labels != nil && len(m.Labels) > 0 {
-		for key, value := range m.Labels {
-
-			envvarName := "ESTAFETTE_LABEL_" + toUpperSnake(key)
-			envvars[envvarName] = value
-
-			os.Setenv(envvarName, value)
 		}
 	}
 

@@ -95,6 +95,7 @@ func runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (e
 	envVars := make([]string, 0)
 	if envvars != nil && len(envvars) > 0 {
 		for k, v := range envvars {
+			fmt.Printf("[estafette] Setting envvar '%v' in docker container\n", k)
 			envVars = append(envVars, fmt.Sprintf("%v=%v", k, v))
 		}
 	}
