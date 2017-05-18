@@ -97,7 +97,7 @@ pipelines:
   build:
     image: maven:3.3.9-jdk-8-alpine
     commands:
-    - mvn -B clean verify -Dmaven.repo.remote=http://sonatype-nexus.tooling/content/groups/public
+    - mvn -B clean verify -Dmaven.repo.remote=https://<sonatype nexus server>/content/groups/public
 ```
 
 ## node js
