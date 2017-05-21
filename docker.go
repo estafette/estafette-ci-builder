@@ -16,7 +16,7 @@ import (
 
 func isDockerImagePulled(p estafettePipeline) bool {
 
-	fmt.Printf("[estafette] Checking if docker image '%v' exists...\n", p.ContainerImage)
+	fmt.Printf("[estafette] Checking if docker image '%v' exists locally...\n", p.ContainerImage)
 
 	cli, err := client.NewEnvClient()
 	if err != nil {
@@ -44,10 +44,10 @@ func runDockerPull(p estafettePipeline) (err error) {
 	}
 
 	rc, err := cli.ImagePull(context.Background(), p.ContainerImage, types.ImagePullOptions{})
-	defer rc.Close()
 	if err != nil {
 		return err
 	}
+	defer rc.Close()
 
 	// wait for image pull to finish
 	_, err = ioutil.ReadAll(rc)
@@ -66,7 +66,6 @@ func getDockerImageSize(p estafettePipeline) (totalSize int64, err error) {
 	}
 
 	items, err := cli.ImageHistory(context.Background(), p.ContainerImage)
-	//summaries, err := cli.ImageList(context.Background(), type.ImageListOptions{})
 	if err != nil {
 		return totalSize, err
 	}
@@ -107,8 +106,12 @@ func runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (e
 	// define binds
 	binds := make([]string, 0)
 	binds = append(binds, fmt.Sprintf("%v:%v", dir, os.Expand(p.WorkingDirectory, getEstafetteEnv)))
-	binds = append(binds, "/var/run/docker.sock:/var/run/docker.sock")
-	binds = append(binds, "/var/run/secrets/kubernetes.io/serviceaccount:/var/run/secrets/kubernetes.io/serviceaccount")
+	if ok, _ := pathExists("/var/run/docker.sock"); ok {
+		binds = append(binds, "/var/run/docker.sock:/var/run/docker.sock")
+	}
+	if ok, _ := pathExists("/var/run/secrets/kubernetes.io/serviceaccount"); ok {
+		binds = append(binds, "/var/run/secrets/kubernetes.io/serviceaccount:/var/run/secrets/kubernetes.io/serviceaccount")
+	}
 
 	// create container
 	resp, err := cli.ContainerCreate(ctx, &container.Config{
