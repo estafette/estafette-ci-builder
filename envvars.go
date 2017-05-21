@@ -63,6 +63,12 @@ func setEstafetteGlobalEnvvars() error {
 		return err
 	}
 
+	// set build status
+	err = os.Setenv("ESTAFETTE_BUILD_STATUS", "succeeded")
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
