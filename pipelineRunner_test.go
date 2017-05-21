@@ -44,8 +44,6 @@ func TestRunPipelines(t *testing.T) {
 		// act
 		result := runPipelines(*manifest, dir, envvars)
 
-		assert.Equal(t, "/Users/jorrit/WorkingCopies/go/src/github.com/estafette/estafette-ci-builder", dir)
-
 		assert.False(t, result.HasErrors())
 	})
 
