@@ -1,4 +1,4 @@
-FROM travix/gocd-agent:17.4.0-alpine
+FROM travix/gocd-agent:17.5.0-alpine
 
 MAINTAINER estafette.io
 
