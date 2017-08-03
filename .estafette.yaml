@@ -5,7 +5,7 @@ labels:
 
 pipelines:
   build:
-    image: golang:1.8.3-alpine
+    image: golang:1.8.3-alpine3.6
     workDir: /go/src/github.com/estafette/${ESTAFETTE_LABEL_APP}
     commands:
     - apk --update add git
