@@ -15,7 +15,8 @@ pipelines:
   bake-estafette:
     image: docker:17.06.0-ce
     commands:
-    - docker build -f Dockerfile -t estafette/${ESTAFETTE_LABEL_APP}:${ESTAFETTE_BUILD_VERSION} ./publish
+    - cp Dockerfile ./publish
+    - docker build -f ./publish/Dockerfile -t estafette/${ESTAFETTE_LABEL_APP}:${ESTAFETTE_BUILD_VERSION} ./publish
 
   push-to-docker-hub:
     image: docker:17.06.0-ce
@@ -29,7 +30,8 @@ pipelines:
   bake-gocd-agent:
     image: docker:17.06.0-ce
     commands:
-    - docker build -f Dockerfile.gocd -t gcr.io/${ESTAFETTE_GCR_PROJECT}/${ESTAFETTE_LABEL_APP}:${ESTAFETTE_BUILD_VERSION} ./publish
+    - cp Dockerfile.gocd ./publish
+    - docker build -f ./publish/Dockerfile.gocd -t gcr.io/${ESTAFETTE_GCR_PROJECT}/${ESTAFETTE_LABEL_APP}:${ESTAFETTE_BUILD_VERSION} ./publish
 
   push-to-gcr-io:
     image: docker:17.06.0-ce
