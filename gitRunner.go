@@ -19,7 +19,7 @@ func gitCloneRevision(gitURL, gitBranch, gitRevision string) (err error) {
 
 		fmt.Printf("Checking out git commit %v...\n", gitRevision)
 
-		args := []string{"checkout", "--quiet", gitRevision}
+		args := []string{"checkout", "--quiet", "--force", gitRevision}
 		checkoutCommand := exec.Command("git", args...)
 		checkoutCommand.Dir = "/estafette-work"
 		err = checkoutCommand.Run()

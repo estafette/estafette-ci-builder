@@ -35,7 +35,7 @@ func getCommandOutput(name string, arg ...string) (string, error) {
 	return strings.TrimSpace(string(out)), nil
 }
 
-func setEstafetteGlobalEnvvars() error {
+func setEstafetteGlobalEnvvars() (err error) {
 
 	// set git revision
 	if getEstafetteEnv("ESTAFETTE_GIT_REVISION") == "" {
@@ -62,19 +62,15 @@ func setEstafetteGlobalEnvvars() error {
 	}
 
 	// set build datetime
-	if getEstafetteEnv("ESTAFETTE_BUILD_DATETIME") == "" {
-		err := os.Setenv("ESTAFETTE_BUILD_DATETIME", time.Now().UTC().Format(time.RFC3339))
-		if err != nil {
-			return err
-		}
+	err = os.Setenv("ESTAFETTE_BUILD_DATETIME", time.Now().UTC().Format(time.RFC3339))
+	if err != nil {
+		return err
 	}
 
 	// set build status
-	if getEstafetteEnv("ESTAFETTE_BUILD_STATUS") == "" {
-		err := os.Setenv("ESTAFETTE_BUILD_STATUS", "succeeded")
-		if err != nil {
-			return err
-		}
+	err = os.Setenv("ESTAFETTE_BUILD_STATUS", "succeeded")
+	if err != nil {
+		return err
 	}
 
 	return nil
