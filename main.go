@@ -23,12 +23,16 @@ func main() {
 	if ciServer == "estafette" {
 
 		// git clone to specific branch and revision
-		gitCloneRevision(
+		err := gitCloneRevision(
 			getEstafetteEnv("ESTAFETTE_GIT_URL"),
 			getEstafetteEnv("ESTAFETTE_GIT_BRANCH"),
 			getEstafetteEnv("ESTAFETTE_GIT_REVISION"))
 
-		return
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		os.Exit(0)
 	}
 
 	// read yaml
