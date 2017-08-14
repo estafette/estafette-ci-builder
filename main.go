@@ -29,7 +29,7 @@ func main() {
 			getEstafetteEnv("ESTAFETTE_GIT_REVISION"))
 
 		if err != nil {
-			log.Fatal(err)
+			fmt.Printf("Error cloning git repository %v branch %v revision %v:\n%v\n", getEstafetteEnv("ESTAFETTE_GIT_URL"), getEstafetteEnv("ESTAFETTE_GIT_BRANCH"), getEstafetteEnv("ESTAFETTE_GIT_REVISION"), err)
 		}
 
 		os.Exit(0)
