@@ -19,6 +19,18 @@ func main() {
 
 	fmt.Printf("[estafette] Starting estafette-ci-builder (version=%v, branch=%v, revision=%v, buildDate=%v, goVersion=%v)\n", version, branch, revision, buildDate, goVersion)
 
+	ciServer := getEstafetteEnv("ESTAFETTE_CI_SERVER")
+	if ciServer == "estafette" {
+
+		// git clone to specific branch and revision
+		gitCloneRevision(
+			getEstafetteEnv("ESTAFETTE_GIT_URL"),
+			getEstafetteEnv("ESTAFETTE_GIT_BRANCH"),
+			getEstafetteEnv("ESTAFETTE_GIT_REVISION"))
+
+		return
+	}
+
 	// read yaml
 	manifest, err := readManifest(".estafette.yaml")
 	if err != nil {

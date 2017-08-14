@@ -38,23 +38,27 @@ func getCommandOutput(name string, arg ...string) (string, error) {
 func setEstafetteGlobalEnvvars() error {
 
 	// set git revision
-	revision, err := getCommandOutput("git", "rev-parse", "HEAD")
-	if err != nil {
-		return err
-	}
-	err = os.Setenv("ESTAFETTE_GIT_REVISION", revision)
-	if err != nil {
-		return err
+	if getEstafetteEnv("ESTAFETTE_GIT_REVISION") == "" {
+		revision, err := getCommandOutput("git", "rev-parse", "HEAD")
+		if err != nil {
+			return err
+		}
+		err = os.Setenv("ESTAFETTE_GIT_REVISION", revision)
+		if err != nil {
+			return err
+		}
 	}
 
 	// set git branch
-	branch, err := getCommandOutput("git", "rev-parse", "--abbrev-ref", "HEAD")
-	if err != nil {
-		return err
-	}
-	err = os.Setenv("ESTAFETTE_GIT_BRANCH", branch)
-	if err != nil {
-		return err
+	if getEstafetteEnv("ESTAFETTE_GIT_BRANCH") == "" {
+		branch, err := getCommandOutput("git", "rev-parse", "--abbrev-ref", "HEAD")
+		if err != nil {
+			return err
+		}
+		err = os.Setenv("ESTAFETTE_GIT_BRANCH", branch)
+		if err != nil {
+			return err
+		}
 	}
 
 	// set build datetime

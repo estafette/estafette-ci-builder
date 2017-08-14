@@ -10,4 +10,6 @@ ENV ESTAFETTE_CI_SERVER="estafette"
 # copy builder
 COPY estafette-ci-builder /
 
+WORKDIR /estafette-work
+
 ENTRYPOINT ["/estafette-ci-builder"]
