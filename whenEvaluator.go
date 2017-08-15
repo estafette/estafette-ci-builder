@@ -35,6 +35,7 @@ func whenParameters() map[string]interface{} {
 	parameters["branch"] = os.Getenv("ESTAFETTE_GIT_BRANCH")
 	parameters["trigger"] = os.Getenv("ESTAFETTE_TRIGGER")
 	parameters["status"] = os.Getenv("ESTAFETTE_BUILD_STATUS")
+	parameters["server"] = os.Getenv("ESTAFETTE_CI_SERVER")
 
 	return parameters
 }
