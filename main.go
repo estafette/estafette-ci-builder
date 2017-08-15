@@ -96,6 +96,7 @@ func main() {
 
 	if ciServer == "estafette" {
 		// todo send result to ci-api
+		log.Info().Msg("Finished running pipelines")
 		os.Exit(0)
 	}
 
