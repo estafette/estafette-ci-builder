@@ -2,6 +2,7 @@ package main
 
 import (
 	"io/ioutil"
+	"os"
 
 	"github.com/rs/zerolog/log"
 
@@ -95,6 +96,17 @@ func (c *estafetteManifest) unmarshalYAML(data []byte) error {
 	}
 
 	return nil
+}
+
+func manifestExists(manifestPath string) bool {
+
+	if _, err := os.Stat(manifestPath); os.IsNotExist(err) {
+		// does not exist
+		return false
+	}
+
+	// does exist
+	return true
 }
 
 func readManifest(manifestPath string) (manifest estafetteManifest, err error) {

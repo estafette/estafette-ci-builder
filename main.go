@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"runtime"
 
@@ -50,23 +51,20 @@ func main() {
 		Msg("Starting estafette-ci-builder...")
 
 	if ciServer == "estafette" {
-
 		gitURL := getEstafetteEnv("ESTAFETTE_GIT_URL")
 		gitBranch := getEstafetteEnv("ESTAFETTE_GIT_BRANCH")
 		gitRevision := getEstafetteEnv("ESTAFETTE_GIT_REVISION")
 
 		// git clone to specific branch and revision
 		err := gitCloneRevision(gitURL, gitBranch, gitRevision)
-
 		if err != nil {
-			log.Error().Err(err).
-				Str("url", gitURL).
-				Str("branch", gitBranch).
-				Str("revision", gitRevision).
-				Msgf("Error cloning git repository %v to branch %v and revision %v...", gitURL, gitBranch, gitRevision)
+			handleFatal(err, fmt.Sprintf("Error cloning git repository %v to branch %v and revision %v...", gitURL, gitBranch, gitRevision))
 		}
 
-		os.Exit(0)
+		if !manifestExists(".estafette.yaml") {
+			log.Info().Msg(".estafette.yaml file does not exist, exiting...")
+			os.Exit(0)
+		}
 	}
 
 	// read yaml
@@ -94,6 +92,11 @@ func main() {
 
 	if ciServer == "gocd" {
 		renderStats(result)
+	}
+
+	if ciServer == "estafette" {
+		// todo send result to ci-api
+		os.Exit(0)
 	}
 
 	handleExit(result)
