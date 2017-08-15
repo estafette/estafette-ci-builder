@@ -12,6 +12,8 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
+
+	"github.com/rs/zerolog/log"
 )
 
 func isDockerImagePulled(p estafettePipeline) bool {
