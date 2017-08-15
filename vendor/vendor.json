@@ -1398,6 +1398,26 @@
 			"revision": ""
 		},
 		{
+			"checksumSHA1": "L9ddG8bKvrCbp04vVt/tJyEHX5I=",
+			"path": "github.com/rs/zerolog",
+			"revision": "46339da83a8e0a8aa7a0341950df866c8bbf26e8",
+			"revisionTime": "2017-08-12T23:16:31Z"
+		},
+		{
+			"checksumSHA1": "AREhk6LKIp2I/4Njd756bqU6JSQ=",
+			"path": "github.com/rs/zerolog/internal/json",
+			"revision": "46339da83a8e0a8aa7a0341950df866c8bbf26e8",
+			"revisionTime": "2017-08-12T23:16:31Z"
+		},
+		{
+			"checksumSHA1": "FG7zw1b6t0e8ZaCI8oVr3jeoR2M=",
+			"path": "github.com/rs/zerolog/log",
+			"revision": "2ed2f2c974489526d10329dae76d0f175684109a",
+			"revisionTime": "2017-08-06T03:45:41Z",
+			"version": "v1.2.2",
+			"versionExact": "v1.2.2"
+		},
+		{
 			"checksumSHA1": "s+MXIkGBtXEPSiUiFgfbEmLb6vw=",
 			"path": "github.com/russross/blackfriday",
 			"revision": "5f33e7b7878355cd2b7e6b8eefc48a5472c69f70",
