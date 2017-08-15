@@ -24,6 +24,7 @@ func main() {
 	if ciServer == "gocd" {
 		// pretty print for go.cd integration
 		log.Logger = zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr}).With().
+			Timestamp().
 			Logger()
 	} else {
 		// log as severity for stackdriver logging to recognize the level
