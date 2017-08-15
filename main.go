@@ -23,7 +23,8 @@ func main() {
 	ciServer := getEstafetteEnv("ESTAFETTE_CI_SERVER")
 	if ciServer == "gocd" {
 		// pretty print for go.cd integration
-		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+		log.Logger = zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr}).With().
+			Logger()
 	} else {
 		// log as severity for stackdriver logging to recognize the level
 		zerolog.LevelFieldName = "severity"
