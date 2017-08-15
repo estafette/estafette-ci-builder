@@ -35,6 +35,9 @@ func main() {
 			Logger()
 	}
 
+	stdlog.SetFlags(0)
+	stdlog.SetOutput(log.Logger)
+
 	// log startup message
 	log.Info().
 		Str("branch", branch).
