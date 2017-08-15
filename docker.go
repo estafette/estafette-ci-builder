@@ -174,13 +174,13 @@ func runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (e
 		}
 
 		if logType == "error" {
-			log.Error().Str("pipeline", p.Name).Msgf("[%v] %v", p.Name, logLine)
+			log.Error().Msgf("[%v] %v", p.Name, logLine)
 		} else {
-			log.Info().Str("pipeline", p.Name).Msgf("[%v] %v", p.Name, logLine)
+			log.Info().Msgf("[%v] %v", p.Name, logLine)
 		}
 	}
 	if err := in.Err(); err != nil {
-		log.Error().Str("pipeline", p.Name).Msgf("[%v] Error: %v", p.Name, err)
+		log.Error().Msgf("[%v] Error: %v", p.Name, err)
 		return err
 	}
 
