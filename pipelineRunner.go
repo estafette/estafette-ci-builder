@@ -1,9 +1,10 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"time"
+
+	"github.com/rs/zerolog/log"
 )
 
 type estafettePipelineRunResult struct {
@@ -48,7 +49,7 @@ func runPipeline(dir string, envvars map[string]string, p estafettePipeline) (re
 
 	result.Pipeline = p
 
-	fmt.Printf("[estafette] Starting pipeline '%v'\n", p.Name)
+	log.Info().Msgf("Starting pipeline '%v'", p.Name)
 
 	result.IsDockerImagePulled = isDockerImagePulled(p)
 
@@ -79,7 +80,7 @@ func runPipeline(dir string, envvars map[string]string, p estafettePipeline) (re
 		return result, result.DockerRunError
 	}
 
-	fmt.Printf("[estafette] Finished pipeline '%v' successfully\n", p.Name)
+	log.Info().Msgf("Finished pipeline '%v' successfully", p.Name)
 
 	return
 }

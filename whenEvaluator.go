@@ -2,10 +2,10 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"os"
 
 	"github.com/Knetic/govaluate"
+	"github.com/rs/zerolog/log"
 )
 
 func whenEvaluator(input string, parameters map[string]interface{}) (result bool, err error) {
@@ -14,13 +14,13 @@ func whenEvaluator(input string, parameters map[string]interface{}) (result bool
 		return false, errors.New("When expression is empty")
 	}
 
-	fmt.Printf("[estafette] Evaluating when expression \"%v\" with parameters \"%v\"\n", input, parameters)
+	log.Info().Msgf("Evaluating when expression \"%v\" with parameters \"%v\"\n", input, parameters)
 
 	expression, err := govaluate.NewEvaluableExpression(input)
 
 	r, err := expression.Evaluate(parameters)
 
-	fmt.Printf("[estafette] Result of when expression \"%v\" is \"%v\"\n", input, r)
+	log.Info().Msgf("Result of when expression \"%v\" is \"%v\"\n", input, r)
 
 	if result, ok := r.(bool); ok {
 		return result, err

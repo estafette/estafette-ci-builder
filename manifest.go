@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"io/ioutil"
 
+	"github.com/rs/zerolog/log"
+
 	yaml "gopkg.in/yaml.v2"
 )
 
@@ -26,7 +28,7 @@ func (c *estafetteManifest) unmarshalYAML(data []byte) error {
 
 	err := yaml.Unmarshal(data, c)
 	if err != nil {
-		fmt.Println(err)
+		log.Error().Err(err).Msg("Unmarshalling .estafette.yaml manifest failed")
 		return err
 	}
 
@@ -98,7 +100,7 @@ func (c *estafetteManifest) unmarshalYAML(data []byte) error {
 
 func readManifest(manifestPath string) (manifest estafetteManifest, err error) {
 
-	fmt.Printf("[estafette] Reading %v file...\n", manifestPath)
+	log.Info().Msgf("Reading %v file...", manifestPath)
 
 	data, err := ioutil.ReadFile(manifestPath)
 	if err != nil {
@@ -108,7 +110,7 @@ func readManifest(manifestPath string) (manifest estafetteManifest, err error) {
 		return manifest, err
 	}
 
-	fmt.Printf("[estafette] Finished reading %v file successfully\n", manifestPath)
+	log.Info().Msgf("Finished reading %v file successfully", manifestPath)
 
 	return
 }

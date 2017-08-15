@@ -16,7 +16,7 @@ import (
 
 func isDockerImagePulled(p estafettePipeline) bool {
 
-	fmt.Printf("[estafette] Checking if docker image '%v' exists locally...\n", p.ContainerImage)
+	log.Info().Msgf("Checking if docker image '%v' exists locally...", p.ContainerImage)
 
 	cli, err := client.NewEnvClient()
 	if err != nil {
@@ -36,7 +36,7 @@ func isDockerImagePulled(p estafettePipeline) bool {
 
 func runDockerPull(p estafettePipeline) (err error) {
 
-	fmt.Printf("[estafette] Pulling docker image '%v'\n", p.ContainerImage)
+	log.Info().Msgf("Pulling docker image '%v'", p.ContainerImage)
 
 	cli, err := client.NewEnvClient()
 	if err != nil {
