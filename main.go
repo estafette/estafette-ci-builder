@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"runtime"
 
@@ -71,27 +70,29 @@ func main() {
 	// read yaml
 	manifest, err := readManifest(".estafette.yaml")
 	if err != nil {
-		log.Fatal().Err(err)
+		handleFatal(err, "Reading .estafette.yaml manifest failed")
 	}
 
 	// get current working directory
 	dir, err := os.Getwd()
 	if err != nil {
-		log.Fatal().Err(err)
+		handleFatal(err, "Getting current working directory failed")
 	}
 
-	fmt.Printf("[estafette] Running %v pipelines\n", len(manifest.Pipelines))
+	log.Info().Msgf("Running %v pipelines", len(manifest.Pipelines))
 
 	err = setEstafetteGlobalEnvvars()
 	if err != nil {
-		log.Fatal().Err(err)
+		handleFatal(err, "Setting global environment variables failed")
 	}
 
 	envvars := collectEstafetteEnvvars(manifest)
 
 	result := runPipelines(manifest, dir, envvars)
 
-	renderStats(result)
+	if ciServer == "gocd" {
+		renderStats(result)
+	}
 
 	handleExit(result)
 }

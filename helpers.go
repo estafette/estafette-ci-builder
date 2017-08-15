@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/olekukonko/tablewriter"
+	"github.com/rs/zerolog/log"
 )
 
 func contains(s []string, e string) bool {
@@ -22,6 +23,18 @@ func handleExit(result estafetteRunPipelinesResult) {
 		os.Exit(1)
 	}
 
+	os.Exit(0)
+}
+
+func handleFatal(err error, message string) {
+
+	ciServer := getEstafetteEnv("ESTAFETTE_CI_SERVER")
+	if ciServer == "gocd" {
+		log.Fatal().Err(err).Msg(message)
+		os.Exit(1)
+	}
+
+	log.Error().Err(err).Msg(message)
 	os.Exit(0)
 }
 
@@ -71,14 +84,14 @@ func renderStats(result estafetteRunPipelinesResult) {
 		dockerImageSizeTotal += s.DockerImageSize
 	}
 
-	fmt.Println("")
+	log.Info().Msg("")
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetHeader([]string{"Pipeline", "Image", "Size (MB)", "Pull (s)", "Run (s)", "Total (s)", "Status", "Detail"})
 	table.SetFooter([]string{"", "Total", fmt.Sprintf("%v", dockerImageSizeTotal/1024/1024), fmt.Sprintf("%.0f", dockerPullDurationTotal), fmt.Sprintf("%.0f", dockerRunDurationTotal), fmt.Sprintf("%.0f", dockerPullDurationTotal+dockerRunDurationTotal), statusTotal, ""})
 	table.SetBorder(false)
 	table.AppendBulk(data)
 	table.Render()
-	fmt.Println("")
+	log.Info().Msg("")
 }
 
 func pathExists(path string) (bool, error) {
