@@ -17,7 +17,14 @@ trap 'kill ${!}; sigterm_handler' 15 # SIGTERM
 
 # run dockerd
 echo "Starting docker daemon..."
-dockerd --host=unix:///var/run/docker.sock --host=tcp://0.0.0.0:2375 --storage-driver=$STORAGE_DRIVER &
+dockerd --host=unix:///var/run/docker.sock --host=tcp://0.0.0.0:2375 --storage-driver=$STORAGE_DRIVER 2>&1 &
+
+# wait for docker.sock to be ready
+echo "Waiting for docker daemon..."
+while [ ! -e /var/run/docker.sock ] ; do
+  echo "."
+  sleep 1s
+done
 
 # run estafette-ci-builder
 /estafette-ci-builder &
