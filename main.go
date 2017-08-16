@@ -5,6 +5,7 @@ import (
 	"os"
 	"runtime"
 
+	"github.com/docker/docker/daemon"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
@@ -17,6 +18,7 @@ var (
 	revision  string
 	buildDate string
 	goVersion = runtime.Version()
+	dmn       *daemon.Daemon
 )
 
 func main() {
@@ -51,12 +53,19 @@ func main() {
 		Msg("Starting estafette-ci-builder...")
 
 	if ciServer == "estafette" {
+
+		var err error
+		dmn, err = startDockerDaemon()
+		if err != nil {
+			handleFatal(err, "Error starting docker daemon")
+		}
+
 		gitURL := getEstafetteEnv("ESTAFETTE_GIT_URL")
 		gitBranch := getEstafetteEnv("ESTAFETTE_GIT_BRANCH")
 		gitRevision := getEstafetteEnv("ESTAFETTE_GIT_REVISION")
 
 		// git clone to specific branch and revision
-		err := gitCloneRevision(gitURL, gitBranch, gitRevision)
+		err = gitCloneRevision(gitURL, gitBranch, gitRevision)
 		if err != nil {
 			handleFatal(err, fmt.Sprintf("Error cloning git repository %v to branch %v and revision %v...", gitURL, gitBranch, gitRevision))
 		}
@@ -97,6 +106,12 @@ func main() {
 	if ciServer == "estafette" {
 		// todo send result to ci-api
 		log.Info().Msg("Finished running pipelines")
+
+		err := shutdownDockerDaemon(dmn)
+		if err != nil {
+			handleFatal(err, "Error starting docker daemon")
+		}
+
 		os.Exit(0)
 	}
 

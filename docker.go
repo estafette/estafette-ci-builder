@@ -12,6 +12,9 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/daemon"
+	"github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/registry"
 
 	"github.com/rs/zerolog/log"
 )
@@ -195,4 +198,30 @@ func runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (e
 	}
 
 	return
+}
+
+func startDockerDaemon() (dmn *daemon.Daemon, err error) {
+
+	//func NewDaemon(config *config.Config, registryService registry.Service, containerdRemote libcontainerd.Remote) (daemon *Daemon, err error) {
+
+	dmn, err = daemon.NewDaemon(&config.Config{
+		CommonConfig: config.CommonConfig{
+			Hosts:       []string{"unix:///var/run/docker.sock", "tcp://0.0.0.0:2375"},
+			GraphDriver: "overlay2",
+		},
+	}, registry.NewService(registry.ServiceOptions{}), nil)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+func shutdownDockerDaemon(daemon *daemon.Daemon) error {
+	err := daemon.Shutdown()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
