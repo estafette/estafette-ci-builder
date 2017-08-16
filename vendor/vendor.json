@@ -479,15 +479,6 @@
 			"revisionTime": "2017-03-21T17:14:25Z"
 		},
 		{
-			"checksumSHA1": "lFrpqHRUFbnqljmvwLYwna5z3Zk=",
-			"path": "github.com/docker/docker",
-			"revision": "4845c567eb35d68f35b0b1713a09b0c8d47fe67e",
-			"revisionTime": "2017-04-03T17:15:25Z",
-			"tree": true,
-			"version": "v17.04.0-ce",
-			"versionExact": "v17.04.0-ce"
-		},
-		{
 			"checksumSHA1": "ZibHiIah93Hz47Bk2YPuT47JxLs=",
 			"path": "github.com/docker/docker-credential-helpers/client",
 			"revision": "71779cf7f595bf47f5a56d0629ce044e59b1cffa",
@@ -498,6 +489,36 @@
 			"path": "github.com/docker/docker-credential-helpers/credentials",
 			"revision": "71779cf7f595bf47f5a56d0629ce044e59b1cffa",
 			"revisionTime": "2017-03-22T08:53:49Z"
+		},
+		{
+			"checksumSHA1": "bcgugw9JdANKsP6thgDNhOMLcb8=",
+			"path": "github.com/docker/docker/api/types/plugins/logdriver",
+			"revision": "cd902848e913aead3e8242eca8a6ed6c67e589e1",
+			"revisionTime": "2017-08-15T16:13:13Z"
+		},
+		{
+			"path": "github.com/docker/docker/autogen/winresources/docker",
+			"revision": ""
+		},
+		{
+			"path": "github.com/docker/docker/autogen/winresources/dockerd",
+			"revision": ""
+		},
+		{
+			"checksumSHA1": "UMQLNvYbLpOG6OHoFq8dQHeFqRM=",
+			"path": "github.com/docker/docker/builder/remotecontext",
+			"revision": "cd902848e913aead3e8242eca8a6ed6c67e589e1",
+			"revisionTime": "2017-08-15T16:13:13Z"
+		},
+		{
+			"checksumSHA1": "VdP3q35YTJlhmdMJWp3iu8ky3N8=",
+			"path": "github.com/docker/docker/builder/remotecontext/git",
+			"revision": "cd902848e913aead3e8242eca8a6ed6c67e589e1",
+			"revisionTime": "2017-08-15T16:13:13Z"
+		},
+		{
+			"path": "github.com/docker/docker/cli/command/service/progress",
+			"revision": ""
 		},
 		{
 			"path": "github.com/docker/docker/pkg/discovery",
@@ -870,6 +891,12 @@
 			"revision": ""
 		},
 		{
+			"checksumSHA1": "kxYWOQ2jRChriHtuUceTIvQvlp4=",
+			"path": "github.com/docker/swarmkit/agent/configs",
+			"revision": "6716ddf5808932a56be3aa1af8510c306ed7145f",
+			"revisionTime": "2017-08-15T20:47:20Z"
+		},
+		{
 			"checksumSHA1": "yR3oeFMQWEM+Sy6OWOUNu9ZDi/U=",
 			"path": "github.com/docker/swarmkit/agent/exec",
 			"revision": "2d668e7efbcf5606f20a5d77ec32fcbdb384f1cf",
@@ -1047,6 +1074,10 @@
 		},
 		{
 			"path": "github.com/docker/swarmkit/manager/state/store",
+			"revision": ""
+		},
+		{
+			"path": "github.com/docker/swarmkit/manager/storeapi",
 			"revision": ""
 		},
 		{
@@ -1298,6 +1329,15 @@
 			"revisionTime": "2017-03-07T20:11:23Z"
 		},
 		{
+			"checksumSHA1": "o1m4jE7Hgj1ZzXU+Izh9ks+CArw=",
+			"path": "github.com/moby/moby",
+			"revision": "89658bed64c2a8fe05a978e5b87dbec409d57a0f",
+			"revisionTime": "2017-05-04T20:25:03Z",
+			"tree": true,
+			"version": "v17.05.0-ce",
+			"versionExact": "v17.05.0-ce"
+		},
+		{
 			"checksumSHA1": "Pc8xXumeXymW7wNgN5lNW8RG9kU=",
 			"path": "github.com/olekukonko/tablewriter",
 			"revision": "febf2d34b54a69ce7530036c7503b1c9fbfdf0bb",
@@ -1438,6 +1478,12 @@
 			"revisionTime": "2016-09-18T04:11:01Z"
 		},
 		{
+			"checksumSHA1": "8nOCTgKSFATcBfOV4+uKtXCrZv4=",
+			"path": "github.com/sirupsen/logrus",
+			"revision": "f006c2ac4710855cf0f916dd6b77acf6b048dc6e",
+			"revisionTime": "2017-08-15T20:20:55Z"
+		},
+		{
 			"checksumSHA1": "wFmuhcaWx/uMyKk66e4NOGyKcJE=",
 			"path": "github.com/spf13/cobra",
 			"revision": "7aeaa2cce6ae7e18d2a6ee597b60ee137e999bd9",
@@ -1452,6 +1498,12 @@
 			"path": "github.com/spf13/pflag",
 			"revision": "d16db1e50e33dff1b6cdf37596cef36742128670",
 			"revisionTime": "2017-03-27T14:13:44Z"
+		},
+		{
+			"checksumSHA1": "+qhqMjYoLP35nc0y19yoFIWZnGo=",
+			"path": "github.com/stevvooe/continuity/sysx",
+			"revision": "cf279e6ac893682272b4479d4c67fd3abf878b4e",
+			"revisionTime": "2017-07-25T22:16:19Z"
 		},
 		{
 			"checksumSHA1": "3fuOD4+Q7k/yYdaklodK+6njEm0=",
@@ -1476,6 +1528,12 @@
 		{
 			"path": "github.com/tonistiigi/fifo",
 			"revision": ""
+		},
+		{
+			"checksumSHA1": "uk3RYWw18s1SdlLYkWT+HdyxUjE=",
+			"path": "github.com/tonistiigi/fsutil",
+			"revision": "923ce3f08a66a6677878bbee066406d13eecd139",
+			"revisionTime": "2017-07-21T04:08:35Z"
 		},
 		{
 			"path": "github.com/ugorji/go/codec",
@@ -1618,6 +1676,12 @@
 		{
 			"path": "golang.org/x/oauth2/jwt",
 			"revision": ""
+		},
+		{
+			"checksumSHA1": "Fxh2bhyDOSLGYJAY73976JVMys0=",
+			"path": "golang.org/x/sync/errgroup",
+			"revision": "f52d1811a62927559de87708c8913c1650ce4f26",
+			"revisionTime": "2017-05-17T20:25:26Z"
 		},
 		{
 			"checksumSHA1": "YKtYOaoibNO6C5fDbtjiWCuBlks=",
