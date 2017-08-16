@@ -16,7 +16,6 @@ pipelines:
     image: docker:17.06.0-ce
     commands:
     - cp Dockerfile ./publish
-    - cp docker-entrypoint.sh ./publish
     - docker build -f ./publish/Dockerfile -t estafette/${ESTAFETTE_LABEL_APP}:${ESTAFETTE_BUILD_VERSION} ./publish
 
   push-to-docker-hub:
