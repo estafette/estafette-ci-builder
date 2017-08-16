@@ -17,7 +17,10 @@ func gitCloneRevision(gitURL, gitBranch, gitRevision string) (err error) {
 
 	// git clone
 	args := []string{"clone", "--depth=50", fmt.Sprintf("--branch=%v", gitBranch), gitURL, "/estafette-work"}
-	err = exec.Command("git", args...).Run()
+	gitCloneCommand := exec.Command("git", args...)
+	gitCloneCommand.Stdout = log.Logger
+	gitCloneCommand.Stderr = log.Logger
+	err = gitCloneCommand.Run()
 	if err != nil {
 		return
 	}
@@ -28,6 +31,8 @@ func gitCloneRevision(gitURL, gitBranch, gitRevision string) (err error) {
 		args := []string{"checkout", "--quiet", "--force", gitRevision}
 		checkoutCommand := exec.Command("git", args...)
 		checkoutCommand.Dir = "/estafette-work"
+		checkoutCommand.Stdout = log.Logger
+		checkoutCommand.Stderr = log.Logger
 		err = checkoutCommand.Run()
 		if err != nil {
 			return

@@ -5,7 +5,6 @@ import (
 	"os"
 	"runtime"
 
-	"github.com/docker/docker/daemon"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
@@ -18,7 +17,6 @@ var (
 	revision  string
 	buildDate string
 	goVersion = runtime.Version()
-	dmn       *daemon.Daemon
 )
 
 func main() {
@@ -54,8 +52,7 @@ func main() {
 
 	if ciServer == "estafette" {
 
-		var err error
-		dmn, err = startDockerDaemon()
+		err := startDockerDaemon()
 		if err != nil {
 			handleFatal(err, "Error starting docker daemon")
 		}
@@ -106,12 +103,6 @@ func main() {
 	if ciServer == "estafette" {
 		// todo send result to ci-api
 		log.Info().Msg("Finished running pipelines")
-
-		err := shutdownDockerDaemon(dmn)
-		if err != nil {
-			handleFatal(err, "Error starting docker daemon")
-		}
-
 		os.Exit(0)
 	}
 

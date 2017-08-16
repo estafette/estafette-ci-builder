@@ -6,15 +6,14 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
-	"github.com/docker/docker/daemon"
-	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/registry"
 
 	"github.com/rs/zerolog/log"
 )
@@ -200,28 +199,31 @@ func runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (e
 	return
 }
 
-func startDockerDaemon() (dmn *daemon.Daemon, err error) {
+func startDockerDaemon() error {
 
-	//func NewDaemon(config *config.Config, registryService registry.Service, containerdRemote libcontainerd.Remote) (daemon *Daemon, err error) {
-
-	dmn, err = daemon.NewDaemon(&config.Config{
-		CommonConfig: config.CommonConfig{
-			Hosts:       []string{"unix:///var/run/docker.sock", "tcp://0.0.0.0:2375"},
-			GraphDriver: "overlay2",
-		},
-	}, registry.NewService(registry.ServiceOptions{}), nil)
-	if err != nil {
-		return
-	}
-
-	return
-}
-
-func shutdownDockerDaemon(daemon *daemon.Daemon) error {
-	err := daemon.Shutdown()
+	// dockerd --host=unix:///var/run/docker.sock --host=tcp://0.0.0.0:2375 --storage-driver=$STORAGE_DRIVER &
+	log.Info().Msg("Starting docker daemon...")
+	args := []string{"--host=unix:///var/run/docker.sock", "--host=tcp://0.0.0.0:2375", "--storage-driver=overlay2"}
+	dockerDaemonCommand := exec.Command("dockerd", args...)
+	dockerDaemonCommand.Stdout = log.Logger
+	dockerDaemonCommand.Stderr = log.Logger
+	err := dockerDaemonCommand.Start()
 	if err != nil {
 		return err
 	}
+
+	// wait until /var/run/docker.sock exists
+	log.Info().Msg("Waiting for docker daemon to be ready for use...")
+	for {
+		if _, err := os.Stat("/var/run/docker.sock"); os.IsNotExist(err) {
+			// does not exist
+			time.Sleep(1000 * time.Millisecond)
+		} else {
+			// file exists, break out of for loop
+			break
+		}
+	}
+	log.Info().Msg("Docker daemon is ready for use")
 
 	return nil
 }
