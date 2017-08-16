@@ -92,7 +92,10 @@ func runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (e
 
 	// define commands
 	cmdSlice := make([]string, 0)
-	cmdSlice = append(cmdSlice, "set -e;"+strings.Join(p.Commands, ";"))
+	if len(p.Commands) > 0 {
+		// only pass commands when they are set, so extensions can work without
+		cmdSlice = append(cmdSlice, "set -e;"+strings.Join(p.Commands, ";"))
+	}
 
 	// define envvars
 	envVars := make([]string, 0)
@@ -104,8 +107,11 @@ func runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (e
 
 	// define entrypoint
 	entrypoint := make([]string, 0)
-	entrypoint = append(entrypoint, p.Shell)
-	entrypoint = append(entrypoint, "-c")
+	if len(p.Commands) > 0 {
+		// only override entrypoint when commands are set, so extensions use the entrypoint instead
+		entrypoint = append(entrypoint, p.Shell)
+		entrypoint = append(entrypoint, "-c")
+	}
 
 	// define binds
 	binds := make([]string, 0)

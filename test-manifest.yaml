@@ -18,6 +18,11 @@ pipelines:
     - cp Dockerfile ./publish
     - docker build -t estafette-ci-builder ./publish
 
+  set-build-status:
+    image: extensions/github-status:0.0.1
+    when:
+      server == 'estafette'
+
   push-to-docker-hub:
     image: docker:17.03.0-ce
     commands:
