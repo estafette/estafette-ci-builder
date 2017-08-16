@@ -71,6 +71,9 @@ func main() {
 			log.Info().Msg(".estafette.yaml file does not exist, exiting...")
 			os.Exit(0)
 		}
+
+		// check if docker daemon is ready for usage
+		waitForDockerDaemon()
 	}
 
 	// read yaml

@@ -212,6 +212,11 @@ func startDockerDaemon() error {
 		return err
 	}
 
+	return nil
+}
+
+func waitForDockerDaemon() {
+
 	// wait until /var/run/docker.sock exists
 	log.Info().Msg("Waiting for docker daemon to be ready for use...")
 	for {
@@ -224,6 +229,4 @@ func startDockerDaemon() error {
 		}
 	}
 	log.Info().Msg("Docker daemon is ready for use")
-
-	return nil
 }
