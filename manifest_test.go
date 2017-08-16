@@ -48,7 +48,7 @@ func TestReadManifest(t *testing.T) {
 		assert.Equal(t, "docker build -t estafette-ci-builder ./publish", manifest.Pipelines[1].Commands[1])
 
 		assert.Equal(t, "set-build-status", manifest.Pipelines[2].Name)
-		assert.Equal(t, "extensions/github-status:0.0.1", manifest.Pipelines[2].ContainerImage)
+		assert.Equal(t, "extensions/github-status:0.0.2", manifest.Pipelines[2].ContainerImage)
 		assert.Equal(t, 0, len(manifest.Pipelines[2].Commands))
 		assert.Equal(t, "server == 'estafette'", manifest.Pipelines[2].When)
 

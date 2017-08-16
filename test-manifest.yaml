@@ -19,7 +19,7 @@ pipelines:
     - docker build -t estafette-ci-builder ./publish
 
   set-build-status:
-    image: extensions/github-status:0.0.1
+    image: extensions/github-status:0.0.2
     when:
       server == 'estafette'
 

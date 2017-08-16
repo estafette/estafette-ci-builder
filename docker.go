@@ -92,10 +92,7 @@ func runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (e
 
 	// define commands
 	cmdSlice := make([]string, 0)
-	if len(p.Commands) > 0 {
-		// only pass commands when they are set, so extensions can work without
-		cmdSlice = append(cmdSlice, "set -e;"+strings.Join(p.Commands, ";"))
-	}
+	cmdSlice = append(cmdSlice, "set -e;"+strings.Join(p.Commands, ";"))
 
 	// define envvars
 	envVars := make([]string, 0)
@@ -107,11 +104,8 @@ func runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (e
 
 	// define entrypoint
 	entrypoint := make([]string, 0)
-	if len(p.Commands) > 0 {
-		// only override entrypoint when commands are set, so extensions use the entrypoint instead
-		entrypoint = append(entrypoint, p.Shell)
-		entrypoint = append(entrypoint, "-c")
-	}
+	entrypoint = append(entrypoint, p.Shell)
+	entrypoint = append(entrypoint, "-c")
 
 	// define binds
 	binds := make([]string, 0)
@@ -123,16 +117,23 @@ func runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (e
 		binds = append(binds, "/var/run/secrets/kubernetes.io/serviceaccount:/var/run/secrets/kubernetes.io/serviceaccount")
 	}
 
-	// create container
-	resp, err := cli.ContainerCreate(ctx, &container.Config{
+	// define config
+	config := container.Config{
 		AttachStdout: true,
 		AttachStderr: true,
 		Env:          envVars,
-		Cmd:          cmdSlice,
 		Image:        p.ContainerImage,
 		WorkingDir:   os.Expand(p.WorkingDirectory, getEstafetteEnv),
-		Entrypoint:   entrypoint,
-	}, &container.HostConfig{
+	}
+	if len(p.Commands) > 0 {
+		// only pass commands when they are set, so extensions can work without
+		config.Cmd = cmdSlice
+		// only override entrypoint when commands are set, so extensions can work without commands
+		config.Entrypoint = entrypoint
+	}
+
+	// create container
+	resp, err := cli.ContainerCreate(ctx, &config, &container.HostConfig{
 		Binds:      binds,
 		AutoRemove: true,
 		Privileged: true,
