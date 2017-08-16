@@ -57,14 +57,15 @@ func main() {
 			handleFatal(err, "Error starting docker daemon")
 		}
 
+		gitName := getEstafetteEnv("ESTAFETTE_GIT_NAME")
 		gitURL := getEstafetteEnv("ESTAFETTE_GIT_URL")
 		gitBranch := getEstafetteEnv("ESTAFETTE_GIT_BRANCH")
 		gitRevision := getEstafetteEnv("ESTAFETTE_GIT_REVISION")
 
 		// git clone to specific branch and revision
-		err = gitCloneRevision(gitURL, gitBranch, gitRevision)
+		err = gitCloneRevision(gitName, gitURL, gitBranch, gitRevision)
 		if err != nil {
-			handleFatal(err, fmt.Sprintf("Error cloning git repository %v to branch %v and revision %v...", gitURL, gitBranch, gitRevision))
+			handleFatal(err, fmt.Sprintf("Error cloning git repository %v to branch %v and revision %v...", gitName, gitBranch, gitRevision))
 		}
 
 		if !manifestExists(".estafette.yaml") {

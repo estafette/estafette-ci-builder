@@ -7,13 +7,14 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func gitCloneRevision(gitURL, gitBranch, gitRevision string) (err error) {
+func gitCloneRevision(gitName, gitURL, gitBranch, gitRevision string) (err error) {
 
 	log.Info().
+		Str("name", gitName).
 		Str("url", gitURL).
 		Str("branch", gitBranch).
 		Str("revision", gitRevision).
-		Msgf("Cloning git repository %v to branch %v and revision %v...", gitURL, gitBranch, gitRevision)
+		Msgf("Cloning git repository %v to branch %v and revision %v...", gitName, gitBranch, gitRevision)
 
 	// git clone
 	args := []string{"clone", "--depth=50", fmt.Sprintf("--branch=%v", gitBranch), gitURL, "/estafette-work"}
@@ -40,10 +41,11 @@ func gitCloneRevision(gitURL, gitBranch, gitRevision string) (err error) {
 	}
 
 	log.Info().
+		Str("name", gitName).
 		Str("url", gitURL).
 		Str("branch", branch).
 		Str("revision", revision).
-		Msgf("Finished cloning git repository %v to branch %v and revision %v", gitURL, gitBranch, gitRevision)
+		Msgf("Finished cloning git repository %v to branch %v and revision %v", gitName, gitBranch, gitRevision)
 
 	return
 }
