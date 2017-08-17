@@ -64,6 +64,17 @@ func TestReadManifest(t *testing.T) {
 		assert.Equal(t, "status == 'failed' || branch == 'master'", manifest.Pipelines[4].When)
 
 		assert.Equal(t, "some value with spaces", manifest.Pipelines[4].EnvVars["SOME_ENVIRONMENT_VAR"])
+		assert.Equal(t, "value1", manifest.Pipelines[4].CustomProperties["unknownProperty1"])
+		assert.Equal(t, "value2", manifest.Pipelines[4].CustomProperties["unknownProperty2"])
+
+		_, unknownPropertyExist := manifest.Pipelines[4].CustomProperties["unsupportedUnknownProperty"]
+		assert.False(t, unknownPropertyExist)
+
+		_, reservedPropertyForGolangNameExist := manifest.Pipelines[4].CustomProperties["ContainerImage"]
+		assert.False(t, reservedPropertyForGolangNameExist)
+
+		_, reservedPropertyForYamlNameExist := manifest.Pipelines[4].CustomProperties["image"]
+		assert.False(t, reservedPropertyForYamlNameExist)
 	})
 
 	t.Run("ReturnsWorkDirDefaultIfMissing", func(t *testing.T) {
@@ -124,5 +135,32 @@ func TestReadManifest(t *testing.T) {
 		assert.Nil(t, err)
 
 		assert.Equal(t, "status == 'succeeded'", manifest.Pipelines[0].When)
+	})
+}
+
+func TestGetReservedPropertyNames(t *testing.T) {
+
+	t.Run("ReturnsListWithPropertyNamesAndYamlNames", func(t *testing.T) {
+
+		// act
+		names := getReservedPropertyNames()
+
+		// yaml names
+		assert.True(t, isReservedPopertyName(names, "image"))
+		assert.True(t, isReservedPopertyName(names, "shell"))
+		assert.True(t, isReservedPopertyName(names, "workDir"))
+		assert.True(t, isReservedPopertyName(names, "commands"))
+		assert.True(t, isReservedPopertyName(names, "when"))
+		assert.True(t, isReservedPopertyName(names, "env"))
+
+		// property names
+		assert.True(t, isReservedPopertyName(names, "Name"))
+		assert.True(t, isReservedPopertyName(names, "ContainerImage"))
+		assert.True(t, isReservedPopertyName(names, "Shell"))
+		assert.True(t, isReservedPopertyName(names, "WorkingDirectory"))
+		assert.True(t, isReservedPopertyName(names, "Commands"))
+		assert.True(t, isReservedPopertyName(names, "When"))
+		assert.True(t, isReservedPopertyName(names, "EnvVars"))
+		assert.True(t, isReservedPopertyName(names, "CustomProperties"))
 	})
 }

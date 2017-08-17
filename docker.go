@@ -96,14 +96,22 @@ func runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (e
 
 	// define envvars
 	envVars := make([]string, 0)
+	// add global envvars
 	if envvars != nil && len(envvars) > 0 {
 		for k, v := range envvars {
 			envVars = append(envVars, fmt.Sprintf("%v=%v", k, v))
 		}
 	}
+	// add pipeline level envvars
 	if p.EnvVars != nil && len(p.EnvVars) > 0 {
 		for k, v := range p.EnvVars {
 			envVars = append(envVars, fmt.Sprintf("%v=%v", k, v))
+		}
+	}
+	// add custom properties as ESTAFETTE_EXTENSION_... envvar
+	if p.CustomProperties != nil && len(p.CustomProperties) > 0 {
+		for k, v := range p.CustomProperties {
+			envVars = append(envVars, fmt.Sprintf("ESTAFETTE_EXTENSION_%v=%v", toUpperSnake(k), v))
 		}
 	}
 

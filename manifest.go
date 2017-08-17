@@ -3,6 +3,8 @@ package main
 import (
 	"io/ioutil"
 	"os"
+	"reflect"
+	"strings"
 
 	"github.com/rs/zerolog/log"
 
@@ -22,6 +24,7 @@ type estafettePipeline struct {
 	Commands         []string          `yaml:"commands,omitempty"`
 	When             string            `yaml:"when,omitempty"`
 	EnvVars          map[string]string `yaml:"env,omitempty"`
+	CustomProperties map[string]string
 }
 
 // UnmarshalYAML parses the .estafette.yaml file into an estafetteManifest object
@@ -32,6 +35,9 @@ func (c *estafetteManifest) unmarshalYAML(data []byte) error {
 		log.Error().Err(err).Msg("Unmarshalling .estafette.yaml manifest failed")
 		return err
 	}
+
+	// create list of reserved property names
+	reservedPropertyNames := getReservedPropertyNames()
 
 	// to preserve order for the pipelines use MapSlice
 	outerSlice := yaml.MapSlice{}
@@ -90,6 +96,23 @@ func (c *estafetteManifest) unmarshalYAML(data []byte) error {
 					p.When = "status == 'succeeded'"
 				}
 
+				// assign all unknown (non-reserved) properties to CustomProperties
+				p.CustomProperties = map[string]string{}
+				propertiesMap := map[string]interface{}{}
+				err = yaml.Unmarshal(out, &propertiesMap)
+				if err != nil {
+					return err
+				}
+				if propertiesMap != nil && len(propertiesMap) > 0 {
+					for k, v := range propertiesMap {
+						if !isReservedPopertyName(reservedPropertyNames, k) {
+							if s, isString := v.(string); isString {
+								p.CustomProperties[k] = s
+							}
+						}
+					}
+				}
+
 				// add pipeline
 				c.Pipelines = append(c.Pipelines, &p)
 			}
@@ -97,6 +120,34 @@ func (c *estafetteManifest) unmarshalYAML(data []byte) error {
 	}
 
 	return nil
+}
+
+func getReservedPropertyNames() (names []string) {
+	// create list of reserved property names
+	reservedPropertyNames := []string{}
+	val := reflect.ValueOf(estafettePipeline{})
+	for i := 0; i < val.Type().NumField(); i++ {
+		yamlName := val.Type().Field(i).Tag.Get("yaml")
+		if yamlName != "" {
+			reservedPropertyNames = append(reservedPropertyNames, strings.Replace(yamlName, ",omitempty", "", 1))
+		}
+		propertyName := val.Type().Field(i).Name
+		if propertyName != "" {
+			reservedPropertyNames = append(reservedPropertyNames, propertyName)
+		}
+	}
+
+	return reservedPropertyNames
+}
+
+func isReservedPopertyName(s []string, e string) bool {
+
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
 }
 
 func manifestExists(manifestPath string) bool {
