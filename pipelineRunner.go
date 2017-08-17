@@ -129,6 +129,9 @@ func runPipelines(manifest estafetteManifest, dir string, envvars map[string]str
 				// override set build status
 				os.Setenv("ESTAFETTE_BUILD_STATUS", "failed")
 
+				// update envvars
+				envvars = collectEstafetteEnvvars(manifest)
+
 				r.Status = "FAILED"
 				r.OtherError = err
 
