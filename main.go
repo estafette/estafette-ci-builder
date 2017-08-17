@@ -70,6 +70,7 @@ func main() {
 
 		if !manifestExists(".estafette.yaml") {
 			log.Info().Msg(".estafette.yaml file does not exist, exiting...")
+			sendBuildFinishedEvent()
 			os.Exit(0)
 		}
 
