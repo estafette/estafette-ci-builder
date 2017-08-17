@@ -1,7 +1,11 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 
 	"github.com/olekukonko/tablewriter"
@@ -34,8 +38,47 @@ func handleFatal(err error, message string) {
 		os.Exit(1)
 	}
 
+	go sendBuildFinishedEvent()
 	log.Error().Err(err).Msg(message)
 	os.Exit(0)
+}
+
+func sendBuildFinishedEvent() {
+
+	ciServerBaseURL := os.Getenv("ESTAFETTE_CI_SERVER_BASE_URL")
+	jobName := os.Getenv("ESTAFETTE_BUILD_JOB_NAME")
+
+	if ciServerBaseURL != "" && jobName != "" {
+		buildFinishedURL := ciServerBaseURL + "estafette/build/finished"
+
+		// convert params to json if they're present
+		var requestBody io.Reader
+
+		params := EstafetteBuildFinishedEvent{JobName: jobName}
+		data, err := json.Marshal(params)
+		if err != nil {
+			log.Error().Err(err).Msgf("Failed marshalling EstafetteBuildFinishedEvent for job %v", jobName)
+			return
+		}
+		requestBody = bytes.NewReader(data)
+
+		// create client, in order to add headers
+		client := &http.Client{}
+		request, err := http.NewRequest("POST", buildFinishedURL, requestBody)
+		if err != nil {
+			log.Error().Err(err).Msgf("Failed creating http client for job %v", jobName)
+			return
+		}
+
+		// perform actual request
+		response, err := client.Do(request)
+		if err != nil {
+			log.Error().Err(err).Msgf("Failed performing http request to %v for job %v", buildFinishedURL, jobName)
+			return
+		}
+
+		defer response.Body.Close()
+	}
 }
 
 func renderStats(result estafetteRunPipelinesResult) {
