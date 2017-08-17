@@ -94,24 +94,22 @@ func runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (e
 	cmdSlice := make([]string, 0)
 	cmdSlice = append(cmdSlice, "set -e;"+strings.Join(p.Commands, ";"))
 
-	// define envvars
-	envVars := make([]string, 0)
-	// add global envvars
-	if envvars != nil && len(envvars) > 0 {
-		for k, v := range envvars {
-			envVars = append(envVars, fmt.Sprintf("%v=%v", k, v))
-		}
-	}
-	// add pipeline level envvars
-	if p.EnvVars != nil && len(p.EnvVars) > 0 {
-		for k, v := range p.EnvVars {
-			envVars = append(envVars, fmt.Sprintf("%v=%v", k, v))
-		}
-	}
 	// add custom properties as ESTAFETTE_EXTENSION_... envvar
+	extensionEnvVars := map[string]string{}
 	if p.CustomProperties != nil && len(p.CustomProperties) > 0 {
 		for k, v := range p.CustomProperties {
-			envVars = append(envVars, fmt.Sprintf("ESTAFETTE_EXTENSION_%v=%v", toUpperSnake(k), v))
+			extensionEnvVars[fmt.Sprintf("ESTAFETTE_EXTENSION_%v", toUpperSnake(k))] = v
+		}
+	}
+
+	// combine and override envvars
+	combinedEnvVars := overrideEnvvars(envvars, p.EnvVars, extensionEnvVars)
+
+	// define docker envvars
+	dockerEnvVars := make([]string, 0)
+	if combinedEnvVars != nil && len(combinedEnvVars) > 0 {
+		for k, v := range combinedEnvVars {
+			dockerEnvVars = append(dockerEnvVars, fmt.Sprintf("%v=%v", k, v))
 		}
 	}
 
@@ -134,7 +132,7 @@ func runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (e
 	config := container.Config{
 		AttachStdout: true,
 		AttachStderr: true,
-		Env:          envVars,
+		Env:          dockerEnvVars,
 		Image:        p.ContainerImage,
 		WorkingDir:   os.Expand(p.WorkingDirectory, getEstafetteEnv),
 	}

@@ -114,3 +114,17 @@ func getEstafetteEnv(key string) string {
 
 	return fmt.Sprintf("${%v}", key)
 }
+
+func overrideEnvvars(envvarMaps ...map[string]string) (envvars map[string]string) {
+
+	envvars = make(map[string]string)
+	for _, envvarMap := range envvarMaps {
+		if envvarMap != nil && len(envvarMap) > 0 {
+			for k, v := range envvarMap {
+				envvars[k] = v
+			}
+		}
+	}
+
+	return
+}

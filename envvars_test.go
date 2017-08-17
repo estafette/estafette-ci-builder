@@ -1,11 +1,44 @@
 package main
 
-// import (
-// 	"os"
-// 	"testing"
+import (
+	"testing"
 
-// 	"github.com/stretchr/testify/assert"
-// )
+	"github.com/stretchr/testify/assert"
+)
+
+func TestOverrideEnvvars(t *testing.T) {
+
+	t.Run("CombinesAllEnvvarsFromPassedMaps", func(t *testing.T) {
+
+		outerMap := map[string]string{
+			"ENVVAR1": "value1",
+		}
+		innerMap := map[string]string{
+			"ENVVAR2": "value2",
+		}
+
+		// act
+		envvars := overrideEnvvars(outerMap, innerMap)
+
+		assert.Equal(t, 2, len(envvars))
+	})
+
+	t.Run("OverridesEnvarFromFirstMapWithSecondMap", func(t *testing.T) {
+
+		outerMap := map[string]string{
+			"ENVVAR1": "value1",
+		}
+		innerMap := map[string]string{
+			"ENVVAR1": "value2",
+		}
+
+		// act
+		envvars := overrideEnvvars(outerMap, innerMap)
+
+		assert.Equal(t, 1, len(envvars))
+		assert.Equal(t, "value2", envvars["ENVVAR1"])
+	})
+}
 
 // func TestCollectEstafetteEnvvars(t *testing.T) {
 
