@@ -34,6 +34,8 @@ pipelines:
 
   slack-notify:
     image: docker:17.03.0-ce
+    env:
+      SOME_ENVIRONMENT_VAR: "some value with spaces"    
     commands:
     - 'curl -X POST --data-urlencode ''payload={"channel": "#build-status", "username": "estafette-ci-builder", "text": "Build ${ESTAFETTE_BUILD_VERSION} for ${ESTAFETTE_LABEL_APP} has failed!"}'' ${ESTAFETTE_SLACK_WEBHOOK}'
     when:

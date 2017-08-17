@@ -62,6 +62,8 @@ func TestReadManifest(t *testing.T) {
 		assert.Equal(t, "docker:17.03.0-ce", manifest.Pipelines[4].ContainerImage)
 		assert.Equal(t, "curl -X POST --data-urlencode 'payload={\"channel\": \"#build-status\", \"username\": \"estafette-ci-builder\", \"text\": \"Build ${ESTAFETTE_BUILD_VERSION} for ${ESTAFETTE_LABEL_APP} has failed!\"}' ${ESTAFETTE_SLACK_WEBHOOK}", manifest.Pipelines[4].Commands[0])
 		assert.Equal(t, "status == 'failed' || branch == 'master'", manifest.Pipelines[4].When)
+
+		assert.Equal(t, "some value with spaces", manifest.Pipelines[4].EnvVars["SOME_ENVIRONMENT_VAR"])
 	})
 
 	t.Run("ReturnsWorkDirDefaultIfMissing", func(t *testing.T) {

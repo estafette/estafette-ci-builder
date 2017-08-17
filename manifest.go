@@ -16,11 +16,12 @@ type estafetteManifest struct {
 
 type estafettePipeline struct {
 	Name             string
-	ContainerImage   string   `yaml:"image,omitempty"`
-	Shell            string   `yaml:"shell,omitempty"`
-	WorkingDirectory string   `yaml:"workDir,omitempty"`
-	Commands         []string `yaml:"commands,omitempty"`
-	When             string   `yaml:"when,omitempty"`
+	ContainerImage   string            `yaml:"image,omitempty"`
+	Shell            string            `yaml:"shell,omitempty"`
+	WorkingDirectory string            `yaml:"workDir,omitempty"`
+	Commands         []string          `yaml:"commands,omitempty"`
+	When             string            `yaml:"when,omitempty"`
+	EnvVars          map[string]string `yaml:"env,omitempty"`
 }
 
 // UnmarshalYAML parses the .estafette.yaml file into an estafetteManifest object

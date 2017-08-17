@@ -101,6 +101,11 @@ func runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (e
 			envVars = append(envVars, fmt.Sprintf("%v=%v", k, v))
 		}
 	}
+	if p.EnvVars != nil && len(p.EnvVars) > 0 {
+		for k, v := range p.EnvVars {
+			envVars = append(envVars, fmt.Sprintf("%v=%v", k, v))
+		}
+	}
 
 	// define entrypoint
 	entrypoint := make([]string, 0)
