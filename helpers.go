@@ -38,7 +38,7 @@ func handleFatal(err error, message string) {
 		os.Exit(1)
 	}
 
-	go sendBuildFinishedEvent()
+	sendBuildFinishedEvent()
 	log.Error().Err(err).Msg(message)
 	os.Exit(0)
 }
