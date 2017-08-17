@@ -62,19 +62,15 @@ func setEstafetteGlobalEnvvars() (err error) {
 	}
 
 	// set build datetime
-	if getEstafetteEnv("ESTAFETTE_BUILD_DATETIME") == "" {
-		err = os.Setenv("ESTAFETTE_BUILD_DATETIME", time.Now().UTC().Format(time.RFC3339))
-		if err != nil {
-			return err
-		}
+	err = os.Setenv("ESTAFETTE_BUILD_DATETIME", time.Now().UTC().Format(time.RFC3339))
+	if err != nil {
+		return err
 	}
 
 	// set build status
-	if getEstafetteEnv("ESTAFETTE_BUILD_STATUS") == "" {
-		err = os.Setenv("ESTAFETTE_BUILD_STATUS", "succeeded")
-		if err != nil {
-			return err
-		}
+	err = os.Setenv("ESTAFETTE_BUILD_STATUS", "succeeded")
+	if err != nil {
+		return err
 	}
 
 	return nil
