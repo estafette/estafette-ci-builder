@@ -79,6 +79,8 @@ func sendBuildFinishedEvent() {
 		}
 
 		defer response.Body.Close()
+
+		log.Debug().Str("url", buildFinishedURL).Msg("Notified ci-api that ci-builder has finished")
 	}
 }
 
