@@ -70,7 +70,7 @@ func main() {
 
 		if !manifestExists(".estafette.yaml") {
 			log.Info().Msg(".estafette.yaml file does not exist, exiting...")
-			sendBuildFinishedEvent("nomanifest")
+			sendBuildFinishedEvent("builder:nomanifest")
 			os.Exit(0)
 		}
 
@@ -108,7 +108,7 @@ func main() {
 	if ciServer == "estafette" {
 		// todo send result to ci-api
 		log.Info().Msg("Finished running pipelines")
-		sendBuildFinishedEvent("succeeded")
+		sendBuildFinishedEvent("builder:succeeded")
 		os.Exit(0)
 	}
 
