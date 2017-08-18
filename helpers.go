@@ -46,9 +46,10 @@ func handleFatal(err error, message string) {
 func sendBuildFinishedEvent(eventType string) {
 
 	ciServerBuilderEventsURL := os.Getenv("ESTAFETTE_CI_SERVER_BUILDER_EVENTS_URL")
+	ciAPIKey := os.Getenv("ESTAFETTE_CI_API_KEY")
 	jobName := os.Getenv("ESTAFETTE_BUILD_JOB_NAME")
 
-	if ciServerBuilderEventsURL != "" && jobName != "" {
+	if ciServerBuilderEventsURL != "" && ciAPIKey != "" && jobName != "" {
 		// convert EstafetteCiBuilderEvent to json
 		var requestBody io.Reader
 
@@ -70,6 +71,7 @@ func sendBuildFinishedEvent(eventType string) {
 
 		// add headers
 		request.Header.Add("X-Estafette-Event", eventType)
+		request.Header.Add("Authorization", fmt.Sprintf("Bearer %v", ciAPIKey))
 
 		// perform actual request
 		response, err := client.Do(request)
