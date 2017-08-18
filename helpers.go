@@ -39,12 +39,12 @@ func handleFatal(err error, message string) {
 		os.Exit(1)
 	}
 
-	sendBuildFinishedEvent()
+	sendBuildFinishedEvent("failed")
 	log.Error().Err(err).Msg(message)
 	os.Exit(0)
 }
 
-func sendBuildFinishedEvent() {
+func sendBuildFinishedEvent(eventType string) {
 
 	ciServerBaseURL := os.Getenv("ESTAFETTE_CI_SERVER_BASE_URL")
 	jobName := os.Getenv("ESTAFETTE_BUILD_JOB_NAME")
@@ -52,13 +52,13 @@ func sendBuildFinishedEvent() {
 	if ciServerBaseURL != "" && jobName != "" {
 		buildFinishedURL := strings.TrimRight(ciServerBaseURL, "/") + "/events/estafette/ci-builder"
 
-		// convert params to json if they're present
+		// convert EstafetteCiBuilderEvent to json
 		var requestBody io.Reader
 
-		params := EstafetteBuildFinishedEvent{JobName: jobName}
-		data, err := json.Marshal(params)
+		ciBuilderEvent := EstafetteCiBuilderEvent{JobName: jobName}
+		data, err := json.Marshal(ciBuilderEvent)
 		if err != nil {
-			log.Error().Err(err).Msgf("Failed marshalling EstafetteBuildFinishedEvent for job %v", jobName)
+			log.Error().Err(err).Msgf("Failed marshalling EstafetteCiBuilderEvent for job %v", jobName)
 			return
 		}
 		requestBody = bytes.NewReader(data)
@@ -70,6 +70,9 @@ func sendBuildFinishedEvent() {
 			log.Error().Err(err).Msgf("Failed creating http client for job %v", jobName)
 			return
 		}
+
+		// add headers
+		request.Header.Add("X-Estafette-Event", eventType)
 
 		// perform actual request
 		response, err := client.Do(request)
