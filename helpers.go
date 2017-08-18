@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/olekukonko/tablewriter"
 	"github.com/rs/zerolog/log"
@@ -49,7 +50,7 @@ func sendBuildFinishedEvent() {
 	jobName := os.Getenv("ESTAFETTE_BUILD_JOB_NAME")
 
 	if ciServerBaseURL != "" && jobName != "" {
-		buildFinishedURL := ciServerBaseURL + "estafette/build/finished"
+		buildFinishedURL := strings.TrimRight(ciServerBaseURL, "/") + "/events/estafette/ci-builder"
 
 		// convert params to json if they're present
 		var requestBody io.Reader
