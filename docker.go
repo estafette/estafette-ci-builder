@@ -220,7 +220,7 @@ func runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (e
 func startDockerDaemon() error {
 
 	// dockerd --host=unix:///var/run/docker.sock --host=tcp://0.0.0.0:2375 --storage-driver=$STORAGE_DRIVER &
-	log.Info().Msg("Starting docker daemon...")
+	log.Debug().Msg("Starting docker daemon...")
 	args := []string{"--host=unix:///var/run/docker.sock", "--host=tcp://0.0.0.0:2375", "--storage-driver=overlay2"}
 	dockerDaemonCommand := exec.Command("dockerd", args...)
 	dockerDaemonCommand.Stdout = log.Logger
@@ -236,7 +236,7 @@ func startDockerDaemon() error {
 func waitForDockerDaemon() {
 
 	// wait until /var/run/docker.sock exists
-	log.Info().Msg("Waiting for docker daemon to be ready for use...")
+	log.Debug().Msg("Waiting for docker daemon to be ready for use...")
 	for {
 		if _, err := os.Stat("/var/run/docker.sock"); os.IsNotExist(err) {
 			// does not exist
@@ -246,5 +246,5 @@ func waitForDockerDaemon() {
 			break
 		}
 	}
-	log.Info().Msg("Docker daemon is ready for use")
+	log.Debug().Msg("Docker daemon is ready for use")
 }
