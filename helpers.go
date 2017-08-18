@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"strings"
 
 	"github.com/olekukonko/tablewriter"
 	"github.com/rs/zerolog/log"
@@ -46,12 +45,10 @@ func handleFatal(err error, message string) {
 
 func sendBuildFinishedEvent(eventType string) {
 
-	ciServerBaseURL := os.Getenv("ESTAFETTE_CI_SERVER_BASE_URL")
+	ciServerBuilderEventsURL := os.Getenv("ESTAFETTE_CI_SERVER_BUILDER_EVENTS_URL")
 	jobName := os.Getenv("ESTAFETTE_BUILD_JOB_NAME")
 
-	if ciServerBaseURL != "" && jobName != "" {
-		buildFinishedURL := strings.TrimRight(ciServerBaseURL, "/") + "/events/estafette/ci-builder"
-
+	if ciServerBuilderEventsURL != "" && jobName != "" {
 		// convert EstafetteCiBuilderEvent to json
 		var requestBody io.Reader
 
@@ -65,7 +62,7 @@ func sendBuildFinishedEvent(eventType string) {
 
 		// create client, in order to add headers
 		client := &http.Client{}
-		request, err := http.NewRequest("POST", buildFinishedURL, requestBody)
+		request, err := http.NewRequest("POST", ciServerBuilderEventsURL, requestBody)
 		if err != nil {
 			log.Error().Err(err).Msgf("Failed creating http client for job %v", jobName)
 			return
@@ -77,13 +74,13 @@ func sendBuildFinishedEvent(eventType string) {
 		// perform actual request
 		response, err := client.Do(request)
 		if err != nil {
-			log.Error().Err(err).Msgf("Failed performing http request to %v for job %v", buildFinishedURL, jobName)
+			log.Error().Err(err).Msgf("Failed performing http request to %v for job %v", ciServerBuilderEventsURL, jobName)
 			return
 		}
 
 		defer response.Body.Close()
 
-		log.Debug().Str("url", buildFinishedURL).Msg("Notified ci-api that ci-builder has finished")
+		log.Debug().Str("url", ciServerBuilderEventsURL).Msg("Notified ci-api that ci-builder has finished")
 	}
 }
 
