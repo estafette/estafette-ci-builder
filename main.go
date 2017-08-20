@@ -63,16 +63,7 @@ func main() {
 
 		result := runPipelines(manifest, dir, envvars)
 
-		if ciServer == "gocd" {
-			renderStats(result)
-		}
-
-		if ciServer == "estafette" {
-			// todo send result to ci-api
-			log.Info().Msg("Finished running pipelines")
-			sendBuildFinishedEvent("builder:succeeded")
-			os.Exit(0)
-		}
+		renderStats(result)
 
 		handleExit(result)
 
@@ -99,7 +90,7 @@ func main() {
 			Str("goVersion", goVersion).
 			Msg("Starting estafette-ci-builder...")
 
-		// start docker deamon
+		// start docker daemon
 		err := startDockerDaemon()
 		if err != nil {
 			handleFatal(err, "Error starting docker daemon")
