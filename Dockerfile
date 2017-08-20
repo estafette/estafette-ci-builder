@@ -2,9 +2,7 @@ FROM docker:17.06.0-ce-dind
 
 MAINTAINER estafette.io
 
-RUN apk add --no-cache \
-    git \
-    && addgroup docker
+RUN addgroup docker
 
 ENV ESTAFETTE_CI_SERVER="estafette"
 
