@@ -136,7 +136,7 @@ func main() {
 			Pipelines: []*estafettePipeline{
 				&estafettePipeline{
 					Name:             "git-clone",
-					ContainerImage:   "extensions/git-clone:0.0.1",
+					ContainerImage:   "extensions/git-clone:0.0.3",
 					Shell:            "/bin/sh",
 					WorkingDirectory: "/estafette-work",
 					When:             "status == 'succeeded'",
