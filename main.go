@@ -20,7 +20,15 @@ var (
 
 func main() {
 
-	ciServer := getEstafetteEnv("ESTAFETTE_CI_SERVER")
+	// bootstrap
+	envvarHelper := NewEnvvarHelper("ESTAFETTE_")
+	whenEvaluator := NewWhenEvaluator(envvarHelper)
+	dockerRunner := NewDockerRunner(envvarHelper)
+	pipelineRunner := NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner)
+	endOfLifeHelper := NewEndOfLifeHelper(envvarHelper)
+
+	// detect controlling server
+	ciServer := envvarHelper.getEstafetteEnv("ESTAFETTE_CI_SERVER")
 
 	if ciServer == "gocd" {
 
@@ -43,27 +51,27 @@ func main() {
 		// read yaml
 		manifest, err := readManifest(".estafette.yaml")
 		if err != nil {
-			handleFatal(err, "Reading .estafette.yaml manifest failed")
+			endOfLifeHelper.handleFatal(err, "Reading .estafette.yaml manifest failed")
 		}
 
 		// get current working directory
 		dir, err := os.Getwd()
 		if err != nil {
-			handleFatal(err, "Getting current working directory failed")
+			endOfLifeHelper.handleFatal(err, "Getting current working directory failed")
 		}
 
 		log.Info().Msgf("Running %v pipelines", len(manifest.Pipelines))
 
-		err = setEstafetteGlobalEnvvars()
+		err = envvarHelper.setEstafetteGlobalEnvvars()
 		if err != nil {
-			handleFatal(err, "Setting global environment variables failed")
+			endOfLifeHelper.handleFatal(err, "Setting global environment variables failed")
 		}
 
-		envvars := collectEstafetteEnvvars(manifest)
+		envvars := envvarHelper.collectEstafetteEnvvars(manifest)
 
-		result, err := runPipelines(manifest, dir, envvars)
+		result, err := pipelineRunner.runPipelines(manifest, dir, envvars)
 		if err != nil {
-			handleFatal(err, "Executing pipelines from manifest failed")
+			endOfLifeHelper.handleFatal(err, "Executing pipelines from manifest failed")
 		}
 
 		renderStats(result)
@@ -75,10 +83,10 @@ func main() {
 		// log as severity for stackdriver logging to recognize the level
 		zerolog.LevelFieldName = "severity"
 
-		gitName := getEstafetteEnv("ESTAFETTE_GIT_NAME")
-		gitBranch := getEstafetteEnv("ESTAFETTE_GIT_BRANCH")
-		gitRevision := getEstafetteEnv("ESTAFETTE_GIT_REVISION")
-		jobName := getEstafetteEnv("ESTAFETTE_BUILD_JOB_NAME")
+		gitName := envvarHelper.getEstafetteEnv("ESTAFETTE_GIT_NAME")
+		gitBranch := envvarHelper.getEstafetteEnv("ESTAFETTE_GIT_BRANCH")
+		gitRevision := envvarHelper.getEstafetteEnv("ESTAFETTE_GIT_REVISION")
+		jobName := envvarHelper.getEstafetteEnv("ESTAFETTE_BUILD_JOB_NAME")
 
 		// set some default fields added to all logs
 		log.Logger = zerolog.New(os.Stdout).With().
@@ -103,24 +111,24 @@ func main() {
 			Msg("Starting estafette-ci-builder...")
 
 		// start docker daemon
-		err := startDockerDaemon()
+		err := dockerRunner.startDockerDaemon()
 		if err != nil {
-			handleFatal(err, "Error starting docker daemon")
+			endOfLifeHelper.handleFatal(err, "Error starting docker daemon")
 		}
 
 		// wait for docker daemon to be ready for usage
-		waitForDockerDaemon()
+		dockerRunner.waitForDockerDaemon()
 
 		// get current working directory
 		dir, err := os.Getwd()
 		if err != nil {
-			handleFatal(err, "Getting current working directory failed")
+			endOfLifeHelper.handleFatal(err, "Getting current working directory failed")
 		}
 
 		// set some envvars
-		err = setEstafetteGlobalEnvvars()
+		err = envvarHelper.setEstafetteGlobalEnvvars()
 		if err != nil {
-			handleFatal(err, "Setting global environment variables failed")
+			endOfLifeHelper.handleFatal(err, "Setting global environment variables failed")
 		}
 
 		// run git clone via pipeline runner
@@ -137,31 +145,31 @@ func main() {
 		}
 
 		// collect estafette envvars and run the git clone step
-		envvars := collectEstafetteEnvvars(estafetteGitCloneManifest)
-		gitCloneResult, err := runPipelines(estafetteGitCloneManifest, dir, envvars)
+		envvars := envvarHelper.collectEstafetteEnvvars(estafetteGitCloneManifest)
+		gitCloneResult, err := pipelineRunner.runPipelines(estafetteGitCloneManifest, dir, envvars)
 		if err != nil {
-			handleFatal(err, "Executing git clone step failed")
+			endOfLifeHelper.handleFatal(err, "Executing git clone step failed")
 		}
 
 		// check if manifest exists
 		if !manifestExists(".estafette.yaml") {
 			log.Info().Msg(".estafette.yaml file does not exist, exiting...")
-			sendBuildFinishedEvent("builder:nomanifest")
+			endOfLifeHelper.sendBuildFinishedEvent("builder:nomanifest")
 			os.Exit(0)
 		}
 
 		// read .estafette.yaml manifest
 		manifest, err := readManifest(".estafette.yaml")
 		if err != nil {
-			handleFatal(err, "Reading .estafette.yaml manifest failed")
+			endOfLifeHelper.handleFatal(err, "Reading .estafette.yaml manifest failed")
 		}
 
 		// collect estafette envvars and run pipelines from manifest
 		log.Info().Msgf("Running %v pipelines", len(manifest.Pipelines))
-		envvars = collectEstafetteEnvvars(manifest)
-		result, err := runPipelines(manifest, dir, envvars)
+		envvars = envvarHelper.collectEstafetteEnvvars(manifest)
+		result, err := pipelineRunner.runPipelines(manifest, dir, envvars)
 		if err != nil {
-			handleFatal(err, "Executing pipelines from manifest failed")
+			endOfLifeHelper.handleFatal(err, "Executing pipelines from manifest failed")
 		}
 
 		// merge git clone and manifest result
@@ -169,7 +177,7 @@ func main() {
 
 		// send result to ci-api
 		log.Info().Interface("result", result).Msg("Finished running pipelines")
-		sendBuildFinishedEvent("builder:succeeded")
+		endOfLifeHelper.sendBuildFinishedEvent("builder:succeeded")
 		os.Exit(0)
 	}
 }

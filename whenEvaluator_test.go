@@ -11,8 +11,11 @@ func TestWhenEvaluator(t *testing.T) {
 
 	t.Run("ReturnsFalseIfInputIsEmpty", func(t *testing.T) {
 
+		envvarHelper := NewEnvvarHelper("TEST_")
+		whenEvaluator := NewWhenEvaluator(envvarHelper)
+
 		// act
-		result, err := whenEvaluator("", make(map[string]interface{}, 0))
+		result, err := whenEvaluator.evaluate("", make(map[string]interface{}, 0))
 
 		assert.NotNil(t, err)
 		assert.False(t, result)
@@ -20,13 +23,19 @@ func TestWhenEvaluator(t *testing.T) {
 
 	t.Run("ReturnsTrueIfInputEvaluatesToTrueWithoutParameters", func(t *testing.T) {
 
+		envvarHelper := NewEnvvarHelper("TEST_")
+		whenEvaluator := NewWhenEvaluator(envvarHelper)
+
 		// act
-		result, _ := whenEvaluator("3 > 2", make(map[string]interface{}, 0))
+		result, _ := whenEvaluator.evaluate("3 > 2", make(map[string]interface{}, 0))
 
 		assert.True(t, result)
 	})
 
 	t.Run("ReturnsTrueIfInputEvaluatesToTrueWithParameters", func(t *testing.T) {
+
+		envvarHelper := NewEnvvarHelper("TEST_")
+		whenEvaluator := NewWhenEvaluator(envvarHelper)
 
 		parameters := make(map[string]interface{}, 3)
 		parameters["branch"] = "master"
@@ -34,12 +43,15 @@ func TestWhenEvaluator(t *testing.T) {
 		parameters["status"] = "succeeded"
 
 		// act
-		result, _ := whenEvaluator("status == 'succeeded' && branch == 'master'", parameters)
+		result, _ := whenEvaluator.evaluate("status == 'succeeded' && branch == 'master'", parameters)
 
 		assert.True(t, result)
 	})
 
 	t.Run("ReturnsTrueIfInputEvaluatesToTrueWithParameters", func(t *testing.T) {
+
+		envvarHelper := NewEnvvarHelper("TEST_")
+		whenEvaluator := NewWhenEvaluator(envvarHelper)
 
 		parameters := make(map[string]interface{}, 3)
 		parameters["branch"] = "master"
@@ -47,7 +59,7 @@ func TestWhenEvaluator(t *testing.T) {
 		parameters["status"] = "succeeded"
 
 		// act
-		result, _ := whenEvaluator("status == 'succeeded' && branch == 'master'", parameters)
+		result, _ := whenEvaluator.evaluate("status == 'succeeded' && branch == 'master'", parameters)
 
 		assert.True(t, result)
 	})
@@ -57,33 +69,37 @@ func TestWhenParameters(t *testing.T) {
 
 	t.Run("ReturnsMapWithBranchEqualToBranchWithoutTrailingNewline", func(t *testing.T) {
 
-		estafetteEnvvarPrefix = "TEST_"
-		unsetEstafetteEnvvars()
-		setEstafetteGlobalEnvvars()
-		setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
+		envvarHelper := NewEnvvarHelper("TEST_")
+		whenEvaluator := NewWhenEvaluator(envvarHelper)
+
+		envvarHelper.unsetEstafetteEnvvars()
+		envvarHelper.setEstafetteGlobalEnvvars()
+		envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
 
 		// act
-		parameters := whenParameters()
+		parameters := whenEvaluator.getParameters()
 
 		assert.False(t, strings.Contains(parameters["branch"].(string), "\n"))
 
 		// clean up
-		unsetEstafetteEnvvars()
+		envvarHelper.unsetEstafetteEnvvars()
 	})
 
 	t.Run("ReturnsMapWithStatusSetToSucceededByDefault", func(t *testing.T) {
 
-		estafetteEnvvarPrefix = "TEST_"
-		unsetEstafetteEnvvars()
-		setEstafetteGlobalEnvvars()
-		setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
+		envvarHelper := NewEnvvarHelper("TEST_")
+		whenEvaluator := NewWhenEvaluator(envvarHelper)
+
+		envvarHelper.unsetEstafetteEnvvars()
+		envvarHelper.setEstafetteGlobalEnvvars()
+		envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
 
 		// act
-		parameters := whenParameters()
+		parameters := whenEvaluator.getParameters()
 
 		assert.Equal(t, "succeeded", parameters["status"])
 
 		// clean up
-		unsetEstafetteEnvvars()
+		envvarHelper.unsetEstafetteEnvvars()
 	})
 }
