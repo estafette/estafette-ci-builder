@@ -146,7 +146,7 @@ func (h *envvarHelperImpl) collectEstafetteEnvvars(m estafetteManifest) (envvars
 		kvPair := strings.SplitN(e, "=", 2)
 
 		if len(kvPair) == 2 {
-			envvarName := h.getEstafetteEnvvarName(kvPair[0])
+			envvarName := kvPair[0]
 			envvarValue := kvPair[1]
 
 			if strings.HasPrefix(envvarName, h.prefix) {
@@ -165,7 +165,7 @@ func (h *envvarHelperImpl) unsetEstafetteEnvvars() {
 		kvPair := strings.SplitN(e, "=", 2)
 
 		if len(kvPair) == 2 {
-			envvarName := h.getEstafetteEnvvarName(kvPair[0])
+			envvarName := kvPair[0]
 
 			if strings.HasPrefix(envvarName, h.prefix) {
 				h.unsetEstafetteEnv(envvarName)
