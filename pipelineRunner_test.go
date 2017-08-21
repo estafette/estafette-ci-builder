@@ -16,8 +16,9 @@ func TestRunPipelines(t *testing.T) {
 		dir, _ := os.Getwd()
 
 		// act
-		result := runPipelines(*manifest, dir, envvars)
+		result, err := runPipelines(*manifest, dir, envvars)
 
+		assert.NotNil(t, err)
 		assert.False(t, result.HasErrors())
 	})
 
@@ -29,8 +30,9 @@ func TestRunPipelines(t *testing.T) {
 		dir, _ := os.Getwd()
 
 		// act
-		result := runPipelines(*manifest, dir, envvars)
+		result, err := runPipelines(*manifest, dir, envvars)
 
+		assert.NotNil(t, err)
 		assert.Equal(t, 1, len(result.PipelineResults))
 	})
 
@@ -42,21 +44,24 @@ func TestRunPipelines(t *testing.T) {
 		dir, _ := os.Getwd()
 
 		// act
-		result := runPipelines(*manifest, dir, envvars)
+		result, err := runPipelines(*manifest, dir, envvars)
 
+		assert.NotNil(t, err)
 		assert.False(t, result.HasErrors())
 	})
 
 	t.Run("ReturnsResultWithSucceededPipelineResultWhenPipelinesSucceeded", func(t *testing.T) {
 
+		os.Setenv("ESTAFETTE_BUILD_STATUS", "succeeded")
 		manifest := new(estafetteManifest)
 		manifest.Pipelines = append(manifest.Pipelines, &estafettePipeline{Name: "TestStep", ContainerImage: "busybox:latest", Shell: "/bin/sh", WorkingDirectory: "/estafette-work", Commands: []string{"exit 0"}, When: "status == 'succeeded'"})
 		envvars := map[string]string{}
 		dir, _ := os.Getwd()
 
 		// act
-		result := runPipelines(*manifest, dir, envvars)
+		result, err := runPipelines(*manifest, dir, envvars)
 
+		assert.NotNil(t, err)
 		assert.Equal(t, "SUCCEEDED", result.PipelineResults[0].Status)
 	})
 
@@ -68,8 +73,9 @@ func TestRunPipelines(t *testing.T) {
 		dir, _ := os.Getwd()
 
 		// act
-		result := runPipelines(*manifest, dir, envvars)
+		result, err := runPipelines(*manifest, dir, envvars)
 
+		assert.NotNil(t, err)
 		assert.True(t, result.HasErrors())
 	})
 
@@ -81,8 +87,9 @@ func TestRunPipelines(t *testing.T) {
 		dir, _ := os.Getwd()
 
 		// act
-		result := runPipelines(*manifest, dir, envvars)
+		result, err := runPipelines(*manifest, dir, envvars)
 
+		assert.NotNil(t, err)
 		assert.Equal(t, "FAILED", result.PipelineResults[0].Status)
 	})
 
@@ -94,8 +101,9 @@ func TestRunPipelines(t *testing.T) {
 		dir, _ := os.Getwd()
 
 		// act
-		result := runPipelines(*manifest, dir, envvars)
+		result, err := runPipelines(*manifest, dir, envvars)
 
+		assert.NotNil(t, err)
 		assert.False(t, result.HasErrors())
 	})
 
@@ -107,8 +115,9 @@ func TestRunPipelines(t *testing.T) {
 		dir, _ := os.Getwd()
 
 		// act
-		result := runPipelines(*manifest, dir, envvars)
+		result, err := runPipelines(*manifest, dir, envvars)
 
+		assert.NotNil(t, err)
 		assert.Equal(t, "SKIPPED", result.PipelineResults[0].Status)
 	})
 
@@ -122,8 +131,9 @@ func TestRunPipelines(t *testing.T) {
 		dir, _ := os.Getwd()
 
 		// act
-		result := runPipelines(*manifest, dir, envvars)
+		result, err := runPipelines(*manifest, dir, envvars)
 
+		assert.NotNil(t, err)
 		assert.Equal(t, "FAILED", result.PipelineResults[0].Status)
 		assert.Equal(t, "SKIPPED", result.PipelineResults[1].Status)
 		assert.Equal(t, "SUCCEEDED", result.PipelineResults[2].Status)
@@ -139,8 +149,9 @@ func TestRunPipelines(t *testing.T) {
 		dir, _ := os.Getwd()
 
 		// act
-		result := runPipelines(*manifest, dir, envvars)
+		result, err := runPipelines(*manifest, dir, envvars)
 
+		assert.NotNil(t, err)
 		assert.True(t, result.HasErrors())
 	})
 }

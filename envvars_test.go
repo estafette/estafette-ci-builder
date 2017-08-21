@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -40,173 +41,181 @@ func TestOverrideEnvvars(t *testing.T) {
 	})
 }
 
-// func TestCollectEstafetteEnvvars(t *testing.T) {
+func TestCollectEstafetteEnvvars(t *testing.T) {
 
-// 	t.Run("ReturnsEmptyMapIfManifestHasNoLabelsAndNoEnvvarsStartWithEstafette", func(t *testing.T) {
+	t.Run("ReturnsEmptyMapIfManifestHasNoLabelsAndNoEnvvarsStartWithEstafette", func(t *testing.T) {
 
-// 		manifest := estafetteManifest{}
+		manifest := estafetteManifest{}
 
-// 		// act
-// 		envvars := collectEstafetteEnvvars(manifest)
+		// act
+		envvars := collectEstafetteEnvvars(manifest)
 
-// 		assert.Equal(t, 0, len(envvars))
-// 	})
+		assert.Equal(t, 0, len(envvars))
+	})
 
-// 	t.Run("ReturnsOneLabelAsEstafetteLabelLabel", func(t *testing.T) {
+	t.Run("ReturnsOneLabelAsEstafetteLabelLabel", func(t *testing.T) {
 
-// 		manifest := estafetteManifest{Labels: map[string]string{"app": "estafette-ci-builder"}}
+		estafetteEnvvarPrefix = "TEST"
+		manifest := estafetteManifest{Labels: map[string]string{"app": "estafette-ci-builder"}}
 
-// 		// act
-// 		envvars := collectEstafetteEnvvars(manifest)
+		// act
+		envvars := collectEstafetteEnvvars(manifest)
 
-// 		assert.Equal(t, 1, len(envvars))
-// 		_, exists := envvars["ESTAFETTE_LABEL_APP"]
-// 		assert.True(t, exists)
-// 		assert.Equal(t, "estafette-ci-builder", envvars["ESTAFETTE_LABEL_APP"])
+		assert.Equal(t, 1, len(envvars))
+		_, exists := envvars["TEST_LABEL_APP"]
+		assert.True(t, exists)
+		assert.Equal(t, "estafette-ci-builder", envvars["TEST_LABEL_APP"])
 
-// 		// clean up
-// 		os.Unsetenv("ESTAFETTE_LABEL_APP")
-// 	})
+		// clean up
+		os.Unsetenv("TEST_LABEL_APP")
+	})
 
-// 	t.Run("ReturnsOneLabelAsEstafetteLabelLabelWithSnakeCasing", func(t *testing.T) {
+	t.Run("ReturnsOneLabelAsEstafetteLabelLabelWithSnakeCasing", func(t *testing.T) {
 
-// 		manifest := estafetteManifest{Labels: map[string]string{"owningTeam": "estafette-ci-team"}}
+		estafetteEnvvarPrefix = "TEST"
+		manifest := estafetteManifest{Labels: map[string]string{"owningTeam": "estafette-ci-team"}}
 
-// 		// act
-// 		envvars := collectEstafetteEnvvars(manifest)
+		// act
+		envvars := collectEstafetteEnvvars(manifest)
 
-// 		assert.Equal(t, 1, len(envvars))
-// 		_, exists := envvars["ESTAFETTE_LABEL_OWNING_TEAM"]
-// 		assert.True(t, exists)
-// 		assert.Equal(t, "estafette-ci-team", envvars["ESTAFETTE_LABEL_OWNING_TEAM"])
+		assert.Equal(t, 1, len(envvars))
+		_, exists := envvars["TEST_LABEL_OWNING_TEAM"]
+		assert.True(t, exists)
+		assert.Equal(t, "estafette-ci-team", envvars["TEST_LABEL_OWNING_TEAM"])
 
-// 		// clean up
-// 		os.Unsetenv("ESTAFETTE_LABEL_OWNING_TEAM")
-// 	})
+		// clean up
+		os.Unsetenv("TEST_LABEL_OWNING_TEAM")
+	})
 
-// 	t.Run("ReturnsTwoLabelsAsEstafetteLabelLabel", func(t *testing.T) {
+	t.Run("ReturnsTwoLabelsAsEstafetteLabelLabel", func(t *testing.T) {
 
-// 		manifest := estafetteManifest{Labels: map[string]string{"app": "estafette-ci-builder", "team": "estafette-ci-team"}}
+		estafetteEnvvarPrefix = "TEST"
+		manifest := estafetteManifest{Labels: map[string]string{"app": "estafette-ci-builder", "team": "estafette-ci-team"}}
 
-// 		// act
-// 		envvars := collectEstafetteEnvvars(manifest)
+		// act
+		envvars := collectEstafetteEnvvars(manifest)
 
-// 		assert.Equal(t, 2, len(envvars))
-// 		_, exists := envvars["ESTAFETTE_LABEL_APP"]
-// 		assert.True(t, exists)
-// 		assert.Equal(t, "estafette-ci-builder", envvars["ESTAFETTE_LABEL_APP"])
+		assert.Equal(t, 2, len(envvars))
+		_, exists := envvars["TEST_LABEL_APP"]
+		assert.True(t, exists)
+		assert.Equal(t, "estafette-ci-builder", envvars["TEST_LABEL_APP"])
 
-// 		_, exists = envvars["ESTAFETTE_LABEL_TEAM"]
-// 		assert.True(t, exists)
-// 		assert.Equal(t, "estafette-ci-team", envvars["ESTAFETTE_LABEL_TEAM"])
+		_, exists = envvars["TEST_LABEL_TEAM"]
+		assert.True(t, exists)
+		assert.Equal(t, "estafette-ci-team", envvars["TEST_LABEL_TEAM"])
 
-// 		// clean up
-// 		os.Unsetenv("ESTAFETTE_LABEL_APP")
-// 		os.Unsetenv("ESTAFETTE_LABEL_TEAM")
-// 	})
+		// clean up
+		os.Unsetenv("TEST_LABEL_APP")
+		os.Unsetenv("TEST_LABEL_TEAM")
+	})
 
-// 	t.Run("ReturnsOneEnvvarStartingWithEstafette", func(t *testing.T) {
+	t.Run("ReturnsOneEnvvarStartingWithEstafette", func(t *testing.T) {
 
-// 		manifest := estafetteManifest{}
-// 		os.Setenv("ESTAFETTE_VERSION", "1.0.3")
+		estafetteEnvvarPrefix = "TEST"
+		manifest := estafetteManifest{}
+		os.Setenv("TEST_VERSION", "1.0.3")
 
-// 		// act
-// 		envvars := collectEstafetteEnvvars(manifest)
+		// act
+		envvars := collectEstafetteEnvvars(manifest)
 
-// 		assert.Equal(t, 1, len(envvars))
-// 		_, exists := envvars["ESTAFETTE_VERSION"]
-// 		assert.True(t, exists)
-// 		assert.Equal(t, "1.0.3", envvars["ESTAFETTE_VERSION"])
+		assert.Equal(t, 1, len(envvars))
+		_, exists := envvars["TEST_VERSION"]
+		assert.True(t, exists)
+		assert.Equal(t, "1.0.3", envvars["TEST_VERSION"])
 
-// 		// clean up
-// 		os.Unsetenv("ESTAFETTE_VERSION")
-// 	})
+		// clean up
+		os.Unsetenv("TEST_VERSION")
+	})
 
-// 	t.Run("ReturnsOneEnvvarStartingWithEstafetteIfValueContainsIsSymbol", func(t *testing.T) {
+	t.Run("ReturnsOneEnvvarStartingWithEstafetteIfValueContainsIsSymbol", func(t *testing.T) {
 
-// 		manifest := estafetteManifest{}
-// 		os.Setenv("ESTAFETTE_VERSION", "b=c")
+		estafetteEnvvarPrefix = "TEST"
+		manifest := estafetteManifest{}
+		os.Setenv("TEST_VERSION", "b=c")
 
-// 		// act
-// 		envvars := collectEstafetteEnvvars(manifest)
+		// act
+		envvars := collectEstafetteEnvvars(manifest)
 
-// 		assert.Equal(t, 1, len(envvars))
-// 		_, exists := envvars["ESTAFETTE_VERSION"]
-// 		assert.True(t, exists)
-// 		assert.Equal(t, "b=c", envvars["ESTAFETTE_VERSION"])
+		assert.Equal(t, 1, len(envvars))
+		_, exists := envvars["TEST_VERSION"]
+		assert.True(t, exists)
+		assert.Equal(t, "b=c", envvars["TEST_VERSION"])
 
-// 		// clean up
-// 		os.Unsetenv("ESTAFETTE_VERSION")
-// 	})
+		// clean up
+		os.Unsetenv("TEST_VERSION")
+	})
 
-// 	t.Run("ReturnsTwoEnvvarsStartingWithEstafette", func(t *testing.T) {
+	t.Run("ReturnsTwoEnvvarsStartingWithEstafette", func(t *testing.T) {
 
-// 		manifest := estafetteManifest{}
-// 		os.Setenv("ESTAFETTE_VERSION", "1.0.3")
-// 		os.Setenv("ESTAFETTE_GIT_REPOSITORY", "git@github.com:estafette/estafette-ci-builder.git")
+		estafetteEnvvarPrefix = "TEST"
+		manifest := estafetteManifest{}
+		os.Setenv("TEST_VERSION", "1.0.3")
+		os.Setenv("TEST_GIT_REPOSITORY", "git@github.com:estafette/estafette-ci-builder.git")
 
-// 		// act
-// 		envvars := collectEstafetteEnvvars(manifest)
+		// act
+		envvars := collectEstafetteEnvvars(manifest)
 
-// 		assert.Equal(t, 2, len(envvars))
-// 		_, exists := envvars["ESTAFETTE_VERSION"]
-// 		assert.True(t, exists)
-// 		assert.Equal(t, "1.0.3", envvars["ESTAFETTE_VERSION"])
+		assert.Equal(t, 2, len(envvars))
+		_, exists := envvars["TEST_VERSION"]
+		assert.True(t, exists)
+		assert.Equal(t, "1.0.3", envvars["TEST_VERSION"])
 
-// 		_, exists = envvars["ESTAFETTE_GIT_REPOSITORY"]
-// 		assert.True(t, exists)
-// 		assert.Equal(t, "git@github.com:estafette/estafette-ci-builder.git", envvars["ESTAFETTE_GIT_REPOSITORY"])
+		_, exists = envvars["TEST_GIT_REPOSITORY"]
+		assert.True(t, exists)
+		assert.Equal(t, "git@github.com:estafette/estafette-ci-builder.git", envvars["TEST_GIT_REPOSITORY"])
 
-// 		// clean up
-// 		os.Unsetenv("ESTAFETTE_VERSION")
-// 		os.Unsetenv("ESTAFETTE_GIT_REPOSITORY")
-// 	})
+		// clean up
+		os.Unsetenv("TEST_VERSION")
+		os.Unsetenv("TEST_GIT_REPOSITORY")
+	})
 
-// 	t.Run("ReturnsMixOfLabelsAndEnvvars", func(t *testing.T) {
+	t.Run("ReturnsMixOfLabelsAndEnvvars", func(t *testing.T) {
 
-// 		manifest := estafetteManifest{Labels: map[string]string{"app": "estafette-ci-builder"}}
-// 		os.Setenv("ESTAFETTE_VERSION", "1.0.3")
+		estafetteEnvvarPrefix = "TEST"
+		manifest := estafetteManifest{Labels: map[string]string{"app": "estafette-ci-builder"}}
+		os.Setenv("TEST_VERSION", "1.0.3")
 
-// 		// act
-// 		envvars := collectEstafetteEnvvars(manifest)
+		// act
+		envvars := collectEstafetteEnvvars(manifest)
 
-// 		assert.Equal(t, 2, len(envvars))
-// 		_, exists := envvars["ESTAFETTE_VERSION"]
-// 		assert.True(t, exists)
-// 		assert.Equal(t, "1.0.3", envvars["ESTAFETTE_VERSION"])
+		assert.Equal(t, 2, len(envvars))
+		_, exists := envvars["TEST_VERSION"]
+		assert.True(t, exists)
+		assert.Equal(t, "1.0.3", envvars["TEST_VERSION"])
 
-// 		_, exists = envvars["ESTAFETTE_LABEL_APP"]
-// 		assert.True(t, exists)
-// 		assert.Equal(t, "estafette-ci-builder", envvars["ESTAFETTE_LABEL_APP"])
+		_, exists = envvars["TEST_LABEL_APP"]
+		assert.True(t, exists)
+		assert.Equal(t, "estafette-ci-builder", envvars["TEST_LABEL_APP"])
 
-// 		// clean up
-// 		os.Unsetenv("ESTAFETTE_VERSION")
-// 		os.Unsetenv("ESTAFETTE_LABEL_APP")
-// 	})
-// }
+		// clean up
+		os.Unsetenv("ESTAFETTE_VERSION")
+		os.Unsetenv("ESTAFETTE_LABEL_APP")
+	})
+}
 
-// func TestGetEstafetteEnv(t *testing.T) {
+func TestGetEstafetteEnv(t *testing.T) {
 
-// 	t.Run("ReturnsEnvironmentVariableValueIfItStartsWithEstafetteUnderscore", func(t *testing.T) {
+	t.Run("ReturnsEnvironmentVariableValueIfItStartsWithEstafetteUnderscore", func(t *testing.T) {
 
-// 		os.Setenv("ESTAFETTE_BUILD_STATUS", "succeeded")
+		estafetteEnvvarPrefix = "TEST"
+		os.Setenv("TEST_BUILD_STATUS", "succeeded")
 
-// 		// act
-// 		result := getEstafetteEnv("ESTAFETTE_BUILD_STATUS")
+		// act
+		result := getEstafetteEnv("TEST_BUILD_STATUS")
 
-// 		assert.Equal(t, "succeeded", result)
+		assert.Equal(t, "succeeded", result)
 
-// 		// clean up
-// 		os.Unsetenv("ESTAFETTE_BUILD_STATUS")
-// 	})
+		// clean up
+		os.Unsetenv("TEST_BUILD_STATUS")
+	})
 
-// 	t.Run("ReturnsEnvironmentVariablePlaceholderIfItDoesNotStartWithEstafetteUnderscore", func(t *testing.T) {
+	t.Run("ReturnsEnvironmentVariablePlaceholderIfItDoesNotStartWithEstafetteUnderscore", func(t *testing.T) {
 
-// 		os.Setenv("HOME", "/root")
+		os.Setenv("HOME", "/root")
 
-// 		// act
-// 		result := getEstafetteEnv("HOME")
+		// act
+		result := getEstafetteEnv("HOME")
 
-// 		assert.Equal(t, "${HOME}", result)
-// 	})
-// }
+		assert.Equal(t, "${HOME}", result)
+	})
+}

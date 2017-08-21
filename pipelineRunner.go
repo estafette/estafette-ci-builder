@@ -109,13 +109,19 @@ func (result *estafetteRunPipelinesResult) HasErrors() bool {
 	return len(errors) > 0
 }
 
-func runPipelines(manifest estafetteManifest, dir string, envvars map[string]string) (result estafetteRunPipelinesResult) {
+func runPipelines(manifest estafetteManifest, dir string, envvars map[string]string) (result estafetteRunPipelinesResult, err error) {
+
+	// set default build status if not set
+	err = initBuildStatus()
+	if err != nil {
+		return
+	}
 
 	for _, p := range manifest.Pipelines {
 
 		whenEvaluationResult, err := whenEvaluator(p.When, whenParameters())
 		if err != nil {
-			return
+			return result, err
 		}
 
 		if whenEvaluationResult {

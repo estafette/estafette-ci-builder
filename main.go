@@ -61,7 +61,10 @@ func main() {
 
 		envvars := collectEstafetteEnvvars(manifest)
 
-		result := runPipelines(manifest, dir, envvars)
+		result, err := runPipelines(manifest, dir, envvars)
+		if err != nil {
+			handleFatal(err, "Executing pipelines from manifest failed")
+		}
 
 		renderStats(result)
 
@@ -126,7 +129,10 @@ func main() {
 
 		// collect estafette envvars and run the git clone step
 		envvars := collectEstafetteEnvvars(estafetteGitCloneManifest)
-		gitCloneResult := runPipelines(estafetteGitCloneManifest, dir, envvars)
+		gitCloneResult, err := runPipelines(estafetteGitCloneManifest, dir, envvars)
+		if err != nil {
+			handleFatal(err, "Executing git clone step failed")
+		}
 
 		// check if manifest exists
 		if !manifestExists(".estafette.yaml") {
@@ -144,7 +150,10 @@ func main() {
 		// collect estafette envvars and run pipelines from manifest
 		log.Info().Msgf("Running %v pipelines", len(manifest.Pipelines))
 		envvars = collectEstafetteEnvvars(manifest)
-		result := runPipelines(manifest, dir, envvars)
+		result, err := runPipelines(manifest, dir, envvars)
+		if err != nil {
+			handleFatal(err, "Executing pipelines from manifest failed")
+		}
 
 		// merge git clone and manifest result
 		result.PipelineResults = append(gitCloneResult.PipelineResults, result.PipelineResults...)
