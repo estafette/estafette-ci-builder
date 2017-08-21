@@ -2,13 +2,29 @@ package main
 
 import (
 	"errors"
-	"os"
 
 	"github.com/Knetic/govaluate"
 	"github.com/rs/zerolog/log"
 )
 
-func whenEvaluator(input string, parameters map[string]interface{}) (result bool, err error) {
+// WhenEvaluator evaluates when clauses from the manifest
+type WhenEvaluator interface {
+	evaluate(string, map[string]interface{}) (bool, error)
+	getParameters() map[string]interface{}
+}
+
+type whenEvaluatorImpl struct {
+	envvarHelper EnvvarHelper
+}
+
+// NewWhenEvaluator returns a new WhenEvaluator
+func NewWhenEvaluator(envvarHelper EnvvarHelper) WhenEvaluator {
+	return &whenEvaluatorImpl{
+		envvarHelper: envvarHelper,
+	}
+}
+
+func (we *whenEvaluatorImpl) evaluate(input string, parameters map[string]interface{}) (result bool, err error) {
 
 	if input == "" {
 		return false, errors.New("When expression is empty")
@@ -29,13 +45,13 @@ func whenEvaluator(input string, parameters map[string]interface{}) (result bool
 	return false, errors.New("Result of evaluating when expression is not of type boolean")
 }
 
-func whenParameters() map[string]interface{} {
+func (we *whenEvaluatorImpl) getParameters() map[string]interface{} {
 
 	parameters := make(map[string]interface{}, 3)
-	parameters["branch"] = os.Getenv("ESTAFETTE_GIT_BRANCH")
-	parameters["trigger"] = os.Getenv("ESTAFETTE_TRIGGER")
-	parameters["status"] = os.Getenv("ESTAFETTE_BUILD_STATUS")
-	parameters["server"] = os.Getenv("ESTAFETTE_CI_SERVER")
+	parameters["branch"] = we.envvarHelper.getEstafetteEnv("ESTAFETTE_GIT_BRANCH")
+	parameters["trigger"] = we.envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER")
+	parameters["status"] = we.envvarHelper.getEstafetteEnv("ESTAFETTE_BUILD_STATUS")
+	parameters["server"] = we.envvarHelper.getEstafetteEnv("ESTAFETTE_CI_SERVER")
 
 	return parameters
 }

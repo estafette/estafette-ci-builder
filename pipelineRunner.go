@@ -1,11 +1,31 @@
 package main
 
 import (
-	"os"
 	"time"
 
 	"github.com/rs/zerolog/log"
 )
+
+// PipelineRunner is the interface for running the pipeline steps
+type PipelineRunner interface {
+	runPipeline(string, map[string]string, estafettePipeline) (estafettePipelineRunResult, error)
+	runPipelines(estafetteManifest, string, map[string]string) (estafetteRunPipelinesResult, error)
+}
+
+type pipelineRunnerImpl struct {
+	envvarHelper  EnvvarHelper
+	whenEvaluator WhenEvaluator
+	dockerRunner  DockerRunner
+}
+
+// NewPipelineRunner returns a new PipelineRunner
+func NewPipelineRunner(envvarHelper EnvvarHelper, whenEvaluator WhenEvaluator, dockerRunner DockerRunner) PipelineRunner {
+	return &pipelineRunnerImpl{
+		envvarHelper:  envvarHelper,
+		whenEvaluator: whenEvaluator,
+		dockerRunner:  dockerRunner,
+	}
+}
 
 type estafettePipelineRunResult struct {
 	Pipeline            estafettePipeline
@@ -45,26 +65,26 @@ func (result *estafettePipelineRunResult) HasErrors() bool {
 	return len(errors) > 0
 }
 
-func runPipeline(dir string, envvars map[string]string, p estafettePipeline) (result estafettePipelineRunResult, err error) {
+func (pr *pipelineRunnerImpl) runPipeline(dir string, envvars map[string]string, p estafettePipeline) (result estafettePipelineRunResult, err error) {
 
 	result.Pipeline = p
 
 	log.Info().Msgf("Starting pipeline '%v'", p.Name)
 
-	result.IsDockerImagePulled = isDockerImagePulled(p)
+	result.IsDockerImagePulled = pr.dockerRunner.isDockerImagePulled(p)
 
 	if !result.IsDockerImagePulled {
 
 		// pull docker image
 		dockerPullStart := time.Now()
-		result.DockerPullError = runDockerPull(p)
+		result.DockerPullError = pr.dockerRunner.runDockerPull(p)
 		result.DockerPullDuration = time.Since(dockerPullStart)
 		if result.DockerPullError != nil {
 			return result, result.DockerPullError
 		}
 
 		// set docker image size
-		size, err := getDockerImageSize(p)
+		size, err := pr.dockerRunner.getDockerImageSize(p)
 		if err != nil {
 			return result, err
 		}
@@ -74,7 +94,7 @@ func runPipeline(dir string, envvars map[string]string, p estafettePipeline) (re
 
 	// run commands in docker container
 	dockerRunStart := time.Now()
-	result.DockerRunError = runDockerRun(dir, envvars, p)
+	result.DockerRunError = pr.dockerRunner.runDockerRun(dir, envvars, p)
 	result.DockerRunDuration = time.Since(dockerRunStart)
 	if result.DockerRunError != nil {
 		return result, result.DockerRunError
@@ -109,26 +129,29 @@ func (result *estafetteRunPipelinesResult) HasErrors() bool {
 	return len(errors) > 0
 }
 
-func runPipelines(manifest estafetteManifest, dir string, envvars map[string]string) (result estafetteRunPipelinesResult) {
+func (pr *pipelineRunnerImpl) runPipelines(manifest estafetteManifest, dir string, envvars map[string]string) (result estafetteRunPipelinesResult, err error) {
 
-	// set initial build status
-	os.Setenv("ESTAFETTE_BUILD_STATUS", "succeeded")
+	// set default build status if not set
+	err = pr.envvarHelper.initBuildStatus()
+	if err != nil {
+		return
+	}
 
 	for _, p := range manifest.Pipelines {
 
-		whenEvaluationResult, err := whenEvaluator(p.When, whenParameters())
+		whenEvaluationResult, err := pr.whenEvaluator.evaluate(p.When, pr.whenEvaluator.getParameters())
 		if err != nil {
-			return
+			return result, err
 		}
 
 		if whenEvaluationResult {
 
-			r, err := runPipeline(dir, envvars, *p)
+			r, err := pr.runPipeline(dir, envvars, *p)
 			if err != nil {
 
-				// override set build status
-				os.Setenv("ESTAFETTE_BUILD_STATUS", "failed")
-				envvars["ESTAFETTE_BUILD_STATUS"] = "failed"
+				// set 'failed' build status
+				pr.envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "failed")
+				envvars[pr.envvarHelper.getEstafetteEnvvarName("ESTAFETTE_BUILD_STATUS")] = "failed"
 
 				r.Status = "FAILED"
 				r.OtherError = err
@@ -138,7 +161,11 @@ func runPipelines(manifest estafetteManifest, dir string, envvars map[string]str
 				continue
 			}
 
+			// set 'succeeded' build status
+			pr.envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
+			envvars[pr.envvarHelper.getEstafetteEnvvarName("ESTAFETTE_BUILD_STATUS")] = "succeeded"
 			r.Status = "SUCCEEDED"
+
 			result.PipelineResults = append(result.PipelineResults, r)
 
 		} else {

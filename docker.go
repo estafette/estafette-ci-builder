@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 	"time"
 
@@ -18,7 +19,28 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func isDockerImagePulled(p estafettePipeline) bool {
+// DockerRunner pulls and runs docker containers
+type DockerRunner interface {
+	isDockerImagePulled(estafettePipeline) bool
+	runDockerPull(estafettePipeline) error
+	getDockerImageSize(estafettePipeline) (int64, error)
+	runDockerRun(string, map[string]string, estafettePipeline) error
+	startDockerDaemon() error
+	waitForDockerDaemon()
+}
+
+type dockerRunnerImpl struct {
+	envvarHelper EnvvarHelper
+}
+
+// NewDockerRunner returns a new DockerRunner
+func NewDockerRunner(envvarHelper EnvvarHelper) DockerRunner {
+	return &dockerRunnerImpl{
+		envvarHelper: envvarHelper,
+	}
+}
+
+func (dr *dockerRunnerImpl) isDockerImagePulled(p estafettePipeline) bool {
 
 	log.Info().Msgf("Checking if docker image '%v' exists locally...", p.ContainerImage)
 
@@ -38,7 +60,7 @@ func isDockerImagePulled(p estafettePipeline) bool {
 	return false
 }
 
-func runDockerPull(p estafettePipeline) (err error) {
+func (dr *dockerRunnerImpl) runDockerPull(p estafettePipeline) (err error) {
 
 	log.Info().Msgf("Pulling docker image '%v'", p.ContainerImage)
 
@@ -62,7 +84,7 @@ func runDockerPull(p estafettePipeline) (err error) {
 	return
 }
 
-func getDockerImageSize(p estafettePipeline) (totalSize int64, err error) {
+func (dr *dockerRunnerImpl) getDockerImageSize(p estafettePipeline) (totalSize int64, err error) {
 
 	cli, err := client.NewEnvClient()
 	if err != nil {
@@ -81,7 +103,7 @@ func getDockerImageSize(p estafettePipeline) (totalSize int64, err error) {
 	return totalSize, nil
 }
 
-func runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (err error) {
+func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (err error) {
 
 	// run docker with image and commands from yaml
 	ctx := context.Background()
@@ -98,12 +120,12 @@ func runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (e
 	extensionEnvVars := map[string]string{}
 	if p.CustomProperties != nil && len(p.CustomProperties) > 0 {
 		for k, v := range p.CustomProperties {
-			extensionEnvVars[fmt.Sprintf("ESTAFETTE_EXTENSION_%v", toUpperSnake(k))] = v
+			extensionEnvVars[dr.envvarHelper.getEstafetteEnv(fmt.Sprintf("ESTAFETTE_EXTENSION_%v", dr.envvarHelper.toUpperSnake(k)))] = v
 		}
 	}
 
 	// combine and override envvars
-	combinedEnvVars := overrideEnvvars(envvars, p.EnvVars, extensionEnvVars)
+	combinedEnvVars := dr.envvarHelper.overrideEnvvars(envvars, p.EnvVars, extensionEnvVars)
 
 	// define docker envvars
 	dockerEnvVars := make([]string, 0)
@@ -120,7 +142,9 @@ func runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (e
 
 	// define binds
 	binds := make([]string, 0)
-	binds = append(binds, fmt.Sprintf("%v:%v", dir, os.Expand(p.WorkingDirectory, getEstafetteEnv)))
+	if runtime.GOOS != "windows" {
+		binds = append(binds, fmt.Sprintf("%v:%v", dir, os.Expand(p.WorkingDirectory, dr.envvarHelper.getEstafetteEnv)))
+	}
 	if ok, _ := pathExists("/var/run/docker.sock"); ok {
 		binds = append(binds, "/var/run/docker.sock:/var/run/docker.sock")
 	}
@@ -134,7 +158,7 @@ func runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (e
 		AttachStderr: true,
 		Env:          dockerEnvVars,
 		Image:        p.ContainerImage,
-		WorkingDir:   os.Expand(p.WorkingDirectory, getEstafetteEnv),
+		WorkingDir:   os.Expand(p.WorkingDirectory, dr.envvarHelper.getEstafetteEnv),
 	}
 	if len(p.Commands) > 0 {
 		// only pass commands when they are set, so extensions can work without
@@ -217,7 +241,7 @@ func runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (e
 	return
 }
 
-func startDockerDaemon() error {
+func (dr *dockerRunnerImpl) startDockerDaemon() error {
 
 	// dockerd --host=unix:///var/run/docker.sock --host=tcp://0.0.0.0:2375 --storage-driver=$STORAGE_DRIVER &
 	log.Debug().Msg("Starting docker daemon...")
@@ -233,7 +257,7 @@ func startDockerDaemon() error {
 	return nil
 }
 
-func waitForDockerDaemon() {
+func (dr *dockerRunnerImpl) waitForDockerDaemon() {
 
 	// wait until /var/run/docker.sock exists
 	log.Debug().Msg("Waiting for docker daemon to be ready for use...")
