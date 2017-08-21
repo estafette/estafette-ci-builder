@@ -111,9 +111,6 @@ func (result *estafetteRunPipelinesResult) HasErrors() bool {
 
 func runPipelines(manifest estafetteManifest, dir string, envvars map[string]string) (result estafetteRunPipelinesResult) {
 
-	// set initial build status
-	os.Setenv("ESTAFETTE_BUILD_STATUS", "succeeded")
-
 	for _, p := range manifest.Pipelines {
 
 		whenEvaluationResult, err := whenEvaluator(p.When, whenParameters())
@@ -126,10 +123,9 @@ func runPipelines(manifest estafetteManifest, dir string, envvars map[string]str
 			r, err := runPipeline(dir, envvars, *p)
 			if err != nil {
 
-				// override set build status
+				// set 'failed' build status
 				os.Setenv("ESTAFETTE_BUILD_STATUS", "failed")
 				envvars["ESTAFETTE_BUILD_STATUS"] = "failed"
-
 				r.Status = "FAILED"
 				r.OtherError = err
 
@@ -138,7 +134,11 @@ func runPipelines(manifest estafetteManifest, dir string, envvars map[string]str
 				continue
 			}
 
+			// set 'succeeded' build status
+			os.Setenv("ESTAFETTE_BUILD_STATUS", "succeeded")
+			envvars["ESTAFETTE_BUILD_STATUS"] = "succeeded"
 			r.Status = "SUCCEEDED"
+
 			result.PipelineResults = append(result.PipelineResults, r)
 
 		} else {

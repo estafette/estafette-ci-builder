@@ -124,9 +124,11 @@ func main() {
 			},
 		}
 
+		// collect estafette envvars and run the git clone step
 		envvars := collectEstafetteEnvvars(estafetteGitCloneManifest)
 		gitCloneResult := runPipelines(estafetteGitCloneManifest, dir, envvars)
 
+		// check if manifest exists
 		if !manifestExists(".estafette.yaml") {
 			log.Info().Msg(".estafette.yaml file does not exist, exiting...")
 			sendBuildFinishedEvent("builder:nomanifest")
@@ -139,7 +141,7 @@ func main() {
 			handleFatal(err, "Reading .estafette.yaml manifest failed")
 		}
 
-		// run pipelines from manifest
+		// collect estafette envvars and run pipelines from manifest
 		log.Info().Msgf("Running %v pipelines", len(manifest.Pipelines))
 		envvars = collectEstafetteEnvvars(manifest)
 		result := runPipelines(manifest, dir, envvars)
