@@ -51,6 +51,9 @@ func TestGetEstafetteEnvvarName(t *testing.T) {
 		key := getEstafetteEnvvarName("ESTAFETTE_KEY")
 
 		assert.Equal(t, "TEST_KEY", key)
+
+		// clean up
+		unsetEstafetteEnvvars()
 	})
 }
 
@@ -65,6 +68,9 @@ func TestCollectEstafetteEnvvars(t *testing.T) {
 		envvars := collectEstafetteEnvvars(manifest)
 
 		assert.Equal(t, 0, len(envvars))
+
+		// clean up
+		unsetEstafetteEnvvars()
 	})
 
 	t.Run("ReturnsOneLabelAsEstafetteLabelLabel", func(t *testing.T) {
@@ -81,7 +87,7 @@ func TestCollectEstafetteEnvvars(t *testing.T) {
 		assert.Equal(t, "estafette-ci-builder", envvars["TEST_LABEL_APP"])
 
 		// clean up
-		os.Unsetenv("TEST_LABEL_APP")
+		unsetEstafetteEnvvars()
 	})
 
 	t.Run("ReturnsOneLabelAsEstafetteLabelLabelWithSnakeCasing", func(t *testing.T) {
@@ -98,7 +104,7 @@ func TestCollectEstafetteEnvvars(t *testing.T) {
 		assert.Equal(t, "estafette-ci-team", envvars["TEST_LABEL_OWNING_TEAM"])
 
 		// clean up
-		os.Unsetenv("TEST_LABEL_OWNING_TEAM")
+		unsetEstafetteEnvvars()
 	})
 
 	t.Run("ReturnsTwoLabelsAsEstafetteLabelLabel", func(t *testing.T) {
@@ -119,8 +125,7 @@ func TestCollectEstafetteEnvvars(t *testing.T) {
 		assert.Equal(t, "estafette-ci-team", envvars["TEST_LABEL_TEAM"])
 
 		// clean up
-		os.Unsetenv("TEST_LABEL_APP")
-		os.Unsetenv("TEST_LABEL_TEAM")
+		unsetEstafetteEnvvars()
 	})
 
 	t.Run("ReturnsOneEnvvarStartingWithEstafette", func(t *testing.T) {
@@ -138,7 +143,7 @@ func TestCollectEstafetteEnvvars(t *testing.T) {
 		assert.Equal(t, "1.0.3", envvars["TEST_VERSION"])
 
 		// clean up
-		os.Unsetenv("TEST_VERSION")
+		unsetEstafetteEnvvars()
 	})
 
 	t.Run("ReturnsOneEnvvarStartingWithEstafetteIfValueContainsIsSymbol", func(t *testing.T) {
@@ -156,7 +161,7 @@ func TestCollectEstafetteEnvvars(t *testing.T) {
 		assert.Equal(t, "b=c", envvars["TEST_VERSION"])
 
 		// clean up
-		os.Unsetenv("TEST_VERSION")
+		unsetEstafetteEnvvars()
 	})
 
 	t.Run("ReturnsTwoEnvvarsStartingWithEstafette", func(t *testing.T) {
@@ -179,8 +184,7 @@ func TestCollectEstafetteEnvvars(t *testing.T) {
 		assert.Equal(t, "git@github.com:estafette/estafette-ci-builder.git", envvars["TEST_GIT_REPOSITORY"])
 
 		// clean up
-		os.Unsetenv("TEST_VERSION")
-		os.Unsetenv("TEST_GIT_REPOSITORY")
+		unsetEstafetteEnvvars()
 	})
 
 	t.Run("ReturnsMixOfLabelsAndEnvvars", func(t *testing.T) {
@@ -202,8 +206,7 @@ func TestCollectEstafetteEnvvars(t *testing.T) {
 		assert.Equal(t, "estafette-ci-builder", envvars["TEST_LABEL_APP"])
 
 		// clean up
-		unsetEstafetteEnv("ESTAFETTE_VERSION")
-		unsetEstafetteEnv("ESTAFETTE_LABEL_APP")
+		unsetEstafetteEnvvars()
 	})
 }
 
@@ -220,7 +223,7 @@ func TestGetEstafetteEnv(t *testing.T) {
 		assert.Equal(t, "succeeded", result)
 
 		// clean up
-		os.Unsetenv("TEST_BUILD_STATUS")
+		unsetEstafetteEnvvars()
 	})
 
 	t.Run("ReturnsEnvironmentVariablePlaceholderIfItDoesNotStartWithEstafetteUnderscore", func(t *testing.T) {
@@ -231,5 +234,8 @@ func TestGetEstafetteEnv(t *testing.T) {
 		result := getEstafetteEnv("HOME")
 
 		assert.Equal(t, "${HOME}", result)
+
+		// clean up
+		unsetEstafetteEnvvars()
 	})
 }

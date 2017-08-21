@@ -65,6 +65,9 @@ func TestWhenParameters(t *testing.T) {
 		parameters := whenParameters()
 
 		assert.False(t, strings.Contains(parameters["branch"].(string), "\n"))
+
+		// clean up
+		unsetEstafetteEnvvars()
 	})
 
 	t.Run("ReturnsMapWithStatusSetToSucceededByDefault", func(t *testing.T) {
@@ -77,5 +80,8 @@ func TestWhenParameters(t *testing.T) {
 		parameters := whenParameters()
 
 		assert.Equal(t, "succeeded", parameters["status"])
+
+		// clean up
+		unsetEstafetteEnvvars()
 	})
 }

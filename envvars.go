@@ -134,6 +134,22 @@ func collectEstafetteEnvvars(m estafetteManifest) (envvars map[string]string) {
 	return
 }
 
+// only to be used from unit tests
+func unsetEstafetteEnvvars() {
+
+	for _, e := range os.Environ() {
+		kvPair := strings.SplitN(e, "=", 2)
+
+		if len(kvPair) == 2 {
+			envvarName := getEstafetteEnvvarName(kvPair[0])
+
+			if strings.HasPrefix(envvarName, estafetteEnvvarPrefix) {
+				unsetEstafetteEnv(envvarName)
+			}
+		}
+	}
+}
+
 func getEstafetteEnv(key string) string {
 
 	key = getEstafetteEnvvarName(key)

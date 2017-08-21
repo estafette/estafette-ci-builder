@@ -22,6 +22,9 @@ func TestRunPipelines(t *testing.T) {
 
 		assert.Nil(t, err)
 		assert.False(t, result.HasErrors())
+
+		// clean up
+		unsetEstafetteEnvvars()
 	})
 
 	t.Run("ReturnsResultWithInnerResultForEachPipelineInManifest", func(t *testing.T) {
@@ -38,6 +41,9 @@ func TestRunPipelines(t *testing.T) {
 
 		assert.Nil(t, err)
 		assert.Equal(t, 1, len(result.PipelineResults))
+
+		// clean up
+		unsetEstafetteEnvvars()
 	})
 
 	t.Run("ReturnsResultWithoutErrorsWhenPipelinesSucceeded", func(t *testing.T) {
@@ -54,6 +60,9 @@ func TestRunPipelines(t *testing.T) {
 
 		assert.Nil(t, err)
 		assert.False(t, result.HasErrors())
+
+		// clean up
+		unsetEstafetteEnvvars()
 	})
 
 	t.Run("ReturnsResultWithSucceededPipelineResultWhenPipelinesSucceeded", func(t *testing.T) {
@@ -70,6 +79,9 @@ func TestRunPipelines(t *testing.T) {
 
 		assert.Nil(t, err)
 		assert.Equal(t, "SUCCEEDED", result.PipelineResults[0].Status)
+
+		// clean up
+		unsetEstafetteEnvvars()
 	})
 
 	t.Run("ReturnsResultWithErrorsWhenPipelinesFailed", func(t *testing.T) {
@@ -86,6 +98,9 @@ func TestRunPipelines(t *testing.T) {
 
 		assert.Nil(t, err)
 		assert.True(t, result.HasErrors())
+
+		// clean up
+		unsetEstafetteEnvvars()
 	})
 
 	t.Run("ReturnsResultWithFailedPipelineResultWhenPipelinesFailed", func(t *testing.T) {
@@ -102,6 +117,9 @@ func TestRunPipelines(t *testing.T) {
 
 		assert.Nil(t, err)
 		assert.Equal(t, "FAILED", result.PipelineResults[0].Status)
+
+		// clean up
+		unsetEstafetteEnvvars()
 	})
 
 	t.Run("ReturnsResultWithoutErrorsWhenPipelinesSkipped", func(t *testing.T) {
@@ -118,6 +136,9 @@ func TestRunPipelines(t *testing.T) {
 
 		assert.Nil(t, err)
 		assert.False(t, result.HasErrors())
+
+		// clean up
+		unsetEstafetteEnvvars()
 	})
 
 	t.Run("ReturnsResultWithSkippedPipelineResultWhenPipelinesSkipped", func(t *testing.T) {
@@ -134,6 +155,9 @@ func TestRunPipelines(t *testing.T) {
 
 		assert.Nil(t, err)
 		assert.Equal(t, "SKIPPED", result.PipelineResults[0].Status)
+
+		// clean up
+		unsetEstafetteEnvvars()
 	})
 
 	t.Run("ReturnsResultForAllPipelinesWhenFirstPipelineFails", func(t *testing.T) {
@@ -154,6 +178,9 @@ func TestRunPipelines(t *testing.T) {
 		assert.Equal(t, "FAILED", result.PipelineResults[0].Status)
 		assert.Equal(t, "SKIPPED", result.PipelineResults[1].Status)
 		assert.Equal(t, "SUCCEEDED", result.PipelineResults[2].Status)
+
+		// clean up
+		unsetEstafetteEnvvars()
 	})
 
 	t.Run("ReturnsResultWithErrorsWhenFirstPipelineFailsAndSecondSucceeds", func(t *testing.T) {
@@ -172,5 +199,8 @@ func TestRunPipelines(t *testing.T) {
 
 		assert.Nil(t, err)
 		assert.True(t, result.HasErrors())
+
+		// clean up
+		unsetEstafetteEnvvars()
 	})
 }
