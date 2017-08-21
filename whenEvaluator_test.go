@@ -11,7 +11,7 @@ func TestWhenEvaluator(t *testing.T) {
 
 	t.Run("ReturnsFalseIfInputIsEmpty", func(t *testing.T) {
 
-		envvarHelper := NewEnvvarHelper("TEST_")
+		envvarHelper := NewEnvvarHelper("TESTPREFIX_")
 		whenEvaluator := NewWhenEvaluator(envvarHelper)
 
 		// act
@@ -23,7 +23,7 @@ func TestWhenEvaluator(t *testing.T) {
 
 	t.Run("ReturnsTrueIfInputEvaluatesToTrueWithoutParameters", func(t *testing.T) {
 
-		envvarHelper := NewEnvvarHelper("TEST_")
+		envvarHelper := NewEnvvarHelper("TESTPREFIX_")
 		whenEvaluator := NewWhenEvaluator(envvarHelper)
 
 		// act
@@ -34,7 +34,7 @@ func TestWhenEvaluator(t *testing.T) {
 
 	t.Run("ReturnsTrueIfInputEvaluatesToTrueWithParameters", func(t *testing.T) {
 
-		envvarHelper := NewEnvvarHelper("TEST_")
+		envvarHelper := NewEnvvarHelper("TESTPREFIX_")
 		whenEvaluator := NewWhenEvaluator(envvarHelper)
 
 		parameters := make(map[string]interface{}, 3)
@@ -50,7 +50,7 @@ func TestWhenEvaluator(t *testing.T) {
 
 	t.Run("ReturnsTrueIfInputEvaluatesToTrueWithParameters", func(t *testing.T) {
 
-		envvarHelper := NewEnvvarHelper("TEST_")
+		envvarHelper := NewEnvvarHelper("TESTPREFIX_")
 		whenEvaluator := NewWhenEvaluator(envvarHelper)
 
 		parameters := make(map[string]interface{}, 3)
@@ -69,7 +69,7 @@ func TestWhenParameters(t *testing.T) {
 
 	t.Run("ReturnsMapWithBranchEqualToBranchWithoutTrailingNewline", func(t *testing.T) {
 
-		envvarHelper := NewEnvvarHelper("TEST_")
+		envvarHelper := NewEnvvarHelper("TESTPREFIX_")
 		whenEvaluator := NewWhenEvaluator(envvarHelper)
 
 		envvarHelper.unsetEstafetteEnvvars()
@@ -87,7 +87,7 @@ func TestWhenParameters(t *testing.T) {
 
 	t.Run("ReturnsMapWithStatusSetToSucceededByDefault", func(t *testing.T) {
 
-		envvarHelper := NewEnvvarHelper("TEST_")
+		envvarHelper := NewEnvvarHelper("TESTPREFIX_")
 		whenEvaluator := NewWhenEvaluator(envvarHelper)
 
 		envvarHelper.unsetEstafetteEnvvars()

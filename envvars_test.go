@@ -11,7 +11,7 @@ func TestOverrideEnvvars(t *testing.T) {
 
 	t.Run("CombinesAllEnvvarsFromPassedMaps", func(t *testing.T) {
 
-		envvarHelper := NewEnvvarHelper("TEST_")
+		envvarHelper := NewEnvvarHelper("TESTPREFIX_")
 		outerMap := map[string]string{
 			"ENVVAR1": "value1",
 		}
@@ -27,7 +27,7 @@ func TestOverrideEnvvars(t *testing.T) {
 
 	t.Run("OverridesEnvarFromFirstMapWithSecondMap", func(t *testing.T) {
 
-		envvarHelper := NewEnvvarHelper("TEST_")
+		envvarHelper := NewEnvvarHelper("TESTPREFIX_")
 		outerMap := map[string]string{
 			"ENVVAR1": "value1",
 		}
@@ -47,7 +47,7 @@ func TestGetEstafetteEnvvarName(t *testing.T) {
 
 	t.Run("ReturnsKeyNameWithEstafetteUnderscoreReplacedWithEstafetteEnvvarPrefixValue", func(t *testing.T) {
 
-		envvarHelper := NewEnvvarHelper("TEST_")
+		envvarHelper := NewEnvvarHelper("TESTPREFIX_")
 		envvarHelper.unsetEstafetteEnvvars()
 
 		// act
@@ -64,7 +64,7 @@ func TestCollectEstafetteEnvvars(t *testing.T) {
 
 	t.Run("ReturnsEmptyMapIfManifestHasNoLabelsAndNoEnvvarsStartWithEstafette", func(t *testing.T) {
 
-		envvarHelper := NewEnvvarHelper("TEST_")
+		envvarHelper := NewEnvvarHelper("TESTPREFIX_")
 		envvarHelper.unsetEstafetteEnvvars()
 		manifest := estafetteManifest{}
 
@@ -79,7 +79,7 @@ func TestCollectEstafetteEnvvars(t *testing.T) {
 
 	t.Run("ReturnsOneLabelAsEstafetteLabelLabel", func(t *testing.T) {
 
-		envvarHelper := NewEnvvarHelper("TEST_")
+		envvarHelper := NewEnvvarHelper("TESTPREFIX_")
 		envvarHelper.unsetEstafetteEnvvars()
 		manifest := estafetteManifest{Labels: map[string]string{"app": "estafette-ci-builder"}}
 
@@ -97,7 +97,7 @@ func TestCollectEstafetteEnvvars(t *testing.T) {
 
 	t.Run("ReturnsOneLabelAsEstafetteLabelLabelWithSnakeCasing", func(t *testing.T) {
 
-		envvarHelper := NewEnvvarHelper("TEST_")
+		envvarHelper := NewEnvvarHelper("TESTPREFIX_")
 		envvarHelper.unsetEstafetteEnvvars()
 		manifest := estafetteManifest{Labels: map[string]string{"owningTeam": "estafette-ci-team"}}
 
@@ -115,7 +115,7 @@ func TestCollectEstafetteEnvvars(t *testing.T) {
 
 	t.Run("ReturnsTwoLabelsAsEstafetteLabelLabel", func(t *testing.T) {
 
-		envvarHelper := NewEnvvarHelper("TEST_")
+		envvarHelper := NewEnvvarHelper("TESTPREFIX_")
 		envvarHelper.unsetEstafetteEnvvars()
 		manifest := estafetteManifest{Labels: map[string]string{"app": "estafette-ci-builder", "team": "estafette-ci-team"}}
 
@@ -137,7 +137,7 @@ func TestCollectEstafetteEnvvars(t *testing.T) {
 
 	t.Run("ReturnsOneEnvvarStartingWithEstafette", func(t *testing.T) {
 
-		envvarHelper := NewEnvvarHelper("TEST_")
+		envvarHelper := NewEnvvarHelper("TESTPREFIX_")
 		envvarHelper.unsetEstafetteEnvvars()
 		manifest := estafetteManifest{}
 		os.Setenv("TEST_VERSION", "1.0.3")
@@ -156,7 +156,7 @@ func TestCollectEstafetteEnvvars(t *testing.T) {
 
 	t.Run("ReturnsOneEnvvarStartingWithEstafetteIfValueContainsIsSymbol", func(t *testing.T) {
 
-		envvarHelper := NewEnvvarHelper("TEST_")
+		envvarHelper := NewEnvvarHelper("TESTPREFIX_")
 		envvarHelper.unsetEstafetteEnvvars()
 		manifest := estafetteManifest{}
 		os.Setenv("TEST_VERSION", "b=c")
@@ -175,7 +175,7 @@ func TestCollectEstafetteEnvvars(t *testing.T) {
 
 	t.Run("ReturnsTwoEnvvarsStartingWithEstafette", func(t *testing.T) {
 
-		envvarHelper := NewEnvvarHelper("TEST_")
+		envvarHelper := NewEnvvarHelper("TESTPREFIX_")
 		envvarHelper.unsetEstafetteEnvvars()
 		manifest := estafetteManifest{}
 		os.Setenv("TEST_VERSION", "1.0.3")
@@ -199,7 +199,7 @@ func TestCollectEstafetteEnvvars(t *testing.T) {
 
 	t.Run("ReturnsMixOfLabelsAndEnvvars", func(t *testing.T) {
 
-		envvarHelper := NewEnvvarHelper("TEST_")
+		envvarHelper := NewEnvvarHelper("TESTPREFIX_")
 		envvarHelper.unsetEstafetteEnvvars()
 		manifest := estafetteManifest{Labels: map[string]string{"app": "estafette-ci-builder"}}
 		os.Setenv("TEST_VERSION", "1.0.3")
@@ -225,7 +225,7 @@ func TestGetEstafetteEnv(t *testing.T) {
 
 	t.Run("ReturnsEnvironmentVariableValueIfItStartsWithEstafetteUnderscore", func(t *testing.T) {
 
-		envvarHelper := NewEnvvarHelper("TEST_")
+		envvarHelper := NewEnvvarHelper("TESTPREFIX_")
 		envvarHelper.unsetEstafetteEnvvars()
 		os.Setenv("TEST_BUILD_STATUS", "succeeded")
 
@@ -240,7 +240,7 @@ func TestGetEstafetteEnv(t *testing.T) {
 
 	t.Run("ReturnsEnvironmentVariablePlaceholderIfItDoesNotStartWithEstafetteUnderscore", func(t *testing.T) {
 
-		envvarHelper := NewEnvvarHelper("TEST_")
+		envvarHelper := NewEnvvarHelper("TESTPREFIX_")
 		envvarHelper.unsetEstafetteEnvvars()
 		os.Setenv("HOME", "/root")
 

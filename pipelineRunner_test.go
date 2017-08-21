@@ -11,7 +11,7 @@ func TestRunPipelines(t *testing.T) {
 
 	t.Run("ReturnsResultWithoutErrorsWhenManifestHasNoPipelines", func(t *testing.T) {
 
-		envvarHelper := NewEnvvarHelper("TEST_")
+		envvarHelper := NewEnvvarHelper("TESTPREFIX_")
 		whenEvaluator := NewWhenEvaluator(envvarHelper)
 		dockerRunner := NewDockerRunner(envvarHelper)
 		pipelineRunner := NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner)
@@ -34,7 +34,7 @@ func TestRunPipelines(t *testing.T) {
 
 	t.Run("ReturnsResultWithInnerResultForEachPipelineInManifest", func(t *testing.T) {
 
-		envvarHelper := NewEnvvarHelper("TEST_")
+		envvarHelper := NewEnvvarHelper("TESTPREFIX_")
 		whenEvaluator := NewWhenEvaluator(envvarHelper)
 		dockerRunner := NewDockerRunner(envvarHelper)
 		pipelineRunner := NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner)
@@ -58,7 +58,7 @@ func TestRunPipelines(t *testing.T) {
 
 	t.Run("ReturnsResultWithoutErrorsWhenPipelinesSucceeded", func(t *testing.T) {
 
-		envvarHelper := NewEnvvarHelper("TEST_")
+		envvarHelper := NewEnvvarHelper("TESTPREFIX_")
 		whenEvaluator := NewWhenEvaluator(envvarHelper)
 		dockerRunner := NewDockerRunner(envvarHelper)
 		pipelineRunner := NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner)
@@ -82,7 +82,7 @@ func TestRunPipelines(t *testing.T) {
 
 	t.Run("ReturnsResultWithSucceededPipelineResultWhenPipelinesSucceeded", func(t *testing.T) {
 
-		envvarHelper := NewEnvvarHelper("TEST_")
+		envvarHelper := NewEnvvarHelper("TESTPREFIX_")
 		whenEvaluator := NewWhenEvaluator(envvarHelper)
 		dockerRunner := NewDockerRunner(envvarHelper)
 		pipelineRunner := NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner)
@@ -106,7 +106,7 @@ func TestRunPipelines(t *testing.T) {
 
 	t.Run("ReturnsResultWithErrorsWhenPipelinesFailed", func(t *testing.T) {
 
-		envvarHelper := NewEnvvarHelper("TEST_")
+		envvarHelper := NewEnvvarHelper("TESTPREFIX_")
 		whenEvaluator := NewWhenEvaluator(envvarHelper)
 		dockerRunner := NewDockerRunner(envvarHelper)
 		pipelineRunner := NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner)
@@ -130,7 +130,7 @@ func TestRunPipelines(t *testing.T) {
 
 	t.Run("ReturnsResultWithFailedPipelineResultWhenPipelinesFailed", func(t *testing.T) {
 
-		envvarHelper := NewEnvvarHelper("TEST_")
+		envvarHelper := NewEnvvarHelper("TESTPREFIX_")
 		whenEvaluator := NewWhenEvaluator(envvarHelper)
 		dockerRunner := NewDockerRunner(envvarHelper)
 		pipelineRunner := NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner)
@@ -154,7 +154,7 @@ func TestRunPipelines(t *testing.T) {
 
 	t.Run("ReturnsResultWithoutErrorsWhenPipelinesSkipped", func(t *testing.T) {
 
-		envvarHelper := NewEnvvarHelper("TEST_")
+		envvarHelper := NewEnvvarHelper("TESTPREFIX_")
 		whenEvaluator := NewWhenEvaluator(envvarHelper)
 		dockerRunner := NewDockerRunner(envvarHelper)
 		pipelineRunner := NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner)
@@ -178,7 +178,7 @@ func TestRunPipelines(t *testing.T) {
 
 	t.Run("ReturnsResultWithSkippedPipelineResultWhenPipelinesSkipped", func(t *testing.T) {
 
-		envvarHelper := NewEnvvarHelper("TEST_")
+		envvarHelper := NewEnvvarHelper("TESTPREFIX_")
 		whenEvaluator := NewWhenEvaluator(envvarHelper)
 		dockerRunner := NewDockerRunner(envvarHelper)
 		pipelineRunner := NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner)
@@ -202,7 +202,7 @@ func TestRunPipelines(t *testing.T) {
 
 	t.Run("ReturnsResultForAllPipelinesWhenFirstPipelineFails", func(t *testing.T) {
 
-		envvarHelper := NewEnvvarHelper("TEST_")
+		envvarHelper := NewEnvvarHelper("TESTPREFIX_")
 		whenEvaluator := NewWhenEvaluator(envvarHelper)
 		dockerRunner := NewDockerRunner(envvarHelper)
 		pipelineRunner := NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner)
@@ -230,7 +230,7 @@ func TestRunPipelines(t *testing.T) {
 
 	t.Run("ReturnsResultWithErrorsWhenFirstPipelineFailsAndSecondSucceeds", func(t *testing.T) {
 
-		envvarHelper := NewEnvvarHelper("TEST_")
+		envvarHelper := NewEnvvarHelper("TESTPREFIX_")
 		whenEvaluator := NewWhenEvaluator(envvarHelper)
 		dockerRunner := NewDockerRunner(envvarHelper)
 		pipelineRunner := NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner)
