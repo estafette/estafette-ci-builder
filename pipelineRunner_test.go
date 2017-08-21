@@ -7,14 +7,13 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+var (
+	pipelineRunner = NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner)
+)
+
 func TestRunPipelines(t *testing.T) {
 
 	t.Run("ReturnsResultWithoutErrorsWhenManifestHasNoPipelines", func(t *testing.T) {
-
-		envvarHelper := NewEnvvarHelper("TESTPREFIX_")
-		whenEvaluator := NewWhenEvaluator(envvarHelper)
-		dockerRunner := NewDockerRunner(envvarHelper)
-		pipelineRunner := NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner)
 
 		envvarHelper.unsetEstafetteEnvvars()
 		envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
@@ -27,17 +26,9 @@ func TestRunPipelines(t *testing.T) {
 
 		assert.Nil(t, err)
 		assert.False(t, result.HasErrors())
-
-		// clean up
-		envvarHelper.unsetEstafetteEnvvars()
 	})
 
 	t.Run("ReturnsResultWithInnerResultForEachPipelineInManifest", func(t *testing.T) {
-
-		envvarHelper := NewEnvvarHelper("TESTPREFIX_")
-		whenEvaluator := NewWhenEvaluator(envvarHelper)
-		dockerRunner := NewDockerRunner(envvarHelper)
-		pipelineRunner := NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner)
 
 		envvarHelper.unsetEstafetteEnvvars()
 		envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
@@ -51,17 +42,9 @@ func TestRunPipelines(t *testing.T) {
 
 		assert.Nil(t, err)
 		assert.Equal(t, 1, len(result.PipelineResults))
-
-		// clean up
-		envvarHelper.unsetEstafetteEnvvars()
 	})
 
 	t.Run("ReturnsResultWithoutErrorsWhenPipelinesSucceeded", func(t *testing.T) {
-
-		envvarHelper := NewEnvvarHelper("TESTPREFIX_")
-		whenEvaluator := NewWhenEvaluator(envvarHelper)
-		dockerRunner := NewDockerRunner(envvarHelper)
-		pipelineRunner := NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner)
 
 		envvarHelper.unsetEstafetteEnvvars()
 		envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
@@ -75,17 +58,9 @@ func TestRunPipelines(t *testing.T) {
 
 		assert.Nil(t, err)
 		assert.False(t, result.HasErrors())
-
-		// clean up
-		envvarHelper.unsetEstafetteEnvvars()
 	})
 
 	t.Run("ReturnsResultWithSucceededPipelineResultWhenPipelinesSucceeded", func(t *testing.T) {
-
-		envvarHelper := NewEnvvarHelper("TESTPREFIX_")
-		whenEvaluator := NewWhenEvaluator(envvarHelper)
-		dockerRunner := NewDockerRunner(envvarHelper)
-		pipelineRunner := NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner)
 
 		envvarHelper.unsetEstafetteEnvvars()
 		envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
@@ -99,17 +74,9 @@ func TestRunPipelines(t *testing.T) {
 
 		assert.Nil(t, err)
 		assert.Equal(t, "SUCCEEDED", result.PipelineResults[0].Status)
-
-		// clean up
-		envvarHelper.unsetEstafetteEnvvars()
 	})
 
 	t.Run("ReturnsResultWithErrorsWhenPipelinesFailed", func(t *testing.T) {
-
-		envvarHelper := NewEnvvarHelper("TESTPREFIX_")
-		whenEvaluator := NewWhenEvaluator(envvarHelper)
-		dockerRunner := NewDockerRunner(envvarHelper)
-		pipelineRunner := NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner)
 
 		envvarHelper.unsetEstafetteEnvvars()
 		envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
@@ -123,17 +90,9 @@ func TestRunPipelines(t *testing.T) {
 
 		assert.Nil(t, err)
 		assert.True(t, result.HasErrors())
-
-		// clean up
-		envvarHelper.unsetEstafetteEnvvars()
 	})
 
 	t.Run("ReturnsResultWithFailedPipelineResultWhenPipelinesFailed", func(t *testing.T) {
-
-		envvarHelper := NewEnvvarHelper("TESTPREFIX_")
-		whenEvaluator := NewWhenEvaluator(envvarHelper)
-		dockerRunner := NewDockerRunner(envvarHelper)
-		pipelineRunner := NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner)
 
 		envvarHelper.unsetEstafetteEnvvars()
 		envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
@@ -147,17 +106,9 @@ func TestRunPipelines(t *testing.T) {
 
 		assert.Nil(t, err)
 		assert.Equal(t, "FAILED", result.PipelineResults[0].Status)
-
-		// clean up
-		envvarHelper.unsetEstafetteEnvvars()
 	})
 
 	t.Run("ReturnsResultWithoutErrorsWhenPipelinesSkipped", func(t *testing.T) {
-
-		envvarHelper := NewEnvvarHelper("TESTPREFIX_")
-		whenEvaluator := NewWhenEvaluator(envvarHelper)
-		dockerRunner := NewDockerRunner(envvarHelper)
-		pipelineRunner := NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner)
 
 		envvarHelper.unsetEstafetteEnvvars()
 		envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
@@ -171,17 +122,9 @@ func TestRunPipelines(t *testing.T) {
 
 		assert.Nil(t, err)
 		assert.False(t, result.HasErrors())
-
-		// clean up
-		envvarHelper.unsetEstafetteEnvvars()
 	})
 
 	t.Run("ReturnsResultWithSkippedPipelineResultWhenPipelinesSkipped", func(t *testing.T) {
-
-		envvarHelper := NewEnvvarHelper("TESTPREFIX_")
-		whenEvaluator := NewWhenEvaluator(envvarHelper)
-		dockerRunner := NewDockerRunner(envvarHelper)
-		pipelineRunner := NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner)
 
 		envvarHelper.unsetEstafetteEnvvars()
 		envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
@@ -195,17 +138,9 @@ func TestRunPipelines(t *testing.T) {
 
 		assert.Nil(t, err)
 		assert.Equal(t, "SKIPPED", result.PipelineResults[0].Status)
-
-		// clean up
-		envvarHelper.unsetEstafetteEnvvars()
 	})
 
 	t.Run("ReturnsResultForAllPipelinesWhenFirstPipelineFails", func(t *testing.T) {
-
-		envvarHelper := NewEnvvarHelper("TESTPREFIX_")
-		whenEvaluator := NewWhenEvaluator(envvarHelper)
-		dockerRunner := NewDockerRunner(envvarHelper)
-		pipelineRunner := NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner)
 
 		envvarHelper.unsetEstafetteEnvvars()
 		envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
@@ -223,17 +158,9 @@ func TestRunPipelines(t *testing.T) {
 		assert.Equal(t, "FAILED", result.PipelineResults[0].Status)
 		assert.Equal(t, "SKIPPED", result.PipelineResults[1].Status)
 		assert.Equal(t, "SUCCEEDED", result.PipelineResults[2].Status)
-
-		// clean up
-		envvarHelper.unsetEstafetteEnvvars()
 	})
 
 	t.Run("ReturnsResultWithErrorsWhenFirstPipelineFailsAndSecondSucceeds", func(t *testing.T) {
-
-		envvarHelper := NewEnvvarHelper("TESTPREFIX_")
-		whenEvaluator := NewWhenEvaluator(envvarHelper)
-		dockerRunner := NewDockerRunner(envvarHelper)
-		pipelineRunner := NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner)
 
 		envvarHelper.unsetEstafetteEnvvars()
 		envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
@@ -249,8 +176,5 @@ func TestRunPipelines(t *testing.T) {
 
 		assert.Nil(t, err)
 		assert.True(t, result.HasErrors())
-
-		// clean up
-		envvarHelper.unsetEstafetteEnvvars()
 	})
 }

@@ -7,12 +7,15 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+var (
+	whenEvaluator = NewWhenEvaluator(envvarHelper)
+)
+
 func TestWhenEvaluator(t *testing.T) {
 
 	t.Run("ReturnsFalseIfInputIsEmpty", func(t *testing.T) {
 
-		envvarHelper := NewEnvvarHelper("TESTPREFIX_")
-		whenEvaluator := NewWhenEvaluator(envvarHelper)
+		envvarHelper.unsetEstafetteEnvvars()
 
 		// act
 		result, err := whenEvaluator.evaluate("", make(map[string]interface{}, 0))
@@ -23,8 +26,7 @@ func TestWhenEvaluator(t *testing.T) {
 
 	t.Run("ReturnsTrueIfInputEvaluatesToTrueWithoutParameters", func(t *testing.T) {
 
-		envvarHelper := NewEnvvarHelper("TESTPREFIX_")
-		whenEvaluator := NewWhenEvaluator(envvarHelper)
+		envvarHelper.unsetEstafetteEnvvars()
 
 		// act
 		result, _ := whenEvaluator.evaluate("3 > 2", make(map[string]interface{}, 0))
@@ -34,9 +36,7 @@ func TestWhenEvaluator(t *testing.T) {
 
 	t.Run("ReturnsTrueIfInputEvaluatesToTrueWithParameters", func(t *testing.T) {
 
-		envvarHelper := NewEnvvarHelper("TESTPREFIX_")
-		whenEvaluator := NewWhenEvaluator(envvarHelper)
-
+		envvarHelper.unsetEstafetteEnvvars()
 		parameters := make(map[string]interface{}, 3)
 		parameters["branch"] = "master"
 		parameters["trigger"] = ""
@@ -50,9 +50,7 @@ func TestWhenEvaluator(t *testing.T) {
 
 	t.Run("ReturnsTrueIfInputEvaluatesToTrueWithParameters", func(t *testing.T) {
 
-		envvarHelper := NewEnvvarHelper("TESTPREFIX_")
-		whenEvaluator := NewWhenEvaluator(envvarHelper)
-
+		envvarHelper.unsetEstafetteEnvvars()
 		parameters := make(map[string]interface{}, 3)
 		parameters["branch"] = "master"
 		parameters["trigger"] = ""
@@ -69,9 +67,6 @@ func TestWhenParameters(t *testing.T) {
 
 	t.Run("ReturnsMapWithBranchEqualToBranchWithoutTrailingNewline", func(t *testing.T) {
 
-		envvarHelper := NewEnvvarHelper("TESTPREFIX_")
-		whenEvaluator := NewWhenEvaluator(envvarHelper)
-
 		envvarHelper.unsetEstafetteEnvvars()
 		envvarHelper.setEstafetteGlobalEnvvars()
 		envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
@@ -80,15 +75,9 @@ func TestWhenParameters(t *testing.T) {
 		parameters := whenEvaluator.getParameters()
 
 		assert.False(t, strings.Contains(parameters["branch"].(string), "\n"))
-
-		// clean up
-		envvarHelper.unsetEstafetteEnvvars()
 	})
 
 	t.Run("ReturnsMapWithStatusSetToSucceededByDefault", func(t *testing.T) {
-
-		envvarHelper := NewEnvvarHelper("TESTPREFIX_")
-		whenEvaluator := NewWhenEvaluator(envvarHelper)
 
 		envvarHelper.unsetEstafetteEnvvars()
 		envvarHelper.setEstafetteGlobalEnvvars()
@@ -98,8 +87,5 @@ func TestWhenParameters(t *testing.T) {
 		parameters := whenEvaluator.getParameters()
 
 		assert.Equal(t, "succeeded", parameters["status"])
-
-		// clean up
-		envvarHelper.unsetEstafetteEnvvars()
 	})
 }
