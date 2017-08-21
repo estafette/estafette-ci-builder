@@ -75,11 +75,20 @@ func main() {
 		// log as severity for stackdriver logging to recognize the level
 		zerolog.LevelFieldName = "severity"
 
+		gitName := getEstafetteEnv("ESTAFETTE_GIT_NAME")
+		gitBranch := getEstafetteEnv("ESTAFETTE_GIT_BRANCH")
+		gitRevision := getEstafetteEnv("ESTAFETTE_GIT_REVISION")
+		jobName := getEstafetteEnv("ESTAFETTE_BUILD_JOB_NAME")
+
 		// set some default fields added to all logs
 		log.Logger = zerolog.New(os.Stdout).With().
 			Timestamp().
 			Str("app", "estafette-ci-builder").
 			Str("version", version).
+			Str("jobName", jobName).
+			Str("gitName", gitName).
+			Str("gitBranch", gitBranch).
+			Str("gitRevision", gitRevision).
 			Logger()
 
 		stdlog.SetFlags(0)

@@ -141,6 +141,8 @@ func runPipelines(manifest estafetteManifest, dir string, envvars map[string]str
 			}
 
 			// set 'succeeded' build status
+			setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
+			envvars[getEstafetteEnvvarName("ESTAFETTE_BUILD_STATUS")] = "succeeded"
 			r.Status = "SUCCEEDED"
 
 			result.PipelineResults = append(result.PipelineResults, r)
