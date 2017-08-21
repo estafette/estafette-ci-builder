@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 	"time"
 
@@ -120,7 +121,9 @@ func runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (e
 
 	// define binds
 	binds := make([]string, 0)
-	binds = append(binds, fmt.Sprintf("%v:%v", dir, os.Expand(p.WorkingDirectory, getEstafetteEnv)))
+	if runtime.GOOS != "windows" {
+		binds = append(binds, fmt.Sprintf("%v:%v", dir, os.Expand(p.WorkingDirectory, getEstafetteEnv)))
+	}
 	if ok, _ := pathExists("/var/run/docker.sock"); ok {
 		binds = append(binds, "/var/run/docker.sock:/var/run/docker.sock")
 	}
