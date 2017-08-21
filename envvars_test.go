@@ -4,7 +4,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -72,7 +71,6 @@ func TestCollectEstafetteEnvvars(t *testing.T) {
 		// act
 		envvars := envvarHelper.collectEstafetteEnvvars(manifest)
 
-		log.Debug().Interface("envvars", envvars).Msg("ReturnsEmptyMapIfManifestHasNoLabelsAndNoEnvvarsStartWithEstafette")
 		assert.Equal(t, 0, len(envvars))
 
 		// clean up
@@ -88,7 +86,6 @@ func TestCollectEstafetteEnvvars(t *testing.T) {
 		// act
 		envvars := envvarHelper.collectEstafetteEnvvars(manifest)
 
-		log.Debug().Interface("envvars", envvars).Msg("ReturnsOneLabelAsEstafetteLabelLabel")
 		assert.Equal(t, 1, len(envvars))
 		_, exists := envvars["TESTPREFIX_LABEL_APP"]
 		assert.True(t, exists)
@@ -107,7 +104,6 @@ func TestCollectEstafetteEnvvars(t *testing.T) {
 		// act
 		envvars := envvarHelper.collectEstafetteEnvvars(manifest)
 
-		log.Debug().Interface("envvars", envvars).Msg("ReturnsOneLabelAsEstafetteLabelLabelWithSnakeCasing")
 		assert.Equal(t, 1, len(envvars))
 		_, exists := envvars["TESTPREFIX_LABEL_OWNING_TEAM"]
 		assert.True(t, exists)
