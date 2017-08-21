@@ -12,6 +12,7 @@ func TestRunPipelines(t *testing.T) {
 	t.Run("ReturnsResultWithoutErrorsWhenManifestHasNoPipelines", func(t *testing.T) {
 
 		estafetteEnvvarPrefix = "TEST_"
+		unsetEstafetteEnvvars()
 		setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
 		manifest := &estafetteManifest{}
 		envvars := map[string]string{}
@@ -30,6 +31,7 @@ func TestRunPipelines(t *testing.T) {
 	t.Run("ReturnsResultWithInnerResultForEachPipelineInManifest", func(t *testing.T) {
 
 		estafetteEnvvarPrefix = "TEST_"
+		unsetEstafetteEnvvars()
 		setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
 		manifest := &estafetteManifest{}
 		manifest.Pipelines = append(manifest.Pipelines, &estafettePipeline{Name: "TestStep", ContainerImage: "busybox:latest", Shell: "/bin/sh", WorkingDirectory: "/estafette-work", Commands: []string{"exit 0"}, When: "status == 'succeeded'"})
@@ -49,6 +51,7 @@ func TestRunPipelines(t *testing.T) {
 	t.Run("ReturnsResultWithoutErrorsWhenPipelinesSucceeded", func(t *testing.T) {
 
 		estafetteEnvvarPrefix = "TEST_"
+		unsetEstafetteEnvvars()
 		setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
 		manifest := &estafetteManifest{}
 		manifest.Pipelines = append(manifest.Pipelines, &estafettePipeline{Name: "TestStep", ContainerImage: "busybox:latest", Shell: "/bin/sh", WorkingDirectory: "/estafette-work", Commands: []string{"exit 0"}, When: "status == 'succeeded'"})
@@ -68,6 +71,7 @@ func TestRunPipelines(t *testing.T) {
 	t.Run("ReturnsResultWithSucceededPipelineResultWhenPipelinesSucceeded", func(t *testing.T) {
 
 		estafetteEnvvarPrefix = "TEST_"
+		unsetEstafetteEnvvars()
 		setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
 		manifest := new(estafetteManifest)
 		manifest.Pipelines = append(manifest.Pipelines, &estafettePipeline{Name: "TestStep", ContainerImage: "busybox:latest", Shell: "/bin/sh", WorkingDirectory: "/estafette-work", Commands: []string{"exit 0"}, When: "status == 'succeeded'"})
@@ -87,6 +91,7 @@ func TestRunPipelines(t *testing.T) {
 	t.Run("ReturnsResultWithErrorsWhenPipelinesFailed", func(t *testing.T) {
 
 		estafetteEnvvarPrefix = "TEST_"
+		unsetEstafetteEnvvars()
 		setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
 		manifest := &estafetteManifest{}
 		manifest.Pipelines = append(manifest.Pipelines, &estafettePipeline{Name: "TestStep", ContainerImage: "busybox:latest", Shell: "/bin/sh", WorkingDirectory: "/estafette-work", Commands: []string{"exit 1"}, When: "status == 'succeeded'"})
@@ -106,6 +111,7 @@ func TestRunPipelines(t *testing.T) {
 	t.Run("ReturnsResultWithFailedPipelineResultWhenPipelinesFailed", func(t *testing.T) {
 
 		estafetteEnvvarPrefix = "TEST_"
+		unsetEstafetteEnvvars()
 		setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
 		manifest := &estafetteManifest{}
 		manifest.Pipelines = append(manifest.Pipelines, &estafettePipeline{Name: "TestStep", ContainerImage: "busybox:latest", Shell: "/bin/sh", WorkingDirectory: "/estafette-work", Commands: []string{"exit 1"}, When: "status == 'succeeded'"})
@@ -125,6 +131,7 @@ func TestRunPipelines(t *testing.T) {
 	t.Run("ReturnsResultWithoutErrorsWhenPipelinesSkipped", func(t *testing.T) {
 
 		estafetteEnvvarPrefix = "TEST_"
+		unsetEstafetteEnvvars()
 		setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
 		manifest := &estafetteManifest{}
 		manifest.Pipelines = append(manifest.Pipelines, &estafettePipeline{Name: "TestStep", ContainerImage: "busybox:latest", Shell: "/bin/sh", WorkingDirectory: "/estafette-work", Commands: []string{"exit 0"}, When: "status == 'failed'"})
@@ -144,6 +151,7 @@ func TestRunPipelines(t *testing.T) {
 	t.Run("ReturnsResultWithSkippedPipelineResultWhenPipelinesSkipped", func(t *testing.T) {
 
 		estafetteEnvvarPrefix = "TEST_"
+		unsetEstafetteEnvvars()
 		setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
 		manifest := &estafetteManifest{}
 		manifest.Pipelines = append(manifest.Pipelines, &estafettePipeline{Name: "TestStep", ContainerImage: "busybox:latest", Shell: "/bin/sh", WorkingDirectory: "/estafette-work", Commands: []string{"exit 0"}, When: "status == 'failed'"})
@@ -163,6 +171,7 @@ func TestRunPipelines(t *testing.T) {
 	t.Run("ReturnsResultForAllPipelinesWhenFirstPipelineFails", func(t *testing.T) {
 
 		estafetteEnvvarPrefix = "TEST_"
+		unsetEstafetteEnvvars()
 		setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
 		manifest := &estafetteManifest{}
 		manifest.Pipelines = append(manifest.Pipelines, &estafettePipeline{Name: "TestStep", ContainerImage: "busybox:latest", Shell: "/bin/sh", WorkingDirectory: "/estafette-work", Commands: []string{"exit 1"}, When: "status == 'succeeded'"})
@@ -186,6 +195,7 @@ func TestRunPipelines(t *testing.T) {
 	t.Run("ReturnsResultWithErrorsWhenFirstPipelineFailsAndSecondSucceeds", func(t *testing.T) {
 
 		estafetteEnvvarPrefix = "TEST_"
+		unsetEstafetteEnvvars()
 		setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
 		manifest := &estafetteManifest{}
 		manifest.Pipelines = append(manifest.Pipelines, &estafettePipeline{Name: "TestStep", ContainerImage: "busybox:latest", Shell: "/bin/sh", WorkingDirectory: "/estafette-work", Commands: []string{"exit 1"}, When: "status == 'succeeded'"})
