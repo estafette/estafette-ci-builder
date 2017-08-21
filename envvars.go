@@ -10,7 +10,8 @@ import (
 )
 
 var (
-	estafetteEnvvarPrefix = "ESTAFETTE"
+	// the default prefix for Estafette envvars, can be overridden for testing
+	estafetteEnvvarPrefix = "ESTAFETTE_"
 )
 
 // https://gist.github.com/elwinar/14e1e897fdbe4d3432e1
@@ -69,49 +70,37 @@ func setEstafetteGlobalEnvvars() (err error) {
 }
 
 func initGitRevision() (err error) {
-	if getEstafetteEnv(estafetteEnvvarPrefix+"_GIT_REVISION") == "" {
+	if getEstafetteEnv("ESTAFETTE_GIT_REVISION") == "" {
 		revision, err := getCommandOutput("git", "rev-parse", "HEAD")
 		if err != nil {
 			return err
 		}
-		err = os.Setenv(estafetteEnvvarPrefix+"_GIT_REVISION", revision)
-		if err != nil {
-			return err
-		}
+		return setEstafetteEnv("ESTAFETTE_GIT_REVISION", revision)
 	}
 	return
 }
 
 func initGitBranch() (err error) {
-	if getEstafetteEnv(estafetteEnvvarPrefix+"_GIT_BRANCH") == "" {
+	if getEstafetteEnv("ESTAFETTE_GIT_BRANCH") == "" {
 		branch, err := getCommandOutput("git", "rev-parse", "--abbrev-ref", "HEAD")
 		if err != nil {
 			return err
 		}
-		err = os.Setenv(estafetteEnvvarPrefix+"_GIT_BRANCH", branch)
-		if err != nil {
-			return err
-		}
+		return setEstafetteEnv("ESTAFETTE_GIT_BRANCH", branch)
 	}
 	return
 }
 
 func initBuildDatetime() (err error) {
-	if getEstafetteEnv(estafetteEnvvarPrefix+"_BUILD_DATETIME") == "" {
-		err = os.Setenv(estafetteEnvvarPrefix+"_BUILD_DATETIME", time.Now().UTC().Format(time.RFC3339))
-		if err != nil {
-			return err
-		}
+	if getEstafetteEnv("ESTAFETTE_BUILD_DATETIME") == "" {
+		return setEstafetteEnv("ESTAFETTE_BUILD_DATETIME", time.Now().UTC().Format(time.RFC3339))
 	}
 	return
 }
 
 func initBuildStatus() (err error) {
-	if getEstafetteEnv(estafetteEnvvarPrefix+"_BUILD_STATUS") == "" {
-		err = os.Setenv(estafetteEnvvarPrefix+"_BUILD_STATUS", "succeeded")
-		if err != nil {
-			return err
-		}
+	if getEstafetteEnv("ESTAFETTE_BUILD_STATUS") == "" {
+		return setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
 	}
 	return
 }
@@ -121,9 +110,8 @@ func collectEstafetteEnvvars(m estafetteManifest) (envvars map[string]string) {
 	// set labels as envvars
 	if m.Labels != nil && len(m.Labels) > 0 {
 		for key, value := range m.Labels {
-
-			envvarName := estafetteEnvvarPrefix + "_LABEL_" + toUpperSnake(key)
-			os.Setenv(envvarName, value)
+			envvarName := "ESTAFETTE_LABEL_" + toUpperSnake(key)
+			setEstafetteEnv(envvarName, value)
 		}
 	}
 
@@ -134,10 +122,10 @@ func collectEstafetteEnvvars(m estafetteManifest) (envvars map[string]string) {
 		kvPair := strings.SplitN(e, "=", 2)
 
 		if len(kvPair) == 2 {
-			envvarName := kvPair[0]
+			envvarName := getEstafetteEnvvarName(kvPair[0])
 			envvarValue := kvPair[1]
 
-			if strings.HasPrefix(envvarName, estafetteEnvvarPrefix+"_") {
+			if strings.HasPrefix(envvarName, estafetteEnvvarPrefix) {
 				envvars[envvarName] = envvarValue
 			}
 		}
@@ -148,11 +136,31 @@ func collectEstafetteEnvvars(m estafetteManifest) (envvars map[string]string) {
 
 func getEstafetteEnv(key string) string {
 
-	if strings.HasPrefix(key, estafetteEnvvarPrefix+"_") {
+	key = getEstafetteEnvvarName(key)
+
+	if strings.HasPrefix(key, estafetteEnvvarPrefix) {
 		return os.Getenv(key)
 	}
 
 	return fmt.Sprintf("${%v}", key)
+}
+
+func setEstafetteEnv(key, value string) error {
+
+	key = getEstafetteEnvvarName(key)
+
+	return os.Setenv(key, value)
+}
+
+func unsetEstafetteEnv(key string) error {
+
+	key = getEstafetteEnvvarName(key)
+
+	return os.Unsetenv(key)
+}
+
+func getEstafetteEnvvarName(key string) string {
+	return strings.Replace(key, "ESTAFETTE_", estafetteEnvvarPrefix, -1)
 }
 
 func overrideEnvvars(envvarMaps ...map[string]string) (envvars map[string]string) {

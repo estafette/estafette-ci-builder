@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"os"
 
 	"github.com/Knetic/govaluate"
 	"github.com/rs/zerolog/log"
@@ -32,10 +31,10 @@ func whenEvaluator(input string, parameters map[string]interface{}) (result bool
 func whenParameters() map[string]interface{} {
 
 	parameters := make(map[string]interface{}, 3)
-	parameters["branch"] = os.Getenv("ESTAFETTE_GIT_BRANCH")
-	parameters["trigger"] = os.Getenv("ESTAFETTE_TRIGGER")
-	parameters["status"] = os.Getenv("ESTAFETTE_BUILD_STATUS")
-	parameters["server"] = os.Getenv("ESTAFETTE_CI_SERVER")
+	parameters["branch"] = getEstafetteEnv("ESTAFETTE_GIT_BRANCH")
+	parameters["trigger"] = getEstafetteEnv("ESTAFETTE_TRIGGER")
+	parameters["status"] = getEstafetteEnv("ESTAFETTE_BUILD_STATUS")
+	parameters["server"] = getEstafetteEnv("ESTAFETTE_CI_SERVER")
 
 	return parameters
 }

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"os"
 	"time"
 
 	"github.com/rs/zerolog/log"
@@ -130,8 +129,8 @@ func runPipelines(manifest estafetteManifest, dir string, envvars map[string]str
 			if err != nil {
 
 				// set 'failed' build status
-				os.Setenv("ESTAFETTE_BUILD_STATUS", "failed")
-				envvars["ESTAFETTE_BUILD_STATUS"] = "failed"
+				setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "failed")
+				envvars[getEstafetteEnvvarName("ESTAFETTE_BUILD_STATUS")] = "failed"
 				r.Status = "FAILED"
 				r.OtherError = err
 
@@ -141,8 +140,8 @@ func runPipelines(manifest estafetteManifest, dir string, envvars map[string]str
 			}
 
 			// set 'succeeded' build status
-			os.Setenv("ESTAFETTE_BUILD_STATUS", "succeeded")
-			envvars["ESTAFETTE_BUILD_STATUS"] = "succeeded"
+			setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
+			envvars[getEstafetteEnvvarName("ESTAFETTE_BUILD_STATUS")] = "succeeded"
 			r.Status = "SUCCEEDED"
 
 			result.PipelineResults = append(result.PipelineResults, r)

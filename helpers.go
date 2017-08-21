@@ -45,9 +45,9 @@ func handleFatal(err error, message string) {
 
 func sendBuildFinishedEvent(eventType string) {
 
-	ciServerBuilderEventsURL := os.Getenv("ESTAFETTE_CI_SERVER_BUILDER_EVENTS_URL")
-	ciAPIKey := os.Getenv("ESTAFETTE_CI_API_KEY")
-	jobName := os.Getenv("ESTAFETTE_BUILD_JOB_NAME")
+	ciServerBuilderEventsURL := getEstafetteEnv("ESTAFETTE_CI_SERVER_BUILDER_EVENTS_URL")
+	ciAPIKey := getEstafetteEnv("ESTAFETTE_CI_API_KEY")
+	jobName := getEstafetteEnv("ESTAFETTE_BUILD_JOB_NAME")
 
 	if ciServerBuilderEventsURL != "" && ciAPIKey != "" && jobName != "" {
 		// convert EstafetteCiBuilderEvent to json

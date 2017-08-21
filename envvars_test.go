@@ -41,10 +41,24 @@ func TestOverrideEnvvars(t *testing.T) {
 	})
 }
 
+func TestGetEstafetteEnvvarName(t *testing.T) {
+
+	t.Run("ReturnsEmptyMapIfManifestHasNoLabelsAndNoEnvvarsStartWithEstafette", func(t *testing.T) {
+
+		estafetteEnvvarPrefix = "TEST_"
+
+		// act
+		key := getEstafetteEnvvarName("ESTAFETTE_KEY")
+
+		assert.Equal(t, "TEST_KEY", key)
+	})
+}
+
 func TestCollectEstafetteEnvvars(t *testing.T) {
 
 	t.Run("ReturnsEmptyMapIfManifestHasNoLabelsAndNoEnvvarsStartWithEstafette", func(t *testing.T) {
 
+		estafetteEnvvarPrefix = "TEST_"
 		manifest := estafetteManifest{}
 
 		// act
@@ -55,7 +69,7 @@ func TestCollectEstafetteEnvvars(t *testing.T) {
 
 	t.Run("ReturnsOneLabelAsEstafetteLabelLabel", func(t *testing.T) {
 
-		estafetteEnvvarPrefix = "TEST"
+		estafetteEnvvarPrefix = "TEST_"
 		manifest := estafetteManifest{Labels: map[string]string{"app": "estafette-ci-builder"}}
 
 		// act
@@ -72,7 +86,7 @@ func TestCollectEstafetteEnvvars(t *testing.T) {
 
 	t.Run("ReturnsOneLabelAsEstafetteLabelLabelWithSnakeCasing", func(t *testing.T) {
 
-		estafetteEnvvarPrefix = "TEST"
+		estafetteEnvvarPrefix = "TEST_"
 		manifest := estafetteManifest{Labels: map[string]string{"owningTeam": "estafette-ci-team"}}
 
 		// act
@@ -89,7 +103,7 @@ func TestCollectEstafetteEnvvars(t *testing.T) {
 
 	t.Run("ReturnsTwoLabelsAsEstafetteLabelLabel", func(t *testing.T) {
 
-		estafetteEnvvarPrefix = "TEST"
+		estafetteEnvvarPrefix = "TEST_"
 		manifest := estafetteManifest{Labels: map[string]string{"app": "estafette-ci-builder", "team": "estafette-ci-team"}}
 
 		// act
@@ -111,7 +125,7 @@ func TestCollectEstafetteEnvvars(t *testing.T) {
 
 	t.Run("ReturnsOneEnvvarStartingWithEstafette", func(t *testing.T) {
 
-		estafetteEnvvarPrefix = "TEST"
+		estafetteEnvvarPrefix = "TEST_"
 		manifest := estafetteManifest{}
 		os.Setenv("TEST_VERSION", "1.0.3")
 
@@ -129,7 +143,7 @@ func TestCollectEstafetteEnvvars(t *testing.T) {
 
 	t.Run("ReturnsOneEnvvarStartingWithEstafetteIfValueContainsIsSymbol", func(t *testing.T) {
 
-		estafetteEnvvarPrefix = "TEST"
+		estafetteEnvvarPrefix = "TEST_"
 		manifest := estafetteManifest{}
 		os.Setenv("TEST_VERSION", "b=c")
 
@@ -147,7 +161,7 @@ func TestCollectEstafetteEnvvars(t *testing.T) {
 
 	t.Run("ReturnsTwoEnvvarsStartingWithEstafette", func(t *testing.T) {
 
-		estafetteEnvvarPrefix = "TEST"
+		estafetteEnvvarPrefix = "TEST_"
 		manifest := estafetteManifest{}
 		os.Setenv("TEST_VERSION", "1.0.3")
 		os.Setenv("TEST_GIT_REPOSITORY", "git@github.com:estafette/estafette-ci-builder.git")
@@ -171,7 +185,7 @@ func TestCollectEstafetteEnvvars(t *testing.T) {
 
 	t.Run("ReturnsMixOfLabelsAndEnvvars", func(t *testing.T) {
 
-		estafetteEnvvarPrefix = "TEST"
+		estafetteEnvvarPrefix = "TEST_"
 		manifest := estafetteManifest{Labels: map[string]string{"app": "estafette-ci-builder"}}
 		os.Setenv("TEST_VERSION", "1.0.3")
 
@@ -188,8 +202,8 @@ func TestCollectEstafetteEnvvars(t *testing.T) {
 		assert.Equal(t, "estafette-ci-builder", envvars["TEST_LABEL_APP"])
 
 		// clean up
-		os.Unsetenv("ESTAFETTE_VERSION")
-		os.Unsetenv("ESTAFETTE_LABEL_APP")
+		unsetEstafetteEnv("ESTAFETTE_VERSION")
+		unsetEstafetteEnv("ESTAFETTE_LABEL_APP")
 	})
 }
 
@@ -197,7 +211,7 @@ func TestGetEstafetteEnv(t *testing.T) {
 
 	t.Run("ReturnsEnvironmentVariableValueIfItStartsWithEstafetteUnderscore", func(t *testing.T) {
 
-		estafetteEnvvarPrefix = "TEST"
+		estafetteEnvvarPrefix = "TEST_"
 		os.Setenv("TEST_BUILD_STATUS", "succeeded")
 
 		// act

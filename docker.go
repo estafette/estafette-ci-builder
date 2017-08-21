@@ -98,7 +98,7 @@ func runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (e
 	extensionEnvVars := map[string]string{}
 	if p.CustomProperties != nil && len(p.CustomProperties) > 0 {
 		for k, v := range p.CustomProperties {
-			extensionEnvVars[fmt.Sprintf("ESTAFETTE_EXTENSION_%v", toUpperSnake(k))] = v
+			extensionEnvVars[getEstafetteEnv(fmt.Sprintf("ESTAFETTE_EXTENSION_%v", toUpperSnake(k)))] = v
 		}
 	}
 
