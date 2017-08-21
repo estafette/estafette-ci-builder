@@ -120,7 +120,8 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 	extensionEnvVars := map[string]string{}
 	if p.CustomProperties != nil && len(p.CustomProperties) > 0 {
 		for k, v := range p.CustomProperties {
-			extensionEnvVars[dr.envvarHelper.getEstafetteEnv(fmt.Sprintf("ESTAFETTE_EXTENSION_%v", dr.envvarHelper.toUpperSnake(k)))] = v
+			extensionkey := dr.envvarHelper.getEstafetteEnvvarName(fmt.Sprintf("ESTAFETTE_EXTENSION_%v", dr.envvarHelper.toUpperSnake(k)))
+			extensionEnvVars[extensionkey] = v
 		}
 	}
 
