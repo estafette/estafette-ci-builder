@@ -57,7 +57,9 @@ func TestWhenParameters(t *testing.T) {
 
 	t.Run("ReturnsMapWithBranchEqualToBranchWithoutTrailingNewline", func(t *testing.T) {
 
+		estafetteEnvvarPrefix = "TEST_"
 		setEstafetteGlobalEnvvars()
+		setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
 
 		// act
 		parameters := whenParameters()
@@ -67,7 +69,9 @@ func TestWhenParameters(t *testing.T) {
 
 	t.Run("ReturnsMapWithStatusSetToSucceededByDefault", func(t *testing.T) {
 
+		estafetteEnvvarPrefix = "TEST_"
 		setEstafetteGlobalEnvvars()
+		setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
 
 		// act
 		parameters := whenParameters()
