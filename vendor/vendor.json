@@ -1109,6 +1109,14 @@
 			"revision": ""
 		},
 		{
+			"checksumSHA1": "/C0ejuQRpnEOoGTstZW9/K7fyuo=",
+			"path": "github.com/estafette/estafette-ci-manifest",
+			"revision": "71fae868cca80129084a25d5f246b022e2622809",
+			"revisionTime": "2017-08-22T09:54:02Z",
+			"version": "0.0.6",
+			"versionExact": "0.0.6"
+		},
+		{
 			"path": "github.com/fluent/fluent-logger-golang/fluent",
 			"revision": ""
 		},
@@ -2056,10 +2064,10 @@
 			"revision": ""
 		},
 		{
-			"checksumSHA1": "QeQ0FWfng2E1CYl1LlPuAY9jLmg=",
+			"checksumSHA1": "aUDnhyGTHeiMERx4L4jx/zLsvSQ=",
 			"path": "gopkg.in/yaml.v2",
-			"revision": "a3f3340b5840cee44f372bddb5880fcbc419b46a",
-			"revisionTime": "2017-02-08T14:18:51Z"
+			"revision": "eb3733d160e74a9c7e442f435eb3bea458e1d19f",
+			"revisionTime": "2017-08-12T16:00:11Z"
 		}
 	],
 	"rootPath": "github.com/estafette/estafette-ci-builder"

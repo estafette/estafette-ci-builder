@@ -6,9 +6,9 @@ At this time the yaml file consist of two top-level sections, _labels_ and _pipe
 
 ## Labels
 
-_Labels_ are not required, but are useful to keep pipelines slightly less applications specific by using the labels as variables. In the future labels will be the mechanism to easily filter application pipelines by label values.
+_Labels_ are not required, but are useful to keep pipelines slightly less application-specific by using the labels as variables. In the future labels will be the mechanism to easily filter application pipelines by label values.
 
-Any of the labels can be used in all the pipeline steps with the environment variable `ESTAFETTE_LABEL_<LABEL NAME>` in snake-casing. 
+Any of the labels can be used in all the pipeline steps with the environment variable `ESTAFETTE_LABEL_<LABEL NAME>` in snake-casing.
 
 ## Pipelines
 

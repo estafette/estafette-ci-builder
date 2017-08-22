@@ -3,13 +3,14 @@ package main
 import (
 	"time"
 
+	manifest "github.com/estafette/estafette-ci-manifest"
 	"github.com/rs/zerolog/log"
 )
 
 // PipelineRunner is the interface for running the pipeline steps
 type PipelineRunner interface {
-	runPipeline(string, map[string]string, estafettePipeline) (estafettePipelineRunResult, error)
-	runPipelines(estafetteManifest, string, map[string]string) (estafetteRunPipelinesResult, error)
+	runPipeline(string, map[string]string, manifest.EstafettePipeline) (estafettePipelineRunResult, error)
+	runPipelines(manifest.EstafetteManifest, string, map[string]string) (estafetteRunPipelinesResult, error)
 }
 
 type pipelineRunnerImpl struct {
@@ -28,7 +29,7 @@ func NewPipelineRunner(envvarHelper EnvvarHelper, whenEvaluator WhenEvaluator, d
 }
 
 type estafettePipelineRunResult struct {
-	Pipeline            estafettePipeline
+	Pipeline            manifest.EstafettePipeline
 	IsDockerImagePulled bool
 	DockerImageSize     int64
 	DockerPullDuration  time.Duration
@@ -65,7 +66,7 @@ func (result *estafettePipelineRunResult) HasErrors() bool {
 	return len(errors) > 0
 }
 
-func (pr *pipelineRunnerImpl) runPipeline(dir string, envvars map[string]string, p estafettePipeline) (result estafettePipelineRunResult, err error) {
+func (pr *pipelineRunnerImpl) runPipeline(dir string, envvars map[string]string, p manifest.EstafettePipeline) (result estafettePipelineRunResult, err error) {
 
 	result.Pipeline = p
 
@@ -129,7 +130,7 @@ func (result *estafetteRunPipelinesResult) HasErrors() bool {
 	return len(errors) > 0
 }
 
-func (pr *pipelineRunnerImpl) runPipelines(manifest estafetteManifest, dir string, envvars map[string]string) (result estafetteRunPipelinesResult, err error) {
+func (pr *pipelineRunnerImpl) runPipelines(manifest manifest.EstafetteManifest, dir string, envvars map[string]string) (result estafetteRunPipelinesResult, err error) {
 
 	// set default build status if not set
 	err = pr.envvarHelper.initBuildStatus()

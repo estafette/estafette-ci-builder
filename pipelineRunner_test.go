@@ -4,6 +4,7 @@ import (
 	"os"
 	"testing"
 
+	mft "github.com/estafette/estafette-ci-manifest"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -17,7 +18,7 @@ func TestRunPipelines(t *testing.T) {
 
 		envvarHelper.unsetEstafetteEnvvars()
 		envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
-		manifest := &estafetteManifest{}
+		manifest := &mft.EstafetteManifest{}
 		envvars := map[string]string{}
 		dir, _ := os.Getwd()
 
@@ -32,8 +33,8 @@ func TestRunPipelines(t *testing.T) {
 
 		envvarHelper.unsetEstafetteEnvvars()
 		envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
-		manifest := &estafetteManifest{}
-		manifest.Pipelines = append(manifest.Pipelines, &estafettePipeline{Name: "TestStep", ContainerImage: "busybox:latest", Shell: "/bin/sh", WorkingDirectory: "/estafette-work", Commands: []string{"exit 0"}, When: "status == 'succeeded'"})
+		manifest := &mft.EstafetteManifest{}
+		manifest.Pipelines = append(manifest.Pipelines, &mft.EstafettePipeline{Name: "TestStep", ContainerImage: "busybox:latest", Shell: "/bin/sh", WorkingDirectory: "/estafette-work", Commands: []string{"exit 0"}, When: "status == 'succeeded'"})
 		envvars := map[string]string{}
 		dir, _ := os.Getwd()
 
@@ -48,8 +49,8 @@ func TestRunPipelines(t *testing.T) {
 
 		envvarHelper.unsetEstafetteEnvvars()
 		envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
-		manifest := &estafetteManifest{}
-		manifest.Pipelines = append(manifest.Pipelines, &estafettePipeline{Name: "TestStep", ContainerImage: "busybox:latest", Shell: "/bin/sh", WorkingDirectory: "/estafette-work", Commands: []string{"exit 0"}, When: "status == 'succeeded'"})
+		manifest := &mft.EstafetteManifest{}
+		manifest.Pipelines = append(manifest.Pipelines, &mft.EstafettePipeline{Name: "TestStep", ContainerImage: "busybox:latest", Shell: "/bin/sh", WorkingDirectory: "/estafette-work", Commands: []string{"exit 0"}, When: "status == 'succeeded'"})
 		envvars := map[string]string{}
 		dir, _ := os.Getwd()
 
@@ -64,8 +65,8 @@ func TestRunPipelines(t *testing.T) {
 
 		envvarHelper.unsetEstafetteEnvvars()
 		envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
-		manifest := new(estafetteManifest)
-		manifest.Pipelines = append(manifest.Pipelines, &estafettePipeline{Name: "TestStep", ContainerImage: "busybox:latest", Shell: "/bin/sh", WorkingDirectory: "/estafette-work", Commands: []string{"exit 0"}, When: "status == 'succeeded'"})
+		manifest := &mft.EstafetteManifest{}
+		manifest.Pipelines = append(manifest.Pipelines, &mft.EstafettePipeline{Name: "TestStep", ContainerImage: "busybox:latest", Shell: "/bin/sh", WorkingDirectory: "/estafette-work", Commands: []string{"exit 0"}, When: "status == 'succeeded'"})
 		envvars := map[string]string{}
 		dir, _ := os.Getwd()
 
@@ -80,8 +81,8 @@ func TestRunPipelines(t *testing.T) {
 
 		envvarHelper.unsetEstafetteEnvvars()
 		envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
-		manifest := &estafetteManifest{}
-		manifest.Pipelines = append(manifest.Pipelines, &estafettePipeline{Name: "TestStep", ContainerImage: "busybox:latest", Shell: "/bin/sh", WorkingDirectory: "/estafette-work", Commands: []string{"exit 1"}, When: "status == 'succeeded'"})
+		manifest := &mft.EstafetteManifest{}
+		manifest.Pipelines = append(manifest.Pipelines, &mft.EstafettePipeline{Name: "TestStep", ContainerImage: "busybox:latest", Shell: "/bin/sh", WorkingDirectory: "/estafette-work", Commands: []string{"exit 1"}, When: "status == 'succeeded'"})
 		envvars := map[string]string{}
 		dir, _ := os.Getwd()
 
@@ -96,8 +97,8 @@ func TestRunPipelines(t *testing.T) {
 
 		envvarHelper.unsetEstafetteEnvvars()
 		envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
-		manifest := &estafetteManifest{}
-		manifest.Pipelines = append(manifest.Pipelines, &estafettePipeline{Name: "TestStep", ContainerImage: "busybox:latest", Shell: "/bin/sh", WorkingDirectory: "/estafette-work", Commands: []string{"exit 1"}, When: "status == 'succeeded'"})
+		manifest := &mft.EstafetteManifest{}
+		manifest.Pipelines = append(manifest.Pipelines, &mft.EstafettePipeline{Name: "TestStep", ContainerImage: "busybox:latest", Shell: "/bin/sh", WorkingDirectory: "/estafette-work", Commands: []string{"exit 1"}, When: "status == 'succeeded'"})
 		envvars := map[string]string{}
 		dir, _ := os.Getwd()
 
@@ -112,8 +113,8 @@ func TestRunPipelines(t *testing.T) {
 
 		envvarHelper.unsetEstafetteEnvvars()
 		envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
-		manifest := &estafetteManifest{}
-		manifest.Pipelines = append(manifest.Pipelines, &estafettePipeline{Name: "TestStep", ContainerImage: "busybox:latest", Shell: "/bin/sh", WorkingDirectory: "/estafette-work", Commands: []string{"exit 0"}, When: "status == 'failed'"})
+		manifest := &mft.EstafetteManifest{}
+		manifest.Pipelines = append(manifest.Pipelines, &mft.EstafettePipeline{Name: "TestStep", ContainerImage: "busybox:latest", Shell: "/bin/sh", WorkingDirectory: "/estafette-work", Commands: []string{"exit 0"}, When: "status == 'failed'"})
 		envvars := map[string]string{}
 		dir, _ := os.Getwd()
 
@@ -128,8 +129,8 @@ func TestRunPipelines(t *testing.T) {
 
 		envvarHelper.unsetEstafetteEnvvars()
 		envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
-		manifest := &estafetteManifest{}
-		manifest.Pipelines = append(manifest.Pipelines, &estafettePipeline{Name: "TestStep", ContainerImage: "busybox:latest", Shell: "/bin/sh", WorkingDirectory: "/estafette-work", Commands: []string{"exit 0"}, When: "status == 'failed'"})
+		manifest := &mft.EstafetteManifest{}
+		manifest.Pipelines = append(manifest.Pipelines, &mft.EstafettePipeline{Name: "TestStep", ContainerImage: "busybox:latest", Shell: "/bin/sh", WorkingDirectory: "/estafette-work", Commands: []string{"exit 0"}, When: "status == 'failed'"})
 		envvars := map[string]string{}
 		dir, _ := os.Getwd()
 
@@ -144,10 +145,10 @@ func TestRunPipelines(t *testing.T) {
 
 		envvarHelper.unsetEstafetteEnvvars()
 		envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
-		manifest := &estafetteManifest{}
-		manifest.Pipelines = append(manifest.Pipelines, &estafettePipeline{Name: "TestStep", ContainerImage: "busybox:latest", Shell: "/bin/sh", WorkingDirectory: "/estafette-work", Commands: []string{"exit 1"}, When: "status == 'succeeded'"})
-		manifest.Pipelines = append(manifest.Pipelines, &estafettePipeline{Name: "TestStep2", ContainerImage: "busybox:latest", Shell: "/bin/sh", WorkingDirectory: "/estafette-work", Commands: []string{"exit 0"}, When: "status == 'succeeded'"})
-		manifest.Pipelines = append(manifest.Pipelines, &estafettePipeline{Name: "TestStep3", ContainerImage: "busybox:latest", Shell: "/bin/sh", WorkingDirectory: "/estafette-work", Commands: []string{"exit 0"}, When: "status == 'failed'"})
+		manifest := &mft.EstafetteManifest{}
+		manifest.Pipelines = append(manifest.Pipelines, &mft.EstafettePipeline{Name: "TestStep", ContainerImage: "busybox:latest", Shell: "/bin/sh", WorkingDirectory: "/estafette-work", Commands: []string{"exit 1"}, When: "status == 'succeeded'"})
+		manifest.Pipelines = append(manifest.Pipelines, &mft.EstafettePipeline{Name: "TestStep2", ContainerImage: "busybox:latest", Shell: "/bin/sh", WorkingDirectory: "/estafette-work", Commands: []string{"exit 0"}, When: "status == 'succeeded'"})
+		manifest.Pipelines = append(manifest.Pipelines, &mft.EstafettePipeline{Name: "TestStep3", ContainerImage: "busybox:latest", Shell: "/bin/sh", WorkingDirectory: "/estafette-work", Commands: []string{"exit 0"}, When: "status == 'failed'"})
 		envvars := map[string]string{}
 		dir, _ := os.Getwd()
 
@@ -164,10 +165,10 @@ func TestRunPipelines(t *testing.T) {
 
 		envvarHelper.unsetEstafetteEnvvars()
 		envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
-		manifest := &estafetteManifest{}
-		manifest.Pipelines = append(manifest.Pipelines, &estafettePipeline{Name: "TestStep", ContainerImage: "busybox:latest", Shell: "/bin/sh", WorkingDirectory: "/estafette-work", Commands: []string{"exit 1"}, When: "status == 'succeeded'"})
-		manifest.Pipelines = append(manifest.Pipelines, &estafettePipeline{Name: "TestStep2", ContainerImage: "busybox:latest", Shell: "/bin/sh", WorkingDirectory: "/estafette-work", Commands: []string{"exit 0"}, When: "status == 'succeeded'"})
-		manifest.Pipelines = append(manifest.Pipelines, &estafettePipeline{Name: "TestStep3", ContainerImage: "busybox:latest", Shell: "/bin/sh", WorkingDirectory: "/estafette-work", Commands: []string{"exit 0"}, When: "status == 'failed'"})
+		manifest := &mft.EstafetteManifest{}
+		manifest.Pipelines = append(manifest.Pipelines, &mft.EstafettePipeline{Name: "TestStep", ContainerImage: "busybox:latest", Shell: "/bin/sh", WorkingDirectory: "/estafette-work", Commands: []string{"exit 1"}, When: "status == 'succeeded'"})
+		manifest.Pipelines = append(manifest.Pipelines, &mft.EstafettePipeline{Name: "TestStep2", ContainerImage: "busybox:latest", Shell: "/bin/sh", WorkingDirectory: "/estafette-work", Commands: []string{"exit 0"}, When: "status == 'succeeded'"})
+		manifest.Pipelines = append(manifest.Pipelines, &mft.EstafettePipeline{Name: "TestStep3", ContainerImage: "busybox:latest", Shell: "/bin/sh", WorkingDirectory: "/estafette-work", Commands: []string{"exit 0"}, When: "status == 'failed'"})
 		envvars := map[string]string{}
 		dir, _ := os.Getwd()
 

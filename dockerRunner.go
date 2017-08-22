@@ -15,16 +15,17 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
+	manifest "github.com/estafette/estafette-ci-manifest"
 
 	"github.com/rs/zerolog/log"
 )
 
 // DockerRunner pulls and runs docker containers
 type DockerRunner interface {
-	isDockerImagePulled(estafettePipeline) bool
-	runDockerPull(estafettePipeline) error
-	getDockerImageSize(estafettePipeline) (int64, error)
-	runDockerRun(string, map[string]string, estafettePipeline) error
+	isDockerImagePulled(manifest.EstafettePipeline) bool
+	runDockerPull(manifest.EstafettePipeline) error
+	getDockerImageSize(manifest.EstafettePipeline) (int64, error)
+	runDockerRun(string, map[string]string, manifest.EstafettePipeline) error
 	startDockerDaemon() error
 	waitForDockerDaemon()
 }
@@ -40,7 +41,7 @@ func NewDockerRunner(envvarHelper EnvvarHelper) DockerRunner {
 	}
 }
 
-func (dr *dockerRunnerImpl) isDockerImagePulled(p estafettePipeline) bool {
+func (dr *dockerRunnerImpl) isDockerImagePulled(p manifest.EstafettePipeline) bool {
 
 	log.Info().Msgf("Checking if docker image '%v' exists locally...", p.ContainerImage)
 
@@ -60,7 +61,7 @@ func (dr *dockerRunnerImpl) isDockerImagePulled(p estafettePipeline) bool {
 	return false
 }
 
-func (dr *dockerRunnerImpl) runDockerPull(p estafettePipeline) (err error) {
+func (dr *dockerRunnerImpl) runDockerPull(p manifest.EstafettePipeline) (err error) {
 
 	log.Info().Msgf("Pulling docker image '%v'", p.ContainerImage)
 
@@ -84,7 +85,7 @@ func (dr *dockerRunnerImpl) runDockerPull(p estafettePipeline) (err error) {
 	return
 }
 
-func (dr *dockerRunnerImpl) getDockerImageSize(p estafettePipeline) (totalSize int64, err error) {
+func (dr *dockerRunnerImpl) getDockerImageSize(p manifest.EstafettePipeline) (totalSize int64, err error) {
 
 	cli, err := client.NewEnvClient()
 	if err != nil {
@@ -103,7 +104,7 @@ func (dr *dockerRunnerImpl) getDockerImageSize(p estafettePipeline) (totalSize i
 	return totalSize, nil
 }
 
-func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, p estafettePipeline) (err error) {
+func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, p manifest.EstafettePipeline) (err error) {
 
 	// run docker with image and commands from yaml
 	ctx := context.Background()
