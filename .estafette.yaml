@@ -29,6 +29,8 @@ pipelines:
     commands:
     - docker login --username=${ESTAFETTE_DOCKER_HUB_USERNAME} --password="${ESTAFETTE_DOCKER_HUB_PASSWORD}"
     - docker push estafette/${ESTAFETTE_LABEL_APP}:${ESTAFETTE_BUILD_VERSION}
+    - docker tag estafette/${ESTAFETTE_LABEL_APP}:${ESTAFETTE_BUILD_VERSION} estafette/${ESTAFETTE_LABEL_APP}:dev
+    - docker push estafette/${ESTAFETTE_LABEL_APP}:dev
     when:
       status == 'succeeded' &&
       branch == 'master' &&
