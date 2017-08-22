@@ -1109,12 +1109,12 @@
 			"revision": ""
 		},
 		{
-			"checksumSHA1": "/C0ejuQRpnEOoGTstZW9/K7fyuo=",
+			"checksumSHA1": "AuyEpojAPL7sTh2fsKf8OvvqeQQ=",
 			"path": "github.com/estafette/estafette-ci-manifest",
-			"revision": "71fae868cca80129084a25d5f246b022e2622809",
-			"revisionTime": "2017-08-22T09:54:02Z",
-			"version": "0.0.6",
-			"versionExact": "0.0.6"
+			"revision": "18d97067f059c600a55e33b45a55440cfbe7c726",
+			"revisionTime": "2017-08-22T11:29:47Z",
+			"version": "0.0.7",
+			"versionExact": "0.0.7"
 		},
 		{
 			"path": "github.com/fluent/fluent-logger-golang/fluent",
@@ -1478,6 +1478,12 @@
 		{
 			"path": "github.com/seccomp/libseccomp-golang",
 			"revision": ""
+		},
+		{
+			"checksumSHA1": "Is47yO7d/2JPk+exbSEDwXTJsgo=",
+			"path": "github.com/sethgrid/pester",
+			"revision": "a86a2d88f4dc3c7dbf3a6a6bbbfb095690b834b6",
+			"revisionTime": "2017-08-16T16:42:08Z"
 		},
 		{
 			"checksumSHA1": "WPrjq5b6bM1jaOo0yx5+ErFdG0I=",

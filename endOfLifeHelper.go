@@ -9,6 +9,7 @@ import (
 	"os"
 
 	"github.com/rs/zerolog/log"
+	"github.com/sethgrid/pester"
 )
 
 // EndOfLifeHelper has methods to shutdown the runner after a fatal or successful run
@@ -60,7 +61,10 @@ func (elh *endOfLifeHelperImpl) sendBuildFinishedEvent(eventType string) {
 		requestBody = bytes.NewReader(data)
 
 		// create client, in order to add headers
-		client := &http.Client{}
+		client := pester.New()
+		client.MaxRetries = 3
+		client.Backoff = pester.ExponentialJitterBackoff
+		client.KeepLog = true
 		request, err := http.NewRequest("POST", ciServerBuilderEventsURL, requestBody)
 		if err != nil {
 			log.Error().Err(err).Msgf("Failed creating http client for job %v", jobName)

@@ -13,6 +13,7 @@ import (
 
 // EstafetteManifest is the object that the .estafette.yaml deserializes to
 type EstafetteManifest struct {
+	Builder   EstafetteBuilder     `yaml:"builder,omitempty"`
 	Labels    map[string]string    `yaml:"labels,omitempty"`
 	Pipelines []*EstafettePipeline `yaml:"dummy,omitempty"`
 }
@@ -29,6 +30,11 @@ type EstafettePipeline struct {
 	CustomProperties map[string]string
 }
 
+// EstafetteBuilder contains configuration for the ci-builder component
+type EstafetteBuilder struct {
+	Track string `yaml:"track,omitempty"`
+}
+
 // unmarshalYAML parses the .estafette.yaml file into an EstafetteManifest object
 func (c *EstafetteManifest) unmarshalYAML(data []byte) error {
 
@@ -36,6 +42,11 @@ func (c *EstafetteManifest) unmarshalYAML(data []byte) error {
 	if err != nil {
 		log.Error().Err(err).Msg("Unmarshalling .estafette.yaml manifest failed")
 		return err
+	}
+
+	// set default for Builder.Track if not set
+	if c.Builder.Track == "" {
+		c.Builder.Track = "stable"
 	}
 
 	// create list of reserved property names
