@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"runtime"
 
@@ -88,6 +89,10 @@ func main() {
 		gitBranch := envvarHelper.getEstafetteEnv("ESTAFETTE_GIT_BRANCH")
 		gitRevision := envvarHelper.getEstafetteEnv("ESTAFETTE_GIT_REVISION")
 		jobName := envvarHelper.getEstafetteEnv("ESTAFETTE_BUILD_JOB_NAME")
+		builderTrack := envvarHelper.getEstafetteEnv("ESTAFETTE_CI_BUILDER_TRACK")
+		if builderTrack == "" {
+			builderTrack = "stable"
+		}
 
 		// set some default fields added to all logs
 		log.Logger = zerolog.New(os.Stdout).With().
@@ -137,7 +142,7 @@ func main() {
 			Pipelines: []*manifest.EstafettePipeline{
 				&manifest.EstafettePipeline{
 					Name:             "git-clone",
-					ContainerImage:   "extensions/git-clone:0.0.4",
+					ContainerImage:   fmt.Sprintf("extensions/git-clone:%v", builderTrack),
 					Shell:            "/bin/sh",
 					WorkingDirectory: "/estafette-work",
 					When:             "status == 'succeeded'",
@@ -181,4 +186,5 @@ func main() {
 		endOfLifeHelper.sendBuildFinishedEvent("builder:succeeded")
 		os.Exit(0)
 	}
+}
 }
