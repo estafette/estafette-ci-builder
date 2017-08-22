@@ -1,3 +1,6 @@
+builder:
+  track: stable
+
 labels:
   app: estafette-ci-builder
   team: estafette-team
