@@ -27,7 +27,7 @@ type EstafettePipeline struct {
 	Commands         []string          `yaml:"commands,omitempty"`
 	When             string            `yaml:"when,omitempty"`
 	EnvVars          map[string]string `yaml:"env,omitempty"`
-	CustomProperties map[string]string
+	CustomProperties map[string]interface{}
 }
 
 // EstafetteBuilder contains configuration for the ci-builder component
@@ -110,7 +110,7 @@ func (c *EstafetteManifest) unmarshalYAML(data []byte) error {
 				}
 
 				// assign all unknown (non-reserved) properties to CustomProperties
-				p.CustomProperties = map[string]string{}
+				p.CustomProperties = map[string]interface{}{}
 				propertiesMap := map[string]interface{}{}
 				err = yaml.Unmarshal(out, &propertiesMap)
 				if err != nil {
@@ -119,9 +119,7 @@ func (c *EstafetteManifest) unmarshalYAML(data []byte) error {
 				if propertiesMap != nil && len(propertiesMap) > 0 {
 					for k, v := range propertiesMap {
 						if !isReservedPopertyName(reservedPropertyNames, k) {
-							if s, isString := v.(string); isString {
-								p.CustomProperties[k] = s
-							}
+							p.CustomProperties[k] = v
 						}
 					}
 				}

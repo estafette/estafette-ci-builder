@@ -6,5 +6,5 @@ govendor fetch github.com/olekukonko/tablewriter
 govendor fetch -tree github.com/moby/moby@v17.05.0-ce
 govendor fetch github.com/Knetic/govaluate@2.3.0
 govendor fetch github.com/rs/zerolog/log@v1.2.2
-govendor update -n github.com/estafette/estafette-ci-manifest@0.0.7
+govendor fetch github.com/estafette/estafette-ci-manifest@0.0.9
 govendor fetch github.com/sethgrid/pester

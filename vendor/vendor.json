@@ -1109,12 +1109,12 @@
 			"revision": ""
 		},
 		{
-			"checksumSHA1": "AuyEpojAPL7sTh2fsKf8OvvqeQQ=",
+			"checksumSHA1": "kwFtcZhC1bvP8pvdjrR4RlJdAO0=",
 			"path": "github.com/estafette/estafette-ci-manifest",
-			"revision": "18d97067f059c600a55e33b45a55440cfbe7c726",
-			"revisionTime": "2017-08-22T11:29:47Z",
-			"version": "0.0.7",
-			"versionExact": "0.0.7"
+			"revision": "88de982af0fe6faae7b73ec3ce9ec20699ad022d",
+			"revisionTime": "2017-08-22T15:05:32Z",
+			"version": "0.0.9",
+			"versionExact": "0.0.9"
 		},
 		{
 			"path": "github.com/fluent/fluent-logger-golang/fluent",

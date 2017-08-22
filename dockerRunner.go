@@ -121,8 +121,30 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 	extensionEnvVars := map[string]string{}
 	if p.CustomProperties != nil && len(p.CustomProperties) > 0 {
 		for k, v := range p.CustomProperties {
-			extensionkey := dr.envvarHelper.getEstafetteEnvvarName(fmt.Sprintf("ESTAFETTE_EXTENSION_%v", dr.envvarHelper.toUpperSnake(k)))
-			extensionEnvVars[extensionkey] = v
+			// if custom property is of type string add the envvar
+			if s, isString := v.(string); isString {
+				extensionkey := dr.envvarHelper.getEstafetteEnvvarName(fmt.Sprintf("ESTAFETTE_EXTENSION_%v", dr.envvarHelper.toUpperSnake(k)))
+				extensionEnvVars[extensionkey] = s
+			}
+			if i, isInterfaceArray := v.([]interface{}); isInterfaceArray {
+				// check whether all array items are of type string
+				valid := true
+				stringValues := []string{}
+				for _, iv := range i {
+					if s, isString := iv.(string); isString {
+						stringValues = append(stringValues, s)
+					} else {
+						valid = false
+						break
+					}
+				}
+
+				if valid {
+					// if all array items are string, pass as comma-separated list to extension
+					extensionkey := dr.envvarHelper.getEstafetteEnvvarName(fmt.Sprintf("ESTAFETTE_EXTENSION_%v", dr.envvarHelper.toUpperSnake(k)))
+					extensionEnvVars[extensionkey] = strings.Join(stringValues, ",")
+				}
+			}
 		}
 	}
 

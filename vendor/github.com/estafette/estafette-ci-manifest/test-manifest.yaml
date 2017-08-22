@@ -46,6 +46,6 @@ pipelines:
       branch == 'master'
     unknownProperty1: value1
     unknownProperty2: value2
-    unsupportedUnknownProperty:
-      - notsupported1
-      - notsupported2
+    unknownProperty3:
+      - supported1
+      - supported2

@@ -1,6 +1,7 @@
 FROM docker:17.06.0-ce-dind
 
-MAINTAINER estafette.io
+LABEL maintainer="estafette.io" \
+      description="The estafette-ci-builder is the component that runs builds as defined in the .estafette.yaml manifest"
 
 RUN addgroup docker
 
