@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 	"unicode"
+
+	manifest "github.com/estafette/estafette-ci-manifest"
 )
 
 // EnvvarHelper is the interface for getting, setting and retrieving ESTAFETTE_ environment variables
@@ -18,7 +20,7 @@ type EnvvarHelper interface {
 	initGitBranch() error
 	initBuildDatetime() error
 	initBuildStatus() error
-	collectEstafetteEnvvars(estafetteManifest) map[string]string
+	collectEstafetteEnvvars(manifest.EstafetteManifest) map[string]string
 	unsetEstafetteEnvvars()
 	getEstafetteEnv(string) string
 	setEstafetteEnv(string, string) error
@@ -129,7 +131,7 @@ func (h *envvarHelperImpl) initBuildStatus() (err error) {
 	return
 }
 
-func (h *envvarHelperImpl) collectEstafetteEnvvars(m estafetteManifest) (envvars map[string]string) {
+func (h *envvarHelperImpl) collectEstafetteEnvvars(m manifest.EstafetteManifest) (envvars map[string]string) {
 
 	// set labels as envvars
 	if m.Labels != nil && len(m.Labels) > 0 {

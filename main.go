@@ -4,6 +4,7 @@ import (
 	"os"
 	"runtime"
 
+	manifest "github.com/estafette/estafette-ci-manifest"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
@@ -49,7 +50,7 @@ func main() {
 			Msg("Starting estafette-ci-builder...")
 
 		// read yaml
-		manifest, err := readManifest(".estafette.yaml")
+		manifest, err := manifest.ReadManifestFromFile(".estafette.yaml")
 		if err != nil {
 			endOfLifeHelper.handleFatal(err, "Reading .estafette.yaml manifest failed")
 		}
@@ -132,9 +133,9 @@ func main() {
 		}
 
 		// run git clone via pipeline runner
-		estafetteGitCloneManifest := estafetteManifest{
-			Pipelines: []*estafettePipeline{
-				&estafettePipeline{
+		estafetteGitCloneManifest := manifest.EstafetteManifest{
+			Pipelines: []*manifest.EstafettePipeline{
+				&manifest.EstafettePipeline{
 					Name:             "git-clone",
 					ContainerImage:   "extensions/git-clone:0.0.4",
 					Shell:            "/bin/sh",
@@ -152,14 +153,14 @@ func main() {
 		}
 
 		// check if manifest exists
-		if !manifestExists(".estafette.yaml") {
+		if !manifest.Exists(".estafette.yaml") {
 			log.Info().Msg(".estafette.yaml file does not exist, exiting...")
 			endOfLifeHelper.sendBuildFinishedEvent("builder:nomanifest")
 			os.Exit(0)
 		}
 
 		// read .estafette.yaml manifest
-		manifest, err := readManifest(".estafette.yaml")
+		manifest, err := manifest.ReadManifestFromFile(".estafette.yaml")
 		if err != nil {
 			endOfLifeHelper.handleFatal(err, "Reading .estafette.yaml manifest failed")
 		}

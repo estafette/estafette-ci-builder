@@ -1,4 +1,4 @@
-package main
+package manifest
 
 import (
 	"io/ioutil"
@@ -11,12 +11,14 @@ import (
 	yaml "gopkg.in/yaml.v2"
 )
 
-type estafetteManifest struct {
+// EstafetteManifest is the object that the .estafette.yaml deserializes to
+type EstafetteManifest struct {
 	Labels    map[string]string    `yaml:"labels,omitempty"`
-	Pipelines []*estafettePipeline `yaml:"dummy,omitempty"`
+	Pipelines []*EstafettePipeline `yaml:"dummy,omitempty"`
 }
 
-type estafettePipeline struct {
+// EstafettePipeline is the object that parts of the .estafette.yaml deserialize to
+type EstafettePipeline struct {
 	Name             string
 	ContainerImage   string            `yaml:"image,omitempty"`
 	Shell            string            `yaml:"shell,omitempty"`
@@ -27,8 +29,8 @@ type estafettePipeline struct {
 	CustomProperties map[string]string
 }
 
-// UnmarshalYAML parses the .estafette.yaml file into an estafetteManifest object
-func (c *estafetteManifest) unmarshalYAML(data []byte) error {
+// unmarshalYAML parses the .estafette.yaml file into an EstafetteManifest object
+func (c *EstafetteManifest) unmarshalYAML(data []byte) error {
 
 	err := yaml.Unmarshal(data, c)
 	if err != nil {
@@ -72,7 +74,7 @@ func (c *estafetteManifest) unmarshalYAML(data []byte) error {
 				}
 
 				// unmarshal again into estafettePipeline
-				p := estafettePipeline{}
+				p := EstafettePipeline{}
 				err = yaml.Unmarshal(out, &p)
 				if err != nil {
 					return err
@@ -125,7 +127,7 @@ func (c *estafetteManifest) unmarshalYAML(data []byte) error {
 func getReservedPropertyNames() (names []string) {
 	// create list of reserved property names
 	reservedPropertyNames := []string{}
-	val := reflect.ValueOf(estafettePipeline{})
+	val := reflect.ValueOf(EstafettePipeline{})
 	for i := 0; i < val.Type().NumField(); i++ {
 		yamlName := val.Type().Field(i).Tag.Get("yaml")
 		if yamlName != "" {
@@ -150,7 +152,8 @@ func isReservedPopertyName(s []string, e string) bool {
 	return false
 }
 
-func manifestExists(manifestPath string) bool {
+// Exists checks whether the .estafette.yaml exists
+func Exists(manifestPath string) bool {
 
 	if _, err := os.Stat(manifestPath); os.IsNotExist(err) {
 		// does not exist
@@ -161,7 +164,8 @@ func manifestExists(manifestPath string) bool {
 	return true
 }
 
-func readManifest(manifestPath string) (manifest estafetteManifest, err error) {
+// ReadManifestFromFile reads the .estafette.yaml into an EstafetteManifest object
+func ReadManifestFromFile(manifestPath string) (manifest EstafetteManifest, err error) {
 
 	log.Info().Msgf("Reading %v file...", manifestPath)
 
@@ -174,6 +178,20 @@ func readManifest(manifestPath string) (manifest estafetteManifest, err error) {
 	}
 
 	log.Info().Msgf("Finished reading %v file successfully", manifestPath)
+
+	return
+}
+
+// ReadManifest reads the string representation of .estafette.yaml into an EstafetteManifest object
+func ReadManifest(manifestString string) (manifest EstafetteManifest, err error) {
+
+	log.Info().Msg("Reading manifest from string...")
+
+	if err := manifest.unmarshalYAML([]byte(manifestString)); err != nil {
+		return manifest, err
+	}
+
+	log.Info().Msg("Finished unmarshalling manifest from string successfully")
 
 	return
 }
