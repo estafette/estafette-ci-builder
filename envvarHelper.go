@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 	"time"
 	"unicode"
@@ -208,13 +209,22 @@ func (h *envvarHelperImpl) getEstafetteEnvvarName(key string) string {
 func (h *envvarHelperImpl) overrideEnvvars(envvarMaps ...map[string]string) (envvars map[string]string) {
 
 	envvars = make(map[string]string)
+	re := regexp.MustCompile(`^\$\{([a-zA-Z_-]{1,})\}$`)
+
 	for _, envvarMap := range envvarMaps {
 		if envvarMap != nil && len(envvarMap) > 0 {
 			for k, v := range envvarMap {
-				envvars[k] = v
+
+				matches := re.FindStringSubmatch(v)
+
+				if re.MatchString(v) && len(matches) == 2 {
+					envvars[k] = os.Getenv(re.FindStringSubmatch(v)[1])
+				} else {
+					envvars[k] = v
+				}
 			}
 		}
 	}
 
-	return
+	return envvars
 }
