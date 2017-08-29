@@ -14,7 +14,7 @@ pipelines:
       server == 'estafette'
 
   build:
-    image: golang:1.8.3-alpine3.6
+    image: golang:1.9.0-alpine3.6
     workDir: /go/src/github.com/estafette/${ESTAFETTE_LABEL_APP}
     commands:
     - apk --update add git
@@ -22,13 +22,13 @@ pipelines:
     - CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags "-X main.version=${ESTAFETTE_BUILD_VERSION} -X main.revision=${ESTAFETTE_GIT_REVISION} -X main.branch=${ESTAFETTE_GIT_BRANCH} -X main.buildDate=${ESTAFETTE_BUILD_DATETIME}" -o ./publish/${ESTAFETTE_LABEL_APP} .
 
   bake-estafette:
-    image: docker:17.06.0-ce
+    image: docker:17.06.1-ce
     commands:
     - cp Dockerfile ./publish
     - docker build -f ./publish/Dockerfile -t estafette/${ESTAFETTE_LABEL_APP}:${ESTAFETTE_BUILD_VERSION} ./publish
 
   push-to-docker-hub:
-    image: docker:17.06.0-ce
+    image: docker:17.06.1-ce
     commands:
     - docker login --username=${ESTAFETTE_DOCKER_HUB_USERNAME} --password="${ESTAFETTE_DOCKER_HUB_PASSWORD}"
     - docker push estafette/${ESTAFETTE_LABEL_APP}:${ESTAFETTE_BUILD_VERSION}
@@ -38,13 +38,13 @@ pipelines:
       server == 'gocd'
 
   bake-gocd-agent:
-    image: docker:17.06.0-ce
+    image: docker:17.06.1-ce
     commands:
     - cp Dockerfile.gocd ./publish
     - docker build -f ./publish/Dockerfile.gocd -t gcr.io/${ESTAFETTE_GCR_PROJECT}/${ESTAFETTE_LABEL_APP}:${ESTAFETTE_BUILD_VERSION} ./publish
 
   push-to-gcr-io:
-    image: docker:17.06.0-ce
+    image: docker:17.06.1-ce
     commands:
     - docker login --username=_json_key --password="$ESTAFETTE_GCR_PASSWORD" https://gcr.io
     - docker push gcr.io/${ESTAFETTE_GCR_PROJECT}/${ESTAFETTE_LABEL_APP}:${ESTAFETTE_BUILD_VERSION}
@@ -59,7 +59,7 @@ pipelines:
       server == 'estafette'
 
   slack-notify:
-    image: golang:1.8.3-alpine3.6
+    image: golang:1.9.0-alpine3.6
     commands:
     - apk --update add curl
     - 'curl -X POST --data-urlencode ''payload={"channel": "#build-status", "username": "estafette-ci-builder", "text": "Build ''${ESTAFETTE_BUILD_VERSION}'' for ''${ESTAFETTE_LABEL_APP}'' has failed!"}'' ${ESTAFETTE_SLACK_WEBHOOK}'

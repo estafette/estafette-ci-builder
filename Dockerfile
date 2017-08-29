@@ -1,4 +1,4 @@
-FROM docker:17.06.0-ce-dind
+FROM docker:17.06.1-ce-dind
 
 LABEL maintainer="estafette.io" \
       description="The estafette-ci-builder is the component that runs builds as defined in the .estafette.yaml manifest"
