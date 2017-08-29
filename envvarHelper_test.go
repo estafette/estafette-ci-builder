@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	manifest "github.com/estafette/estafette-ci-manifest"
-	logger "github.com/rs/zerolog/log"
+	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -117,7 +117,7 @@ func TestCollectEstafetteEnvvars(t *testing.T) {
 		// act
 		envvars := envvarHelper.collectEstafetteEnvvars(manifest)
 
-		logger.Debug().Interface("envvars", envvars).Msg("")
+		log.Debug().Interface("envvars", envvars).Msg("")
 		assert.Equal(t, 1, len(envvars))
 		_, exists := envvars["TESTPREFIX_LABEL_OWNING_TEAM"]
 		assert.True(t, exists)
