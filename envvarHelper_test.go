@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	manifest "github.com/estafette/estafette-ci-manifest"
-	"github.com/rs/zerolog/log"
+	logger "github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -46,6 +46,26 @@ func TestOverrideEnvvars(t *testing.T) {
 
 		assert.Equal(t, 1, len(envvars))
 		assert.Equal(t, "value2", envvars["ENVVAR1"])
+	})
+
+	t.Run("OverridesEnvarWithValueFromHost", func(t *testing.T) {
+		envvarHelper.unsetEstafetteEnvvars()
+
+		// err := os.Setenv("UNIT_TEST_KEY", "unitTestKey")
+
+		outerMap := map[string]string{
+			"ENVVAR1": "value1",
+		}
+		innerMap := map[string]string{
+			"UNIT_TEST_KEY": "${UNIT_TEST_KEY}",
+		}
+
+		// act
+		envvars := envvarHelper.overrideEnvvars(outerMap, innerMap)
+
+		assert.Equal(t, 2, len(envvars))
+		assert.Equal(t, "unitTestKey", envvars["UNIT_TEST_KEY"])
+
 	})
 }
 
@@ -97,7 +117,7 @@ func TestCollectEstafetteEnvvars(t *testing.T) {
 		// act
 		envvars := envvarHelper.collectEstafetteEnvvars(manifest)
 
-		log.Debug().Interface("envvars", envvars).Msg("")
+		logger.Debug().Interface("envvars", envvars).Msg("")
 		assert.Equal(t, 1, len(envvars))
 		_, exists := envvars["TESTPREFIX_LABEL_OWNING_TEAM"]
 		assert.True(t, exists)
