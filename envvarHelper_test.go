@@ -239,6 +239,16 @@ func TestDecryptSecret(t *testing.T) {
 
 		assert.Equal(t, "this is my secret", result)
 	})
+
+	t.Run("ReturnsUnencryptedValueIfMatchesEstafetteSecretWithDoubleEqualSign", func(t *testing.T) {
+
+		value := "estafette.secret(yOQOYnIJAS1tN5eQ.Xaao3tVnwszu3OJ4XqGO0NMw8Cw0c0V3qA==)"
+
+		// act
+		result := envvarHelper.decryptSecret(value)
+
+		assert.Equal(t, "estafette", result)
+	})
 }
 
 func TestDecryptSecrets(t *testing.T) {

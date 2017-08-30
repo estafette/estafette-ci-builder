@@ -229,7 +229,7 @@ func (h *envvarHelperImpl) overrideEnvvars(envvarMaps ...map[string]string) (env
 
 func (h *envvarHelperImpl) decryptSecret(encryptedValue string) (decryptedValue string) {
 
-	r, err := regexp.Compile("^estafette\\.secret\\(([a-zA-Z0-9._-]+)\\)$")
+	r, err := regexp.Compile("^estafette\\.secret\\(([a-zA-Z0-9.=_-]+)\\)$")
 	if err != nil {
 		log.Warn().Err(err).Msg("Failed compiling regexp")
 		return encryptedValue

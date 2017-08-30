@@ -165,8 +165,6 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 		}
 	}
 
-	log.Debug().Interface("dockerEnvVars", dockerEnvVars).Msg("Passing dockerEnvVars to container")
-
 	// define entrypoint
 	entrypoint := make([]string, 0)
 	entrypoint = append(entrypoint, p.Shell)
