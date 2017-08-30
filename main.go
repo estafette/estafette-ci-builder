@@ -5,6 +5,7 @@ import (
 	"os"
 	"runtime"
 
+	"github.com/alecthomas/kingpin"
 	manifest "github.com/estafette/estafette-ci-manifest"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -18,12 +19,18 @@ var (
 	revision  string
 	buildDate string
 	goVersion = runtime.Version()
+
+	secretDecryptionKey = kingpin.Flag("secret-decryption-key", "The AES-256 key used to decrypt secrets that have been encrypted with it.").String()
 )
 
 func main() {
 
+	// parse command line parameters
+	kingpin.Parse()
+
 	// bootstrap
-	envvarHelper := NewEnvvarHelper("ESTAFETTE_")
+	secretHelper := NewSecretHelper(*secretDecryptionKey)
+	envvarHelper := NewEnvvarHelper("ESTAFETTE_", secretHelper)
 	whenEvaluator := NewWhenEvaluator(envvarHelper)
 	dockerRunner := NewDockerRunner(envvarHelper)
 	pipelineRunner := NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner)

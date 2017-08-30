@@ -8,3 +8,4 @@ govendor fetch github.com/Knetic/govaluate@2.3.0
 govendor fetch github.com/rs/zerolog/log@v1.2.2
 govendor fetch github.com/estafette/estafette-ci-manifest@0.0.9
 govendor fetch github.com/sethgrid/pester
+govendor fetch github.com/alecthomas/kingpin@v2.2.5

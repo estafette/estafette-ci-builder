@@ -4,9 +4,12 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 	"time"
 	"unicode"
+
+	"github.com/rs/zerolog/log"
 
 	manifest "github.com/estafette/estafette-ci-manifest"
 )
@@ -27,16 +30,20 @@ type EnvvarHelper interface {
 	unsetEstafetteEnv(string) error
 	getEstafetteEnvvarName(string) string
 	overrideEnvvars(...map[string]string) map[string]string
+	decryptSecret(string) string
+	decryptSecrets(map[string]string) map[string]string
 }
 
 type envvarHelperImpl struct {
-	prefix string
+	prefix       string
+	secretHelper SecretHelper
 }
 
 // NewEnvvarHelper returns a new EnvvarHelper
-func NewEnvvarHelper(prefix string) EnvvarHelper {
+func NewEnvvarHelper(prefix string, secretHelper SecretHelper) EnvvarHelper {
 	return &envvarHelperImpl{
-		prefix: prefix,
+		prefix:       prefix,
+		secretHelper: secretHelper,
 	}
 }
 
@@ -214,6 +221,42 @@ func (h *envvarHelperImpl) overrideEnvvars(envvarMaps ...map[string]string) (env
 				envvars[k] = v
 			}
 		}
+	}
+
+	return
+}
+
+func (h *envvarHelperImpl) decryptSecret(encryptedValue string) (decryptedValue string) {
+
+	r, err := regexp.Compile("^estafette\\.secret\\(([a-zA-Z0-9._-]+)\\)$")
+	if err != nil {
+		log.Warn().Err(err).Msg("Failed compiling regexp")
+		return encryptedValue
+	}
+
+	matches := r.FindStringSubmatch(encryptedValue)
+	if matches == nil {
+		return encryptedValue
+	}
+
+	decryptedValue, err = h.secretHelper.Decrypt(matches[1])
+	if err != nil {
+		log.Warn().Err(err).Msg("Failed decrypting secret")
+		return encryptedValue
+	}
+
+	return
+}
+
+func (h *envvarHelperImpl) decryptSecrets(encryptedEnvvars map[string]string) (envvars map[string]string) {
+
+	if encryptedEnvvars == nil || len(encryptedEnvvars) == 0 {
+		return encryptedEnvvars
+	}
+
+	envvars = make(map[string]string)
+	for k, v := range encryptedEnvvars {
+		envvars[k] = h.decryptSecret(v)
 	}
 
 	return

@@ -10,7 +10,8 @@ import (
 )
 
 var (
-	envvarHelper = NewEnvvarHelper("TESTPREFIX_")
+	secretHelper = NewSecretHelper("SazbwMf3NZxVVbBqQHebPcXCqrVn3DDp")
+	envvarHelper = NewEnvvarHelper("TESTPREFIX_", secretHelper)
 )
 
 func TestOverrideEnvvars(t *testing.T) {
@@ -215,5 +216,26 @@ func TestGetEstafetteEnv(t *testing.T) {
 
 		assert.Equal(t, "${HOME}", result)
 
+	})
+}
+
+func TestDecryptSecret(t *testing.T) {
+
+	t.Run("ReturnsOriginalValueIfDoesNotMatchEstafetteSecret", func(t *testing.T) {
+
+		// act
+		result := envvarHelper.decryptSecret("not a secret")
+
+		assert.Equal(t, "not a secret", result)
+	})
+
+	t.Run("ReturnsUnencryptedValueIfMatchesEstafetteSecret", func(t *testing.T) {
+
+		value := "estafette.secret(deFTz5Bdjg6SUe29.oPIkXbze5G9PNEWS2-ZnArl8BCqHnx4MdTdxHg37th9u)"
+
+		// act
+		result := envvarHelper.decryptSecret(value)
+
+		assert.Equal(t, "this is my secret", result)
 	})
 }
