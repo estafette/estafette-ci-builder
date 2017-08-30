@@ -240,3 +240,32 @@ func TestDecryptSecret(t *testing.T) {
 		assert.Equal(t, "this is my secret", result)
 	})
 }
+
+func TestDecryptSecrets(t *testing.T) {
+
+	t.Run("ReturnsOriginalValueIfDoesNotMatchEstafetteSecret", func(t *testing.T) {
+
+		envvars := map[string]string{
+			"SOME_PLAIN_ENVVAR": "not a secret",
+		}
+
+		// act
+		result := envvarHelper.decryptSecrets(envvars)
+
+		assert.Equal(t, 1, len(result))
+		assert.Equal(t, "not a secret", result["SOME_PLAIN_ENVVAR"])
+	})
+
+	t.Run("ReturnsUnencryptedValueIfMatchesEstafetteSecret", func(t *testing.T) {
+
+		envvars := map[string]string{
+			"SOME_SECRET": "estafette.secret(deFTz5Bdjg6SUe29.oPIkXbze5G9PNEWS2-ZnArl8BCqHnx4MdTdxHg37th9u)",
+		}
+
+		// act
+		result := envvarHelper.decryptSecrets(envvars)
+
+		assert.Equal(t, 1, len(result))
+		assert.Equal(t, "this is my secret", result["SOME_SECRET"])
+	})
+}
