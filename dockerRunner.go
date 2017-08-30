@@ -154,6 +154,9 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 	// combine and override envvars
 	combinedEnvVars := dr.envvarHelper.overrideEnvvars(envvars, p.EnvVars, extensionEnvVars)
 
+	// decrypt secrets
+	combinedEnvVars = dr.envvarHelper.decryptSecrets(combinedEnvVars)
+
 	// define docker envvars
 	dockerEnvVars := make([]string, 0)
 	if combinedEnvVars != nil && len(combinedEnvVars) > 0 {
