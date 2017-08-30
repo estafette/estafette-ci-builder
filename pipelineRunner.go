@@ -163,8 +163,6 @@ func (pr *pipelineRunnerImpl) runPipelines(manifest manifest.EstafetteManifest, 
 			}
 
 			// set 'succeeded' build status
-			pr.envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
-			envvars[pr.envvarHelper.getEstafetteEnvvarName("ESTAFETTE_BUILD_STATUS")] = "succeeded"
 			r.Status = "SUCCEEDED"
 
 			result.PipelineResults = append(result.PipelineResults, r)
