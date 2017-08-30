@@ -29,8 +29,11 @@ pipelines:
 
   push-to-docker-hub:
     image: docker:17.06.1-ce
+    env:
+      DOCKER_HUB_USERNAME: estafette.secret(mhN5HP5qcUkpSp4m.s9UnvG027LhQjT-bvvyjYcLKtyd_-xY1Cw==)
+      DOCKER_HUB_PASSWORD: estafette.secret(_oi7CDX50U8qjQSS.U3dzq3cw3J-_-hODYbNtOEDWgeUGzgXk2J0T-WMOmkil56tg)
     commands:
-    - docker login --username=${ESTAFETTE_DOCKER_HUB_USERNAME} --password="${ESTAFETTE_DOCKER_HUB_PASSWORD}"
+    - docker login --username=${DOCKER_HUB_USERNAME} --password="${DOCKER_HUB_PASSWORD}"
     - docker push estafette/${ESTAFETTE_LABEL_APP}:${ESTAFETTE_BUILD_VERSION}
     when:
       status == 'succeeded' &&
