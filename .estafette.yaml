@@ -18,7 +18,7 @@ pipelines:
     workDir: /go/src/github.com/estafette/${ESTAFETTE_LABEL_APP}
     commands:
     - apk --update add git
-    - go test -v `go list ./... | grep -v /vendor/`
+    - go test `go list ./... | grep -v /vendor/`
     - CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags "-X main.version=${ESTAFETTE_BUILD_VERSION} -X main.revision=${ESTAFETTE_GIT_REVISION} -X main.branch=${ESTAFETTE_GIT_BRANCH} -X main.buildDate=${ESTAFETTE_BUILD_DATETIME}" -o ./publish/${ESTAFETTE_LABEL_APP} .
 
   bake-estafette:
@@ -60,6 +60,8 @@ pipelines:
 
   slack-notify:
     image: extensions/slack-build-status:dev
+    env:
+      ESTAFETTE_SLACK_WEBHOOK: estafette.secret(VQhyeydGURZSFLmh.zxAW1ZVhI7JqLgr9-K7_YuzSFWAasNFRIHAm9OXj2RK_Wa-FWXt9LCCJuD6K6jz_SYpbEhiBWcjd0VkD23AazyLmz3EsImi2C1AJ82ltxuMmN93rPZbdP3kT5vwa)
     name: ${ESTAFETTE_LABEL_APP}
     channels:
     - '#build-status'

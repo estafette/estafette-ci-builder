@@ -4,13 +4,14 @@ import (
 	"os"
 	"testing"
 
+	crypt "github.com/estafette/estafette-ci-crypt"
 	manifest "github.com/estafette/estafette-ci-manifest"
 	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/assert"
 )
 
 var (
-	secretHelper = NewSecretHelper("SazbwMf3NZxVVbBqQHebPcXCqrVn3DDp")
+	secretHelper = crypt.NewSecretHelper("SazbwMf3NZxVVbBqQHebPcXCqrVn3DDp")
 	envvarHelper = NewEnvvarHelper("TESTPREFIX_", secretHelper)
 )
 

@@ -11,6 +11,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 
+	crypt "github.com/estafette/estafette-ci-crypt"
 	manifest "github.com/estafette/estafette-ci-manifest"
 )
 
@@ -36,11 +37,11 @@ type EnvvarHelper interface {
 
 type envvarHelperImpl struct {
 	prefix       string
-	secretHelper SecretHelper
+	secretHelper crypt.SecretHelper
 }
 
 // NewEnvvarHelper returns a new EnvvarHelper
-func NewEnvvarHelper(prefix string, secretHelper SecretHelper) EnvvarHelper {
+func NewEnvvarHelper(prefix string, secretHelper crypt.SecretHelper) EnvvarHelper {
 	return &envvarHelperImpl{
 		prefix:       prefix,
 		secretHelper: secretHelper,

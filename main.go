@@ -6,6 +6,7 @@ import (
 	"runtime"
 
 	"github.com/alecthomas/kingpin"
+	crypt "github.com/estafette/estafette-ci-crypt"
 	manifest "github.com/estafette/estafette-ci-manifest"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -29,7 +30,7 @@ func main() {
 	kingpin.Parse()
 
 	// bootstrap
-	secretHelper := NewSecretHelper(*secretDecryptionKey)
+	secretHelper := crypt.NewSecretHelper(*secretDecryptionKey)
 	envvarHelper := NewEnvvarHelper("ESTAFETTE_", secretHelper)
 	whenEvaluator := NewWhenEvaluator(envvarHelper)
 	dockerRunner := NewDockerRunner(envvarHelper)

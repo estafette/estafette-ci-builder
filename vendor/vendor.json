@@ -1135,6 +1135,14 @@
 			"revision": ""
 		},
 		{
+			"checksumSHA1": "xvOp8OtxYQ680o4cmTXKzB6HFVA=",
+			"path": "github.com/estafette/estafette-ci-crypt",
+			"revision": "915882683c8f2f515866cbeeca996f0d2271bc2c",
+			"revisionTime": "2017-08-30T13:11:41Z",
+			"version": "0.0.1",
+			"versionExact": "0.0.1"
+		},
+		{
 			"checksumSHA1": "kwFtcZhC1bvP8pvdjrR4RlJdAO0=",
 			"path": "github.com/estafette/estafette-ci-manifest",
 			"revision": "88de982af0fe6faae7b73ec3ce9ec20699ad022d",
