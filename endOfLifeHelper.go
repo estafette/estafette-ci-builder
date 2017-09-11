@@ -39,6 +39,7 @@ func (elh *endOfLifeHelperImpl) handleFatal(err error, message string) {
 		os.Exit(1)
 	}
 
+	elh.sendBuildJobLogEvent()
 	elh.sendBuildFinishedEvent("builder:failed")
 	log.Error().Err(err).Msg(message)
 	os.Exit(0)
