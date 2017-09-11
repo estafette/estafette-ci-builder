@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"runtime"
 
@@ -102,8 +103,16 @@ func main() {
 			builderTrack = "stable"
 		}
 
+		// log to file and stdout
+		logFile, err := os.OpenFile("log.txt", os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
+		if err != nil {
+			log.Fatal().Err(err).Msg("Failed to create log file log.txt")
+		}
+		defer logFile.Close()
+		multiLogWriter := io.MultiWriter(os.Stdout, logFile)
+
 		// set some default fields added to all logs
-		log.Logger = zerolog.New(os.Stdout).With().
+		log.Logger = zerolog.New(multiLogWriter).With().
 			Timestamp().
 			Str("app", "estafette-ci-builder").
 			Str("version", version).
@@ -125,7 +134,7 @@ func main() {
 			Msg("Starting estafette-ci-builder...")
 
 		// start docker daemon
-		err := dockerRunner.startDockerDaemon()
+		err = dockerRunner.startDockerDaemon()
 		if err != nil {
 			endOfLifeHelper.handleFatal(err, "Error starting docker daemon")
 		}
@@ -191,6 +200,7 @@ func main() {
 
 		// send result to ci-api
 		log.Info().Interface("result", result).Msg("Finished running pipelines")
+		endOfLifeHelper.sendBuildJobLogEvent()
 		endOfLifeHelper.sendBuildFinishedEvent("builder:succeeded")
 		os.Exit(0)
 	}
