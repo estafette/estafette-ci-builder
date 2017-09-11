@@ -52,7 +52,7 @@ func (elh *endOfLifeHelperImpl) sendBuildJobLogEvent() {
 
 	if ciServerBuilderEventsURL != "" && ciAPIKey != "" && jobName != "" {
 
-		logText, err := ioutil.ReadFile("log.txt")
+		logText, err := ioutil.ReadFile("/log.txt")
 		if err != nil {
 			log.Error().Err(err).Msgf("Failed reading log.txt job %v", jobName)
 			return
