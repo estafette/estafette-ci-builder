@@ -43,7 +43,7 @@ func NewDockerRunner(envvarHelper EnvvarHelper) DockerRunner {
 
 func (dr *dockerRunnerImpl) isDockerImagePulled(p manifest.EstafettePipeline) bool {
 
-	log.Info().Msgf("Checking if docker image '%v' exists locally...", p.ContainerImage)
+	log.Info().Msgf("[%v] Checking if docker image '%v' exists locally...", p.Name, p.ContainerImage)
 
 	cli, err := client.NewEnvClient()
 	if err != nil {
@@ -63,7 +63,7 @@ func (dr *dockerRunnerImpl) isDockerImagePulled(p manifest.EstafettePipeline) bo
 
 func (dr *dockerRunnerImpl) runDockerPull(p manifest.EstafettePipeline) (err error) {
 
-	log.Info().Msgf("Pulling docker image '%v'", p.ContainerImage)
+	log.Info().Msgf("[%v] Pulling docker image '%v'", p.Name, p.ContainerImage)
 
 	cli, err := client.NewEnvClient()
 	if err != nil {

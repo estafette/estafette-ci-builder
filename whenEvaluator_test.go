@@ -18,7 +18,7 @@ func TestWhenEvaluator(t *testing.T) {
 		envvarHelper.unsetEstafetteEnvvars()
 
 		// act
-		result, err := whenEvaluator.evaluate("", make(map[string]interface{}, 0))
+		result, err := whenEvaluator.evaluate("name", "", make(map[string]interface{}, 0))
 
 		assert.NotNil(t, err)
 		assert.False(t, result)
@@ -29,7 +29,7 @@ func TestWhenEvaluator(t *testing.T) {
 		envvarHelper.unsetEstafetteEnvvars()
 
 		// act
-		result, _ := whenEvaluator.evaluate("3 > 2", make(map[string]interface{}, 0))
+		result, _ := whenEvaluator.evaluate("name", "3 > 2", make(map[string]interface{}, 0))
 
 		assert.True(t, result)
 	})
@@ -43,7 +43,7 @@ func TestWhenEvaluator(t *testing.T) {
 		parameters["status"] = "succeeded"
 
 		// act
-		result, _ := whenEvaluator.evaluate("status == 'succeeded' && branch == 'master'", parameters)
+		result, _ := whenEvaluator.evaluate("name", "status == 'succeeded' && branch == 'master'", parameters)
 
 		assert.True(t, result)
 	})
@@ -57,7 +57,7 @@ func TestWhenEvaluator(t *testing.T) {
 		parameters["status"] = "succeeded"
 
 		// act
-		result, _ := whenEvaluator.evaluate("status == 'succeeded' && branch == 'master'", parameters)
+		result, _ := whenEvaluator.evaluate("name", "status == 'succeeded' && branch == 'master'", parameters)
 
 		assert.True(t, result)
 	})

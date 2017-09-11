@@ -9,7 +9,7 @@ import (
 
 // WhenEvaluator evaluates when clauses from the manifest
 type WhenEvaluator interface {
-	evaluate(string, map[string]interface{}) (bool, error)
+	evaluate(string, string, map[string]interface{}) (bool, error)
 	getParameters() map[string]interface{}
 }
 
@@ -24,19 +24,19 @@ func NewWhenEvaluator(envvarHelper EnvvarHelper) WhenEvaluator {
 	}
 }
 
-func (we *whenEvaluatorImpl) evaluate(input string, parameters map[string]interface{}) (result bool, err error) {
+func (we *whenEvaluatorImpl) evaluate(pipelineName, input string, parameters map[string]interface{}) (result bool, err error) {
 
 	if input == "" {
 		return false, errors.New("When expression is empty")
 	}
 
-	log.Info().Msgf("Evaluating when expression \"%v\" with parameters \"%v\"", input, parameters)
+	log.Info().Msgf("[%v] Evaluating when expression \"%v\" with parameters \"%v\"", pipelineName, input, parameters)
 
 	expression, err := govaluate.NewEvaluableExpression(input)
 
 	r, err := expression.Evaluate(parameters)
 
-	log.Info().Msgf("Result of when expression \"%v\" is \"%v\"", input, r)
+	log.Info().Msgf("[%v] Result of when expression \"%v\" is \"%v\"", pipelineName, input, r)
 
 	if result, ok := r.(bool); ok {
 		return result, err

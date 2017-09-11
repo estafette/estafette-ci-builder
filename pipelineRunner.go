@@ -70,7 +70,7 @@ func (pr *pipelineRunnerImpl) runPipeline(dir string, envvars map[string]string,
 
 	result.Pipeline = p
 
-	log.Info().Msgf("Starting pipeline '%v'", p.Name)
+	log.Info().Msgf("[%v] Starting pipeline '%v'", p.Name, p.Name)
 
 	result.IsDockerImagePulled = pr.dockerRunner.isDockerImagePulled(p)
 
@@ -101,7 +101,7 @@ func (pr *pipelineRunnerImpl) runPipeline(dir string, envvars map[string]string,
 		return result, result.DockerRunError
 	}
 
-	log.Info().Msgf("Finished pipeline '%v' successfully", p.Name)
+	log.Info().Msgf("[%v] Finished pipeline '%v' successfully", p.Name, p.Name)
 
 	return
 }
@@ -140,7 +140,7 @@ func (pr *pipelineRunnerImpl) runPipelines(manifest manifest.EstafetteManifest, 
 
 	for _, p := range manifest.Pipelines {
 
-		whenEvaluationResult, err := pr.whenEvaluator.evaluate(p.When, pr.whenEvaluator.getParameters())
+		whenEvaluationResult, err := pr.whenEvaluator.evaluate(p.Name, p.When, pr.whenEvaluator.getParameters())
 		if err != nil {
 			return result, err
 		}
