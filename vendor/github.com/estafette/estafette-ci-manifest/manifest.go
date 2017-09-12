@@ -64,7 +64,7 @@ func (v *EstafetteSemverVersion) Version(params EstafetteVersionParams) string {
 	patch := parseTemplate(v.Patch, params.GetFuncMap())
 
 	label := ""
-	if params.branch != v.ReleaseBranch {
+	if params.Branch != v.ReleaseBranch {
 		label = fmt.Sprintf("-%v", parseTemplate(v.LabelTemplate, params.GetFuncMap()))
 	}
 
@@ -73,18 +73,18 @@ func (v *EstafetteSemverVersion) Version(params EstafetteVersionParams) string {
 
 // EstafetteVersionParams contains parameters used to generate a version number
 type EstafetteVersionParams struct {
-	auto     int
-	branch   string
-	revision string
+	AutoIncrement int
+	Branch        string
+	Revision      string
 }
 
 // GetFuncMap returns EstafetteVersionParams as a function map for use in templating
 func (p *EstafetteVersionParams) GetFuncMap() template.FuncMap {
 
 	return template.FuncMap{
-		"auto":     func() string { return fmt.Sprint(p.auto) },
-		"branch":   func() string { return p.branch },
-		"revision": func() string { return p.revision },
+		"auto":     func() string { return fmt.Sprint(p.AutoIncrement) },
+		"branch":   func() string { return p.Branch },
+		"revision": func() string { return p.Revision },
 	}
 }
 
