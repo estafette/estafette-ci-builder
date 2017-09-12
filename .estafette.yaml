@@ -51,18 +51,18 @@ pipelines:
   bake-gocd-agent:
     image: docker:17.06.1-ce
     env:
-      ESTAFETTE_GCR_PROJECT: estafette.secret(3tHZ9bT_wEz5K8Cx.kZyD5m8L-7-zpvzZ4bkeyUdKLiGfRx_ttoY=)
+      GCR_PROJECT: estafette.secret(3tHZ9bT_wEz5K8Cx.kZyD5m8L-7-zpvzZ4bkeyUdKLiGfRx_ttoY=)
     commands:
     - cp Dockerfile.gocd ./publish
-    - docker build -f ./publish/Dockerfile.gocd -t gcr.io/${ESTAFETTE_GCR_PROJECT}/${ESTAFETTE_LABEL_APP}:${ESTAFETTE_BUILD_VERSION} ./publish
+    - docker build -f ./publish/Dockerfile.gocd -t gcr.io/${GCR_PROJECT}/${ESTAFETTE_LABEL_APP}:${ESTAFETTE_BUILD_VERSION} ./publish
 
   push-to-gcr-io:
     image: docker:17.06.1-ce
     env:
-      ESTAFETTE_GCR_PROJECT: estafette.secret(3tHZ9bT_wEz5K8Cx.kZyD5m8L-7-zpvzZ4bkeyUdKLiGfRx_ttoY=)
+      GCR_PROJECT: estafette.secret(3tHZ9bT_wEz5K8Cx.kZyD5m8L-7-zpvzZ4bkeyUdKLiGfRx_ttoY=)
     commands:
     - docker login --username=_json_key --password="$ESTAFETTE_GCR_PASSWORD" https://gcr.io
-    - docker push gcr.io/${ESTAFETTE_GCR_PROJECT}/${ESTAFETTE_LABEL_APP}:${ESTAFETTE_BUILD_VERSION}
+    - docker push gcr.io/${GCR_PROJECT}/${ESTAFETTE_LABEL_APP}:${ESTAFETTE_BUILD_VERSION}
     when:
       status == 'succeeded' &&
       branch == 'master' &&
