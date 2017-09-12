@@ -1,6 +1,9 @@
 package manifest
 
 import (
+	"bytes"
+	"fmt"
+	"html/template"
 	"io/ioutil"
 	"os"
 	"reflect"
@@ -14,8 +17,75 @@ import (
 // EstafetteManifest is the object that the .estafette.yaml deserializes to
 type EstafetteManifest struct {
 	Builder   EstafetteBuilder     `yaml:"builder,omitempty"`
+	Version   EstafetteVersion     `yaml:"version,omitempty"`
 	Labels    map[string]string    `yaml:"labels,omitempty"`
 	Pipelines []*EstafettePipeline `yaml:"dummy,omitempty"`
+}
+
+// EstafetteVersion is the object that determines how version numbers are generated
+type EstafetteVersion struct {
+	SemVer *EstafetteSemverVersion `yaml:"semver,omitempty"`
+	Custom *EstafetteCustomVersion `yaml:"custom,omitempty"`
+}
+
+// Version returns the version number as a string
+func (v *EstafetteVersion) Version(params EstafetteVersionParams) string {
+	if v.Custom != nil {
+		return v.Custom.Version(params)
+	}
+	if v.SemVer != nil {
+		return v.SemVer.Version(params)
+	}
+	return ""
+}
+
+// EstafetteCustomVersion represents a custom version using a template
+type EstafetteCustomVersion struct {
+	LabelTemplate string `yaml:"labelTemplate,omitempty"`
+}
+
+// Version returns the version number as a string
+func (v *EstafetteCustomVersion) Version(params EstafetteVersionParams) string {
+	return parseTemplate(v.LabelTemplate, params.GetFuncMap())
+}
+
+// EstafetteSemverVersion represents semantic versioning (http://semver.org/)
+type EstafetteSemverVersion struct {
+	Major         int    `yaml:"major,omitempty"`
+	Minor         int    `yaml:"minor,omitempty"`
+	Patch         string `yaml:"patch,omitempty"`
+	LabelTemplate string `yaml:"labelTemplate,omitempty"`
+	ReleaseBranch string `yaml:"releaseBranch,omitempty"`
+}
+
+// Version returns the version number as a string
+func (v *EstafetteSemverVersion) Version(params EstafetteVersionParams) string {
+
+	patch := parseTemplate(v.Patch, params.GetFuncMap())
+
+	label := ""
+	if params.branch != v.ReleaseBranch {
+		label = fmt.Sprintf("-%v", parseTemplate(v.LabelTemplate, params.GetFuncMap()))
+	}
+
+	return fmt.Sprintf("%v.%v.%v%v", v.Major, v.Minor, patch, label)
+}
+
+// EstafetteVersionParams contains parameters used to generate a version number
+type EstafetteVersionParams struct {
+	auto     int
+	branch   string
+	revision string
+}
+
+// GetFuncMap returns EstafetteVersionParams as a function map for use in templating
+func (p *EstafetteVersionParams) GetFuncMap() template.FuncMap {
+
+	return template.FuncMap{
+		"auto":     func() string { return fmt.Sprint(p.auto) },
+		"branch":   func() string { return p.branch },
+		"revision": func() string { return p.revision },
+	}
 }
 
 // EstafettePipeline is the object that parts of the .estafette.yaml deserialize to
@@ -47,6 +117,32 @@ func (c *EstafetteManifest) unmarshalYAML(data []byte) error {
 	// set default for Builder.Track if not set
 	if c.Builder.Track == "" {
 		c.Builder.Track = "stable"
+	}
+
+	// set default version if no version is included
+	if c.Version.Custom == nil && c.Version.SemVer == nil {
+		c.Version.Custom = &EstafetteCustomVersion{
+			LabelTemplate: "{{revision}}",
+		}
+	}
+	// if version is custom set defaults
+	if c.Version.Custom != nil {
+		if c.Version.Custom.LabelTemplate == "" {
+			c.Version.Custom.LabelTemplate = "{{revision}}"
+		}
+	}
+
+	// if version is semver set defaults
+	if c.Version.SemVer != nil {
+		if c.Version.SemVer.Patch == "" {
+			c.Version.SemVer.Patch = "{{auto}}"
+		}
+		if c.Version.SemVer.LabelTemplate == "" {
+			c.Version.SemVer.LabelTemplate = "{{branch}}"
+		}
+		if c.Version.SemVer.ReleaseBranch == "" {
+			c.Version.SemVer.ReleaseBranch = "master"
+		}
 	}
 
 	// create list of reserved property names
@@ -203,4 +299,19 @@ func ReadManifest(manifestString string) (manifest EstafetteManifest, err error)
 	log.Info().Msg("Finished unmarshalling manifest from string successfully")
 
 	return
+}
+
+func parseTemplate(templateText string, funcMap template.FuncMap) string {
+	tmpl, err := template.New("version").Funcs(funcMap).Parse(templateText)
+	if err != nil {
+		return err.Error()
+	}
+
+	buf := new(bytes.Buffer)
+	err = tmpl.Execute(buf, nil)
+	if err != nil {
+		return err.Error()
+	}
+
+	return buf.String()
 }
