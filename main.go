@@ -167,6 +167,8 @@ func main() {
 			},
 		}
 
+		log.Info().Msgf("Starting build version %v...", envvarHelper.getEstafetteEnv("ESTAFETTE_BUILD_VERSION"))
+
 		// collect estafette envvars and run the git clone step
 		envvars := envvarHelper.collectEstafetteEnvvars(estafetteGitCloneManifest)
 		gitCloneResult, err := pipelineRunner.runPipelines(estafetteGitCloneManifest, dir, envvars)

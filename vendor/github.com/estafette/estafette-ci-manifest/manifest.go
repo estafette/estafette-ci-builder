@@ -121,9 +121,7 @@ func (c *EstafetteManifest) unmarshalYAML(data []byte) error {
 
 	// set default version if no version is included
 	if c.Version.Custom == nil && c.Version.SemVer == nil {
-		c.Version.Custom = &EstafetteCustomVersion{
-			LabelTemplate: "{{revision}}",
-		}
+		c.Version.SemVer = &EstafetteSemverVersion{}
 	}
 	// if version is custom set defaults
 	if c.Version.Custom != nil {
