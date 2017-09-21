@@ -248,7 +248,7 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 		}
 
 		if logType == "stderr" {
-			log.Warn().Msgf("[%v] %v", p.Name, logLine)
+			log.Info().Msgf("[%v] %v", p.Name, logLine)
 		} else {
 			log.Info().Msgf("[%v] %v", p.Name, logLine)
 		}
