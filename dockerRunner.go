@@ -264,7 +264,7 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 		return err
 	}
 
-	if exitCode > 0 {
+	if exitCode != 0 {
 		return fmt.Errorf("Failed with exit code: %v", exitCode)
 	}
 
