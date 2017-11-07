@@ -279,3 +279,45 @@ func TestDecryptSecrets(t *testing.T) {
 		assert.Equal(t, "this is my secret", result["SOME_SECRET"])
 	})
 }
+
+func TestInterpolateEnvVars(t *testing.T) {
+	t.Run("HandlesNilCollection", func(t *testing.T) {
+		result := envvarHelper.interpolateEnvVars(nil, make([]string, 0))
+		assert.Nil(t, result)
+	})
+
+	t.Run("HandlesNilENvVars", func(t *testing.T) {
+		result := envvarHelper.interpolateEnvVars(make(map[string]string), nil)
+		assert.Nil(t, result)
+	})
+
+	t.Run("HandlesNormalStringAndDoesNotReplaceIt", func(t *testing.T) {
+		envVars := []string{"A=replacedAValue"}
+		collectedStrings := make(map[string]string)
+		collectedStrings["VAR_A"] = "normalAValue"
+
+		result := envvarHelper.interpolateEnvVars(collectedStrings, envVars)
+		assert.Nil(t, result)
+		assert.Equal(t, "normalAValue", collectedStrings["VAR_A"])
+	})
+
+	t.Run("HandlesPosixReplacement", func(t *testing.T) {
+		envVars := []string{"A=replacedAValue"}
+		collectedStrings := make(map[string]string)
+		collectedStrings["VAR_A"] = "This is ${A}"
+
+		result := envvarHelper.interpolateEnvVars(collectedStrings, envVars)
+		assert.Nil(t, result)
+		assert.Equal(t, "This is replacedAValue", collectedStrings["VAR_A"])
+	})
+
+	t.Run("HandlesReplacementWithDefaultValue", func(t *testing.T) {
+		envVars := []string{}
+		collectedStrings := make(map[string]string)
+		collectedStrings["VAR_A"] = "This is ${A-replacedValue}"
+
+		result := envvarHelper.interpolateEnvVars(collectedStrings, envVars)
+		assert.Nil(t, result)
+		assert.Equal(t, "This is replacedValue", collectedStrings["VAR_A"])
+	})
+}
