@@ -320,4 +320,54 @@ func TestInterpolateEnvVars(t *testing.T) {
 		assert.Nil(t, result)
 		assert.Equal(t, "This is replacedValue", collectedStrings["VAR_A"])
 	})
+
+	t.Run("HandlesBrokenValuesMissingEndTag", func(t *testing.T) {
+		envVars := []string{}
+		collectedStrings := make(map[string]string)
+		collectedStrings["VAR_A"] = "This is ${A-replacedValue"
+
+		result := envvarHelper.interpolateEnvVars(collectedStrings, envVars)
+		assert.Nil(t, result)
+		assert.Equal(t, "This is ${A-replacedValue", collectedStrings["VAR_A"])
+	})
+
+	t.Run("HandlesBrokenValuesMissingStartTag", func(t *testing.T) {
+		envVars := []string{}
+		collectedStrings := make(map[string]string)
+		collectedStrings["VAR_A"] = "This is $A-replacedValue}"
+
+		result := envvarHelper.interpolateEnvVars(collectedStrings, envVars)
+		assert.Nil(t, result)
+		assert.Equal(t, "This is -replacedValue}", collectedStrings["VAR_A"])
+	})
+
+	t.Run("HandlesSingleValue", func(t *testing.T) {
+		envVars := []string{"VARA=valueA"}
+		collectedStrings := make(map[string]string)
+		collectedStrings["VAR_A"] = "$VARA"
+
+		result := envvarHelper.interpolateEnvVars(collectedStrings, envVars)
+		assert.Nil(t, result)
+		assert.Equal(t, "valueA", collectedStrings["VAR_A"])
+	})
+
+	t.Run("HandlesEnvVarsWithNewlines", func(t *testing.T) {
+		envVars := []string{"VARA=valueA\nvalueB"}
+		collectedStrings := make(map[string]string)
+		collectedStrings["VAR_A"] = "$VARA"
+
+		result := envvarHelper.interpolateEnvVars(collectedStrings, envVars)
+		assert.Nil(t, result)
+		assert.Equal(t, "valueA\nvalueB", collectedStrings["VAR_A"])
+	})
+
+	t.Run("IgnoresSecrets", func(t *testing.T) {
+		envVars := []string{"VARA=valueA\nvalueB"}
+		collectedStrings := make(map[string]string)
+		collectedStrings["VAR_A"] = "estafette.secret(IXFQ9igip3IH0KVY.N6RTT4RB9dz15UGKHQUBctAf5QNI8G8QYg==)"
+
+		result := envvarHelper.interpolateEnvVars(collectedStrings, envVars)
+		assert.Nil(t, result)
+		assert.Equal(t, "estafette.secret(IXFQ9igip3IH0KVY.N6RTT4RB9dz15UGKHQUBctAf5QNI8G8QYg==)", collectedStrings["VAR_A"])
+	})
 }
