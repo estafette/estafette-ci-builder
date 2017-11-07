@@ -267,12 +267,6 @@
 			"revision": ""
 		},
 		{
-			"checksumSHA1": "o/Qk5Ao4DLD8aJf5CtljBg+/nYU=",
-			"path": "github.com/buildkite/interpolate",
-			"revision": "df9b4a42c0e1de4ad1481e91b4839b0292269af7",
-			"revisionTime": "2017-11-07T02:45:39Z"
-		},
-		{
 			"path": "github.com/cloudflare/cfssl/api",
 			"revision": ""
 		},
@@ -2116,5 +2110,5 @@
 			"revisionTime": "2017-08-12T16:00:11Z"
 		}
 	],
-	"rootPath": "github.com/estafette/estafette-ci-builder"
+	"rootPath": "github.com/jvantillo/estafette-ci-builder"
 }

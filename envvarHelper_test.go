@@ -281,8 +281,14 @@ func TestDecryptSecrets(t *testing.T) {
 }
 
 func TestInterpolateEnvVars(t *testing.T) {
+	getLookupFunc := func(envvars map[string]string) func(string) string {
+		return func(key string) string {
+			return envvars[key]
+		}
+	}
+
 	t.Run("HandlesNilCollection", func(t *testing.T) {
-		result := envvarHelper.interpolateEnvVars(nil, make([]string, 0))
+		result := envvarHelper.interpolateEnvVars(nil, getLookupFunc(make(map[string]string)))
 		assert.Nil(t, result)
 	})
 
@@ -292,81 +298,81 @@ func TestInterpolateEnvVars(t *testing.T) {
 	})
 
 	t.Run("HandlesNormalStringAndDoesNotReplaceIt", func(t *testing.T) {
-		envVars := []string{"A=replacedAValue"}
+		envVars := map[string]string{
+			"A": "replacedAValue",
+		}
 		collectedStrings := make(map[string]string)
 		collectedStrings["VAR_A"] = "normalAValue"
 
-		result := envvarHelper.interpolateEnvVars(collectedStrings, envVars)
+		result := envvarHelper.interpolateEnvVars(collectedStrings, getLookupFunc(envVars))
 		assert.Nil(t, result)
 		assert.Equal(t, "normalAValue", collectedStrings["VAR_A"])
 	})
 
 	t.Run("HandlesPosixReplacement", func(t *testing.T) {
-		envVars := []string{"A=replacedAValue"}
+		envVars := map[string]string{
+			"A": "replacedAValue",
+		}
 		collectedStrings := make(map[string]string)
 		collectedStrings["VAR_A"] = "This is ${A}"
 
-		result := envvarHelper.interpolateEnvVars(collectedStrings, envVars)
+		result := envvarHelper.interpolateEnvVars(collectedStrings, getLookupFunc(envVars))
 		assert.Nil(t, result)
 		assert.Equal(t, "This is replacedAValue", collectedStrings["VAR_A"])
 	})
 
-	t.Run("HandlesReplacementWithDefaultValue", func(t *testing.T) {
-		envVars := []string{}
-		collectedStrings := make(map[string]string)
-		collectedStrings["VAR_A"] = "This is ${A-replacedValue}"
-
-		result := envvarHelper.interpolateEnvVars(collectedStrings, envVars)
-		assert.Nil(t, result)
-		assert.Equal(t, "This is replacedValue", collectedStrings["VAR_A"])
-	})
-
 	t.Run("HandlesBrokenValuesMissingEndTag", func(t *testing.T) {
-		envVars := []string{}
+		envVars := map[string]string{}
 		collectedStrings := make(map[string]string)
 		collectedStrings["VAR_A"] = "This is ${A-replacedValue"
 
-		result := envvarHelper.interpolateEnvVars(collectedStrings, envVars)
+		result := envvarHelper.interpolateEnvVars(collectedStrings, getLookupFunc(envVars))
 		assert.Nil(t, result)
-		assert.Equal(t, "This is ${A-replacedValue", collectedStrings["VAR_A"])
+		assert.Equal(t, "This is A-replacedValue", collectedStrings["VAR_A"])
 	})
 
 	t.Run("HandlesBrokenValuesMissingStartTag", func(t *testing.T) {
-		envVars := []string{}
+		envVars := map[string]string{}
 		collectedStrings := make(map[string]string)
 		collectedStrings["VAR_A"] = "This is $A-replacedValue}"
 
-		result := envvarHelper.interpolateEnvVars(collectedStrings, envVars)
+		result := envvarHelper.interpolateEnvVars(collectedStrings, getLookupFunc(envVars))
 		assert.Nil(t, result)
 		assert.Equal(t, "This is -replacedValue}", collectedStrings["VAR_A"])
 	})
 
 	t.Run("HandlesSingleValue", func(t *testing.T) {
-		envVars := []string{"VARA=valueA"}
+		envVars := map[string]string{
+			"VARA": "valueA",
+		}
 		collectedStrings := make(map[string]string)
 		collectedStrings["VAR_A"] = "$VARA"
 
-		result := envvarHelper.interpolateEnvVars(collectedStrings, envVars)
+		result := envvarHelper.interpolateEnvVars(collectedStrings, getLookupFunc(envVars))
 		assert.Nil(t, result)
 		assert.Equal(t, "valueA", collectedStrings["VAR_A"])
 	})
 
 	t.Run("HandlesEnvVarsWithNewlines", func(t *testing.T) {
-		envVars := []string{"VARA=valueA\nvalueB"}
+		envVars := map[string]string{
+			"VARA": "valueA\nvalueB",
+		}
 		collectedStrings := make(map[string]string)
 		collectedStrings["VAR_A"] = "$VARA"
 
-		result := envvarHelper.interpolateEnvVars(collectedStrings, envVars)
+		result := envvarHelper.interpolateEnvVars(collectedStrings, getLookupFunc(envVars))
 		assert.Nil(t, result)
 		assert.Equal(t, "valueA\nvalueB", collectedStrings["VAR_A"])
 	})
 
 	t.Run("IgnoresSecrets", func(t *testing.T) {
-		envVars := []string{"VARA=valueA\nvalueB"}
+		envVars := map[string]string{
+			"VARA": "valueA\nvalueB",
+		}
 		collectedStrings := make(map[string]string)
 		collectedStrings["VAR_A"] = "estafette.secret(IXFQ9igip3IH0KVY.N6RTT4RB9dz15UGKHQUBctAf5QNI8G8QYg==)"
 
-		result := envvarHelper.interpolateEnvVars(collectedStrings, envVars)
+		result := envvarHelper.interpolateEnvVars(collectedStrings, getLookupFunc(envVars))
 		assert.Nil(t, result)
 		assert.Equal(t, "estafette.secret(IXFQ9igip3IH0KVY.N6RTT4RB9dz15UGKHQUBctAf5QNI8G8QYg==)", collectedStrings["VAR_A"])
 	})

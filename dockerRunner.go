@@ -155,7 +155,7 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 	combinedEnvVars := dr.envvarHelper.overrideEnvvars(envvars, p.EnvVars, extensionEnvVars)
 
 	// Interpolate envvars
-	dr.envvarHelper.interpolateEnvVars(combinedEnvVars, os.Environ())
+	dr.envvarHelper.interpolateEnvVars(combinedEnvVars, os.Getenv)
 
 	// decrypt secrets
 	combinedEnvVars = dr.envvarHelper.decryptSecrets(combinedEnvVars)
