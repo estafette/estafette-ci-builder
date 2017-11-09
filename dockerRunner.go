@@ -151,7 +151,7 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 		}
 	}
 
-	// combine and override envvars
+	// combine and override estafette and global envvars with pipeline envvars
 	combinedEnvVars := dr.envvarHelper.overrideEnvvars(envvars, p.EnvVars, extensionEnvVars)
 
 	// decrypt secrets
