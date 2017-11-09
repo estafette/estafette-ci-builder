@@ -25,6 +25,7 @@ type EnvvarHelper interface {
 	initBuildDatetime() error
 	initBuildStatus() error
 	collectEstafetteEnvvars(manifest.EstafetteManifest) map[string]string
+	collectGlobalEnvvars(manifest.EstafetteManifest) map[string]string
 	unsetEstafetteEnvvars()
 	getEstafetteEnv(string) string
 	setEstafetteEnv(string, string) error
@@ -163,6 +164,17 @@ func (h *envvarHelperImpl) collectEstafetteEnvvars(m manifest.EstafetteManifest)
 				envvars[envvarName] = envvarValue
 			}
 		}
+	}
+
+	return
+}
+
+func (h *envvarHelperImpl) collectGlobalEnvvars(m manifest.EstafetteManifest) (envvars map[string]string) {
+
+	envvars = map[string]string{}
+
+	if m.GlobalEnvVars != nil {
+		envvars = m.GlobalEnvVars
 	}
 
 	return

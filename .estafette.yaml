@@ -22,7 +22,7 @@ pipelines:
       server == 'estafette'
 
   build:
-    image: golang:1.9.0-alpine3.6
+    image: golang:1.9.2-alpine3.6
     workDir: /go/src/github.com/estafette/${ESTAFETTE_LABEL_APP}
     commands:
     - apk --update add git
@@ -30,13 +30,13 @@ pipelines:
     - CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags "-X main.version=${ESTAFETTE_BUILD_VERSION} -X main.revision=${ESTAFETTE_GIT_REVISION} -X main.branch=${ESTAFETTE_GIT_BRANCH} -X main.buildDate=${ESTAFETTE_BUILD_DATETIME}" -o ./publish/${ESTAFETTE_LABEL_APP} .
 
   bake-estafette:
-    image: docker:17.06.1-ce
+    image: docker:17.09.0-ce
     commands:
     - cp Dockerfile ./publish
     - docker build -f ./publish/Dockerfile -t estafette/${ESTAFETTE_LABEL_APP}:${ESTAFETTE_BUILD_VERSION} ./publish
 
   push-to-docker-hub:
-    image: docker:17.06.1-ce
+    image: docker:17.09.0-ce
     env:
       DOCKER_HUB_USERNAME: estafette.secret(mhN5HP5qcUkpSp4m.s9UnvG027LhQjT-bvvyjYcLKtyd_-xY1Cw==)
       DOCKER_HUB_PASSWORD: estafette.secret(_oi7CDX50U8qjQSS.U3dzq3cw3J-_-hODYbNtOEDWgeUGzgXk2J0T-WMOmkil56tg)
@@ -49,7 +49,7 @@ pipelines:
       server == 'gocd'
 
   bake-gocd-agent:
-    image: docker:17.06.1-ce
+    image: docker:17.09.0-ce
     env:
       GCR_PROJECT: estafette.secret(3tHZ9bT_wEz5K8Cx.kZyD5m8L-7-zpvzZ4bkeyUdKLiGfRx_ttoY=)
     commands:
@@ -57,7 +57,7 @@ pipelines:
     - docker build -f ./publish/Dockerfile.gocd -t gcr.io/${GCR_PROJECT}/${ESTAFETTE_LABEL_APP}:${ESTAFETTE_BUILD_VERSION} ./publish
 
   push-to-gcr-io:
-    image: docker:17.06.1-ce
+    image: docker:17.09.0-ce
     env:
       GCR_PROJECT: estafette.secret(3tHZ9bT_wEz5K8Cx.kZyD5m8L-7-zpvzZ4bkeyUdKLiGfRx_ttoY=)
     commands:

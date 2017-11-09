@@ -78,7 +78,12 @@ func main() {
 			endOfLifeHelper.handleFatal(err, "Setting global environment variables failed")
 		}
 
-		envvars := envvarHelper.collectEstafetteEnvvars(manifest)
+		// collect estafette and 'global' envvars from manifest
+		estafetteEnvvars := envvarHelper.collectEstafetteEnvvars(manifest)
+		globalEnvvars := envvarHelper.collectGlobalEnvvars(manifest)
+
+		// merge estafette and global envvars
+		envvars := envvarHelper.overrideEnvvars(estafetteEnvvars, globalEnvvars)
 
 		result, err := pipelineRunner.runPipelines(manifest, dir, envvars)
 		if err != nil {

@@ -194,6 +194,33 @@ func TestCollectEstafetteEnvvars(t *testing.T) {
 	})
 }
 
+func TestCollectGlobalEnvvars(t *testing.T) {
+
+	t.Run("ReturnsEmptyMapIfManifestHasNoGlobalEnvvars", func(t *testing.T) {
+
+		envvarHelper.unsetEstafetteEnvvars()
+		manifest := manifest.EstafetteManifest{}
+
+		// act
+		envvars := envvarHelper.collectGlobalEnvvars(manifest)
+
+		assert.Equal(t, 0, len(envvars))
+	})
+
+	t.Run("ReturnsGlobalEnvvarsIfManifestHasGlobalEnvvars", func(t *testing.T) {
+
+		envvarHelper.unsetEstafetteEnvvars()
+		manifest := manifest.EstafetteManifest{GlobalEnvVars: map[string]string{"VAR_A": "Greetings", "VAR_B": "World"}}
+
+		// act
+		envvars := envvarHelper.collectGlobalEnvvars(manifest)
+
+		assert.Equal(t, 2, len(envvars))
+		assert.Equal(t, "Greetings", envvars["VAR_A"])
+		assert.Equal(t, "World", envvars["VAR_B"])
+	})
+}
+
 func TestGetEstafetteEnv(t *testing.T) {
 
 	t.Run("ReturnsEnvironmentVariableValueIfItStartsWithEstafetteUnderscore", func(t *testing.T) {
