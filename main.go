@@ -175,7 +175,9 @@ func main() {
 		log.Info().Msgf("Starting build version %v...", envvarHelper.getEstafetteEnv("ESTAFETTE_BUILD_VERSION"))
 
 		// collect estafette envvars and run the git clone step
-		envvars := envvarHelper.collectEstafetteEnvvars(estafetteGitCloneManifest)
+		estafetteEnvvars := envvarHelper.collectEstafetteEnvvars(estafetteGitCloneManifest)
+		globalEnvvars := envvarHelper.collectGlobalEnvvars(estafetteGitCloneManifest)
+		envvars := envvarHelper.overrideEnvvars(estafetteEnvvars, globalEnvvars)
 		gitCloneResult, err := pipelineRunner.runPipelines(estafetteGitCloneManifest, dir, envvars)
 		if err != nil {
 			endOfLifeHelper.handleFatal(err, "Executing git clone step failed")
@@ -196,7 +198,9 @@ func main() {
 
 		// collect estafette envvars and run pipelines from manifest
 		log.Info().Msgf("Running %v pipelines", len(manifest.Pipelines))
-		envvars = envvarHelper.collectEstafetteEnvvars(manifest)
+		estafetteEnvvars = envvarHelper.collectEstafetteEnvvars(manifest)
+		globalEnvvars = envvarHelper.collectGlobalEnvvars(manifest)
+		envvars = envvarHelper.overrideEnvvars(estafetteEnvvars, globalEnvvars)
 		result, err := pipelineRunner.runPipelines(manifest, dir, envvars)
 		if err != nil {
 			endOfLifeHelper.handleFatal(err, "Executing pipelines from manifest failed")
