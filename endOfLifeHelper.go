@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/rs/zerolog/log"
 	"github.com/sethgrid/pester"
@@ -40,7 +41,7 @@ func (elh *endOfLifeHelperImpl) handleFatal(err error, message string) {
 	}
 
 	elh.sendBuildJobLogEvent()
-	elh.sendBuildFinishedEvent("builder:failed")
+	elh.sendBuildFinishedEvent("failed")
 	log.Error().Err(err).Msg(message)
 	os.Exit(0)
 }
@@ -104,7 +105,7 @@ func (elh *endOfLifeHelperImpl) sendBuildJobLogEvent() {
 	}
 }
 
-func (elh *endOfLifeHelperImpl) sendBuildFinishedEvent(eventType string) {
+func (elh *endOfLifeHelperImpl) sendBuildFinishedEvent(buildStatus string) {
 
 	ciServerBuilderEventsURL := elh.envvarHelper.getEstafetteEnv("ESTAFETTE_CI_SERVER_BUILDER_EVENTS_URL")
 	ciAPIKey := elh.envvarHelper.getEstafetteEnv("ESTAFETTE_CI_API_KEY")
@@ -114,7 +115,14 @@ func (elh *endOfLifeHelperImpl) sendBuildFinishedEvent(eventType string) {
 		// convert EstafetteCiBuilderEvent to json
 		var requestBody io.Reader
 
-		ciBuilderEvent := EstafetteCiBuilderEvent{JobName: jobName}
+		ciBuilderEvent := EstafetteCiBuilderEvent{
+			JobName:      jobName,
+			RepoSource:   elh.envvarHelper.getEstafetteEnv("ESTAFETTE_GIT_SOURCE"),
+			RepoOwner:    strings.Split(elh.envvarHelper.getEstafetteEnv("ESTAFETTE_GIT_NAME"), "/")[0],
+			RepoName:     strings.Split(elh.envvarHelper.getEstafetteEnv("ESTAFETTE_GIT_NAME"), "/")[1],
+			RepoRevision: elh.envvarHelper.getEstafetteEnv("ESTAFETTE_GIT_REVISION"),
+			BuildStatus:  buildStatus,
+		}
 		data, err := json.Marshal(ciBuilderEvent)
 		if err != nil {
 			log.Error().Err(err).Msgf("Failed marshalling EstafetteCiBuilderEvent for job %v", jobName)
@@ -134,7 +142,7 @@ func (elh *endOfLifeHelperImpl) sendBuildFinishedEvent(eventType string) {
 		}
 
 		// add headers
-		request.Header.Add("X-Estafette-Event", eventType)
+		request.Header.Add("X-Estafette-Event", fmt.Sprintf("builder:%v", buildStatus))
 		request.Header.Add("Authorization", fmt.Sprintf("Bearer %v", ciAPIKey))
 
 		// perform actual request

@@ -186,7 +186,7 @@ func main() {
 		// check if manifest exists
 		if !manifest.Exists(".estafette.yaml") {
 			log.Info().Msg(".estafette.yaml file does not exist, exiting...")
-			endOfLifeHelper.sendBuildFinishedEvent("builder:nomanifest")
+			endOfLifeHelper.sendBuildFinishedEvent("nomanifest")
 			os.Exit(0)
 		}
 
@@ -212,7 +212,7 @@ func main() {
 		// send result to ci-api
 		log.Info().Interface("result", result).Msg("Finished running pipelines")
 		endOfLifeHelper.sendBuildJobLogEvent()
-		endOfLifeHelper.sendBuildFinishedEvent("builder:succeeded")
+		endOfLifeHelper.sendBuildFinishedEvent("succeeded")
 		os.Exit(0)
 	}
 }
