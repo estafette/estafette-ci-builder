@@ -151,3 +151,23 @@ pipelines:
     when:
       status == 'failed'
 ```
+
+## variable interpolation
+
+Assume you have exported an environment variable `YOUR_ENV_VAR=world`:
+
+```yaml
+labels:
+  app: <APP NAME>
+
+pipelines:
+  bake:
+    image: docker:17.04.0-ce
+    env:
+      VAR_A: "Hello"
+      VAR_B: ${YOUR_ENV_VAR}
+    commands:
+    - echo ${VAR_A} ${VAR_B}
+```
+
+Output: `Hello world`

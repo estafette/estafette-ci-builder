@@ -34,6 +34,7 @@ type EnvvarHelper interface {
 	overrideEnvvars(...map[string]string) map[string]string
 	decryptSecret(string) string
 	decryptSecrets(map[string]string) map[string]string
+	interpolateEnvVars(map[string]string, func(string) string) error
 }
 
 type envvarHelperImpl struct {
@@ -237,6 +238,18 @@ func (h *envvarHelperImpl) overrideEnvvars(envvarMaps ...map[string]string) (env
 	}
 
 	return
+}
+
+// interpolateEnvVars modifies a map of env vars to replace each value with its interpolated counterpart
+func (h *envvarHelperImpl) interpolateEnvVars(coll map[string]string, mapping func(string) string) error {
+	if coll == nil || mapping == nil {
+		return nil
+	}
+
+	for k, v := range coll {
+		coll[k] = os.Expand(v, mapping)
+	}
+	return nil
 }
 
 func (h *envvarHelperImpl) decryptSecret(encryptedValue string) (decryptedValue string) {
