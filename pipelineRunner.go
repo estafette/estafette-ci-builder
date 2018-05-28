@@ -37,7 +37,9 @@ type estafettePipelineRunResult struct {
 	DockerRunDuration   time.Duration
 	DockerRunError      error
 	OtherError          error
+	ExitCode            int64
 	Status              string
+	LogLines            []buildJobLogLine
 }
 
 // Errors combines the different type of errors that occurred during this pipeline step
@@ -95,7 +97,7 @@ func (pr *pipelineRunnerImpl) runPipeline(dir string, envvars map[string]string,
 
 	// run commands in docker container
 	dockerRunStart := time.Now()
-	result.DockerRunError = pr.dockerRunner.runDockerRun(dir, envvars, p)
+	result.LogLines, result.ExitCode, result.DockerRunError = pr.dockerRunner.runDockerRun(dir, envvars, p)
 	result.DockerRunDuration = time.Since(dockerRunStart)
 	if result.DockerRunError != nil {
 		return result, result.DockerRunError

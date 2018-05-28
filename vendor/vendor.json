@@ -1135,12 +1135,20 @@
 			"revision": ""
 		},
 		{
-			"checksumSHA1": "xvOp8OtxYQ680o4cmTXKzB6HFVA=",
+			"checksumSHA1": "iRK6yvU54NPey6BElpTWcwcdlG8=",
+			"path": "github.com/estafette/estafette-ci-contracts",
+			"revision": "30ed2403178d7dcb4e3ac218120621aeb8d2cf06",
+			"revisionTime": "2018-05-28T13:22:13Z",
+			"version": "0.0.6",
+			"versionExact": "0.0.6"
+		},
+		{
+			"checksumSHA1": "R054+alU1/88dhwUwqaNyxiTMRY=",
 			"path": "github.com/estafette/estafette-ci-crypt",
-			"revision": "915882683c8f2f515866cbeeca996f0d2271bc2c",
-			"revisionTime": "2017-08-30T13:11:41Z",
-			"version": "0.0.1",
-			"versionExact": "0.0.1"
+			"revision": "cb7bb0f87f7b4b4eb6ef2b1cd5c83396507ca362",
+			"revisionTime": "2018-05-25T10:24:12Z",
+			"version": "0.0.2",
+			"versionExact": "0.0.2"
 		},
 		{
 			"checksumSHA1": "O+UeFi9kekgTc854ud3+a+R/NoA=",

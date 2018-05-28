@@ -3,6 +3,9 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
+
+	"github.com/estafette/estafette-ci-contracts"
 
 	"github.com/olekukonko/tablewriter"
 )
@@ -88,4 +91,52 @@ func pathExists(path string) (bool, error) {
 		return false, nil
 	}
 	return true, err
+}
+
+func transformPipelineRunResultToBuildLogSteps(result estafetteRunPipelinesResult) (buildLogSteps []contracts.BuildLogStep) {
+
+	buildLogSteps = make([]contracts.BuildLogStep, 0)
+
+	for _, r := range result.PipelineResults {
+
+		containerImageArray := strings.Split(r.Pipeline.ContainerImage, ":")
+		containerImageName := containerImageArray[0]
+		containerImageTag := "latest"
+		if len(containerImageArray) > 1 {
+			containerImageTag = containerImageArray[1]
+		}
+
+		pullError := ""
+		if r.DockerPullError != nil {
+			pullError = r.DockerPullError.Error()
+		}
+
+		bls := contracts.BuildLogStep{
+			Step: r.Pipeline.Name,
+			Image: &contracts.BuildLogStepDockerImage{
+				Name:         containerImageName,
+				Tag:          containerImageTag,
+				IsPulled:     r.IsDockerImagePulled,
+				ImageSize:    r.DockerImageSize,
+				PullDuration: r.DockerPullDuration,
+				Error:        pullError,
+			},
+			Duration: r.DockerRunDuration,
+			LogLines: make([]contracts.BuildLogLine, 0),
+			ExitCode: r.ExitCode,
+			Status:   r.Status,
+		}
+
+		for _, l := range r.LogLines {
+			bls.LogLines = append(bls.LogLines, contracts.BuildLogLine{
+				Timestamp:  l.timestamp,
+				StreamType: l.logLevel,
+				Text:       l.logText,
+			})
+		}
+
+		buildLogSteps = append(buildLogSteps, bls)
+	}
+
+	return
 }

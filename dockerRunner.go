@@ -25,7 +25,7 @@ type DockerRunner interface {
 	isDockerImagePulled(manifest.EstafettePipeline) bool
 	runDockerPull(manifest.EstafettePipeline) error
 	getDockerImageSize(manifest.EstafettePipeline) (int64, error)
-	runDockerRun(string, map[string]string, manifest.EstafettePipeline) error
+	runDockerRun(string, map[string]string, manifest.EstafettePipeline) ([]buildJobLogLine, int64, error)
 	startDockerDaemon() error
 	waitForDockerDaemon()
 }
@@ -104,13 +104,16 @@ func (dr *dockerRunnerImpl) getDockerImageSize(p manifest.EstafettePipeline) (to
 	return totalSize, nil
 }
 
-func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, p manifest.EstafettePipeline) (err error) {
+func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, p manifest.EstafettePipeline) (logLines []buildJobLogLine, exitCode int64, err error) {
+
+	logLines = make([]buildJobLogLine, 0)
+	exitCode = -1
 
 	// run docker with image and commands from yaml
 	ctx := context.Background()
 	cli, err := client.NewEnvClient()
 	if err != nil {
-		return err
+		return
 	}
 
 	// define commands
@@ -204,12 +207,12 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 		Privileged: true,
 	}, &network.NetworkingConfig{}, "")
 	if err != nil {
-		return err
+		return
 	}
 
 	// start container
 	if err := cli.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{}); err != nil {
-		return err
+		return logLines, exitCode, err
 	}
 
 	// follow logs
@@ -220,7 +223,7 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 	})
 	defer rc.Close()
 	if err != nil {
-		return err
+		return
 	}
 
 	// stream logs to stdout with buffering
@@ -252,20 +255,26 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 		} else {
 			log.Info().Msgf("[%v] %v", p.Name, logLine)
 		}
+
+		logLines = append(logLines, buildJobLogLine{
+			timestamp: time.Now().UTC(),
+			logLevel:  logType,
+			logText:   logLine,
+		})
 	}
 	if err := in.Err(); err != nil {
 		log.Error().Msgf("[%v] Error: %v", p.Name, err)
-		return err
+		return logLines, exitCode, err
 	}
 
 	// wait for container to stop run
-	exitCode, err := cli.ContainerWait(ctx, resp.ID)
+	exitCode, err = cli.ContainerWait(ctx, resp.ID)
 	if err != nil {
-		return err
+		return
 	}
 
 	if exitCode != 0 {
-		return fmt.Errorf("Failed with exit code: %v", exitCode)
+		return logLines, exitCode, fmt.Errorf("Failed with exit code: %v", exitCode)
 	}
 
 	return

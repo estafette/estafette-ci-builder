@@ -1,5 +1,7 @@
 package main
 
+import "time"
+
 // EstafetteCiBuilderEvent represents a finished estafette build
 type EstafetteCiBuilderEvent struct {
 	JobName      string `json:"job_name"`
@@ -17,4 +19,10 @@ type BuildJobLogs struct {
 	RepoRevision string
 	RepoSource   string
 	LogText      string
+}
+
+type buildJobLogLine struct {
+	timestamp time.Time
+	logLevel  string
+	logText   string
 }

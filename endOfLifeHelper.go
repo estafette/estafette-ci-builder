@@ -10,15 +10,18 @@ import (
 	"os"
 	"strings"
 
+	"github.com/estafette/estafette-ci-contracts"
+
 	"github.com/rs/zerolog/log"
 	"github.com/sethgrid/pester"
 )
 
 // EndOfLifeHelper has methods to shutdown the runner after a fatal or successful run
 type EndOfLifeHelper interface {
-	handleFatal(error, string)
+	handleGocdFatal(error, string)
+	handleFatal(contracts.BuildLog, error, string)
 	sendBuildFinishedEvent(string)
-	sendBuildJobLogEvent()
+	sendBuildJobLogEvent(buildLog contracts.BuildLog)
 }
 
 type endOfLifeHelperImpl struct {
@@ -32,23 +35,24 @@ func NewEndOfLifeHelper(envvarHelper EnvvarHelper) EndOfLifeHelper {
 	}
 }
 
-func (elh *endOfLifeHelperImpl) handleFatal(err error, message string) {
+func (elh *endOfLifeHelperImpl) handleGocdFatal(err error, message string) {
 
-	ciServer := elh.envvarHelper.getEstafetteEnv("ESTAFETTE_CI_SERVER")
-	if ciServer == "gocd" {
-		log.Fatal().Err(err).Msg(message)
-		os.Exit(1)
-	}
+	log.Fatal().Err(err).Msg(message)
+	os.Exit(1)
+}
 
-	elh.sendBuildJobLogEvent()
+func (elh *endOfLifeHelperImpl) handleFatal(buildLog contracts.BuildLog, err error, message string) {
+
+	elh.sendBuildJobLogEvent(buildLog)
 	elh.sendBuildFinishedEvent("failed")
 	log.Error().Err(err).Msg(message)
 	os.Exit(0)
 }
 
-func (elh *endOfLifeHelperImpl) sendBuildJobLogEvent() {
+func (elh *endOfLifeHelperImpl) sendBuildJobLogEvent(buildLog contracts.BuildLog) {
 
 	ciServerBuilderEventsURL := elh.envvarHelper.getEstafetteEnv("ESTAFETTE_CI_SERVER_BUILDER_EVENTS_URL")
+	ciServerBuilderPostLogsURL := elh.envvarHelper.getEstafetteEnv("ESTAFETTE_CI_SERVER_POST_LOGS_URL")
 	ciAPIKey := elh.envvarHelper.getEstafetteEnv("ESTAFETTE_CI_API_KEY")
 	jobName := elh.envvarHelper.getEstafetteEnv("ESTAFETTE_BUILD_JOB_NAME")
 
@@ -90,6 +94,44 @@ func (elh *endOfLifeHelperImpl) sendBuildJobLogEvent() {
 
 		// add headers
 		request.Header.Add("X-Estafette-Event", "builder:logs")
+		request.Header.Add("Authorization", fmt.Sprintf("Bearer %v", ciAPIKey))
+
+		// perform actual request
+		response, err := client.Do(request)
+		if err != nil {
+			log.Error().Err(err).Msgf("Failed performing http request to %v for job %v", ciServerBuilderEventsURL, jobName)
+			return
+		}
+
+		defer response.Body.Close()
+
+		log.Debug().Str("url", ciServerBuilderEventsURL).Msg("Sent ci-builder logs")
+	}
+
+	if ciServerBuilderPostLogsURL != "" && ciAPIKey != "" && jobName != "" {
+
+		// convert BuildJobLogs to json
+		var requestBody io.Reader
+
+		data, err := json.Marshal(buildLog)
+		if err != nil {
+			log.Error().Err(err).Msgf("Failed marshalling BuildJobLogs for job %v", jobName)
+			return
+		}
+		requestBody = bytes.NewReader(data)
+
+		// create client, in order to add headers
+		client := pester.New()
+		client.MaxRetries = 3
+		client.Backoff = pester.ExponentialJitterBackoff
+		client.KeepLog = true
+		request, err := http.NewRequest("POST", ciServerBuilderPostLogsURL, requestBody)
+		if err != nil {
+			log.Error().Err(err).Msgf("Failed creating http client for job %v", jobName)
+			return
+		}
+
+		// add headers
 		request.Header.Add("Authorization", fmt.Sprintf("Bearer %v", ciAPIKey))
 
 		// perform actual request
