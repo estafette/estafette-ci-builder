@@ -95,6 +95,7 @@ func (elh *endOfLifeHelperImpl) sendBuildJobLogEvent(buildLog contracts.BuildLog
 		// add headers
 		request.Header.Add("X-Estafette-Event", "builder:logs")
 		request.Header.Add("Authorization", fmt.Sprintf("Bearer %v", ciAPIKey))
+		request.Header.Add("Content-Type", "application/json")
 
 		// perform actual request
 		response, err := client.Do(request)
@@ -133,6 +134,7 @@ func (elh *endOfLifeHelperImpl) sendBuildJobLogEvent(buildLog contracts.BuildLog
 
 		// add headers
 		request.Header.Add("Authorization", fmt.Sprintf("Bearer %v", ciAPIKey))
+		request.Header.Add("Content-Type", "application/json")
 
 		// perform actual request
 		response, err := client.Do(request)
@@ -143,7 +145,7 @@ func (elh *endOfLifeHelperImpl) sendBuildJobLogEvent(buildLog contracts.BuildLog
 
 		defer response.Body.Close()
 
-		log.Debug().Str("url", ciServerBuilderEventsURL).Msg("Sent ci-builder logs")
+		log.Debug().Str("url", ciServerBuilderEventsURL).Msg("Sent ci-builder logs v2")
 	}
 }
 

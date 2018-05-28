@@ -112,10 +112,10 @@ func main() {
 
 		buildLog := contracts.BuildLog{
 			RepoSource:   envvarHelper.getEstafetteEnv("ESTAFETTE_GIT_SOURCE"),
-			RepoOwner:    strings.Split(envvarHelper.getEstafetteEnv("ESTAFETTE_GIT_NAME"), "/")[0],
-			RepoName:     strings.Split(envvarHelper.getEstafetteEnv("ESTAFETTE_GIT_NAME"), "/")[1],
-			RepoBranch:   envvarHelper.getEstafetteEnv("ESTAFETTE_GIT_BRANCH"),
-			RepoRevision: envvarHelper.getEstafetteEnv("ESTAFETTE_GIT_REVISION"),
+			RepoOwner:    strings.Split(gitName, "/")[0],
+			RepoName:     strings.Split(gitName, "/")[1],
+			RepoBranch:   gitBranch,
+			RepoRevision: gitRevision,
 			Steps:        make([]contracts.BuildLogStep, 0),
 		}
 
