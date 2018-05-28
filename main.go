@@ -224,7 +224,11 @@ func main() {
 		log.Info().Interface("result", result).Msg("Finished running pipelines")
 		buildLog.Steps = transformPipelineRunResultToBuildLogSteps(result)
 		endOfLifeHelper.sendBuildJobLogEvent(buildLog)
-		endOfLifeHelper.sendBuildFinishedEvent("succeeded")
+		buildStatus := "succeeded"
+		if result.HasErrors() {
+			buildStatus = "failed"
+		}
+		endOfLifeHelper.sendBuildFinishedEvent(buildStatus)
 		os.Exit(0)
 	}
 }
