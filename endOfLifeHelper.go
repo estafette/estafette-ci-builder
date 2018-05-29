@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"strings"
@@ -51,63 +50,9 @@ func (elh *endOfLifeHelperImpl) handleFatal(buildLog contracts.BuildLog, err err
 
 func (elh *endOfLifeHelperImpl) sendBuildJobLogEvent(buildLog contracts.BuildLog) {
 
-	ciServerBuilderEventsURL := elh.envvarHelper.getEstafetteEnv("ESTAFETTE_CI_SERVER_BUILDER_EVENTS_URL")
 	ciServerBuilderPostLogsURL := elh.envvarHelper.getEstafetteEnv("ESTAFETTE_CI_SERVER_POST_LOGS_URL")
 	ciAPIKey := elh.envvarHelper.getEstafetteEnv("ESTAFETTE_CI_API_KEY")
 	jobName := elh.envvarHelper.getEstafetteEnv("ESTAFETTE_BUILD_JOB_NAME")
-
-	if ciServerBuilderEventsURL != "" && ciAPIKey != "" && jobName != "" {
-
-		logText, err := ioutil.ReadFile("/log.txt")
-		if err != nil {
-			log.Error().Err(err).Msgf("Failed reading log.txt job %v", jobName)
-			return
-		}
-
-		// convert BuildJobLogs to json
-		var requestBody io.Reader
-
-		buildJobLogs := BuildJobLogs{
-			RepoFullName: elh.envvarHelper.getEstafetteEnv("ESTAFETTE_GIT_NAME"),
-			RepoBranch:   elh.envvarHelper.getEstafetteEnv("ESTAFETTE_GIT_BRANCH"),
-			RepoRevision: elh.envvarHelper.getEstafetteEnv("ESTAFETTE_GIT_REVISION"),
-			RepoSource:   elh.envvarHelper.getEstafetteEnv("ESTAFETTE_GIT_SOURCE"),
-			LogText:      string(logText),
-		}
-		data, err := json.Marshal(buildJobLogs)
-		if err != nil {
-			log.Error().Err(err).Msgf("Failed marshalling BuildJobLogs for job %v", jobName)
-			return
-		}
-		requestBody = bytes.NewReader(data)
-
-		// create client, in order to add headers
-		client := pester.New()
-		client.MaxRetries = 3
-		client.Backoff = pester.ExponentialJitterBackoff
-		client.KeepLog = true
-		request, err := http.NewRequest("POST", ciServerBuilderEventsURL, requestBody)
-		if err != nil {
-			log.Error().Err(err).Msgf("Failed creating http client for job %v", jobName)
-			return
-		}
-
-		// add headers
-		request.Header.Add("X-Estafette-Event", "builder:logs")
-		request.Header.Add("Authorization", fmt.Sprintf("Bearer %v", ciAPIKey))
-		request.Header.Add("Content-Type", "application/json")
-
-		// perform actual request
-		response, err := client.Do(request)
-		if err != nil {
-			log.Error().Err(err).Msgf("Failed performing http request to %v for job %v", ciServerBuilderEventsURL, jobName)
-			return
-		}
-
-		defer response.Body.Close()
-
-		log.Debug().Str("url", ciServerBuilderEventsURL).Msg("Sent ci-builder logs")
-	}
 
 	if ciServerBuilderPostLogsURL != "" && ciAPIKey != "" && jobName != "" {
 
@@ -139,13 +84,13 @@ func (elh *endOfLifeHelperImpl) sendBuildJobLogEvent(buildLog contracts.BuildLog
 		// perform actual request
 		response, err := client.Do(request)
 		if err != nil {
-			log.Error().Err(err).Msgf("Failed performing http request to %v for job %v", ciServerBuilderEventsURL, jobName)
+			log.Error().Err(err).Msgf("Failed performing http request to %v for job %v", ciServerBuilderPostLogsURL, jobName)
 			return
 		}
 
 		defer response.Body.Close()
 
-		log.Debug().Str("url", ciServerBuilderEventsURL).Msg("Sent ci-builder logs v2")
+		log.Debug().Str("url", ciServerBuilderPostLogsURL).Msg("Sent ci-builder logs v2")
 	}
 }
 
