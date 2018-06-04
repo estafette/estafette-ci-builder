@@ -71,6 +71,7 @@ func (result *estafettePipelineRunResult) HasErrors() bool {
 func (pr *pipelineRunnerImpl) runPipeline(dir string, envvars map[string]string, p manifest.EstafettePipeline) (result estafettePipelineRunResult, err error) {
 
 	result.Pipeline = p
+	result.LogLines = make([]buildJobLogLine, 0)
 
 	log.Info().Msgf("[%v] Starting pipeline '%v'", p.Name, p.Name)
 
