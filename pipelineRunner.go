@@ -152,6 +152,13 @@ func (pr *pipelineRunnerImpl) runPipelines(manifest manifest.EstafetteManifest, 
 			r, err := pr.runPipeline(dir, envvars, *p)
 			if err != nil {
 
+				// add error to log lines
+				r.LogLines = append(r.LogLines, buildJobLogLine{
+					timestamp: time.Now().UTC(),
+					logLevel:  "stderr",
+					logText:   err.Error(),
+				})
+
 				// set 'failed' build status
 				pr.envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "failed")
 				envvars[pr.envvarHelper.getEstafetteEnvvarName("ESTAFETTE_BUILD_STATUS")] = "failed"
