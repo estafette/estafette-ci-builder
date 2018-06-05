@@ -125,7 +125,7 @@ func transformPipelineRunResultToBuildLogSteps(result estafetteRunPipelinesResul
 			LogLines:     make([]contracts.BuildLogLine, 0),
 			ExitCode:     r.ExitCode,
 			Status:       r.Status,
-			AutoInjected: r.AutoInjected,
+			AutoInjected: r.Pipeline.AutoInjected,
 		}
 
 		for _, l := range r.LogLines {
