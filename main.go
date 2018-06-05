@@ -179,6 +179,7 @@ func main() {
 					Shell:            "/bin/sh",
 					WorkingDirectory: "/estafette-work",
 					When:             "status == 'succeeded'",
+					AutoInjected:     true,
 				},
 			},
 		}

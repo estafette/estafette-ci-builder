@@ -9,5 +9,6 @@ type EstafettePipeline struct {
 	Commands         []string          `yaml:"commands,omitempty"`
 	When             string            `yaml:"when,omitempty"`
 	EnvVars          map[string]string `yaml:"env,omitempty"`
+	AutoInjected     bool              `yaml:"autoInjected,omitempty"`
 	CustomProperties map[string]interface{}
 }

@@ -16,12 +16,13 @@ type BuildLog struct {
 
 // BuildLogStep represents the logs for a single step of a pipeline
 type BuildLogStep struct {
-	Step     string                   `json:"step"`
-	Image    *BuildLogStepDockerImage `json:"image"`
-	Duration time.Duration            `json:"duration"`
-	LogLines []BuildLogLine           `json:"logLines"`
-	ExitCode int64                    `json:"exitCode"`
-	Status   string                   `json:"status"`
+	Step         string                   `json:"step"`
+	Image        *BuildLogStepDockerImage `json:"image"`
+	Duration     time.Duration            `json:"duration"`
+	LogLines     []BuildLogLine           `json:"logLines"`
+	ExitCode     int64                    `json:"exitCode"`
+	Status       string                   `json:"status"`
+	AutoInjected bool                     `json:"autoInjected,omitempty"`
 }
 
 // BuildLogStepDockerImage represents info about the docker image used for a step
