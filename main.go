@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"encoding/json"
 	"io"
 	"os"
 	"runtime"
@@ -170,56 +170,22 @@ func main() {
 			endOfLifeHelper.handleFatal(buildLog, err, "Setting global environment variables failed")
 		}
 
-		// run git clone via pipeline runner
-		estafetteGitCloneManifest := manifest.EstafetteManifest{
-			Pipelines: []*manifest.EstafettePipeline{
-				&manifest.EstafettePipeline{
-					Name:             "git-clone",
-					ContainerImage:   fmt.Sprintf("extensions/git-clone:%v", builderTrack),
-					Shell:            "/bin/sh",
-					WorkingDirectory: "/estafette-work",
-					When:             "status == 'succeeded'",
-					AutoInjected:     true,
-				},
-			},
-		}
+		// get manifest from envvar and unmarshal
+		manifestJSON := os.Getenv("ESTAFETTE_CI_MANIFEST_JSON")
+		var manifest manifest.EstafetteManifest
+		json.Unmarshal([]byte(manifestJSON), &manifest)
 
 		log.Info().Msgf("Starting build version %v...", envvarHelper.getEstafetteEnv("ESTAFETTE_BUILD_VERSION"))
 
-		// collect estafette envvars and run the git clone step
-		estafetteEnvvars := envvarHelper.collectEstafetteEnvvars(estafetteGitCloneManifest)
-		globalEnvvars := envvarHelper.collectGlobalEnvvars(estafetteGitCloneManifest)
-		envvars := envvarHelper.overrideEnvvars(estafetteEnvvars, globalEnvvars)
-		gitCloneResult, err := pipelineRunner.runPipelines(estafetteGitCloneManifest, dir, envvars)
-		if err != nil {
-			endOfLifeHelper.handleFatal(buildLog, err, "Executing git clone step failed")
-		}
-
-		// check if manifest exists
-		if !manifest.Exists(".estafette.yaml") {
-			log.Info().Msg(".estafette.yaml file does not exist, exiting...")
-			endOfLifeHelper.sendBuildFinishedEvent("nomanifest")
-			os.Exit(0)
-		}
-
-		// read .estafette.yaml manifest
-		manifest, err := manifest.ReadManifestFromFile(".estafette.yaml")
-		if err != nil {
-			endOfLifeHelper.handleFatal(buildLog, err, "Reading .estafette.yaml manifest failed")
-		}
-
 		// collect estafette envvars and run pipelines from manifest
 		log.Info().Msgf("Running %v pipelines", len(manifest.Pipelines))
-		estafetteEnvvars = envvarHelper.collectEstafetteEnvvars(manifest)
-		globalEnvvars = envvarHelper.collectGlobalEnvvars(manifest)
-		envvars = envvarHelper.overrideEnvvars(estafetteEnvvars, globalEnvvars)
+		estafetteEnvvars := envvarHelper.collectEstafetteEnvvars(manifest)
+		globalEnvvars := envvarHelper.collectGlobalEnvvars(manifest)
+		envvars := envvarHelper.overrideEnvvars(estafetteEnvvars, globalEnvvars)
 		result, err := pipelineRunner.runPipelines(manifest, dir, envvars)
 		if err != nil {
 			endOfLifeHelper.handleFatal(buildLog, err, "Executing pipelines from manifest failed")
 		}
-
-		// merge git clone and manifest result
-		result.PipelineResults = append(gitCloneResult.PipelineResults, result.PipelineResults...)
 
 		// send result to ci-api
 		log.Info().Interface("result", result).Msg("Finished running pipelines")
