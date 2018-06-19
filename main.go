@@ -197,5 +197,12 @@ func main() {
 		}
 		endOfLifeHelper.sendBuildFinishedEvent(buildStatus)
 		os.Exit(0)
+	} else {
+		// Set up a simple console logger
+		log.Logger = zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr}).With().
+			Timestamp().
+			Logger()
+
+		log.Warn().Msgf("The CI Server (\"%s\") is not recognized, exiting.", ciServer)
 	}
 }
