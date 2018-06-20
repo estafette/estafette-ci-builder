@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -124,10 +125,17 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 	extensionEnvVars := map[string]string{}
 	if p.CustomProperties != nil && len(p.CustomProperties) > 0 {
 		for k, v := range p.CustomProperties {
-			// if custom property is of type string add the envvar
+			extensionkey := dr.envvarHelper.getEstafetteEnvvarName(fmt.Sprintf("ESTAFETTE_EXTENSION_%v", dr.envvarHelper.toUpperSnake(k)))
+
 			if s, isString := v.(string); isString {
-				extensionkey := dr.envvarHelper.getEstafetteEnvvarName(fmt.Sprintf("ESTAFETTE_EXTENSION_%v", dr.envvarHelper.toUpperSnake(k)))
+				// if custom property is of type string add the envvar
 				extensionEnvVars[extensionkey] = os.Expand(s, dr.envvarHelper.getEstafetteEnv)
+			} else if s, isBool := v.(bool); isBool {
+				// if custom property is of type bool add the envvar
+				extensionEnvVars[extensionkey] = os.Expand(strconv.FormatBool(s), dr.envvarHelper.getEstafetteEnv)
+			} else if s, isInt := v.(int); isInt {
+				// if custom property is of type bool add the envvar
+				extensionEnvVars[extensionkey] = os.Expand(strconv.FormatInt(int64(s), 10), dr.envvarHelper.getEstafetteEnv)
 			} else if i, isInterfaceArray := v.([]interface{}); isInterfaceArray {
 				// check whether all array items are of type string
 				valid := true
@@ -143,7 +151,6 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 
 				if valid {
 					// if all array items are string, pass as comma-separated list to extension
-					extensionkey := dr.envvarHelper.getEstafetteEnvvarName(fmt.Sprintf("ESTAFETTE_EXTENSION_%v", dr.envvarHelper.toUpperSnake(k)))
 					extensionEnvVars[extensionkey] = os.Expand(strings.Join(stringValues, ","), dr.envvarHelper.getEstafetteEnv)
 				} else {
 					log.Warn().Interface("customProperty", v).Msgf("Cannot turn custom property %v into extension envvar", k)
