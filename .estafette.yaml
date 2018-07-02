@@ -3,6 +3,7 @@ builder:
 
 labels:
   app: estafette-ci-builder
+  app-group: estafette-ci
   team: estafette-team
   language: golang
 
