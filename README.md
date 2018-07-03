@@ -2,7 +2,7 @@
 
 The `estafette-ci-builder` component is part of the Estafette CI system documented at https://estafette.io.
 
-Please file any issues related to Estafette CI at https://github.com/estafette/estafette-ci/issues
+Please file any issues related to Estafette CI at https://github.com/estafette/estafette-ci-central/issues
 
 ## estafette-ci-builder
 
