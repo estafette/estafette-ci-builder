@@ -265,9 +265,9 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 		}
 
 		if logType == "stderr" {
-			log.Info().Msgf("[%v] %v", p.Name, logLine)
+			log.Info().Msgf("[%v] %v", p.Name, string(logLine))
 		} else {
-			log.Info().Msgf("[%v] %v", p.Name, logLine)
+			log.Info().Msgf("[%v] %v", p.Name, string(logLine))
 		}
 
 		logLines = append(logLines, buildJobLogLine{
