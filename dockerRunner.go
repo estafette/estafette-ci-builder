@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -234,11 +235,17 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 	}
 
 	// stream logs to stdout with buffering
-	in := bufio.NewScanner(rc)
-	for in.Scan() {
+	in := bufio.NewReader(rc)
+	var readError error
+	for {
 
 		// strip first 8 bytes, they contain docker control characters (https://github.com/docker/docker/issues/7375)
-		logLine := in.Text()
+		logLine, readError := in.ReadBytes('\n')
+
+		if readError != nil {
+			break
+		}
+
 		logType := "stdout"
 		if len(logLine) > 8 {
 
@@ -266,12 +273,13 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 		logLines = append(logLines, buildJobLogLine{
 			timestamp: time.Now().UTC(),
 			logLevel:  logType,
-			logText:   logLine,
+			logText:   string(logLine),
 		})
 	}
-	if err := in.Err(); err != nil {
-		log.Error().Msgf("[%v] Error: %v", p.Name, err)
-		return logLines, exitCode, err
+
+	if readError != nil && readError != io.EOF {
+		log.Error().Msgf("[%v] Error: %v", p.Name, readError)
+		return logLines, exitCode, readError
 	}
 
 	// wait for container to stop run
