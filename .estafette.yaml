@@ -20,7 +20,7 @@ env:
 
 pipelines:
   build:
-    image: golang:1.10.3-alpine3.6
+    image: golang:1.10.3-alpine3.8
     workDir: /go/src/github.com/estafette/${ESTAFETTE_LABEL_APP}
     commands:
     - apk --update add git
