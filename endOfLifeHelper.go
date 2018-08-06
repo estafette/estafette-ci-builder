@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/estafette/estafette-ci-contracts"
 
@@ -41,6 +42,26 @@ func (elh *endOfLifeHelperImpl) handleGocdFatal(err error, message string) {
 }
 
 func (elh *endOfLifeHelperImpl) handleFatal(buildLog contracts.BuildLog, err error, message string) {
+
+	// add error messages as step to show in logs
+	fatalStep := contracts.BuildLogStep{
+		Step: "init",
+		LogLines: []contracts.BuildLogLine{
+			contracts.BuildLogLine{
+				Timestamp:  time.Now().UTC(),
+				StreamType: "stderr",
+				Text:       err.Error(),
+			},
+			contracts.BuildLogLine{
+				Timestamp:  time.Now().UTC(),
+				StreamType: "stderr",
+				Text:       message,
+			},
+		},
+		ExitCode: -1,
+		Status:   "failed",
+	}
+	buildLog.Steps = append(buildLog.Steps, fatalStep)
 
 	elh.sendBuildJobLogEvent(buildLog)
 	elh.sendBuildFinishedEvent("failed")

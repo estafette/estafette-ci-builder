@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"time"
 
 	manifest "github.com/estafette/estafette-ci-manifest"
@@ -139,6 +140,10 @@ func (pr *pipelineRunnerImpl) runStages(manifest manifest.EstafetteManifest, dir
 	err = pr.envvarHelper.initBuildStatus()
 	if err != nil {
 		return
+	}
+
+	if len(manifest.Stages) == 0 {
+		return result, fmt.Errorf("Manifest has no stages, failing the build")
 	}
 
 	for _, p := range manifest.Stages {
