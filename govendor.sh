@@ -10,4 +10,4 @@ govendor fetch github.com/estafette/estafette-ci-manifest@0.1.18-support-release
 govendor fetch github.com/sethgrid/pester
 govendor fetch github.com/alecthomas/kingpin@v2.2.5
 govendor fetch github.com/estafette/estafette-ci-crypt@0.0.2
-govendor fetch github.com/estafette/estafette-ci-contracts@0.0.7
+govendor fetch github.com/estafette/estafette-ci-contracts@0.0.49

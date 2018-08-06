@@ -4,14 +4,14 @@ import "time"
 
 // BuildLog represents a build log for a specific revision
 type BuildLog struct {
-	ID           string         `json:"id,omitempty" jsonapi:"primary,build-logs"`
-	RepoSource   string         `json:"repoSource" jsonapi:"attr,repo-source"`
-	RepoOwner    string         `json:"repoOwner" jsonapi:"attr,repo-owner"`
-	RepoName     string         `json:"repoName" jsonapi:"attr,repo-name"`
-	RepoBranch   string         `json:"repoBranch" jsonapi:"attr,repo-branch"`
-	RepoRevision string         `json:"repoRevision" jsonapi:"attr,repo-revision"`
-	Steps        []BuildLogStep `json:"steps" jsonapi:"attr,steps"`
-	InsertedAt   time.Time      `json:"insertedAt" jsonapi:"attr,inserted-at"`
+	ID           string         `json:"id,omitempty"`
+	RepoSource   string         `json:"repoSource"`
+	RepoOwner    string         `json:"repoOwner"`
+	RepoName     string         `json:"repoName"`
+	RepoBranch   string         `json:"repoBranch"`
+	RepoRevision string         `json:"repoRevision"`
+	Steps        []BuildLogStep `json:"steps"`
+	InsertedAt   time.Time      `json:"insertedAt"`
 }
 
 // BuildLogStep represents the logs for a single step of a pipeline
