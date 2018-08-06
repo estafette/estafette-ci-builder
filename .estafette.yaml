@@ -70,3 +70,8 @@ pipelines:
     - '#build-status'
     when:
       status == 'failed'
+
+releases:
+  dev:
+  beta:
+  stable:
