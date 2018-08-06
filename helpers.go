@@ -19,7 +19,7 @@ func contains(s []string, e string) bool {
 	return false
 }
 
-func handleExit(result estafetteRunPipelinesResult) {
+func handleExit(result estafetteRunStagesResult) {
 
 	if result.HasErrors() {
 		os.Exit(1)
@@ -28,7 +28,7 @@ func handleExit(result estafetteRunPipelinesResult) {
 	os.Exit(0)
 }
 
-func renderStats(result estafetteRunPipelinesResult) {
+func renderStats(result estafetteRunStagesResult) {
 
 	data := make([][]string, 0)
 
@@ -37,7 +37,7 @@ func renderStats(result estafetteRunPipelinesResult) {
 	dockerImageSizeTotal := int64(0)
 	statusTotal := "SUCCEEDED"
 
-	for _, s := range result.PipelineResults {
+	for _, s := range result.StageResults {
 
 		dockerImageSize := fmt.Sprintf("%v", s.DockerImageSize/1024/1024)
 		dockerPullDuration := fmt.Sprintf("%.0f", s.DockerPullDuration.Seconds())
@@ -59,8 +59,8 @@ func renderStats(result estafetteRunPipelinesResult) {
 		}
 
 		data = append(data, []string{
-			s.Pipeline.Name,
-			s.Pipeline.ContainerImage,
+			s.Stage.Name,
+			s.Stage.ContainerImage,
 			dockerImageSize,
 			dockerPullDuration,
 			fmt.Sprintf("%.0f", s.DockerRunDuration.Seconds()),
@@ -93,13 +93,13 @@ func pathExists(path string) (bool, error) {
 	return true, err
 }
 
-func transformPipelineRunResultToBuildLogSteps(result estafetteRunPipelinesResult) (buildLogSteps []contracts.BuildLogStep) {
+func transformPipelineRunResultToBuildLogSteps(result estafetteRunStagesResult) (buildLogSteps []contracts.BuildLogStep) {
 
 	buildLogSteps = make([]contracts.BuildLogStep, 0)
 
-	for _, r := range result.PipelineResults {
+	for _, r := range result.StageResults {
 
-		containerImageArray := strings.Split(r.Pipeline.ContainerImage, ":")
+		containerImageArray := strings.Split(r.Stage.ContainerImage, ":")
 		containerImageName := containerImageArray[0]
 		containerImageTag := "latest"
 		if len(containerImageArray) > 1 {
@@ -112,7 +112,7 @@ func transformPipelineRunResultToBuildLogSteps(result estafetteRunPipelinesResul
 		}
 
 		bls := contracts.BuildLogStep{
-			Step: r.Pipeline.Name,
+			Step: r.Stage.Name,
 			Image: &contracts.BuildLogStepDockerImage{
 				Name:         containerImageName,
 				Tag:          containerImageTag,
@@ -125,7 +125,7 @@ func transformPipelineRunResultToBuildLogSteps(result estafetteRunPipelinesResul
 			LogLines:     make([]contracts.BuildLogLine, 0),
 			ExitCode:     r.ExitCode,
 			Status:       r.Status,
-			AutoInjected: r.Pipeline.AutoInjected,
+			AutoInjected: r.Stage.AutoInjected,
 		}
 
 		for _, l := range r.LogLines {

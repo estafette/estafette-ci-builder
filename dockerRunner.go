@@ -24,10 +24,10 @@ import (
 
 // DockerRunner pulls and runs docker containers
 type DockerRunner interface {
-	isDockerImagePulled(manifest.EstafettePipeline) bool
-	runDockerPull(manifest.EstafettePipeline) error
-	getDockerImageSize(manifest.EstafettePipeline) (int64, error)
-	runDockerRun(string, map[string]string, manifest.EstafettePipeline) ([]buildJobLogLine, int64, error)
+	isDockerImagePulled(manifest.EstafetteStage) bool
+	runDockerPull(manifest.EstafetteStage) error
+	getDockerImageSize(manifest.EstafetteStage) (int64, error)
+	runDockerRun(string, map[string]string, manifest.EstafetteStage) ([]buildJobLogLine, int64, error)
 	startDockerDaemon() error
 	waitForDockerDaemon()
 }
@@ -43,7 +43,7 @@ func NewDockerRunner(envvarHelper EnvvarHelper) DockerRunner {
 	}
 }
 
-func (dr *dockerRunnerImpl) isDockerImagePulled(p manifest.EstafettePipeline) bool {
+func (dr *dockerRunnerImpl) isDockerImagePulled(p manifest.EstafetteStage) bool {
 
 	log.Info().Msgf("[%v] Checking if docker image '%v' exists locally...", p.Name, p.ContainerImage)
 
@@ -63,7 +63,7 @@ func (dr *dockerRunnerImpl) isDockerImagePulled(p manifest.EstafettePipeline) bo
 	return false
 }
 
-func (dr *dockerRunnerImpl) runDockerPull(p manifest.EstafettePipeline) (err error) {
+func (dr *dockerRunnerImpl) runDockerPull(p manifest.EstafetteStage) (err error) {
 
 	log.Info().Msgf("[%v] Pulling docker image '%v'", p.Name, p.ContainerImage)
 
@@ -87,7 +87,7 @@ func (dr *dockerRunnerImpl) runDockerPull(p manifest.EstafettePipeline) (err err
 	return
 }
 
-func (dr *dockerRunnerImpl) getDockerImageSize(p manifest.EstafettePipeline) (totalSize int64, err error) {
+func (dr *dockerRunnerImpl) getDockerImageSize(p manifest.EstafetteStage) (totalSize int64, err error) {
 
 	cli, err := client.NewEnvClient()
 	if err != nil {
@@ -106,7 +106,7 @@ func (dr *dockerRunnerImpl) getDockerImageSize(p manifest.EstafettePipeline) (to
 	return totalSize, nil
 }
 
-func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, p manifest.EstafettePipeline) (logLines []buildJobLogLine, exitCode int64, err error) {
+func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, p manifest.EstafetteStage) (logLines []buildJobLogLine, exitCode int64, err error) {
 
 	logLines = make([]buildJobLogLine, 0)
 	exitCode = -1

@@ -1,8 +1,9 @@
 package manifest
 
-// EstafettePipeline is the object that parts of the .estafette.yaml deserialize to
-type EstafettePipeline struct {
+// EstafetteStage is the object that parts of the .estafette.yaml deserialize to
+type EstafetteStage struct {
 	Name             string
+	Release          string            `yaml:"release,omitempty"`
 	ContainerImage   string            `yaml:"image,omitempty"`
 	Shell            string            `yaml:"shell,omitempty"`
 	WorkingDirectory string            `yaml:"workDir,omitempty"`

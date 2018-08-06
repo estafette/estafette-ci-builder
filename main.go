@@ -73,7 +73,7 @@ func main() {
 			endOfLifeHelper.handleGocdFatal(err, "Getting current working directory failed")
 		}
 
-		log.Info().Msgf("Running %v pipelines", len(manifest.Pipelines))
+		log.Info().Msgf("Running %v stages", len(manifest.Stages))
 
 		err = envvarHelper.setEstafetteGlobalEnvvars()
 		if err != nil {
@@ -87,9 +87,9 @@ func main() {
 		// merge estafette and global envvars
 		envvars := envvarHelper.overrideEnvvars(estafetteEnvvars, globalEnvvars)
 
-		result, err := pipelineRunner.runPipelines(manifest, dir, envvars)
+		result, err := pipelineRunner.runStages(manifest, dir, envvars)
 		if err != nil {
-			endOfLifeHelper.handleGocdFatal(err, "Executing pipelines from manifest failed")
+			endOfLifeHelper.handleGocdFatal(err, "Executing stages from manifest failed")
 		}
 
 		renderStats(result)
@@ -177,18 +177,18 @@ func main() {
 
 		log.Info().Msgf("Starting build version %v...", envvarHelper.getEstafetteEnv("ESTAFETTE_BUILD_VERSION"))
 
-		// collect estafette envvars and run pipelines from manifest
-		log.Info().Msgf("Running %v pipelines", len(manifest.Pipelines))
+		// collect estafette envvars and run stages from manifest
+		log.Info().Msgf("Running %v stages", len(manifest.Stages))
 		estafetteEnvvars := envvarHelper.collectEstafetteEnvvars(manifest)
 		globalEnvvars := envvarHelper.collectGlobalEnvvars(manifest)
 		envvars := envvarHelper.overrideEnvvars(estafetteEnvvars, globalEnvvars)
-		result, err := pipelineRunner.runPipelines(manifest, dir, envvars)
+		result, err := pipelineRunner.runStages(manifest, dir, envvars)
 		if err != nil {
-			endOfLifeHelper.handleFatal(buildLog, err, "Executing pipelines from manifest failed")
+			endOfLifeHelper.handleFatal(buildLog, err, "Executing stages from manifest failed")
 		}
 
 		// send result to ci-api
-		log.Info().Interface("result", result).Msg("Finished running pipelines")
+		log.Info().Interface("result", result).Msg("Finished running stages")
 		buildLog.Steps = transformPipelineRunResultToBuildLogSteps(result)
 		endOfLifeHelper.sendBuildJobLogEvent(buildLog)
 		buildStatus := "succeeded"
