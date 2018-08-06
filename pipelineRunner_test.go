@@ -14,7 +14,7 @@ var (
 
 func TestRunPipelines(t *testing.T) {
 
-	t.Run("ReturnsResultWithoutErrorsWhenManifestHasNoStages", func(t *testing.T) {
+	t.Run("ReturnsErrorWhenManifestHasNoStages", func(t *testing.T) {
 
 		envvarHelper.unsetEstafetteEnvvars()
 		envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
@@ -23,10 +23,9 @@ func TestRunPipelines(t *testing.T) {
 		dir, _ := os.Getwd()
 
 		// act
-		result, err := pipelineRunner.runStages(*manifest, dir, envvars)
+		_, err := pipelineRunner.runStages(*manifest, dir, envvars)
 
-		assert.Nil(t, err)
-		assert.False(t, result.HasErrors())
+		assert.NotNil(t, err)
 	})
 
 	t.Run("ReturnsResultWithInnerResultForEachPipelineInManifest", func(t *testing.T) {
