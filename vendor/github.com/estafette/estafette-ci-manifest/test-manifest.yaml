@@ -18,7 +18,8 @@ env:
   VAR_A: Greetings
   VAR_B: World
 
-pipelines:
+# automatically executed stages on a push to the repository
+stages:
   build:
     image: golang:1.8.0-alpine
     workDir: /go/src/github.com/estafette/estafette-ci-builder
@@ -39,10 +40,7 @@ pipelines:
       server == 'estafette'
 
   push-to-docker-hub:
-    image: docker:17.03.0-ce
-    commands:
-    - docker login --username=${ESTAFETTE_DOCKER_HUB_USERNAME} --password='${ESTAFETTE_DOCKER_HUB_PASSWORD}'
-    - docker push estafette/${ESTAFETTE_LABEL_APP}:${ESTAFETTE_BUILD_VERSION}
+    release: docker-hub
     when:
       status == 'succeeded' &&
       branch == 'master'
@@ -61,3 +59,20 @@ pipelines:
     unknownProperty3:
       - supported1
       - supported2
+
+# releases are automatically triggered from stages or manually from gui, cli or slack
+releases:
+  docker-hub:
+    image: extensions/push-to-docker-registry:dev
+
+  beta:
+    image: extensions/tag-container-image:dev
+
+  development:
+    image: extensions/deploy-to-kubernetes-engine:dev
+
+  staging:
+    image: extensions/deploy-to-kubernetes-engine:beta
+
+  production:
+    image: extensions/deploy-to-kubernetes-engine:stable

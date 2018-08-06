@@ -9,8 +9,8 @@ import (
 
 // PipelineRunner is the interface for running the pipeline steps
 type PipelineRunner interface {
-	runPipeline(string, map[string]string, manifest.EstafettePipeline) (estafettePipelineRunResult, error)
-	runPipelines(manifest.EstafetteManifest, string, map[string]string) (estafetteRunPipelinesResult, error)
+	runStage(string, map[string]string, manifest.EstafetteStage) (estafetteStageRunResult, error)
+	runStages(manifest.EstafetteManifest, string, map[string]string) (estafetteRunStagesResult, error)
 }
 
 type pipelineRunnerImpl struct {
@@ -28,8 +28,8 @@ func NewPipelineRunner(envvarHelper EnvvarHelper, whenEvaluator WhenEvaluator, d
 	}
 }
 
-type estafettePipelineRunResult struct {
-	Pipeline            manifest.EstafettePipeline
+type estafetteStageRunResult struct {
+	Stage               manifest.EstafetteStage
 	IsDockerImagePulled bool
 	DockerImageSize     int64
 	DockerPullDuration  time.Duration
@@ -42,8 +42,8 @@ type estafettePipelineRunResult struct {
 	LogLines            []buildJobLogLine
 }
 
-// Errors combines the different type of errors that occurred during this pipeline step
-func (result *estafettePipelineRunResult) Errors() (errors []error) {
+// Errors combines the different type of errors that occurred during this pipeline stage
+func (result *estafetteStageRunResult) Errors() (errors []error) {
 
 	if result.DockerPullError != nil {
 		errors = append(errors, result.DockerPullError)
@@ -60,17 +60,17 @@ func (result *estafettePipelineRunResult) Errors() (errors []error) {
 	return errors
 }
 
-// HasErrors indicates whether any errors happened in this pipeline step
-func (result *estafettePipelineRunResult) HasErrors() bool {
+// HasErrors indicates whether any errors happened in this pipeline stage
+func (result *estafetteStageRunResult) HasErrors() bool {
 
 	errors := result.Errors()
 
 	return len(errors) > 0
 }
 
-func (pr *pipelineRunnerImpl) runPipeline(dir string, envvars map[string]string, p manifest.EstafettePipeline) (result estafettePipelineRunResult, err error) {
+func (pr *pipelineRunnerImpl) runStage(dir string, envvars map[string]string, p manifest.EstafetteStage) (result estafetteStageRunResult, err error) {
 
-	result.Pipeline = p
+	result.Stage = p
 	result.LogLines = make([]buildJobLogLine, 0)
 
 	log.Info().Msgf("[%v] Starting pipeline '%v'", p.Name, p.Name)
@@ -109,14 +109,14 @@ func (pr *pipelineRunnerImpl) runPipeline(dir string, envvars map[string]string,
 	return
 }
 
-type estafetteRunPipelinesResult struct {
-	PipelineResults []estafettePipelineRunResult
+type estafetteRunStagesResult struct {
+	StageResults []estafetteStageRunResult
 }
 
-// Errors combines the different type of errors that occurred during this pipeline step
-func (result *estafetteRunPipelinesResult) Errors() (errors []error) {
+// Errors combines the different type of errors that occurred during this pipeline stage
+func (result *estafetteRunStagesResult) Errors() (errors []error) {
 
-	for _, pr := range result.PipelineResults {
+	for _, pr := range result.StageResults {
 		if pr.HasErrors() {
 			errors = append(errors, pr.Errors()...)
 		}
@@ -125,15 +125,15 @@ func (result *estafetteRunPipelinesResult) Errors() (errors []error) {
 	return errors
 }
 
-// HasErrors indicates whether any errors happened in this pipeline step
-func (result *estafetteRunPipelinesResult) HasErrors() bool {
+// HasErrors indicates whether any errors happened in this pipeline stages
+func (result *estafetteRunStagesResult) HasErrors() bool {
 
 	errors := result.Errors()
 
 	return len(errors) > 0
 }
 
-func (pr *pipelineRunnerImpl) runPipelines(manifest manifest.EstafetteManifest, dir string, envvars map[string]string) (result estafetteRunPipelinesResult, err error) {
+func (pr *pipelineRunnerImpl) runStages(manifest manifest.EstafetteManifest, dir string, envvars map[string]string) (result estafetteRunStagesResult, err error) {
 
 	// set default build status if not set
 	err = pr.envvarHelper.initBuildStatus()
@@ -141,7 +141,7 @@ func (pr *pipelineRunnerImpl) runPipelines(manifest manifest.EstafetteManifest, 
 		return
 	}
 
-	for _, p := range manifest.Pipelines {
+	for _, p := range manifest.Stages {
 
 		whenEvaluationResult, err := pr.whenEvaluator.evaluate(p.Name, p.When, pr.whenEvaluator.getParameters())
 		if err != nil {
@@ -150,7 +150,7 @@ func (pr *pipelineRunnerImpl) runPipelines(manifest manifest.EstafetteManifest, 
 
 		if whenEvaluationResult {
 
-			r, err := pr.runPipeline(dir, envvars, *p)
+			r, err := pr.runStage(dir, envvars, *p)
 			if err != nil {
 
 				// add error to log lines
@@ -167,7 +167,7 @@ func (pr *pipelineRunnerImpl) runPipelines(manifest manifest.EstafetteManifest, 
 				r.Status = "FAILED"
 				r.OtherError = err
 
-				result.PipelineResults = append(result.PipelineResults, r)
+				result.StageResults = append(result.StageResults, r)
 
 				continue
 			}
@@ -175,17 +175,17 @@ func (pr *pipelineRunnerImpl) runPipelines(manifest manifest.EstafetteManifest, 
 			// set 'succeeded' build status
 			r.Status = "SUCCEEDED"
 
-			result.PipelineResults = append(result.PipelineResults, r)
+			result.StageResults = append(result.StageResults, r)
 
 		} else {
 
 			// if an error has happened in one of the previous steps or the when expression evaluates to false we still want to render the following steps in the result table
-			r := estafettePipelineRunResult{
-				Pipeline: *p,
-				Status:   "SKIPPED",
+			r := estafetteStageRunResult{
+				Stage:  *p,
+				Status: "SKIPPED",
 			}
 
-			result.PipelineResults = append(result.PipelineResults, r)
+			result.StageResults = append(result.StageResults, r)
 
 			continue
 		}

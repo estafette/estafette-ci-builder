@@ -13,11 +13,12 @@ import (
 
 // EstafetteManifest is the object that the .estafette.yaml deserializes to
 type EstafetteManifest struct {
-	Builder       EstafetteBuilder     `yaml:"builder,omitempty"`
-	Version       EstafetteVersion     `yaml:"version,omitempty"`
-	Labels        map[string]string    `yaml:"labels,omitempty"`
-	GlobalEnvVars map[string]string    `yaml:"env,omitempty"`
-	Pipelines     []*EstafettePipeline `yaml:"dummy,omitempty"`
+	Builder       EstafetteBuilder  `yaml:"builder,omitempty"`
+	Version       EstafetteVersion  `yaml:"version,omitempty"`
+	Labels        map[string]string `yaml:"labels,omitempty"`
+	GlobalEnvVars map[string]string `yaml:"env,omitempty"`
+	Stages        []*EstafetteStage `yaml:"stagesdummy,omitempty"`
+	Releases      []*EstafetteStage `yaml:"releasesdummy,omitempty"`
 }
 
 // unmarshalYAML parses the .estafette.yaml file into an EstafetteManifest object
@@ -70,7 +71,7 @@ func (c *EstafetteManifest) unmarshalYAML(data []byte) error {
 
 	for _, s := range outerSlice {
 
-		if s.Key == "pipelines" {
+		if s.Key == "pipelines" || s.Key == "stages" || s.Key == "releases" {
 
 			// map value back to yaml in order to unmarshal again
 			out, err := yaml.Marshal(s.Value)
@@ -93,14 +94,14 @@ func (c *EstafetteManifest) unmarshalYAML(data []byte) error {
 					return err
 				}
 
-				// unmarshal again into estafettePipeline
-				p := EstafettePipeline{}
+				// unmarshal again into EstafetteStage
+				p := EstafetteStage{}
 				err = yaml.Unmarshal(out, &p)
 				if err != nil {
 					return err
 				}
 
-				// set estafettePipeline name
+				// set EstafetteStage name
 				p.Name = t.Key.(string)
 
 				// set default for Shell if not set
@@ -133,8 +134,12 @@ func (c *EstafetteManifest) unmarshalYAML(data []byte) error {
 					}
 				}
 
-				// add pipeline
-				c.Pipelines = append(c.Pipelines, &p)
+				// add pipeline stage
+				if s.Key == "releases" {
+					c.Releases = append(c.Releases, &p)
+				} else {
+					c.Stages = append(c.Stages, &p)
+				}
 			}
 		}
 	}
@@ -145,7 +150,7 @@ func (c *EstafetteManifest) unmarshalYAML(data []byte) error {
 func getReservedPropertyNames() (names []string) {
 	// create list of reserved property names
 	reservedPropertyNames := []string{}
-	val := reflect.ValueOf(EstafettePipeline{})
+	val := reflect.ValueOf(EstafetteStage{})
 	for i := 0; i < val.Type().NumField(); i++ {
 		yamlName := val.Type().Field(i).Tag.Get("yaml")
 		if yamlName != "" {
