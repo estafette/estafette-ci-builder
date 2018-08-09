@@ -40,7 +40,10 @@ stages:
       server == 'estafette'
 
   push-to-docker-hub:
-    release: docker-hub
+    image: docker:17.03.0-ce
+    commands:
+    - docker login --username=${ESTAFETTE_DOCKER_HUB_USERNAME} --password='${ESTAFETTE_DOCKER_HUB_PASSWORD}'
+    - docker push estafette/${ESTAFETTE_LABEL_APP}:${ESTAFETTE_BUILD_VERSION}
     when:
       status == 'succeeded' &&
       branch == 'master'
@@ -63,16 +66,26 @@ stages:
 # releases are automatically triggered from stages or manually from gui, cli or slack
 releases:
   docker-hub:
-    image: extensions/push-to-docker-registry:dev
+    push-image:
+      image: extensions/push-to-docker-registry:dev
 
   beta:
-    image: extensions/tag-container-image:dev
+    tag-image:
+      image: extensions/tag-container-image:dev
 
   development:
-    image: extensions/deploy-to-kubernetes-engine:dev
+    deploy:
+      image: extensions/deploy-to-kubernetes-engine:dev
 
   staging:
-    image: extensions/deploy-to-kubernetes-engine:beta
+    deploy:
+      image: extensions/deploy-to-kubernetes-engine:beta
 
   production:
-    image: extensions/deploy-to-kubernetes-engine:stable
+    deploy:
+      image: extensions/deploy-to-kubernetes-engine:stable
+
+    create-release-notes:
+      image: extensions/create-release-notes-from-changelog:stable
+
+  tooling:

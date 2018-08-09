@@ -12,13 +12,63 @@ type EstafetteVersion struct {
 	Custom *EstafetteCustomVersion `yaml:"custom,omitempty"`
 }
 
-// Version returns the version number as a string
-func (v *EstafetteVersion) Version(params EstafetteVersionParams) string {
-	if v.Custom != nil {
-		return v.Custom.Version(params)
+// UnmarshalYAML customizes unmarshalling an EstafetteVersion
+func (version *EstafetteVersion) UnmarshalYAML(unmarshal func(interface{}) error) (err error) {
+
+	var aux struct {
+		SemVer *EstafetteSemverVersion `yaml:"semver"`
+		Custom *EstafetteCustomVersion `yaml:"custom"`
 	}
-	if v.SemVer != nil {
-		return v.SemVer.Version(params)
+
+	// unmarshal to auxiliary type
+	if err := unmarshal(&aux); err != nil {
+		return err
+	}
+
+	// map auxiliary properties
+	version.SemVer = aux.SemVer
+	version.Custom = aux.Custom
+
+	// set default property values
+	version.setDefaults()
+
+	return nil
+}
+
+// setDefaults sets default values for properties of EstafetteVersion if not defined
+func (version *EstafetteVersion) setDefaults() {
+	if version.Custom == nil && version.SemVer == nil {
+		version.SemVer = &EstafetteSemverVersion{}
+	}
+
+	// if version is semver set defaults
+	if version.SemVer != nil {
+		if version.SemVer.Patch == "" {
+			version.SemVer.Patch = "{{auto}}"
+		}
+		if version.SemVer.LabelTemplate == "" {
+			version.SemVer.LabelTemplate = "{{branch}}"
+		}
+		if version.SemVer.ReleaseBranch == "" {
+			version.SemVer.ReleaseBranch = "master"
+		}
+	}
+
+	// if version is custom set defaults
+	if version.Custom != nil {
+		if version.Custom.LabelTemplate == "" {
+			version.Custom.LabelTemplate = "{{revision}}"
+		}
+	}
+}
+
+// Version returns the version number as a string
+func (version *EstafetteVersion) Version(params EstafetteVersionParams) string {
+	if version.Custom != nil {
+		return version.Custom.Version(params)
+	}
+	if version.SemVer != nil {
+		return version.SemVer.Version(params)
 	}
 	return ""
 }
