@@ -23,12 +23,13 @@ type EstafetteManifest struct {
 func (c *EstafetteManifest) UnmarshalYAML(unmarshal func(interface{}) error) (err error) {
 
 	var aux struct {
-		Builder       EstafetteBuilder  `yaml:"builder"`
-		Labels        map[string]string `yaml:"labels"`
-		Version       EstafetteVersion  `yaml:"version"`
-		GlobalEnvVars map[string]string `yaml:"env"`
-		Stages        yaml.MapSlice     `yaml:"stages"`
-		Releases      yaml.MapSlice     `yaml:"releases"`
+		Builder             EstafetteBuilder  `yaml:"builder"`
+		Labels              map[string]string `yaml:"labels"`
+		Version             EstafetteVersion  `yaml:"version"`
+		GlobalEnvVars       map[string]string `yaml:"env"`
+		DeprecatedPipelines yaml.MapSlice     `yaml:"pipelines"`
+		Stages              yaml.MapSlice     `yaml:"stages"`
+		Releases            yaml.MapSlice     `yaml:"releases"`
 	}
 
 	// unmarshal to auxiliary type
@@ -41,6 +42,11 @@ func (c *EstafetteManifest) UnmarshalYAML(unmarshal func(interface{}) error) (er
 	c.Version = aux.Version
 	c.Labels = aux.Labels
 	c.GlobalEnvVars = aux.GlobalEnvVars
+
+	// provide backwards compatibility for the deprecated pipelines section now renamed to stages
+	if len(aux.Stages) == 0 && len(aux.DeprecatedPipelines) > 0 {
+		aux.Stages = aux.DeprecatedPipelines
+	}
 
 	for _, mi := range aux.Stages {
 
@@ -147,7 +153,7 @@ func ReadManifestFromFile(manifestPath string) (manifest EstafetteManifest, err 
 		return manifest, err
 	}
 
-	if err := yaml.UnmarshalStrict(data, &manifest); err != nil {
+	if err := yaml.Unmarshal(data, &manifest); err != nil {
 		return manifest, err
 	}
 	manifest.setDefaults()
@@ -162,7 +168,7 @@ func ReadManifest(manifestString string) (manifest EstafetteManifest, err error)
 
 	log.Info().Msg("Reading manifest from string...")
 
-	if err := yaml.UnmarshalStrict([]byte(manifestString), &manifest); err != nil {
+	if err := yaml.Unmarshal([]byte(manifestString), &manifest); err != nil {
 		return manifest, err
 	}
 	manifest.setDefaults()
