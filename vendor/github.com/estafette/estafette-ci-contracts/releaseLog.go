@@ -8,7 +8,7 @@ type ReleaseLog struct {
 	RepoSource string         `json:"repoSource"`
 	RepoOwner  string         `json:"repoOwner"`
 	RepoName   string         `json:"repoName"`
-	ReleaseID  int            `json:"releaseID"`
+	ReleaseID  string         `json:"releaseID"`
 	Steps      []BuildLogStep `json:"steps"`
 	InsertedAt time.Time      `json:"insertedAt"`
 }

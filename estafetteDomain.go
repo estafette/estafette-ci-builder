@@ -9,7 +9,7 @@ type EstafetteCiBuilderEvent struct {
 	RepoOwner    string `json:"repo_owner,omitempty"`
 	RepoName     string `json:"repo_name,omitempty"`
 	RepoRevision string `json:"repo_revision,omitempty"`
-	ReleaseID    int    `json:"release_id,omitempty"`
+	ReleaseID    string `json:"release_id,omitempty"`
 	BuildStatus  string `json:"build_status,omitempty"`
 }
 

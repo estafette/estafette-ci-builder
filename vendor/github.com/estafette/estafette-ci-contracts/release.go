@@ -5,7 +5,7 @@ import "time"
 // Release represents a release of a pipeline
 type Release struct {
 	Name           string     `json:"name"`
-	ID             int        `json:"id,omitempty"`
+	ID             string     `json:"id,omitempty"`
 	RepoSource     string     `json:"repoSource,omitempty"`
 	RepoOwner      string     `json:"repoOwner,omitempty"`
 	RepoName       string     `json:"repoName,omitempty"`

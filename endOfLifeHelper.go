@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -81,11 +80,11 @@ func (elh *endOfLifeHelperImpl) sendBuildJobLogEvent(buildLog contracts.BuildLog
 		// convert BuildJobLogs to json
 		var requestBody io.Reader
 
-		releaseIDValue := elh.envvarHelper.getEstafetteEnv("ESTAFETTE_RELEASE_ID")
-		releaseID, _ := strconv.Atoi(releaseIDValue)
+		releaseID := elh.envvarHelper.getEstafetteEnv("ESTAFETTE_RELEASE_ID")
+
 		var data []byte
 		var err error
-		if releaseID > 0 {
+		if releaseID != "" {
 			// copy buildLog to releaseLog and marshal that
 			releaseLog := contracts.ReleaseLog{
 				ID:         buildLog.ID,
@@ -149,8 +148,7 @@ func (elh *endOfLifeHelperImpl) sendBuildFinishedEvent(buildStatus string) {
 		// convert EstafetteCiBuilderEvent to json
 		var requestBody io.Reader
 
-		releaseIDValue := elh.envvarHelper.getEstafetteEnv("ESTAFETTE_RELEASE_ID")
-		releaseID, _ := strconv.Atoi(releaseIDValue)
+		releaseID := elh.envvarHelper.getEstafetteEnv("ESTAFETTE_RELEASE_ID")
 
 		ciBuilderEvent := EstafetteCiBuilderEvent{
 			JobName:      jobName,
