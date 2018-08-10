@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -80,11 +81,34 @@ func (elh *endOfLifeHelperImpl) sendBuildJobLogEvent(buildLog contracts.BuildLog
 		// convert BuildJobLogs to json
 		var requestBody io.Reader
 
-		data, err := json.Marshal(buildLog)
-		if err != nil {
-			log.Error().Err(err).Msgf("Failed marshalling BuildJobLogs for job %v", jobName)
-			return
+		releaseIDValue := elh.envvarHelper.getEstafetteEnv("ESTAFETTE_RELEASE_ID")
+		releaseID, _ := strconv.Atoi(releaseIDValue)
+		var data []byte
+		var err error
+		if releaseID > 0 {
+			// copy buildLog to releaseLog and marshal that
+			releaseLog := contracts.ReleaseLog{
+				ID:         buildLog.ID,
+				RepoSource: buildLog.RepoSource,
+				RepoOwner:  buildLog.RepoOwner,
+				RepoName:   buildLog.RepoName,
+				ReleaseID:  releaseID,
+				Steps:      buildLog.Steps,
+				InsertedAt: buildLog.InsertedAt,
+			}
+			data, err = json.Marshal(releaseLog)
+			if err != nil {
+				log.Error().Err(err).Msgf("Failed marshalling ReleaseLog for job %v", jobName)
+				return
+			}
+		} else {
+			data, err = json.Marshal(buildLog)
+			if err != nil {
+				log.Error().Err(err).Msgf("Failed marshalling BuildLog for job %v", jobName)
+				return
+			}
 		}
+
 		requestBody = bytes.NewReader(data)
 
 		// create client, in order to add headers
@@ -125,12 +149,16 @@ func (elh *endOfLifeHelperImpl) sendBuildFinishedEvent(buildStatus string) {
 		// convert EstafetteCiBuilderEvent to json
 		var requestBody io.Reader
 
+		releaseIDValue := elh.envvarHelper.getEstafetteEnv("ESTAFETTE_RELEASE_ID")
+		releaseID, _ := strconv.Atoi(releaseIDValue)
+
 		ciBuilderEvent := EstafetteCiBuilderEvent{
 			JobName:      jobName,
 			RepoSource:   elh.envvarHelper.getEstafetteEnv("ESTAFETTE_GIT_SOURCE"),
 			RepoOwner:    strings.Split(elh.envvarHelper.getEstafetteEnv("ESTAFETTE_GIT_NAME"), "/")[0],
 			RepoName:     strings.Split(elh.envvarHelper.getEstafetteEnv("ESTAFETTE_GIT_NAME"), "/")[1],
 			RepoRevision: elh.envvarHelper.getEstafetteEnv("ESTAFETTE_GIT_REVISION"),
+			ReleaseID:    releaseID,
 			BuildStatus:  buildStatus,
 		}
 		data, err := json.Marshal(ciBuilderEvent)

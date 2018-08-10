@@ -2,9 +2,11 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"runtime"
+	"strconv"
 	"strings"
 
 	"github.com/alecthomas/kingpin"
@@ -87,7 +89,7 @@ func main() {
 		// merge estafette and global envvars
 		envvars := envvarHelper.overrideEnvvars(estafetteEnvvars, globalEnvvars)
 
-		result, err := pipelineRunner.runStages(manifest, dir, envvars)
+		result, err := pipelineRunner.runStages(manifest.Stages, dir, envvars)
 		if err != nil {
 			endOfLifeHelper.handleGocdFatal(err, "Executing stages from manifest failed")
 		}
@@ -109,6 +111,10 @@ func main() {
 		if builderTrack == "" {
 			builderTrack = "stable"
 		}
+		buildVersion := envvarHelper.getEstafetteEnv("ESTAFETTE_BUILD_VERSION")
+		releaseName := envvarHelper.getEstafetteEnv("ESTAFETTE_RELEASE_NAME")
+		releaseIDValue := envvarHelper.getEstafetteEnv("ESTAFETTE_RELEASE_ID")
+		releaseID, _ := strconv.Atoi(releaseIDValue)
 
 		buildLog := contracts.BuildLog{
 			RepoSource:   envvarHelper.getEstafetteEnv("ESTAFETTE_GIT_SOURCE"),
@@ -175,14 +181,31 @@ func main() {
 		var manifest manifest.EstafetteManifest
 		json.Unmarshal([]byte(manifestJSON), &manifest)
 
-		log.Info().Msgf("Starting build version %v...", envvarHelper.getEstafetteEnv("ESTAFETTE_BUILD_VERSION"))
+		// check whether this is a regular build or a release
+		stages := manifest.Stages
+		if releaseID > 0 {
+			// check if the release is defined
+			releaseExists := false
+			for _, r := range manifest.Releases {
+				if r.Name == releaseName {
+					releaseExists = true
+					stages = r.Stages
+				}
+			}
+			if !releaseExists {
+				endOfLifeHelper.handleFatal(buildLog, err, fmt.Sprintf("Release %v does not exist", releaseName))
+			}
+			log.Info().Msgf("Starting release %v at version %v...", releaseName, buildVersion)
+		} else {
+			log.Info().Msgf("Starting build version %v...", buildVersion)
+		}
 
 		// collect estafette envvars and run stages from manifest
-		log.Info().Msgf("Running %v stages", len(manifest.Stages))
+		log.Info().Msgf("Running %v stages", len(stages))
 		estafetteEnvvars := envvarHelper.collectEstafetteEnvvars(manifest)
 		globalEnvvars := envvarHelper.collectGlobalEnvvars(manifest)
 		envvars := envvarHelper.overrideEnvvars(estafetteEnvvars, globalEnvvars)
-		result, err := pipelineRunner.runStages(manifest, dir, envvars)
+		result, err := pipelineRunner.runStages(stages, dir, envvars)
 		if err != nil {
 			endOfLifeHelper.handleFatal(buildLog, err, "Executing stages from manifest failed")
 		}

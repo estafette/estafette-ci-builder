@@ -12,7 +12,7 @@ var (
 	pipelineRunner = NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner)
 )
 
-func TestRunPipelines(t *testing.T) {
+func TestRunStages(t *testing.T) {
 
 	t.Run("ReturnsErrorWhenManifestHasNoStages", func(t *testing.T) {
 
@@ -23,12 +23,12 @@ func TestRunPipelines(t *testing.T) {
 		dir, _ := os.Getwd()
 
 		// act
-		_, err := pipelineRunner.runStages(*manifest, dir, envvars)
+		_, err := pipelineRunner.runStages(manifest.Stages, dir, envvars)
 
 		assert.NotNil(t, err)
 	})
 
-	t.Run("ReturnsResultWithInnerResultForEachPipelineInManifest", func(t *testing.T) {
+	t.Run("ReturnsResultWithInnerResultForEachStageInManifest", func(t *testing.T) {
 
 		envvarHelper.unsetEstafetteEnvvars()
 		envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
@@ -38,13 +38,13 @@ func TestRunPipelines(t *testing.T) {
 		dir, _ := os.Getwd()
 
 		// act
-		result, err := pipelineRunner.runStages(*manifest, dir, envvars)
+		result, err := pipelineRunner.runStages(manifest.Stages, dir, envvars)
 
 		assert.Nil(t, err)
 		assert.Equal(t, 1, len(result.StageResults))
 	})
 
-	t.Run("ReturnsResultWithoutErrorsWhenPipelinesSucceeded", func(t *testing.T) {
+	t.Run("ReturnsResultWithoutErrorsWhenStagesSucceeded", func(t *testing.T) {
 
 		envvarHelper.unsetEstafetteEnvvars()
 		envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
@@ -54,13 +54,13 @@ func TestRunPipelines(t *testing.T) {
 		dir, _ := os.Getwd()
 
 		// act
-		result, err := pipelineRunner.runStages(*manifest, dir, envvars)
+		result, err := pipelineRunner.runStages(manifest.Stages, dir, envvars)
 
 		assert.Nil(t, err)
 		assert.False(t, result.HasErrors())
 	})
 
-	t.Run("ReturnsResultWithSucceededPipelineResultWhenPipelinesSucceeded", func(t *testing.T) {
+	t.Run("ReturnsResultWithSucceededPipelineResultWhenStagesSucceeded", func(t *testing.T) {
 
 		envvarHelper.unsetEstafetteEnvvars()
 		envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
@@ -70,13 +70,13 @@ func TestRunPipelines(t *testing.T) {
 		dir, _ := os.Getwd()
 
 		// act
-		result, err := pipelineRunner.runStages(*manifest, dir, envvars)
+		result, err := pipelineRunner.runStages(manifest.Stages, dir, envvars)
 
 		assert.Nil(t, err)
 		assert.Equal(t, "SUCCEEDED", result.StageResults[0].Status)
 	})
 
-	t.Run("ReturnsResultWithErrorsWhenPipelinesFailed", func(t *testing.T) {
+	t.Run("ReturnsResultWithErrorsWhenStagesFailed", func(t *testing.T) {
 
 		envvarHelper.unsetEstafetteEnvvars()
 		envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
@@ -86,13 +86,13 @@ func TestRunPipelines(t *testing.T) {
 		dir, _ := os.Getwd()
 
 		// act
-		result, err := pipelineRunner.runStages(*manifest, dir, envvars)
+		result, err := pipelineRunner.runStages(manifest.Stages, dir, envvars)
 
 		assert.Nil(t, err)
 		assert.True(t, result.HasErrors())
 	})
 
-	t.Run("ReturnsResultWithFailedPipelineResultWhenPipelinesFailed", func(t *testing.T) {
+	t.Run("ReturnsResultWithFailedPipelineResultWhenStagesFailed", func(t *testing.T) {
 
 		envvarHelper.unsetEstafetteEnvvars()
 		envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
@@ -102,13 +102,13 @@ func TestRunPipelines(t *testing.T) {
 		dir, _ := os.Getwd()
 
 		// act
-		result, err := pipelineRunner.runStages(*manifest, dir, envvars)
+		result, err := pipelineRunner.runStages(manifest.Stages, dir, envvars)
 
 		assert.Nil(t, err)
 		assert.Equal(t, "FAILED", result.StageResults[0].Status)
 	})
 
-	t.Run("ReturnsResultWithoutErrorsWhenPipelinesSkipped", func(t *testing.T) {
+	t.Run("ReturnsResultWithoutErrorsWhenStagesSkipped", func(t *testing.T) {
 
 		envvarHelper.unsetEstafetteEnvvars()
 		envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
@@ -118,13 +118,13 @@ func TestRunPipelines(t *testing.T) {
 		dir, _ := os.Getwd()
 
 		// act
-		result, err := pipelineRunner.runStages(*manifest, dir, envvars)
+		result, err := pipelineRunner.runStages(manifest.Stages, dir, envvars)
 
 		assert.Nil(t, err)
 		assert.False(t, result.HasErrors())
 	})
 
-	t.Run("ReturnsResultWithSkippedPipelineResultWhenPipelinesSkipped", func(t *testing.T) {
+	t.Run("ReturnsResultWithSkippedStageResultWhenStagesSkipped", func(t *testing.T) {
 
 		envvarHelper.unsetEstafetteEnvvars()
 		envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
@@ -134,13 +134,13 @@ func TestRunPipelines(t *testing.T) {
 		dir, _ := os.Getwd()
 
 		// act
-		result, err := pipelineRunner.runStages(*manifest, dir, envvars)
+		result, err := pipelineRunner.runStages(manifest.Stages, dir, envvars)
 
 		assert.Nil(t, err)
 		assert.Equal(t, "SKIPPED", result.StageResults[0].Status)
 	})
 
-	t.Run("ReturnsResultForAllPipelinesWhenFirstPipelineFails", func(t *testing.T) {
+	t.Run("ReturnsResultForAllStagesWhenFirstStageFails", func(t *testing.T) {
 
 		envvarHelper.unsetEstafetteEnvvars()
 		envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
@@ -152,7 +152,7 @@ func TestRunPipelines(t *testing.T) {
 		dir, _ := os.Getwd()
 
 		// act
-		result, err := pipelineRunner.runStages(*manifest, dir, envvars)
+		result, err := pipelineRunner.runStages(manifest.Stages, dir, envvars)
 
 		assert.Nil(t, err)
 		assert.Equal(t, "FAILED", result.StageResults[0].Status)
@@ -160,7 +160,7 @@ func TestRunPipelines(t *testing.T) {
 		assert.Equal(t, "SUCCEEDED", result.StageResults[2].Status)
 	})
 
-	t.Run("ReturnsResultWithErrorsWhenFirstPipelineFailsAndSecondSucceeds", func(t *testing.T) {
+	t.Run("ReturnsResultWithErrorsWhenFirstStageFailsAndSecondSucceeds", func(t *testing.T) {
 
 		envvarHelper.unsetEstafetteEnvvars()
 		envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
@@ -172,7 +172,7 @@ func TestRunPipelines(t *testing.T) {
 		dir, _ := os.Getwd()
 
 		// act
-		result, err := pipelineRunner.runStages(*manifest, dir, envvars)
+		result, err := pipelineRunner.runStages(manifest.Stages, dir, envvars)
 
 		assert.Nil(t, err)
 		assert.True(t, result.HasErrors())

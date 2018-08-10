@@ -11,7 +11,7 @@ import (
 // PipelineRunner is the interface for running the pipeline steps
 type PipelineRunner interface {
 	runStage(string, map[string]string, manifest.EstafetteStage) (estafetteStageRunResult, error)
-	runStages(manifest.EstafetteManifest, string, map[string]string) (estafetteRunStagesResult, error)
+	runStages([]*manifest.EstafetteStage, string, map[string]string) (estafetteRunStagesResult, error)
 }
 
 type pipelineRunnerImpl struct {
@@ -134,7 +134,7 @@ func (result *estafetteRunStagesResult) HasErrors() bool {
 	return len(errors) > 0
 }
 
-func (pr *pipelineRunnerImpl) runStages(manifest manifest.EstafetteManifest, dir string, envvars map[string]string) (result estafetteRunStagesResult, err error) {
+func (pr *pipelineRunnerImpl) runStages(stages []*manifest.EstafetteStage, dir string, envvars map[string]string) (result estafetteRunStagesResult, err error) {
 
 	// set default build status if not set
 	err = pr.envvarHelper.initBuildStatus()
@@ -142,11 +142,11 @@ func (pr *pipelineRunnerImpl) runStages(manifest manifest.EstafetteManifest, dir
 		return
 	}
 
-	if len(manifest.Stages) == 0 {
+	if len(stages) == 0 {
 		return result, fmt.Errorf("Manifest has no stages, failing the build")
 	}
 
-	for _, p := range manifest.Stages {
+	for _, p := range stages {
 
 		whenEvaluationResult, err := pr.whenEvaluator.evaluate(p.Name, p.When, pr.whenEvaluator.getParameters())
 		if err != nil {

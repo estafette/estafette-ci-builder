@@ -75,7 +75,7 @@ func (version *EstafetteVersion) Version(params EstafetteVersionParams) string {
 
 // EstafetteCustomVersion represents a custom version using a template
 type EstafetteCustomVersion struct {
-	LabelTemplate string `yaml:"labelTemplate,omitempty"`
+	LabelTemplate string `yaml:"labelTemplate"`
 }
 
 // Version returns the version number as a string
@@ -85,11 +85,11 @@ func (v *EstafetteCustomVersion) Version(params EstafetteVersionParams) string {
 
 // EstafetteSemverVersion represents semantic versioning (http://semver.org/)
 type EstafetteSemverVersion struct {
-	Major         int    `yaml:"major,omitempty"`
-	Minor         int    `yaml:"minor,omitempty"`
-	Patch         string `yaml:"patch,omitempty"`
-	LabelTemplate string `yaml:"labelTemplate,omitempty"`
-	ReleaseBranch string `yaml:"releaseBranch,omitempty"`
+	Major         int    `yaml:"major"`
+	Minor         int    `yaml:"minor"`
+	Patch         string `yaml:"patch"`
+	LabelTemplate string `yaml:"labelTemplate"`
+	ReleaseBranch string `yaml:"releaseBranch"`
 }
 
 // Version returns the version number as a string

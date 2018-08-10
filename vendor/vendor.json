@@ -1135,12 +1135,12 @@
 			"revision": ""
 		},
 		{
-			"checksumSHA1": "RJ08UCA+wED86Tq1Tygg/5etW3E=",
+			"checksumSHA1": "bsGDhmA60Kao7n654HlbRGoYqqQ=",
 			"path": "github.com/estafette/estafette-ci-contracts",
-			"revision": "7c7162c0b1cf27402b7eb17eedbef08e12dfb186",
-			"revisionTime": "2018-08-06T14:10:33Z",
-			"version": "0.0.49",
-			"versionExact": "0.0.49"
+			"revision": "c46be0e4841ab724be61d51ae7990933983d7901",
+			"revisionTime": "2018-08-10T07:40:35Z",
+			"version": "0.0.56",
+			"versionExact": "0.0.56"
 		},
 		{
 			"checksumSHA1": "R054+alU1/88dhwUwqaNyxiTMRY=",
@@ -1151,12 +1151,12 @@
 			"versionExact": "0.0.2"
 		},
 		{
-			"checksumSHA1": "zUcIkbUd58MozSswbOsvVV252A0=",
+			"checksumSHA1": "sWKVP1WTnVAPB1YwMhdQMoGchp8=",
 			"path": "github.com/estafette/estafette-ci-manifest",
-			"revision": "3aaad2e972b0e51669cb530103ce96a295e105bd",
-			"revisionTime": "2018-08-09T09:54:41Z",
-			"version": "0.1.31",
-			"versionExact": "0.1.31"
+			"revision": "7c5a209c9fce25e5ff1cbeccd337c7ff832faab9",
+			"revisionTime": "2018-08-09T12:16:46Z",
+			"version": "0.1.32",
+			"versionExact": "0.1.32"
 		},
 		{
 			"path": "github.com/fluent/fluent-logger-golang/fluent",
