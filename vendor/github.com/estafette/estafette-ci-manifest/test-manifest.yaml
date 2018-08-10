@@ -70,8 +70,6 @@ releases:
       image: extensions/push-to-docker-registry:dev
 
   beta:
-    clone: true
-
     tag-image:
       image: extensions/tag-container-image:dev
 
