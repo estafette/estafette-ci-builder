@@ -13,7 +13,10 @@ type EstafetteRelease struct {
 // UnmarshalYAML customizes unmarshalling an EstafetteRelease
 func (release *EstafetteRelease) UnmarshalYAML(unmarshal func(interface{}) error) (err error) {
 
-	var aux yaml.MapSlice
+	var aux struct {
+		Name   string        `yaml:"-"`
+		Stages yaml.MapSlice `yaml:"stages"`
+	}
 
 	// unmarshal to auxiliary type
 	if err := unmarshal(&aux); err != nil {
@@ -21,7 +24,7 @@ func (release *EstafetteRelease) UnmarshalYAML(unmarshal func(interface{}) error
 	}
 
 	// map auxiliary properties
-	for _, mi := range aux {
+	for _, mi := range aux.Stages {
 
 		bytes, err := yaml.Marshal(mi.Value)
 		if err != nil {
@@ -46,10 +49,14 @@ func (release *EstafetteRelease) UnmarshalYAML(unmarshal func(interface{}) error
 
 // MarshalYAML customizes marshalling an EstafetteManifest
 func (release EstafetteRelease) MarshalYAML() (out interface{}, err error) {
-	var aux yaml.MapSlice
+
+	var aux struct {
+		Name   string        `yaml:"-"`
+		Stages yaml.MapSlice `yaml:"stages"`
+	}
 
 	for _, stage := range release.Stages {
-		aux = append(aux, yaml.MapItem{
+		aux.Stages = append(aux.Stages, yaml.MapItem{
 			Key:   stage.Name,
 			Value: stage,
 		})

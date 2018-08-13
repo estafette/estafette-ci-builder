@@ -66,26 +66,31 @@ stages:
 # releases are automatically triggered from stages or manually from gui, cli or slack
 releases:
   docker-hub:
-    push-image:
-      image: extensions/push-to-docker-registry:dev
+    stages:
+      push-image:
+        image: extensions/push-to-docker-registry:dev
 
   beta:
-    tag-image:
-      image: extensions/tag-container-image:dev
+    stages:
+      tag-image:
+        image: extensions/tag-container-image:dev
 
   development:
-    deploy:
-      image: extensions/deploy-to-kubernetes-engine:dev
+    stages:
+      deploy:
+        image: extensions/deploy-to-kubernetes-engine:dev
 
   staging:
-    deploy:
-      image: extensions/deploy-to-kubernetes-engine:beta
+    stages:
+      deploy:
+        image: extensions/deploy-to-kubernetes-engine:beta
 
   production:
-    deploy:
-      image: extensions/deploy-to-kubernetes-engine:stable
+    stages:
+      deploy:
+        image: extensions/deploy-to-kubernetes-engine:stable
 
-    create-release-notes:
-      image: extensions/create-release-notes-from-changelog:stable
+      create-release-notes:
+        image: extensions/create-release-notes-from-changelog:stable
 
   tooling:
