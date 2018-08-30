@@ -12,7 +12,6 @@ import (
 
 	"github.com/alecthomas/kingpin"
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/client"
 	"github.com/estafette/estafette-ci-builder/config"
 	"github.com/estafette/estafette-ci-contracts"
 	crypt "github.com/estafette/estafette-ci-crypt"
@@ -66,6 +65,12 @@ func main() {
 			Str("buildDate", buildDate).
 			Str("goVersion", goVersion).
 			Msg("Starting estafette-ci-builder...")
+
+		// create docker client
+		_, err := dockerRunner.createDockerClient()
+		if err != nil {
+			endOfLifeHelper.handleGocdFatal(err, "Failed creating a docker client")
+		}
 
 		// read yaml
 		manifest, err := manifest.ReadManifestFromFile(".estafette.yaml")
@@ -204,6 +209,12 @@ func main() {
 			log.Info().Msgf("Starting build version %v...", buildVersion)
 		}
 
+		// create docker client
+		dockerClient, err := dockerRunner.createDockerClient()
+		if err != nil {
+			endOfLifeHelper.handleFatal(buildLog, err, "Failed creating a docker client")
+		}
+
 		// get private container registries credentials
 		registriesJSON := os.Getenv("ESTAFETTE_CI_REGISTRIES_JSON")
 		if registriesJSON != "" {
@@ -217,12 +228,7 @@ func main() {
 						// log in to this registry
 						log.Info().Msgf("Authenticating registry %v", registry.Server)
 
-						cli, err := client.NewEnvClient()
-						if err != nil {
-							endOfLifeHelper.handleFatal(buildLog, err, fmt.Sprintf("Failed creating a docker client for authenticating registry %v", registry.Server))
-						}
-
-						_, err = cli.RegistryLogin(context.Background(), types.AuthConfig{
+						_, err = dockerClient.RegistryLogin(context.Background(), types.AuthConfig{
 							ServerAddress: fmt.Sprintf("https://%v", registry.Server),
 							Username:      registry.Username,
 							Password:      registry.Password,

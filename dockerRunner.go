@@ -28,12 +28,15 @@ type DockerRunner interface {
 	runDockerPull(manifest.EstafetteStage) error
 	getDockerImageSize(manifest.EstafetteStage) (int64, error)
 	runDockerRun(string, map[string]string, manifest.EstafetteStage) ([]buildJobLogLine, int64, error)
+
 	startDockerDaemon() error
 	waitForDockerDaemon()
+	createDockerClient() (*client.Client, error)
 }
 
 type dockerRunnerImpl struct {
 	envvarHelper EnvvarHelper
+	dockerClient *client.Client
 }
 
 // NewDockerRunner returns a new DockerRunner
@@ -47,12 +50,10 @@ func (dr *dockerRunnerImpl) isDockerImagePulled(p manifest.EstafetteStage) bool 
 
 	log.Info().Msgf("[%v] Checking if docker image '%v' exists locally...", p.Name, p.ContainerImage)
 
-	cli, err := client.NewEnvClient()
+	imageSummaries, err := dr.dockerClient.ImageList(context.Background(), types.ImageListOptions{})
 	if err != nil {
 		return false
 	}
-
-	imageSummaries, err := cli.ImageList(context.Background(), types.ImageListOptions{})
 
 	for _, summary := range imageSummaries {
 		if contains(summary.RepoTags, p.ContainerImage) {
@@ -67,12 +68,7 @@ func (dr *dockerRunnerImpl) runDockerPull(p manifest.EstafetteStage) (err error)
 
 	log.Info().Msgf("[%v] Pulling docker image '%v'", p.Name, p.ContainerImage)
 
-	cli, err := client.NewEnvClient()
-	if err != nil {
-		return err
-	}
-
-	rc, err := cli.ImagePull(context.Background(), p.ContainerImage, types.ImagePullOptions{})
+	rc, err := dr.dockerClient.ImagePull(context.Background(), p.ContainerImage, types.ImagePullOptions{})
 	if err != nil {
 		return err
 	}
@@ -89,12 +85,7 @@ func (dr *dockerRunnerImpl) runDockerPull(p manifest.EstafetteStage) (err error)
 
 func (dr *dockerRunnerImpl) getDockerImageSize(p manifest.EstafetteStage) (totalSize int64, err error) {
 
-	cli, err := client.NewEnvClient()
-	if err != nil {
-		return totalSize, err
-	}
-
-	items, err := cli.ImageHistory(context.Background(), p.ContainerImage)
+	items, err := dr.dockerClient.ImageHistory(context.Background(), p.ContainerImage)
 	if err != nil {
 		return totalSize, err
 	}
@@ -113,10 +104,6 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 
 	// run docker with image and commands from yaml
 	ctx := context.Background()
-	cli, err := client.NewEnvClient()
-	if err != nil {
-		return
-	}
 
 	// define commands
 	cmdSlice := make([]string, 0)
@@ -209,7 +196,7 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 	}
 
 	// create container
-	resp, err := cli.ContainerCreate(ctx, &config, &container.HostConfig{
+	resp, err := dr.dockerClient.ContainerCreate(ctx, &config, &container.HostConfig{
 		Binds:      binds,
 		AutoRemove: true,
 		Privileged: true,
@@ -219,12 +206,12 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 	}
 
 	// start container
-	if err := cli.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{}); err != nil {
+	if err := dr.dockerClient.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{}); err != nil {
 		return logLines, exitCode, err
 	}
 
 	// follow logs
-	rc, err := cli.ContainerLogs(ctx, resp.ID, types.ContainerLogsOptions{
+	rc, err := dr.dockerClient.ContainerLogs(ctx, resp.ID, types.ContainerLogsOptions{
 		ShowStdout: true,
 		ShowStderr: true,
 		Follow:     true,
@@ -283,7 +270,7 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 	}
 
 	// wait for container to stop run
-	exitCode, err = cli.ContainerWait(ctx, resp.ID)
+	exitCode, err = dr.dockerClient.ContainerWait(ctx, resp.ID)
 	if err != nil {
 		return
 	}
@@ -325,4 +312,15 @@ func (dr *dockerRunnerImpl) waitForDockerDaemon() {
 		}
 	}
 	log.Debug().Msg("Docker daemon is ready for use")
+}
+
+func (dr *dockerRunnerImpl) createDockerClient() (*client.Client, error) {
+
+	dockerClient, err := client.NewEnvClient()
+	if err != nil {
+		return dockerClient, err
+	}
+	dr.dockerClient = dockerClient
+
+	return dockerClient, err
 }
