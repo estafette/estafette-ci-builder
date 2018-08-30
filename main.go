@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,6 +11,9 @@ import (
 	"strings"
 
 	"github.com/alecthomas/kingpin"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/client"
+	"github.com/estafette/estafette-ci-builder/config"
 	"github.com/estafette/estafette-ci-contracts"
 	crypt "github.com/estafette/estafette-ci-crypt"
 	manifest "github.com/estafette/estafette-ci-manifest"
@@ -198,6 +202,34 @@ func main() {
 			log.Info().Msgf("Starting release %v at version %v...", releaseName, buildVersion)
 		} else {
 			log.Info().Msgf("Starting build version %v...", buildVersion)
+		}
+
+		// get private container registries credentials
+		registriesJSON := os.Getenv("ESTAFETTE_CI_REGISTRIES_JSON")
+		if registriesJSON != "" {
+			var registries []*config.PrivateContainerRegistryConfig
+			json.Unmarshal([]byte(registriesJSON), &registries)
+
+			// check if any of the used stages use an image from one of the defined registries and log in to the registry in that case
+			for _, registry := range registries {
+				for _, stage := range stages {
+					if strings.HasPrefix(stage.ContainerImage, registry.Server) {
+						// log in to this registry
+						cli, err := client.NewEnvClient()
+						if err != nil {
+							endOfLifeHelper.handleFatal(buildLog, err, fmt.Sprintf("Failed creating a docker client for authenticating registry %v", registry.Server))
+						}
+
+						cli.RegistryLogin(context.Background(), types.AuthConfig{
+							ServerAddress: fmt.Sprintf("https://%v", registry.Server),
+							Username:      registry.Username,
+							Password:      registry.Password,
+						})
+
+						break
+					}
+				}
+			}
 		}
 
 		// collect estafette envvars and run stages from manifest
