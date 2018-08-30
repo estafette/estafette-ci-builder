@@ -228,14 +228,15 @@ func main() {
 						// log in to this registry
 						log.Info().Msgf("Authenticating registry %v", registry.Server)
 
-						_, err = dockerClient.RegistryLogin(context.Background(), types.AuthConfig{
-							ServerAddress: fmt.Sprintf("https://%v", registry.Server),
+						bodyOK, err := dockerClient.RegistryLogin(context.Background(), types.AuthConfig{
+							ServerAddress: registry.Server,
 							Username:      registry.Username,
 							Password:      registry.Password,
 						})
 						if err != nil {
 							endOfLifeHelper.handleFatal(buildLog, err, fmt.Sprintf("Failed authenticating registry %v", registry.Server))
 						}
+						log.Debug().Msgf("Succesfully authenticated for registry %v (response %v)", registry.Server, bodyOK)
 
 						break
 					}
