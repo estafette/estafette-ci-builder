@@ -215,16 +215,21 @@ func main() {
 				for _, stage := range stages {
 					if strings.HasPrefix(stage.ContainerImage, registry.Server) {
 						// log in to this registry
+						log.Info().Msgf("Authenticating registry %v", registry.Server)
+
 						cli, err := client.NewEnvClient()
 						if err != nil {
 							endOfLifeHelper.handleFatal(buildLog, err, fmt.Sprintf("Failed creating a docker client for authenticating registry %v", registry.Server))
 						}
 
-						cli.RegistryLogin(context.Background(), types.AuthConfig{
+						_, err = cli.RegistryLogin(context.Background(), types.AuthConfig{
 							ServerAddress: fmt.Sprintf("https://%v", registry.Server),
 							Username:      registry.Username,
 							Password:      registry.Password,
 						})
+						if err != nil {
+							endOfLifeHelper.handleFatal(buildLog, err, fmt.Sprintf("Failed authenticating registry %v", registry.Server))
+						}
 
 						break
 					}
