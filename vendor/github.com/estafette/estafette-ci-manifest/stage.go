@@ -10,6 +10,7 @@ type EstafetteStage struct {
 	When             string                 `yaml:"when,omitempty"`
 	EnvVars          map[string]string      `yaml:"env,omitempty"`
 	AutoInjected     bool                   `yaml:"autoInjected,omitempty"`
+	Retries          int                    `yaml:"retries,omitempty"`
 	CustomProperties map[string]interface{} `yaml:",inline"`
 }
 
@@ -25,6 +26,7 @@ func (stage *EstafetteStage) UnmarshalYAML(unmarshal func(interface{}) error) (e
 		When             string                 `yaml:"when"`
 		EnvVars          map[string]string      `yaml:"env"`
 		AutoInjected     bool                   `yaml:"autoInjected"`
+		Retries          int                    `yaml:"retries,omitempty"`
 		CustomProperties map[string]interface{} `yaml:",inline"`
 	}
 
@@ -42,6 +44,7 @@ func (stage *EstafetteStage) UnmarshalYAML(unmarshal func(interface{}) error) (e
 	stage.EnvVars = aux.EnvVars
 	stage.AutoInjected = aux.AutoInjected
 	stage.CustomProperties = aux.CustomProperties
+	stage.Retries = aux.Retries
 
 	// set default property values
 	stage.setDefaults()

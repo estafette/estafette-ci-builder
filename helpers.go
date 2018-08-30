@@ -126,6 +126,7 @@ func transformPipelineRunResultToBuildLogSteps(result estafetteRunStagesResult) 
 			ExitCode:     r.ExitCode,
 			Status:       r.Status,
 			AutoInjected: r.Stage.AutoInjected,
+			RunIndex:     r.RunIndex,
 		}
 
 		for _, l := range r.LogLines {

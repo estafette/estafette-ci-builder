@@ -31,6 +31,7 @@ func NewPipelineRunner(envvarHelper EnvvarHelper, whenEvaluator WhenEvaluator, d
 
 type estafetteStageRunResult struct {
 	Stage               manifest.EstafetteStage
+	RunIndex            int
 	IsDockerImagePulled bool
 	DockerImageSize     int64
 	DockerPullDuration  time.Duration
@@ -155,32 +156,43 @@ func (pr *pipelineRunnerImpl) runStages(stages []*manifest.EstafetteStage, dir s
 
 		if whenEvaluationResult {
 
-			r, err := pr.runStage(dir, envvars, *p)
-			if err != nil {
+			runIndex := 0
+			for runIndex <= p.Retries {
 
-				// add error to log lines
-				r.LogLines = append(r.LogLines, buildJobLogLine{
-					timestamp: time.Now().UTC(),
-					logLevel:  "stderr",
-					logText:   err.Error(),
-				})
+				r, err := pr.runStage(dir, envvars, *p)
+				if err != nil {
 
-				// set 'failed' build status
-				pr.envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "failed")
-				envvars[pr.envvarHelper.getEstafetteEnvvarName("ESTAFETTE_BUILD_STATUS")] = "failed"
+					// add error to log lines
+					r.RunIndex = runIndex
+					r.LogLines = append(r.LogLines, buildJobLogLine{
+						timestamp: time.Now().UTC(),
+						logLevel:  "stderr",
+						logText:   err.Error(),
+					})
 
-				r.Status = "FAILED"
-				r.OtherError = err
+					// set 'failed' build status
+					if runIndex == p.Retries {
+						pr.envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "failed")
+						envvars[pr.envvarHelper.getEstafetteEnvvarName("ESTAFETTE_BUILD_STATUS")] = "failed"
+					}
+
+					r.Status = "FAILED"
+					r.OtherError = err
+
+					result.StageResults = append(result.StageResults, r)
+
+					runIndex++
+
+					continue
+				}
+
+				// set 'succeeded' build status
+				r.Status = "SUCCEEDED"
 
 				result.StageResults = append(result.StageResults, r)
 
-				continue
+				break
 			}
-
-			// set 'succeeded' build status
-			r.Status = "SUCCEEDED"
-
-			result.StageResults = append(result.StageResults, r)
 
 		} else {
 
