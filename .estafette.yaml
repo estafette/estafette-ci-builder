@@ -57,6 +57,10 @@ stages:
     commands:
     - docker login --username=_json_key --password="$ESTAFETTE_GCR_PASSWORD" https://gcr.io
     - docker push gcr.io/${GCR_PROJECT}/${ESTAFETTE_LABEL_APP}:${ESTAFETTE_BUILD_VERSION}
+    when:
+      status == 'succeeded' &&
+      branch == 'master' &&
+      server == 'gocd'
 
   # bake-estafette:
   #   image: extensions/docker:dev
