@@ -123,7 +123,7 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 
 			if s, isString := v.(string); isString {
 				// if custom property is of type string add the envvar
-				extensionEnvVars[extensionkey] = os.Expand(s, dr.envvarHelper.getEstafetteEnv)
+				extensionEnvVars[extensionkey] = dr.envvarHelper.decryptSecret(os.Expand(s, dr.envvarHelper.getEstafetteEnv))
 			} else if s, isBool := v.(bool); isBool {
 				// if custom property is of type bool add the envvar
 				extensionEnvVars[extensionkey] = os.Expand(strconv.FormatBool(s), dr.envvarHelper.getEstafetteEnv)
@@ -145,7 +145,7 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 
 				if valid {
 					// if all array items are string, pass as comma-separated list to extension
-					extensionEnvVars[extensionkey] = os.Expand(strings.Join(stringValues, ","), dr.envvarHelper.getEstafetteEnv)
+					extensionEnvVars[extensionkey] = dr.envvarHelper.decryptSecret(os.Expand(strings.Join(stringValues, ","), dr.envvarHelper.getEstafetteEnv))
 				} else {
 					log.Warn().Interface("customProperty", v).Msgf("Cannot turn custom property %v into extension envvar", k)
 				}
