@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/alecthomas/kingpin"
-	"github.com/estafette/estafette-ci-builder/config"
 	"github.com/estafette/estafette-ci-contracts"
 	crypt "github.com/estafette/estafette-ci-crypt"
 	manifest "github.com/estafette/estafette-ci-manifest"
@@ -214,11 +213,11 @@ func main() {
 		}
 
 		// get private container registries credentials
-		registriesJSON := os.Getenv("ESTAFETTE_CI_REGISTRIES_JSON")
-		if registriesJSON != "" {
-			var registries []*config.PrivateContainerRegistryConfig
-			json.Unmarshal([]byte(registriesJSON), &registries)
-			dockerRunner.setPrivateRegistryConfig(registries)
+		credentialsJSON := os.Getenv("ESTAFETTE_CI_REPOSITORY_CREDENTIALS_JSON")
+		if credentialsJSON != "" {
+			var credentials []*contracts.ContainerRepositoryCredentialConfig
+			json.Unmarshal([]byte(credentialsJSON), &credentials)
+			dockerRunner.setRepositoryCredentials(credentials)
 		}
 
 		// collect estafette envvars and run stages from manifest

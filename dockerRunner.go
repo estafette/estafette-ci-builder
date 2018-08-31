@@ -19,7 +19,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
-	"github.com/estafette/estafette-ci-builder/config"
+	contracts "github.com/estafette/estafette-ci-contracts"
 	manifest "github.com/estafette/estafette-ci-manifest"
 
 	"github.com/rs/zerolog/log"
@@ -35,14 +35,14 @@ type DockerRunner interface {
 	startDockerDaemon() error
 	waitForDockerDaemon()
 	createDockerClient() (*client.Client, error)
-	setPrivateRegistryConfig([]*config.PrivateContainerRegistryConfig)
+	setRepositoryCredentials([]*contracts.ContainerRepositoryCredentialConfig)
 	getImagePullOptions(containerImage string) types.ImagePullOptions
 }
 
 type dockerRunnerImpl struct {
-	envvarHelper               EnvvarHelper
-	dockerClient               *client.Client
-	privateRegistryCredentials []*config.PrivateContainerRegistryConfig
+	envvarHelper          EnvvarHelper
+	dockerClient          *client.Client
+	repositoryCredentials []*contracts.ContainerRepositoryCredentialConfig
 }
 
 // NewDockerRunner returns a new DockerRunner
@@ -331,33 +331,31 @@ func (dr *dockerRunnerImpl) createDockerClient() (*client.Client, error) {
 	return dockerClient, err
 }
 
-func (dr *dockerRunnerImpl) setPrivateRegistryConfig(privateRegistryCredentials []*config.PrivateContainerRegistryConfig) {
-	dr.privateRegistryCredentials = privateRegistryCredentials
+func (dr *dockerRunnerImpl) setRepositoryCredentials(repositoryCredentials []*contracts.ContainerRepositoryCredentialConfig) {
+	dr.repositoryCredentials = repositoryCredentials
 }
 
 func (dr *dockerRunnerImpl) getImagePullOptions(containerImage string) types.ImagePullOptions {
+	if dr.repositoryCredentials != nil {
+		for _, credentials := range dr.repositoryCredentials {
+			containerImageSlice := strings.Split(containerImage, "/")
+			containerRepo := strings.Join(containerImageSlice[:len(containerImageSlice)-1], "/")
 
-	if dr.privateRegistryCredentials == nil || len(dr.privateRegistryCredentials) == 0 {
-		return types.ImagePullOptions{}
-	}
+			if containerRepo == credentials.Repository {
+				authConfig := types.AuthConfig{
+					Username: credentials.Username,
+					Password: credentials.Password,
+				}
+				encodedJSON, err := json.Marshal(authConfig)
+				if err == nil {
+					authStr := base64.URLEncoding.EncodeToString(encodedJSON)
 
-	for _, registry := range dr.privateRegistryCredentials {
-		if strings.HasPrefix(containerImage, registry.Server) {
-
-			authConfig := types.AuthConfig{
-				ServerAddress: fmt.Sprintf("https://%v", registry.Server),
-				Username:      registry.Username,
-				Password:      registry.Password,
-			}
-			encodedJSON, err := json.Marshal(authConfig)
-			if err != nil {
+					return types.ImagePullOptions{
+						RegistryAuth: authStr,
+					}
+				}
 				log.Error().Err(err).Msgf("Failed marshaling docker auth config for container image %v", containerImage)
-				return types.ImagePullOptions{}
-			}
-			authStr := base64.URLEncoding.EncodeToString(encodedJSON)
-
-			return types.ImagePullOptions{
-				RegistryAuth: authStr,
+				break
 			}
 		}
 	}
