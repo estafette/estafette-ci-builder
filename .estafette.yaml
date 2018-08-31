@@ -27,25 +27,6 @@ stages:
     - go test `go list ./... | grep -v /vendor/`
     - CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags "-X main.version=${ESTAFETTE_BUILD_VERSION} -X main.revision=${ESTAFETTE_GIT_REVISION} -X main.branch=${ESTAFETTE_GIT_BRANCH} -X main.buildDate=${ESTAFETTE_BUILD_DATETIME}" -o ./publish/${ESTAFETTE_LABEL_APP} .
 
-  # bake-estafette:
-  #   image: docker:18.06.0-ce
-  #   commands:
-  #   - cp Dockerfile ./publish
-  #   - docker build -f ./publish/Dockerfile -t estafette/${ESTAFETTE_LABEL_APP}:${ESTAFETTE_BUILD_VERSION} ./publish
-
-  # push-to-docker-hub:
-  #   image: docker:18.06.0-ce
-  #   env:
-  #     DOCKER_HUB_USERNAME: estafette.secret(mhN5HP5qcUkpSp4m.s9UnvG027LhQjT-bvvyjYcLKtyd_-xY1Cw==)
-  #     DOCKER_HUB_PASSWORD: estafette.secret(_oi7CDX50U8qjQSS.U3dzq3cw3J-_-hODYbNtOEDWgeUGzgXk2J0T-WMOmkil56tg)
-  #   commands:
-  #   - docker login --username=${DOCKER_HUB_USERNAME} --password="${DOCKER_HUB_PASSWORD}"
-  #   - docker push estafette/${ESTAFETTE_LABEL_APP}:${ESTAFETTE_BUILD_VERSION}
-  #   when:
-  #     status == 'succeeded' &&
-  #     branch == 'master' &&
-  #     server == 'gocd'
-
   bake-estafette:
     image: extensions/docker:dev
     action: build
@@ -65,22 +46,6 @@ stages:
       branch == 'master' &&
       server == 'gocd'
 
-  # bake-gocd-agent:
-  #   image: docker:18.06.0-ce
-  #   commands:
-  #   - cp Dockerfile.gocd ./publish
-  #   - docker build -f ./publish/Dockerfile.gocd -t gcr.io/${GCR_PROJECT}/${ESTAFETTE_LABEL_APP}:${ESTAFETTE_BUILD_VERSION} ./publish
-
-  # push-to-gcr-io:
-  #   image: docker:18.06.0-ce
-  #   commands:
-  #   - docker login --username=_json_key --password="$ESTAFETTE_GCR_PASSWORD" https://gcr.io
-  #   - docker push gcr.io/${GCR_PROJECT}/${ESTAFETTE_LABEL_APP}:${ESTAFETTE_BUILD_VERSION}
-  #   when:
-  #     status == 'succeeded' &&
-  #     branch == 'master' &&
-  #     server == 'gocd'
-
   bake-gocd-agent:
     image: extensions/docker:dev
     action: build
@@ -89,7 +54,7 @@ stages:
     path: ./publish
     dockerfile: Dockerfile.gocd
     copy:
-    - Dockerfile
+    - Dockerfile.gocd
 
   push-to-gcr-io:
     image: extensions/docker:dev
