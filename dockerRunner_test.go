@@ -1,7 +1,7 @@
 package main
 
 var (
-	dockerRunner = NewDockerRunner(envvarHelper)
+	dockerRunner = NewDockerRunner(envvarHelper, NewObfuscator(secretHelper))
 )
 
 func init() {

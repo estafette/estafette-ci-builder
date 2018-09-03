@@ -41,14 +41,16 @@ type DockerRunner interface {
 
 type dockerRunnerImpl struct {
 	envvarHelper          EnvvarHelper
+	obfuscator            Obfuscator
 	dockerClient          *client.Client
 	repositoryCredentials []*contracts.ContainerRepositoryCredentialConfig
 }
 
 // NewDockerRunner returns a new DockerRunner
-func NewDockerRunner(envvarHelper EnvvarHelper) DockerRunner {
+func NewDockerRunner(envvarHelper EnvvarHelper, obfuscator Obfuscator) DockerRunner {
 	return &dockerRunnerImpl{
 		envvarHelper: envvarHelper,
+		obfuscator:   obfuscator,
 	}
 }
 
@@ -257,16 +259,18 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 			logLine = logLine[8:]
 		}
 
+		logLineString := dr.obfuscator.Obfuscate(string(logLine))
+
 		if logType == "stderr" {
-			log.Info().Msgf("[%v] %v", p.Name, string(logLine))
+			log.Info().Msgf("[%v] %v", p.Name, logLineString)
 		} else {
-			log.Info().Msgf("[%v] %v", p.Name, string(logLine))
+			log.Info().Msgf("[%v] %v", p.Name, logLineString)
 		}
 
 		logLines = append(logLines, buildJobLogLine{
 			timestamp: time.Now().UTC(),
 			logLevel:  logType,
-			logText:   string(logLine),
+			logText:   logLineString,
 		})
 	}
 

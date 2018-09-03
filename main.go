@@ -38,7 +38,8 @@ func main() {
 	secretHelper := crypt.NewSecretHelper(*secretDecryptionKey)
 	envvarHelper := NewEnvvarHelper("ESTAFETTE_", secretHelper)
 	whenEvaluator := NewWhenEvaluator(envvarHelper)
-	dockerRunner := NewDockerRunner(envvarHelper)
+	obfuscator := NewObfuscator(secretHelper)
+	dockerRunner := NewDockerRunner(envvarHelper, obfuscator)
 	pipelineRunner := NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner)
 	endOfLifeHelper := NewEndOfLifeHelper(envvarHelper)
 
@@ -73,6 +74,12 @@ func main() {
 		manifest, err := manifest.ReadManifestFromFile(".estafette.yaml")
 		if err != nil {
 			endOfLifeHelper.handleGocdFatal(err, "Reading .estafette.yaml manifest failed")
+		}
+
+		// initialize obfuscator
+		err = obfuscator.CollectSecrets(manifest)
+		if err != nil {
+			endOfLifeHelper.handleGocdFatal(err, "Collecting secrets to obfuscate failed")
 		}
 
 		// get current working directory
@@ -186,6 +193,12 @@ func main() {
 		manifestJSON := os.Getenv("ESTAFETTE_CI_MANIFEST_JSON")
 		var manifest manifest.EstafetteManifest
 		json.Unmarshal([]byte(manifestJSON), &manifest)
+
+		// initialize obfuscator
+		err = obfuscator.CollectSecrets(manifest)
+		if err != nil {
+			endOfLifeHelper.handleFatal(buildLog, err, "Collecting secrets to obfuscate failed")
+		}
 
 		// check whether this is a regular build or a release
 		stages := manifest.Stages
