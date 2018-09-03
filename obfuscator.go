@@ -6,6 +6,7 @@ import (
 
 	"github.com/estafette/estafette-ci-crypt"
 	"github.com/estafette/estafette-ci-manifest"
+	"github.com/rs/zerolog/log"
 	yaml "gopkg.in/yaml.v2"
 )
 
@@ -35,12 +36,15 @@ func (ob *obfuscatorImpl) CollectSecrets(manifest manifest.EstafetteManifest) (e
 	}
 	manifestYamlString := string(manifestYamlBytes)
 
-	r, err := regexp.Compile(`estafette\.secret\(([a-zA-Z0-9.=_-]+)\)`)
+	r, err := regexp.Compile(`(?m)estafette\.secret\(([a-zA-Z0-9.=_-]+)\)`)
 	if err != nil {
 		return err
 	}
 
 	matches := r.FindAllStringSubmatch(manifestYamlString, 0)
+
+	log.Debug().Interface("matches", matches).Msg("Matches found in obfuscator")
+
 	if matches == nil {
 		return nil
 	}
