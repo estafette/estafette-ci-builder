@@ -1,13 +1,12 @@
 package main
 
 import (
+	"encoding/json"
 	"regexp"
 	"strings"
 
 	"github.com/estafette/estafette-ci-crypt"
 	"github.com/estafette/estafette-ci-manifest"
-	"github.com/rs/zerolog/log"
-	yaml "gopkg.in/yaml.v2"
 )
 
 // Obfuscator hides secret values and other sensitive stuff from the logs
@@ -30,34 +29,28 @@ func NewObfuscator(secretHelper crypt.SecretHelper) Obfuscator {
 
 func (ob *obfuscatorImpl) CollectSecrets(manifest manifest.EstafetteManifest) (err error) {
 	// turn manifest into string to easily scan for secrets
-	manifestYamlBytes, err := yaml.Marshal(manifest)
-	if err != nil {
-		return err
-	}
-	manifestYamlString := string(manifestYamlBytes)
-
-	r, err := regexp.Compile(`(?m)estafette\.secret\(([a-zA-Z0-9.=_-]+)\)`)
+	manifestBytes, err := json.Marshal(manifest)
 	if err != nil {
 		return err
 	}
 
-	matches := r.FindAllStringSubmatch(manifestYamlString, 0)
-
-	log.Debug().Interface("matches", matches).Msg("Matches found in obfuscator")
-
-	if matches == nil {
-		return nil
+	r, err := regexp.Compile(`estafette\.secret\(([a-zA-Z0-9.=_-]+)\)`)
+	if err != nil {
+		return err
 	}
 
+	matches := r.FindAllStringSubmatch(string(manifestBytes), -1)
 	replacerStrings := []string{}
-	for _, m := range matches {
-		if len(m) > 1 {
-			decryptedValue, err := ob.secretHelper.Decrypt(m[1])
-			if err != nil {
-				return err
-			}
+	if matches != nil {
+		for _, m := range matches {
+			if len(m) > 1 {
+				decryptedValue, err := ob.secretHelper.Decrypt(m[1])
+				if err != nil {
+					return err
+				}
 
-			replacerStrings = append(replacerStrings, decryptedValue, "***")
+				replacerStrings = append(replacerStrings, decryptedValue, "***")
+			}
 		}
 	}
 
