@@ -223,6 +223,7 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 		ShowStdout: true,
 		ShowStderr: true,
 		Follow:     true,
+		Details:    true,
 	})
 	defer rc.Close()
 	if err != nil {
