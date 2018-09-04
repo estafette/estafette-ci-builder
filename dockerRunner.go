@@ -242,7 +242,7 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 		}
 
 		logType := "stdout"
-		if len(logLine) > 8 {
+		if len(logLine) >= 8 {
 
 			headers := []byte(logLine[0:8])
 
