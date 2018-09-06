@@ -43,7 +43,6 @@ stages:
     - estafette
     when:
       status == 'succeeded' &&
-      branch == 'master' &&
       server == 'gocd'
 
   bake-gocd-agent:
