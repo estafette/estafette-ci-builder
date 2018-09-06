@@ -2,7 +2,8 @@ FROM travix/gocd-agent:18.8.0-alpine
 
 MAINTAINER estafette.io
 
-ENV ESTAFETTE_CI_SERVER="gocd"
+ENV ESTAFETTE_CI_SERVER="gocd" \
+    DOCKER_API_VERSION="1.38"
 
 # copy builder
 COPY estafette-ci-builder /usr/bin/

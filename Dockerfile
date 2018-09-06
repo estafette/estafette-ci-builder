@@ -5,7 +5,8 @@ LABEL maintainer="estafette.io" \
 
 RUN addgroup docker
 
-ENV ESTAFETTE_CI_SERVER="estafette"
+ENV ESTAFETTE_CI_SERVER="estafette" \
+    DOCKER_API_VERSION="1.38"
 
 # copy builder & startup script
 COPY estafette-ci-builder /
