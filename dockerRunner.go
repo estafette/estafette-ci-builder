@@ -15,10 +15,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/docker-ce/components/engine/client"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/client"
 	contracts "github.com/estafette/estafette-ci-contracts"
 	manifest "github.com/estafette/estafette-ci-manifest"
 
@@ -280,9 +280,13 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 		return logLines, exitCode, readError
 	}
 
-	// wait for container to stop run
-	exitCode, err = dr.dockerClient.ContainerWait(ctx, resp.ID)
-	if err != nil {
+	// wait for container to stop running
+	resultC, errC := dr.dockerClient.ContainerWait(ctx, resp.ID, container.WaitConditionNotRunning)
+
+	select {
+	case result := <-resultC:
+		exitCode = result.StatusCode
+	case err = <-errC:
 		return
 	}
 
