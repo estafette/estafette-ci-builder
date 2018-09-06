@@ -155,6 +155,7 @@ func (elh *endOfLifeHelperImpl) sendBuildFinishedEvent(buildStatus string) {
 			RepoSource:   elh.envvarHelper.getEstafetteEnv("ESTAFETTE_GIT_SOURCE"),
 			RepoOwner:    strings.Split(elh.envvarHelper.getEstafetteEnv("ESTAFETTE_GIT_NAME"), "/")[0],
 			RepoName:     strings.Split(elh.envvarHelper.getEstafetteEnv("ESTAFETTE_GIT_NAME"), "/")[1],
+			RepoBranch:   elh.envvarHelper.getEstafetteEnv("ESTAFETTE_GIT_BRANCH"),
 			RepoRevision: elh.envvarHelper.getEstafetteEnv("ESTAFETTE_GIT_REVISION"),
 			ReleaseID:    releaseID,
 			BuildStatus:  buildStatus,
