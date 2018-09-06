@@ -43,6 +43,7 @@ stages:
     - estafette
     when:
       status == 'succeeded' &&
+      branch == 'master' &&
       server == 'gocd'
 
   bake-gocd-agent:
@@ -62,7 +63,6 @@ stages:
     - estafette.secret(ugcaPF_CdqMZsxsh.4ZumU_A0ufxsjV3MPInyc1VjATZgX9hcB2KQM1KDIOQs)
     when:
       status == 'succeeded' &&
-      branch == 'master' &&
       server == 'gocd'
 
   slack-notify:
