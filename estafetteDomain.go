@@ -11,6 +11,7 @@ type EstafetteCiBuilderEvent struct {
 	RepoBranch   string `json:"repo_branch,omitempty"`
 	RepoRevision string `json:"repo_revision,omitempty"`
 	ReleaseID    string `json:"release_id,omitempty"`
+	BuildID      string `json:"build_id,omitempty"`
 	BuildStatus  string `json:"build_status,omitempty"`
 }
 

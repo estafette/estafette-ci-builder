@@ -149,6 +149,7 @@ func (elh *endOfLifeHelperImpl) sendBuildFinishedEvent(buildStatus string) {
 		var requestBody io.Reader
 
 		releaseID := elh.envvarHelper.getEstafetteEnv("ESTAFETTE_RELEASE_ID")
+		buildID := elh.envvarHelper.getEstafetteEnv("ESTAFETTE_BUILD_ID")
 
 		ciBuilderEvent := EstafetteCiBuilderEvent{
 			JobName:      jobName,
@@ -158,6 +159,7 @@ func (elh *endOfLifeHelperImpl) sendBuildFinishedEvent(buildStatus string) {
 			RepoBranch:   elh.envvarHelper.getEstafetteEnv("ESTAFETTE_GIT_BRANCH"),
 			RepoRevision: elh.envvarHelper.getEstafetteEnv("ESTAFETTE_GIT_REVISION"),
 			ReleaseID:    releaseID,
+			BuildID:      buildID,
 			BuildStatus:  buildStatus,
 		}
 		data, err := json.Marshal(ciBuilderEvent)
