@@ -10,6 +10,7 @@ type BuildLog struct {
 	RepoName     string         `json:"repoName"`
 	RepoBranch   string         `json:"repoBranch"`
 	RepoRevision string         `json:"repoRevision"`
+	BuildID      string         `json:"buildID"`
 	Steps        []BuildLogStep `json:"steps"`
 	InsertedAt   time.Time      `json:"insertedAt"`
 }
