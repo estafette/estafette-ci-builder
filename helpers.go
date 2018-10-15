@@ -99,28 +99,9 @@ func transformPipelineRunResultToBuildLogSteps(result estafetteRunStagesResult) 
 
 	for _, r := range result.StageResults {
 
-		containerImageArray := strings.Split(r.Stage.ContainerImage, ":")
-		containerImageName := containerImageArray[0]
-		containerImageTag := "latest"
-		if len(containerImageArray) > 1 {
-			containerImageTag = containerImageArray[1]
-		}
-
-		pullError := ""
-		if r.DockerPullError != nil {
-			pullError = r.DockerPullError.Error()
-		}
-
 		bls := contracts.BuildLogStep{
-			Step: r.Stage.Name,
-			Image: &contracts.BuildLogStepDockerImage{
-				Name:         containerImageName,
-				Tag:          containerImageTag,
-				IsPulled:     r.IsDockerImagePulled,
-				ImageSize:    r.DockerImageSize,
-				PullDuration: r.DockerPullDuration,
-				Error:        pullError,
-			},
+			Step:         r.Stage.Name,
+			Image:        getBuildLogStepDockerImage(r),
 			Duration:     r.DockerRunDuration,
 			LogLines:     r.LogLines,
 			ExitCode:     r.ExitCode,
@@ -133,4 +114,28 @@ func transformPipelineRunResultToBuildLogSteps(result estafetteRunStagesResult) 
 	}
 
 	return
+}
+
+func getBuildLogStepDockerImage(result estafetteStageRunResult) *contracts.BuildLogStepDockerImage {
+
+	containerImageArray := strings.Split(result.Stage.ContainerImage, ":")
+	containerImageName := containerImageArray[0]
+	containerImageTag := "latest"
+	if len(containerImageArray) > 1 {
+		containerImageTag = containerImageArray[1]
+	}
+
+	pullError := ""
+	if result.DockerPullError != nil {
+		pullError = result.DockerPullError.Error()
+	}
+
+	return &contracts.BuildLogStepDockerImage{
+		Name:         containerImageName,
+		Tag:          containerImageTag,
+		IsPulled:     result.IsDockerImagePulled,
+		ImageSize:    result.DockerImageSize,
+		PullDuration: result.DockerPullDuration,
+		Error:        pullError,
+	}
 }

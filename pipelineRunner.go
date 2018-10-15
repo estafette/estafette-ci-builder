@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"time"
 
 	contracts "github.com/estafette/estafette-ci-contracts"
@@ -19,6 +20,7 @@ type pipelineRunnerImpl struct {
 	envvarHelper  EnvvarHelper
 	whenEvaluator WhenEvaluator
 	dockerRunner  DockerRunner
+	ciServer      string
 }
 
 // NewPipelineRunner returns a new PipelineRunner
@@ -27,6 +29,7 @@ func NewPipelineRunner(envvarHelper EnvvarHelper, whenEvaluator WhenEvaluator, d
 		envvarHelper:  envvarHelper,
 		whenEvaluator: whenEvaluator,
 		dockerRunner:  dockerRunner,
+		ciServer:      os.Getenv("ESTAFETTE_CI_SERVER"),
 	}
 }
 
@@ -97,6 +100,16 @@ func (pr *pipelineRunnerImpl) runStage(dir string, envvars map[string]string, p 
 		}
 		result.DockerImageSize = size
 
+	}
+
+	tailLogLine := contracts.TailLogLine{
+		Step:  p.Name,
+		Image: getBuildLogStepDockerImage(result),
+	}
+
+	if pr.ciServer != "gocd" {
+		// log as json, to be tailed when looking at live logs from gui
+		log.Info().Interface("tailLogLine", tailLogLine).Msg("")
 	}
 
 	// run commands in docker container

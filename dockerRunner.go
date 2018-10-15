@@ -270,7 +270,7 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 
 		tailLogLine := contracts.TailLogLine{
 			Step:    p.Name,
-			LogLine: logLineObject,
+			LogLine: &logLineObject,
 		}
 
 		if dr.ciServer == "gocd" {
