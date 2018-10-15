@@ -102,14 +102,15 @@ func (pr *pipelineRunnerImpl) runStage(dir string, envvars map[string]string, p 
 
 	}
 
-	tailLogLine := contracts.TailLogLine{
-		Step:  p.Name,
-		Image: getBuildLogStepDockerImage(result),
-	}
-
 	if pr.ciServer != "gocd" {
+		imageLogLine := contracts.TailLogLine{
+			Step:         p.Name,
+			Image:        getBuildLogStepDockerImage(result),
+			AutoInjected: &result.Stage.AutoInjected,
+		}
+
 		// log as json, to be tailed when looking at live logs from gui
-		log.Info().Interface("tailLogLine", tailLogLine).Msg("")
+		log.Info().Interface("tailLogLine", imageLogLine).Msg("")
 	}
 
 	// run commands in docker container
@@ -118,6 +119,18 @@ func (pr *pipelineRunnerImpl) runStage(dir string, envvars map[string]string, p 
 	result.DockerRunDuration = time.Since(dockerRunStart)
 	if result.DockerRunError != nil {
 		return result, result.DockerRunError
+	}
+
+	if pr.ciServer != "gocd" {
+		imageLogLine := contracts.TailLogLine{
+			Step:     p.Name,
+			Duration: &result.DockerRunDuration,
+			ExitCode: &result.ExitCode,
+			Status:   &result.Status,
+		}
+
+		// log as json, to be tailed when looking at live logs from gui
+		log.Info().Interface("tailLogLine", imageLogLine).Msg("")
 	}
 
 	log.Info().Msgf("[%v] Finished pipeline '%v' successfully", p.Name, p.Name)
