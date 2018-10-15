@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	contracts "github.com/estafette/estafette-ci-contracts"
 	manifest "github.com/estafette/estafette-ci-manifest"
 	"github.com/rs/zerolog/log"
 )
@@ -41,7 +42,7 @@ type estafetteStageRunResult struct {
 	OtherError          error
 	ExitCode            int64
 	Status              string
-	LogLines            []buildJobLogLine
+	LogLines            []contracts.BuildLogLine
 }
 
 // Errors combines the different type of errors that occurred during this pipeline stage
@@ -73,7 +74,7 @@ func (result *estafetteStageRunResult) HasErrors() bool {
 func (pr *pipelineRunnerImpl) runStage(dir string, envvars map[string]string, p manifest.EstafetteStage) (result estafetteStageRunResult, err error) {
 
 	result.Stage = p
-	result.LogLines = make([]buildJobLogLine, 0)
+	result.LogLines = make([]contracts.BuildLogLine, 0)
 
 	log.Info().Msgf("[%v] Starting pipeline '%v'", p.Name, p.Name)
 
@@ -164,10 +165,10 @@ func (pr *pipelineRunnerImpl) runStages(stages []*manifest.EstafetteStage, dir s
 
 					// add error to log lines
 					r.RunIndex = runIndex
-					r.LogLines = append(r.LogLines, buildJobLogLine{
-						timestamp: time.Now().UTC(),
-						logLevel:  "stderr",
-						logText:   err.Error(),
+					r.LogLines = append(r.LogLines, contracts.BuildLogLine{
+						Timestamp:  time.Now().UTC(),
+						StreamType: "stderr",
+						Text:       err.Error(),
 					})
 
 					// set 'failed' build status

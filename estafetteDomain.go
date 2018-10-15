@@ -1,7 +1,5 @@
 package main
 
-import "time"
-
 // EstafetteCiBuilderEvent represents a finished estafette build
 type EstafetteCiBuilderEvent struct {
 	JobName      string `json:"job_name"`
@@ -13,19 +11,4 @@ type EstafetteCiBuilderEvent struct {
 	ReleaseID    string `json:"release_id,omitempty"`
 	BuildID      string `json:"build_id,omitempty"`
 	BuildStatus  string `json:"build_status,omitempty"`
-}
-
-// BuildJobLogs represents the logs for a build job
-type BuildJobLogs struct {
-	RepoFullName string
-	RepoBranch   string
-	RepoRevision string
-	RepoSource   string
-	LogText      string
-}
-
-type buildJobLogLine struct {
-	timestamp time.Time
-	logLevel  string
-	logText   string
 }

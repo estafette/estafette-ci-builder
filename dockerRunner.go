@@ -30,7 +30,7 @@ type DockerRunner interface {
 	isDockerImagePulled(manifest.EstafetteStage) bool
 	runDockerPull(manifest.EstafetteStage) error
 	getDockerImageSize(manifest.EstafetteStage) (int64, error)
-	runDockerRun(string, map[string]string, manifest.EstafetteStage) ([]buildJobLogLine, int64, error)
+	runDockerRun(string, map[string]string, manifest.EstafetteStage) ([]contracts.BuildLogLine, int64, error)
 
 	startDockerDaemon() error
 	waitForDockerDaemon()
@@ -44,6 +44,7 @@ type dockerRunnerImpl struct {
 	obfuscator            Obfuscator
 	dockerClient          *client.Client
 	repositoryCredentials []*contracts.ContainerRepositoryCredentialConfig
+	ciServer              string
 }
 
 // NewDockerRunner returns a new DockerRunner
@@ -51,6 +52,7 @@ func NewDockerRunner(envvarHelper EnvvarHelper, obfuscator Obfuscator) DockerRun
 	return &dockerRunnerImpl{
 		envvarHelper: envvarHelper,
 		obfuscator:   obfuscator,
+		ciServer:     os.Getenv("ESTAFETTE_CI_SERVER"),
 	}
 }
 
@@ -105,9 +107,9 @@ func (dr *dockerRunnerImpl) getDockerImageSize(p manifest.EstafetteStage) (total
 	return totalSize, nil
 }
 
-func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, p manifest.EstafetteStage) (logLines []buildJobLogLine, exitCode int64, err error) {
+func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, p manifest.EstafetteStage) (logLines []contracts.BuildLogLine, exitCode int64, err error) {
 
-	logLines = make([]buildJobLogLine, 0)
+	logLines = make([]contracts.BuildLogLine, 0)
 	exitCode = -1
 
 	// run docker with image and commands from yaml
@@ -242,7 +244,7 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 			break
 		}
 
-		logType := "stdout"
+		streamType := "stdout"
 		if len(logLine) >= 8 {
 
 			headers := []byte(logLine[0:8])
@@ -251,10 +253,8 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 			// -   0: stdin (will be written on stdout)
 			// -   1: stdout
 			// -   2: stderr
-			streamType := headers[0]
-
-			if streamType == 2 {
-				logType = "stderr"
+			if headers[0] == 2 {
+				streamType = "stderr"
 			}
 
 			logLine = logLine[8:]
@@ -262,17 +262,20 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 
 		logLineString := dr.obfuscator.Obfuscate(string(logLine))
 
-		if logType == "stderr" {
-			log.Info().Msgf("[%v] %v", p.Name, logLineString)
-		} else {
-			log.Info().Msgf("[%v] %v", p.Name, logLineString)
+		logLineObject := contracts.BuildLogLine{
+			Timestamp:  time.Now().UTC(),
+			StreamType: streamType,
+			Text:       logLineString,
 		}
 
-		logLines = append(logLines, buildJobLogLine{
-			timestamp: time.Now().UTC(),
-			logLevel:  logType,
-			logText:   logLineString,
-		})
+		if dr.ciServer == "gocd" {
+			log.Info().Msgf("[%v] %v", p.Name, logLineString)
+		} else {
+			// log as json, to be tailed when looking at live logs from gui
+			log.Info().Str("step", p.Name).Interface("logLing", logLineObject).Msg("builder-stage-log")
+		}
+
+		logLines = append(logLines, logLineObject)
 	}
 
 	if readError != nil && readError != io.EOF {

@@ -122,19 +122,11 @@ func transformPipelineRunResultToBuildLogSteps(result estafetteRunStagesResult) 
 				Error:        pullError,
 			},
 			Duration:     r.DockerRunDuration,
-			LogLines:     make([]contracts.BuildLogLine, 0),
+			LogLines:     r.LogLines,
 			ExitCode:     r.ExitCode,
 			Status:       r.Status,
 			AutoInjected: r.Stage.AutoInjected,
 			RunIndex:     r.RunIndex,
-		}
-
-		for _, l := range r.LogLines {
-			bls.LogLines = append(bls.LogLines, contracts.BuildLogLine{
-				Timestamp:  l.timestamp,
-				StreamType: l.logLevel,
-				Text:       l.logText,
-			})
 		}
 
 		buildLogSteps = append(buildLogSteps, bls)
