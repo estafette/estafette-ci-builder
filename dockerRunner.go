@@ -268,11 +268,16 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 			Text:       logLineString,
 		}
 
+		tailLogLine := contracts.TailLogLine{
+			Step:    p.Name,
+			LogLine: logLineObject,
+		}
+
 		if dr.ciServer == "gocd" {
 			log.Info().Msgf("[%v] %v", p.Name, logLineString)
 		} else {
 			// log as json, to be tailed when looking at live logs from gui
-			log.Info().Str("step", p.Name).Interface("logLing", logLineObject).Msg("builder-stage-log")
+			log.Info().Interface("tailLogLine", tailLogLine).Msg("")
 		}
 
 		logLines = append(logLines, logLineObject)
