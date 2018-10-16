@@ -76,6 +76,8 @@ func (result *estafetteStageRunResult) HasErrors() bool {
 
 func (pr *pipelineRunnerImpl) runStage(dir string, envvars map[string]string, p manifest.EstafetteStage) (result estafetteStageRunResult, err error) {
 
+	p.ContainerImage = os.Expand(p.ContainerImage, pr.envvarHelper.getEstafetteEnv)
+
 	result.Stage = p
 	result.LogLines = make([]contracts.BuildLogLine, 0)
 
