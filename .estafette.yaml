@@ -52,7 +52,8 @@ stages:
   clean-working-directory:
     image: golang:1.11.0-alpine3.8
     commands:
-    - rm -rf *
+    - rm -rf /estafette-work
+    - mkdir -p /estafette-work
 
   test-alpha-version:
     image: estafette/estafette-ci-builder:alpha
