@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	pipelineRunner = NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner)
+	pipelineRunner = NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner, true)
 )
 
 func TestRunStages(t *testing.T) {

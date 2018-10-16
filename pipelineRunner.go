@@ -20,16 +20,16 @@ type pipelineRunnerImpl struct {
 	envvarHelper  EnvvarHelper
 	whenEvaluator WhenEvaluator
 	dockerRunner  DockerRunner
-	ciServer      string
+	runAsJob      bool
 }
 
 // NewPipelineRunner returns a new PipelineRunner
-func NewPipelineRunner(envvarHelper EnvvarHelper, whenEvaluator WhenEvaluator, dockerRunner DockerRunner) PipelineRunner {
+func NewPipelineRunner(envvarHelper EnvvarHelper, whenEvaluator WhenEvaluator, dockerRunner DockerRunner, runAsJob bool) PipelineRunner {
 	return &pipelineRunnerImpl{
 		envvarHelper:  envvarHelper,
 		whenEvaluator: whenEvaluator,
 		dockerRunner:  dockerRunner,
-		ciServer:      os.Getenv("ESTAFETTE_CI_SERVER"),
+		runAsJob:      runAsJob,
 	}
 }
 
@@ -104,7 +104,7 @@ func (pr *pipelineRunnerImpl) runStage(dir string, envvars map[string]string, p 
 
 	}
 
-	if pr.ciServer != "gocd" {
+	if pr.runAsJob {
 		tailLogLine := contracts.TailLogLine{
 			Step:         p.Name,
 			Image:        getBuildLogStepDockerImage(result),
@@ -123,7 +123,7 @@ func (pr *pipelineRunnerImpl) runStage(dir string, envvars map[string]string, p 
 		return result, result.DockerRunError
 	}
 
-	if pr.ciServer != "gocd" {
+	if pr.runAsJob {
 		tailLogLine := contracts.TailLogLine{
 			Step:     p.Name,
 			Duration: &result.DockerRunDuration,

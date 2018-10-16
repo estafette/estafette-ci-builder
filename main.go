@@ -40,8 +40,8 @@ func main() {
 	envvarHelper := NewEnvvarHelper("ESTAFETTE_", secretHelper)
 	whenEvaluator := NewWhenEvaluator(envvarHelper)
 	obfuscator := NewObfuscator(secretHelper)
-	dockerRunner := NewDockerRunner(envvarHelper, obfuscator)
-	pipelineRunner := NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner)
+	dockerRunner := NewDockerRunner(envvarHelper, obfuscator, *runAsJob)
+	pipelineRunner := NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner, *runAsJob)
 	endOfLifeHelper := NewEndOfLifeHelper(envvarHelper, *runAsJob)
 
 	// detect controlling server

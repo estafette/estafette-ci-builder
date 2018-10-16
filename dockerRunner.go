@@ -44,15 +44,15 @@ type dockerRunnerImpl struct {
 	obfuscator            Obfuscator
 	dockerClient          *client.Client
 	repositoryCredentials []*contracts.ContainerRepositoryCredentialConfig
-	ciServer              string
+	runAsJob              bool
 }
 
 // NewDockerRunner returns a new DockerRunner
-func NewDockerRunner(envvarHelper EnvvarHelper, obfuscator Obfuscator) DockerRunner {
+func NewDockerRunner(envvarHelper EnvvarHelper, obfuscator Obfuscator, runAsJob bool) DockerRunner {
 	return &dockerRunnerImpl{
 		envvarHelper: envvarHelper,
 		obfuscator:   obfuscator,
-		ciServer:     os.Getenv("ESTAFETTE_CI_SERVER"),
+		runAsJob:     runAsJob,
 	}
 }
 
@@ -273,11 +273,11 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 			LogLine: &logLineObject,
 		}
 
-		if dr.ciServer == "gocd" {
-			log.Info().Msgf("[%v] %v", p.Name, logLineString)
-		} else {
+		if dr.runAsJob {
 			// log as json, to be tailed when looking at live logs from gui
 			log.Info().Interface("tailLogLine", tailLogLine).Msg("")
+		} else {
+			log.Info().Msgf("[%v] %v", p.Name, logLineString)
 		}
 
 		logLines = append(logLines, logLineObject)
