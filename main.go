@@ -253,7 +253,13 @@ func main() {
 			buildStatus = "failed"
 		}
 		endOfLifeHelper.sendBuildFinishedEvent(buildStatus)
-		os.Exit(0)
+
+		if *runAsJob {
+			os.Exit(0)
+		} else {
+			handleExit(result)
+		}
+
 	} else {
 		// Set up a simple console logger
 		log.Logger = zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr}).With().
