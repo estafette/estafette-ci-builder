@@ -15,9 +15,6 @@ version:
     labelTemplate: '{{branch}}'
     releaseBranch: master
 
-env:
-  GCR_PROJECT: estafette.secret(3tHZ9bT_wEz5K8Cx.kZyD5m8L-7-zpvzZ4bkeyUdKLiGfRx_ttoY=)
-
 stages:
   build:
     image: golang:1.11.0-alpine3.8
@@ -40,15 +37,6 @@ stages:
     copy:
     - Dockerfile
 
-  push-to-docker-hub:
-    image: extensions/docker:dev
-    action: push
-    repositories:
-    - estafette
-    when:
-      status == 'succeeded' &&
-      server == 'gocd'
-
   bake-gocd-agent:
     image: extensions/docker:dev
     action: build
@@ -58,27 +46,3 @@ stages:
     dockerfile: Dockerfile.gocd
     copy:
     - Dockerfile.gocd
-
-  push-to-gcr-io:
-    image: extensions/docker:dev
-    action: push
-    repositories:
-    - estafette.secret(ugcaPF_CdqMZsxsh.4ZumU_A0ufxsjV3MPInyc1VjATZgX9hcB2KQM1KDIOQs)
-    when:
-      status == 'succeeded' &&
-      server == 'gocd'
-
-  slack-notify:
-    image: extensions/slack-build-status:dev
-    webhook: estafette.secret(VQhyeydGURZSFLmh.zxAW1ZVhI7JqLgr9-K7_YuzSFWAasNFRIHAm9OXj2RK_Wa-FWXt9LCCJuD6K6jz_SYpbEhiBWcjd0VkD23AazyLmz3EsImi2C1AJ82ltxuMmN93rPZbdP3kT5vwa)
-    name: ${ESTAFETTE_LABEL_APP}
-    channels:
-    - '#build-status'
-    when:
-      status == 'failed' ||
-      status == 'succeeded'
-
-releases:
-  dev:
-  beta:
-  stable:
