@@ -157,6 +157,14 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 				log.Warn().Interface("customProperty", v).Msgf("Cannot turn custom property %v into extension envvar", k)
 			}
 		}
+
+		// also add add custom properties as json object in ESTAFETTE_EXTENSION_CUSTOM_PROPERTIES envvar
+		customPropertiesBytes, err := json.Marshal(p.CustomProperties)
+		if err == nil {
+			extensionEnvVars["ESTAFETTE_EXTENSION_CUSTOM_PROPERTIES"] = dr.envvarHelper.decryptSecret(os.Expand(string(customPropertiesBytes), dr.envvarHelper.getEstafetteEnv))
+		} else {
+			log.Warn().Err(err).Interface("customProperty", p.CustomProperties).Msg("Cannot marshal custom properties for ESTAFETTE_EXTENSION_CUSTOM_PROPERTIES envvar")
+		}
 	}
 
 	// combine and override estafette and global envvars with pipeline envvars
