@@ -26,7 +26,8 @@ var (
 	buildDate string
 	goVersion = runtime.Version()
 
-	secretDecryptionKey = kingpin.Flag("secret-decryption-key", "The AES-256 key used to decrypt secrets that have been encrypted with it.").String()
+	secretDecryptionKey = kingpin.Flag("secret-decryption-key", "The AES-256 key used to decrypt secrets that have been encrypted with it.").Envar("SECRET_DECRYPTION_KEY").String()
+	runAsJob            = kingpin.Flag("run-as-job", "To run the builder as a job and prevent build failures to fail the job.").Default("true").OverrideDefaultFromEnvar("RUN_AS_JOB").Bool()
 )
 
 func main() {
@@ -41,7 +42,7 @@ func main() {
 	obfuscator := NewObfuscator(secretHelper)
 	dockerRunner := NewDockerRunner(envvarHelper, obfuscator)
 	pipelineRunner := NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner)
-	endOfLifeHelper := NewEndOfLifeHelper(envvarHelper)
+	endOfLifeHelper := NewEndOfLifeHelper(envvarHelper, *runAsJob)
 
 	// detect controlling server
 	ciServer := envvarHelper.getEstafetteEnv("ESTAFETTE_CI_SERVER")
@@ -252,7 +253,13 @@ func main() {
 			buildStatus = "failed"
 		}
 		endOfLifeHelper.sendBuildFinishedEvent(buildStatus)
-		os.Exit(0)
+
+		if *runAsJob {
+			os.Exit(0)
+		} else {
+			handleExit(result)
+		}
+
 	} else {
 		// Set up a simple console logger
 		log.Logger = zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr}).With().
