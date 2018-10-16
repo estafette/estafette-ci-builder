@@ -26,12 +26,14 @@ type EndOfLifeHelper interface {
 
 type endOfLifeHelperImpl struct {
 	envvarHelper EnvvarHelper
+	runAsJob     bool
 }
 
 // NewEndOfLifeHelper returns a new EndOfLifeHelper
-func NewEndOfLifeHelper(envvarHelper EnvvarHelper) EndOfLifeHelper {
+func NewEndOfLifeHelper(envvarHelper EnvvarHelper, runAsJob bool) EndOfLifeHelper {
 	return &endOfLifeHelperImpl{
 		envvarHelper: envvarHelper,
+		runAsJob:     runAsJob,
 	}
 }
 
@@ -65,8 +67,13 @@ func (elh *endOfLifeHelperImpl) handleFatal(buildLog contracts.BuildLog, err err
 
 	elh.sendBuildJobLogEvent(buildLog)
 	elh.sendBuildFinishedEvent("failed")
-	log.Error().Err(err).Msg(message)
-	os.Exit(0)
+
+	if elh.runAsJob {
+		log.Error().Err(err).Msg(message)
+		os.Exit(0)
+	} else {
+		log.Fatal().Err(err).Msg(message)
+	}
 }
 
 func (elh *endOfLifeHelperImpl) sendBuildJobLogEvent(buildLog contracts.BuildLog) {

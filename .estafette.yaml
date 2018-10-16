@@ -57,8 +57,9 @@ stages:
       ESTAFETTE_BUILD_ID: "391855387650326531"
       ESTAFETTE_BUILD_VERSION_MAJOR: "0"
       ESTAFETTE_BUILD_VERSION_MINOR: "0"
-      ESTAFETTE_GITHUB_API_TOKEN: ""
+      # ESTAFETTE_GITHUB_API_TOKEN: ""
       SECRET_DECRYPTION_KEY: "8c6E5e7R8ameE2L6qxEcN5Yc3Q7P4Yd4"
+      RUN_AS_JOB: "false"
 
   # push-to-docker-hub:
   #   image: extensions/docker:dev
