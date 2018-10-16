@@ -36,8 +36,6 @@ stages:
     path: ./publish
     copy:
     - Dockerfile
-    tags:
-    - alpha
 
   bake-gocd-agent:
     image: extensions/docker:dev
@@ -55,7 +53,7 @@ stages:
     - rm -rf ..?* .[!.]* *
 
   test-alpha-version:
-    image: estafette/estafette-ci-builder:alpha
+    image: estafette/estafette-ci-builder:${ESTAFETTE_BUILD_VERSION}
     env:
       ESTAFETTE_GIT_BRANCH: "integration-test"
       ESTAFETTE_GIT_REVISION: "f394515b2a91ea69addf42e4b722442b2905e268"
