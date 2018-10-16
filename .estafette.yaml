@@ -82,6 +82,7 @@ stages:
     - estafette
     tags:
     - alpha
+    - dev
 
   push-to-gcr-io:
     image: extensions/docker:dev
@@ -90,6 +91,7 @@ stages:
     - estafette.secret(ugcaPF_CdqMZsxsh.4ZumU_A0ufxsjV3MPInyc1VjATZgX9hcB2KQM1KDIOQs)
     tags:
     - alpha
+    - dev
 
   slack-notify:
     image: extensions/slack-build-status:dev
@@ -112,6 +114,14 @@ releases:
         tags:
         - beta
 
+      tag-gcr-io-image:
+        image: extensions/docker:dev
+        action: tag
+        repositories:
+        - estafette.secret(ugcaPF_CdqMZsxsh.4ZumU_A0ufxsjV3MPInyc1VjATZgX9hcB2KQM1KDIOQs)
+        tags:
+        - beta
+
   stable:
     stages:
       tag-container-image:
@@ -119,6 +129,15 @@ releases:
         action: tag
         repositories:
         - estafette
+        tags:
+        - stable
+        - latest
+
+      tag-gcr-io-image:
+        image: extensions/docker:dev
+        action: tag
+        repositories:
+        - estafette.secret(ugcaPF_CdqMZsxsh.4ZumU_A0ufxsjV3MPInyc1VjATZgX9hcB2KQM1KDIOQs)
         tags:
         - stable
         - latest
