@@ -17,7 +17,7 @@ version:
 
 stages:
   build:
-    image: golang:1.11.0-alpine3.8
+    image: golang:1.11.1-alpine3.8
     workDir: /go/src/github.com/estafette/${ESTAFETTE_LABEL_APP}
     env:
       DOCKER_API_VERSION: "1.38"
@@ -50,7 +50,7 @@ stages:
     - Dockerfile.gocd
 
   clean-working-directory:
-    image: golang:1.11.0-alpine3.8
+    image: golang:1.11.1-alpine3.8
     commands:
     - rm -rf ..?* .[!.]* *
 
