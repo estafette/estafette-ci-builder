@@ -28,7 +28,7 @@ stages:
     - go test `go list ./... | grep -v /vendor/`
     - go build -a -installsuffix cgo -ldflags "-X main.version=${ESTAFETTE_BUILD_VERSION} -X main.revision=${ESTAFETTE_GIT_REVISION} -X main.branch=${ESTAFETTE_GIT_BRANCH} -X main.buildDate=${ESTAFETTE_BUILD_DATETIME}" -o ./publish/${ESTAFETTE_LABEL_APP} .
 
-  bake-estafette:
+  bake:
     image: extensions/docker:dev
     action: build
     repositories:
@@ -38,6 +38,21 @@ stages:
     - Dockerfile
     tags:
     - alpha
+
+  bake-gocd-agent:
+    image: extensions/docker:dev
+    action: build
+    repositories:
+    - estafette.secret(ugcaPF_CdqMZsxsh.4ZumU_A0ufxsjV3MPInyc1VjATZgX9hcB2KQM1KDIOQs)
+    path: ./publish
+    dockerfile: Dockerfile.gocd
+    copy:
+    - Dockerfile.gocd
+
+  clean-working-directory:
+    image: golang:1.11.0-alpine3.8
+    commands:
+    - rm -rf *
 
   test-alpha-version:
     image: estafette/estafette-ci-builder:alpha
@@ -57,7 +72,6 @@ stages:
       ESTAFETTE_BUILD_ID: "391855387650326531"
       ESTAFETTE_BUILD_VERSION_MAJOR: "0"
       ESTAFETTE_BUILD_VERSION_MINOR: "0"
-      # ESTAFETTE_GITHUB_API_TOKEN: ""
       SECRET_DECRYPTION_KEY: "8c6E5e7R8ameE2L6qxEcN5Yc3Q7P4Yd4"
       RUN_AS_JOB: "false"
 
@@ -68,16 +82,6 @@ stages:
   #   - estafette
   #   tags:
   #   - dev
-
-  # bake-gocd-agent:
-  #   image: extensions/docker:dev
-  #   action: build
-  #   repositories:
-  #   - estafette.secret(ugcaPF_CdqMZsxsh.4ZumU_A0ufxsjV3MPInyc1VjATZgX9hcB2KQM1KDIOQs)
-  #   path: ./publish
-  #   dockerfile: Dockerfile.gocd
-  #   copy:
-  #   - Dockerfile.gocd
 
   # push-to-gcr-io:
   #   image: extensions/docker:dev
