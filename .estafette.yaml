@@ -34,8 +34,6 @@ stages:
     repositories:
     - estafette
     path: ./publish
-    copy:
-    - Dockerfile
 
   bake-gocd-agent:
     image: extensions/docker:dev
@@ -44,8 +42,6 @@ stages:
     - estafette.secret(ugcaPF_CdqMZsxsh.4ZumU_A0ufxsjV3MPInyc1VjATZgX9hcB2KQM1KDIOQs)
     path: ./publish
     dockerfile: Dockerfile.gocd
-    copy:
-    - Dockerfile.gocd
 
   clean-working-directory:
     image: golang:1.11.0-alpine3.8
