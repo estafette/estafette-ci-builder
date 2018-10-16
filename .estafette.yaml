@@ -75,21 +75,21 @@ stages:
       SECRET_DECRYPTION_KEY: "8c6E5e7R8ameE2L6qxEcN5Yc3Q7P4Yd4"
       RUN_AS_JOB: "false"
 
-  # push-to-docker-hub:
-  #   image: extensions/docker:dev
-  #   action: push
-  #   repositories:
-  #   - estafette
-  #   tags:
-  #   - dev
+  push-to-docker-hub:
+    image: extensions/docker:dev
+    action: push
+    repositories:
+    - estafette
+    tags:
+    - alpha
 
-  # push-to-gcr-io:
-  #   image: extensions/docker:dev
-  #   action: push
-  #   repositories:
-  #   - estafette.secret(ugcaPF_CdqMZsxsh.4ZumU_A0ufxsjV3MPInyc1VjATZgX9hcB2KQM1KDIOQs)
-  #   tags:
-  #   - dev
+  push-to-gcr-io:
+    image: extensions/docker:dev
+    action: push
+    repositories:
+    - estafette.secret(ugcaPF_CdqMZsxsh.4ZumU_A0ufxsjV3MPInyc1VjATZgX9hcB2KQM1KDIOQs)
+    tags:
+    - alpha
 
   slack-notify:
     image: extensions/slack-build-status:dev
