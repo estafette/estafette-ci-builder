@@ -26,7 +26,7 @@ var (
 	buildDate string
 	goVersion = runtime.Version()
 
-	secretDecryptionKey = kingpin.Flag("secret-decryption-key", "The AES-256 key used to decrypt secrets that have been encrypted with it.").String()
+	secretDecryptionKey = kingpin.Flag("secret-decryption-key", "The AES-256 key used to decrypt secrets that have been encrypted with it.").Envar("SECRET_DECRYPTION_KEY").String()
 )
 
 func main() {

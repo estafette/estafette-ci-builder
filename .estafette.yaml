@@ -66,32 +66,33 @@ stages:
       ESTAFETTE_BUILD_VERSION_MAJOR: "0"
       ESTAFETTE_BUILD_VERSION_MINOR: "0"
       ESTAFETTE_GITHUB_API_TOKEN: ""
+      SECRET_DECRYPTION_KEY: "8c6E5e7R8ameE2L6qxEcN5Yc3Q7P4Yd4"
 
-  push-to-docker-hub:
-    image: extensions/docker:dev
-    action: push
-    repositories:
-    - estafette
-    tags:
-    - dev
+  # push-to-docker-hub:
+  #   image: extensions/docker:dev
+  #   action: push
+  #   repositories:
+  #   - estafette
+  #   tags:
+  #   - dev
 
-  bake-gocd-agent:
-    image: extensions/docker:dev
-    action: build
-    repositories:
-    - estafette.secret(ugcaPF_CdqMZsxsh.4ZumU_A0ufxsjV3MPInyc1VjATZgX9hcB2KQM1KDIOQs)
-    path: ./publish
-    dockerfile: Dockerfile.gocd
-    copy:
-    - Dockerfile.gocd
+  # bake-gocd-agent:
+  #   image: extensions/docker:dev
+  #   action: build
+  #   repositories:
+  #   - estafette.secret(ugcaPF_CdqMZsxsh.4ZumU_A0ufxsjV3MPInyc1VjATZgX9hcB2KQM1KDIOQs)
+  #   path: ./publish
+  #   dockerfile: Dockerfile.gocd
+  #   copy:
+  #   - Dockerfile.gocd
 
-  push-to-gcr-io:
-    image: extensions/docker:dev
-    action: push
-    repositories:
-    - estafette.secret(ugcaPF_CdqMZsxsh.4ZumU_A0ufxsjV3MPInyc1VjATZgX9hcB2KQM1KDIOQs)
-    tags:
-    - dev
+  # push-to-gcr-io:
+  #   image: extensions/docker:dev
+  #   action: push
+  #   repositories:
+  #   - estafette.secret(ugcaPF_CdqMZsxsh.4ZumU_A0ufxsjV3MPInyc1VjATZgX9hcB2KQM1KDIOQs)
+  #   tags:
+  #   - dev
 
   slack-notify:
     image: extensions/slack-build-status:dev
