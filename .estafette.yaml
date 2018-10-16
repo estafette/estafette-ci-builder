@@ -15,9 +15,6 @@ version:
     labelTemplate: '{{branch}}'
     releaseBranch: master
 
-env:
-  GCR_PROJECT: estafette.secret(3tHZ9bT_wEz5K8Cx.kZyD5m8L-7-zpvzZ4bkeyUdKLiGfRx_ttoY=)
-
 stages:
   build:
     image: golang:1.11.0-alpine3.8
@@ -39,15 +36,44 @@ stages:
     path: ./publish
     copy:
     - Dockerfile
+    tags:
+    - alpha
+
+  test-alpha-version:
+    image: estafette/estafette-ci-builder:alpha
+    env:
+      ESTAFETTE_GIT_BRANCH: "integration-test"
+      ESTAFETTE_GIT_REVISION: "f394515b2a91ea69addf42e4b722442b2905e268"
+      ESTAFETTE_BUILD_VERSION: "0.0.0-integration-test"
+      ESTAFETTE_BUILD_VERSION_PATCH: "0"
+      ESTAFETTE_BUILD_JOB_NAME: "build-estafette-estafette-ci-builder-391855387650326531"
+      ESTAFETTE_CI_SERVER_BASE_URL: "https://httpstat.us/200"
+      ESTAFETTE_CI_SERVER_BUILDER_EVENTS_URL: "https://httpstat.us/200"
+      ESTAFETTE_CI_SERVER_POST_LOGS_URL: "https://httpstat.us/200"
+      ESTAFETTE_CI_API_KEY: ""
+      ESTAFETTE_CI_BUILDER_TRACK: "stable"
+      ESTAFETTE_CI_MANIFEST_JSON: '{"Builder":{"Track":"stable"},"Labels":{"app":"estafette-ci-builder","app-group":"estafette-ci","language":"golang","team":"estafette-team"},"Version":{"SemVer":{"Major":0,"Minor":0,"Patch":"{{auto}}","LabelTemplate":"{{branch}}","ReleaseBranch":"master"},"Custom":null},"GlobalEnvVars":null,"Pipelines":[{"Name":"git-clone","ContainerImage":"extensions/git-clone:stable","Shell":"/bin/sh","WorkingDirectory":"/estafette-work","Commands":null,"When":"status
+        == ''succeeded''","EnvVars":null,"AutoInjected":true,"Retries":0,"CustomProperties":null},{"Name":"build","ContainerImage":"golang:1.11.0-alpine3.8","Shell":"/bin/sh","WorkingDirectory":"/go/src/github.com/estafette/${ESTAFETTE_LABEL_APP}","Commands":["apk
+        --update add git","go test `go list ./... | grep -v /vendor/`","go build -a
+        -installsuffix cgo -ldflags \"-X main.version=${ESTAFETTE_BUILD_VERSION} -X
+        main.revision=${ESTAFETTE_GIT_REVISION} -X main.branch=${ESTAFETTE_GIT_BRANCH}
+        -X main.buildDate=${ESTAFETTE_BUILD_DATETIME}\" -o ./publish/${ESTAFETTE_LABEL_APP}
+        ."],"When":"status == ''succeeded''","EnvVars":{"CGO_ENABLED":"0","DOCKER_API_VERSION":"1.38","GOOS":"linux"},"AutoInjected":false,"Retries":0,"CustomProperties":null},{"Name":"bake-estafette","ContainerImage":"extensions/docker:dev","Shell":"/bin/sh","WorkingDirectory":"/estafette-work","Commands":null,"When":"status
+        == ''succeeded''","EnvVars":null,"AutoInjected":false,"Retries":0,"CustomProperties":{"action":"build","copy":["Dockerfile"],"path":"./publish","repositories":["estafette"]}},{"Name":"bake-gocd-agent","ContainerImage":"extensions/docker:dev","Shell":"/bin/sh","WorkingDirectory":"/estafette-work","Commands":null,"When":"status
+        == ''succeeded''","EnvVars":null,"AutoInjected":false,"Retries":0,"CustomProperties":{"action":"build","copy":["Dockerfile.gocd"],"dockerfile":"Dockerfile.gocd","path":"./publish","repositories":["estafette.secret(ugcaPF_CdqMZsxsh.4ZumU_A0ufxsjV3MPInyc1VjATZgX9hcB2KQM1KDIOQs)"]}}],"Releases":null}'
+      ESTAFETTE_CI_REPOSITORY_CREDENTIALS_JSON: ""
+      ESTAFETTE_BUILD_ID: "391855387650326531"
+      ESTAFETTE_BUILD_VERSION_MAJOR: "0"
+      ESTAFETTE_BUILD_VERSION_MINOR: "0"
+      ESTAFETTE_GITHUB_API_TOKEN: ""
 
   push-to-docker-hub:
     image: extensions/docker:dev
     action: push
     repositories:
     - estafette
-    when:
-      status == 'succeeded' &&
-      server == 'gocd'
+    tags:
+    - dev
 
   bake-gocd-agent:
     image: extensions/docker:dev
@@ -64,9 +90,8 @@ stages:
     action: push
     repositories:
     - estafette.secret(ugcaPF_CdqMZsxsh.4ZumU_A0ufxsjV3MPInyc1VjATZgX9hcB2KQM1KDIOQs)
-    when:
-      status == 'succeeded' &&
-      server == 'gocd'
+    tags:
+    - dev
 
   slack-notify:
     image: extensions/slack-build-status:dev
@@ -79,6 +104,23 @@ stages:
       status == 'succeeded'
 
 releases:
-  dev:
   beta:
+    stages:
+      tag-container-image:
+        image: extensions/docker:dev
+        action: tag
+        repositories:
+        - estafette
+        tags:
+        - beta
+
   stable:
+    stages:
+      tag-container-image:
+        image: extensions/docker:dev
+        action: tag
+        repositories:
+        - estafette
+        tags:
+        - stable
+        - latest
