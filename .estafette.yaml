@@ -67,7 +67,6 @@ stages:
       ESTAFETTE_BUILD_VERSION_MAJOR: "0"
       ESTAFETTE_BUILD_VERSION_MINOR: "0"
       SECRET_DECRYPTION_KEY: "8c6E5e7R8ameE2L6qxEcN5Yc3Q7P4Yd4"
-      RUN_AS_JOB: "false"
 
   push-to-docker-hub:
     image: extensions/docker:dev

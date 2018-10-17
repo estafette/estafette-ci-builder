@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	stdlog "log"
 	"os"
 	"runtime"
 	"strconv"
@@ -15,8 +16,6 @@ import (
 	manifest "github.com/estafette/estafette-ci-manifest"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-
-	stdlog "log"
 )
 
 var (
@@ -27,7 +26,7 @@ var (
 	goVersion = runtime.Version()
 
 	secretDecryptionKey = kingpin.Flag("secret-decryption-key", "The AES-256 key used to decrypt secrets that have been encrypted with it.").Envar("SECRET_DECRYPTION_KEY").String()
-	runAsJob            = kingpin.Flag("run-as-job", "To run the builder as a job and prevent build failures to fail the job.").Default("true").OverrideDefaultFromEnvar("RUN_AS_JOB").Bool()
+	runAsJob            = kingpin.Flag("run-as-job", "To run the builder as a job and prevent build failures to fail the job.").Default("false").OverrideDefaultFromEnvar("RUN_AS_JOB").Bool()
 )
 
 func main() {
