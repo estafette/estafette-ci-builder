@@ -104,6 +104,7 @@ func (pr *pipelineRunnerImpl) runStage(dir string, envvars map[string]string, p 
 
 	}
 
+	// log tailing - start stage
 	if pr.runAsJob {
 		tailLogLine := contracts.TailLogLine{
 			Step:         p.Name,
@@ -119,20 +120,28 @@ func (pr *pipelineRunnerImpl) runStage(dir string, envvars map[string]string, p 
 	dockerRunStart := time.Now()
 	result.LogLines, result.ExitCode, result.DockerRunError = pr.dockerRunner.runDockerRun(dir, envvars, p)
 	result.DockerRunDuration = time.Since(dockerRunStart)
-	if result.DockerRunError != nil {
-		return result, result.DockerRunError
-	}
 
+	// log tailing - finalize stage
 	if pr.runAsJob {
+
+		status := "SUCCEEDED"
+		if result.DockerRunError != nil {
+			status = "FAILED"
+		}
+
 		tailLogLine := contracts.TailLogLine{
 			Step:     p.Name,
 			Duration: &result.DockerRunDuration,
 			ExitCode: &result.ExitCode,
-			Status:   &result.Status,
+			Status:   &status,
 		}
 
 		// log as json, to be tailed when looking at live logs from gui
 		log.Info().Interface("tailLogLine", tailLogLine).Msg("")
+	}
+
+	if result.DockerRunError != nil {
+		return result, result.DockerRunError
 	}
 
 	log.Info().Msgf("[%v] Finished pipeline '%v' successfully", p.Name, p.Name)
