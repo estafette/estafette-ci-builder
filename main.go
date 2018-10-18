@@ -172,11 +172,6 @@ func main() {
 		// ESTAFETTE_CI_MANIFEST_JSON
 		// ESTAFETTE_CI_REPOSITORY_CREDENTIALS_JSON
 
-		//jobName := envvarHelper.getEstafetteEnv("ESTAFETTE_BUILD_JOB_NAME")
-		//releaseName := envvarHelper.getEstafetteEnv("ESTAFETTE_RELEASE_NAME")
-		//releaseIDValue := envvarHelper.getEstafetteEnv("ESTAFETTE_RELEASE_ID")
-		//releaseID, _ := strconv.Atoi(releaseIDValue)
-
 		buildLog := contracts.BuildLog{
 			RepoSource:   builderConfig.Git.RepoSource,
 			RepoOwner:    builderConfig.Git.RepoOwner,
@@ -235,23 +230,18 @@ func main() {
 			endOfLifeHelper.handleFatal(buildLog, err, "Setting global environment variables failed")
 		}
 
-		// get manifest from envvar and unmarshal
-		manifestJSON := os.Getenv("ESTAFETTE_CI_MANIFEST_JSON")
-		var manifest manifest.EstafetteManifest
-		json.Unmarshal([]byte(manifestJSON), &manifest)
-
 		// initialize obfuscator
-		err = obfuscator.CollectSecrets(manifest)
+		err = obfuscator.CollectSecrets(*builderConfig.Manifest)
 		if err != nil {
 			endOfLifeHelper.handleFatal(buildLog, err, "Collecting secrets to obfuscate failed")
 		}
 
 		// check whether this is a regular build or a release
-		stages := manifest.Stages
+		stages := builderConfig.Manifest.Stages
 		if *builderConfig.Action == "release" {
 			// check if the release is defined
 			releaseExists := false
-			for _, r := range manifest.Releases {
+			for _, r := range builderConfig.Manifest.Releases {
 				if r.Name == builderConfig.ReleaseParams.ReleaseName {
 					releaseExists = true
 					stages = r.Stages
@@ -281,8 +271,8 @@ func main() {
 
 		// collect estafette envvars and run stages from manifest
 		log.Info().Msgf("Running %v stages", len(stages))
-		estafetteEnvvars := envvarHelper.collectEstafetteEnvvars(manifest)
-		globalEnvvars := envvarHelper.collectGlobalEnvvars(manifest)
+		estafetteEnvvars := envvarHelper.collectEstafetteEnvvars(*builderConfig.Manifest)
+		globalEnvvars := envvarHelper.collectGlobalEnvvars(*builderConfig.Manifest)
 		envvars := envvarHelper.overrideEnvvars(estafetteEnvvars, globalEnvvars)
 		result, err := pipelineRunner.runStages(stages, dir, envvars)
 		if err != nil {
