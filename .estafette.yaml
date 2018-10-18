@@ -51,7 +51,7 @@ stages:
   test-alpha-version:
     image: estafette/estafette-ci-builder:${ESTAFETTE_BUILD_VERSION}
     env:
-      BUILDER_CONFIG: '{"action":"build","track":"dev","git":{"repoSource":"github.com","repoOwner":"estafette","repoName":"estafette-ci-builder","repoBranch":"integration-test","repoRevision":"f394515b2a91ea69addf42e4b722442b2905e268"},"buildVersion":{"version":"0.0.0-integration-test","major":0,"minor":0,"patch":"0","autoincrement":0}'
+      BUILDER_CONFIG: '{"action":"build","track":"dev","git":{"repoSource":"github.com","repoOwner":"estafette","repoName":"estafette-ci-builder","repoBranch":"integration-test","repoRevision":"f394515b2a91ea69addf42e4b722442b2905e268"},"buildVersion":{"version":"0.0.0-integration-test","major":0,"minor":0,"patch":"0","autoincrement":0}}'
       ESTAFETTE_BUILD_JOB_NAME: "build-estafette-estafette-ci-builder-391855387650326531"
       ESTAFETTE_CI_SERVER_BASE_URL: "https://httpstat.us/200"
       ESTAFETTE_CI_SERVER_BUILDER_EVENTS_URL: "https://httpstat.us/200"
