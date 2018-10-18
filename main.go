@@ -146,11 +146,36 @@ func main() {
 		if builderConfig.BuildVersion.Patch != nil {
 			os.Setenv("ESTAFETTE_BUILD_VERSION_PATCH", *builderConfig.BuildVersion.Patch)
 		}
+		os.Setenv("ESTAFETTE_BUILD_JOB_NAME", *builderConfig.JobName)
+		if builderConfig.CIServer != nil {
+			os.Setenv("ESTAFETTE_CI_SERVER_BASE_URL", builderConfig.CIServer.BaseURL)
+			os.Setenv("ESTAFETTE_CI_SERVER_BUILDER_EVENTS_URL", builderConfig.CIServer.BuilderEventsURL)
+			os.Setenv("ESTAFETTE_CI_SERVER_POST_LOGS_URL", builderConfig.CIServer.PostLogsURL)
+			os.Setenv("ESTAFETTE_CI_API_KEY", builderConfig.CIServer.APIKey)
+		}
+		if builderConfig.ReleaseParams != nil {
+			os.Setenv("ESTAFETTE_RELEASE_NAME", builderConfig.ReleaseParams.ReleaseName)
+			os.Setenv("ESTAFETTE_RELEASE_ID", strconv.Itoa(builderConfig.ReleaseParams.ReleaseID))
+		}
+		if builderConfig.BuildParams != nil {
+			os.Setenv("ESTAFETTE_BUILD_ID", strconv.Itoa(builderConfig.BuildParams.BuildID))
+		}
+		bitbucketAPICredentials := builderConfig.GetCredentialsByType("bitbucket-api-token")
+		if len(bitbucketAPICredentials) > 0 {
+			os.Setenv("ESTAFETTE_BITBUCKET_API_TOKEN", bitbucketAPICredentials[0].AdditionalProperties["token"].(string))
+		}
+		githubAPICredentials := builderConfig.GetCredentialsByType("github-api-token")
+		if len(githubAPICredentials) > 0 {
+			os.Setenv("ESTAFETTE_GITHUB_API_TOKEN", githubAPICredentials[0].AdditionalProperties["token"].(string))
+		}
 
-		jobName := envvarHelper.getEstafetteEnv("ESTAFETTE_BUILD_JOB_NAME")
-		releaseName := envvarHelper.getEstafetteEnv("ESTAFETTE_RELEASE_NAME")
-		releaseIDValue := envvarHelper.getEstafetteEnv("ESTAFETTE_RELEASE_ID")
-		releaseID, _ := strconv.Atoi(releaseIDValue)
+		// ESTAFETTE_CI_MANIFEST_JSON
+		// ESTAFETTE_CI_REPOSITORY_CREDENTIALS_JSON
+
+		//jobName := envvarHelper.getEstafetteEnv("ESTAFETTE_BUILD_JOB_NAME")
+		//releaseName := envvarHelper.getEstafetteEnv("ESTAFETTE_RELEASE_NAME")
+		//releaseIDValue := envvarHelper.getEstafetteEnv("ESTAFETTE_RELEASE_ID")
+		//releaseID, _ := strconv.Atoi(releaseIDValue)
 
 		buildLog := contracts.BuildLog{
 			RepoSource:   builderConfig.Git.RepoSource,
@@ -174,7 +199,7 @@ func main() {
 			Timestamp().
 			Str("app", "estafette-ci-builder").
 			Str("version", version).
-			Str("jobName", jobName).
+			Str("jobName", *builderConfig.JobName).
 			Interface("git", builderConfig.Git).
 			Logger()
 
@@ -223,19 +248,19 @@ func main() {
 
 		// check whether this is a regular build or a release
 		stages := manifest.Stages
-		if releaseID > 0 {
+		if *builderConfig.Action == "release" {
 			// check if the release is defined
 			releaseExists := false
 			for _, r := range manifest.Releases {
-				if r.Name == releaseName {
+				if r.Name == builderConfig.ReleaseParams.ReleaseName {
 					releaseExists = true
 					stages = r.Stages
 				}
 			}
 			if !releaseExists {
-				endOfLifeHelper.handleFatal(buildLog, err, fmt.Sprintf("Release %v does not exist", releaseName))
+				endOfLifeHelper.handleFatal(buildLog, err, fmt.Sprintf("Release %v does not exist", builderConfig.ReleaseParams.ReleaseName))
 			}
-			log.Info().Msgf("Starting release %v at version %v...", releaseName, builderConfig.BuildVersion.Version)
+			log.Info().Msgf("Starting release %v at version %v...", builderConfig.ReleaseParams.ReleaseName, builderConfig.BuildVersion.Version)
 		} else {
 			log.Info().Msgf("Starting build version %v...", builderConfig.BuildVersion.Version)
 		}

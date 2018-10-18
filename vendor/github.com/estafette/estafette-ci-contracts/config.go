@@ -1,6 +1,10 @@
 package contracts
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/estafette/estafette-ci-manifest"
+)
 
 // ContainerRepositoryCredentialConfig is used to authenticate for (private) container repositories (will be replaced by CredentialConfig eventually)
 type ContainerRepositoryCredentialConfig struct {
@@ -11,11 +15,20 @@ type ContainerRepositoryCredentialConfig struct {
 
 // BuilderConfig parameterizes a build/release job
 type BuilderConfig struct {
-	Action       *string             `json:"action,omitempty"`
-	Track        *string             `json:"track,omitempty"`
-	Git          *GitConfig          `json:"git,omitempty"`
-	BuildVersion *BuildVersionConfig `json:"buildVersion,omitempty"`
+	Action *string `json:"action,omitempty"`
+	Track  *string `json:"track,omitempty"`
 
+	Manifest *manifest.EstafetteManifest `json:"manifest,omitempty"`
+
+	JobName     *string `json:"jobName,omitempty"`
+	ReleaseName *string `json:"releaseName,omitempty"`
+
+	CIServer      *CIServerConfig      `json:"ciServer,omitempty"`
+	BuildParams   *BuildParamsConfig   `json:"buildParams,omitempty"`
+	ReleaseParams *ReleaseParamsConfig `json:"releaseParams,omitempty"`
+
+	Git           *GitConfig            `json:"git,omitempty"`
+	BuildVersion  *BuildVersionConfig   `json:"buildVersion,omitempty"`
 	Credentials   []*CredentialConfig   `yaml:"credentials,omitempty" json:"credentials,omitempty"`
 	TrustedImages []*TrustedImageConfig `yaml:"trustedImages,omitempty" json:"trustedImages,omitempty"`
 }
@@ -51,6 +64,25 @@ type BuildVersionConfig struct {
 	Minor         *int    `json:"minor,omitempty"`
 	Patch         *string `json:"patch,omitempty"`
 	AutoIncrement *int    `json:"autoincrement,omitempty"`
+}
+
+// CIServerConfig has a number of config items related to communication or linking to the CI server
+type CIServerConfig struct {
+	BaseURL          string `json:"baseUrl"`
+	BuilderEventsURL string `json:"builderEventsUrl"`
+	PostLogsURL      string `json:"postLogsUrl"`
+	APIKey           string `json:"apiKey"`
+}
+
+// BuildParamsConfig has config specific to builds
+type BuildParamsConfig struct {
+	BuildID int `json:"buildID"`
+}
+
+// ReleaseParamsConfig has config specific to releases
+type ReleaseParamsConfig struct {
+	ReleaseName string `json:"releaseName"`
+	ReleaseID   int    `json:"releaseID"`
 }
 
 // GetCredentialsByType returns all credentials of a certain type
