@@ -8,7 +8,6 @@ import (
 	"os"
 	"runtime"
 	"strconv"
-	"strings"
 
 	"github.com/alecthomas/kingpin"
 	"github.com/estafette/estafette-ci-contracts"
@@ -116,25 +115,49 @@ func main() {
 		// log as severity for stackdriver logging to recognize the level
 		zerolog.LevelFieldName = "severity"
 
-		gitName := envvarHelper.getEstafetteEnv("ESTAFETTE_GIT_NAME")
-		gitBranch := envvarHelper.getEstafetteEnv("ESTAFETTE_GIT_BRANCH")
-		gitRevision := envvarHelper.getEstafetteEnv("ESTAFETTE_GIT_REVISION")
-		jobName := envvarHelper.getEstafetteEnv("ESTAFETTE_BUILD_JOB_NAME")
-		builderTrack := envvarHelper.getEstafetteEnv("ESTAFETTE_CI_BUILDER_TRACK")
-		if builderTrack == "" {
-			builderTrack = "stable"
+		// read builder config from envvar and unset envar; will replace parameterizing the job via separate envvars
+		var builderConfig contracts.BuilderConfig
+		builderConfigJSON := os.Getenv("BUILDER_CONFIG")
+		if builderConfigJSON == "" {
+			log.Fatal().Msg("BUILDER_CONFIG envvar is not set")
 		}
-		buildVersion := envvarHelper.getEstafetteEnv("ESTAFETTE_BUILD_VERSION")
+		os.Unsetenv("BUILDER_CONFIG")
+
+		// unmarshal builder config
+		err := json.Unmarshal([]byte(builderConfigJSON), &builderConfig)
+		if err != nil {
+			log.Fatal().Err(err).Msg("Failed to unmarshal BUILDER_CONFIG")
+		}
+
+		// todo unset all ESTAFETTE_ envvars so they don't get abused by non-estafette components
+
+		// set envvars that can be used by any container
+		os.Setenv("ESTAFETTE_GIT_NAME", fmt.Sprintf("%v/%v", builderConfig.Git.RepoOwner, builderConfig.Git.RepoName))
+		os.Setenv("ESTAFETTE_GIT_BRANCH", builderConfig.Git.RepoBranch)
+		os.Setenv("ESTAFETTE_GIT_REVISION", builderConfig.Git.RepoRevision)
+		os.Setenv("ESTAFETTE_CI_BUILDER_TRACK", *builderConfig.Track)
+		os.Setenv("ESTAFETTE_BUILD_VERSION", builderConfig.BuildVersion.Version)
+		if builderConfig.BuildVersion.Major != nil {
+			os.Setenv("ESTAFETTE_BUILD_VERSION_MAJOR", strconv.Itoa(*builderConfig.BuildVersion.Major))
+		}
+		if builderConfig.BuildVersion.Minor != nil {
+			os.Setenv("ESTAFETTE_BUILD_VERSION_MINOR", strconv.Itoa(*builderConfig.BuildVersion.Minor))
+		}
+		if builderConfig.BuildVersion.Patch != nil {
+			os.Setenv("ESTAFETTE_BUILD_VERSION_PATCH", *builderConfig.BuildVersion.Patch)
+		}
+
+		jobName := envvarHelper.getEstafetteEnv("ESTAFETTE_BUILD_JOB_NAME")
 		releaseName := envvarHelper.getEstafetteEnv("ESTAFETTE_RELEASE_NAME")
 		releaseIDValue := envvarHelper.getEstafetteEnv("ESTAFETTE_RELEASE_ID")
 		releaseID, _ := strconv.Atoi(releaseIDValue)
 
 		buildLog := contracts.BuildLog{
-			RepoSource:   envvarHelper.getEstafetteEnv("ESTAFETTE_GIT_SOURCE"),
-			RepoOwner:    strings.Split(gitName, "/")[0],
-			RepoName:     strings.Split(gitName, "/")[1],
-			RepoBranch:   gitBranch,
-			RepoRevision: gitRevision,
+			RepoSource:   builderConfig.Git.RepoSource,
+			RepoOwner:    builderConfig.Git.RepoOwner,
+			RepoName:     builderConfig.Git.RepoName,
+			RepoBranch:   builderConfig.Git.RepoBranch,
+			RepoRevision: builderConfig.Git.RepoRevision,
 			Steps:        make([]contracts.BuildLogStep, 0),
 		}
 
@@ -152,9 +175,7 @@ func main() {
 			Str("app", "estafette-ci-builder").
 			Str("version", version).
 			Str("jobName", jobName).
-			Str("gitName", gitName).
-			Str("gitBranch", gitBranch).
-			Str("gitRevision", gitRevision).
+			Interface("git", builderConfig.Git).
 			Logger()
 
 		stdlog.SetFlags(0)
@@ -214,9 +235,9 @@ func main() {
 			if !releaseExists {
 				endOfLifeHelper.handleFatal(buildLog, err, fmt.Sprintf("Release %v does not exist", releaseName))
 			}
-			log.Info().Msgf("Starting release %v at version %v...", releaseName, buildVersion)
+			log.Info().Msgf("Starting release %v at version %v...", releaseName, builderConfig.BuildVersion.Version)
 		} else {
-			log.Info().Msgf("Starting build version %v...", buildVersion)
+			log.Info().Msgf("Starting build version %v...", builderConfig.BuildVersion.Version)
 		}
 
 		// create docker client

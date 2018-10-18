@@ -1,0 +1,83 @@
+{
+  "action": "build",
+  "track": "dev",
+  "git": {
+    "repoSource": "github.com",
+    "repoOwner": "estafette",
+    "repoName": "estafette-ci-contracts",
+    "repoBranch": "master",
+    "repoRevision": "3adf11c158811dbf0b94ca5bdbbdae79fffe7852"
+  },
+  "buildVersion": {
+    "version": "0.1.67-rc.1",
+    "major": 0,
+    "minor": 1,
+    "patch": "67-rc.1",
+    "autoincrement": 67
+  },
+  "credentials": [
+    {
+      "name": "container-registry-extensions",
+      "type": "container-registry",
+      "additionalProperties": {
+        "path": "extensions",
+        "username": "username",
+        "password": "secret"  
+      }
+    },
+    {
+      "name": "container-registry-estafette",
+      "type": "container-registry",
+      "additionalProperties": {
+        "path": "estafette",
+        "username": "username",
+        "password": "secret"
+      }
+    },
+    {
+      "name": "gke-estafette-production",
+      "type": "kubernetes-engine",
+      "additionalProperties": {
+        "project": "estafette-production",
+        "region": "europe-west2",
+        "cluster": "production-europe-west2",
+        "defaultNamespace": "estafette",
+        "serviceAccountKeyfile": "{}"
+      }
+    },
+    {
+      "name": "gke-estafette-development",
+      "type": "kubernetes-engine",
+      "additionalProperties": {
+        "project": "estafette-development",
+        "region": "europe-west2",
+        "cluster": "development-europe-west2",
+        "defaultNamespace": "estafette",
+        "serviceAccountKeyfile": "{}"
+      }
+    }
+  ],
+  "trustedImages": [
+    {
+      "path": "extensions/docker",
+      "runDocker": true,
+      "injectedCredentialTypes": ["container-registry"]
+    },
+    {
+      "path": "extensions/gke",
+      "injectedCredentialTypes": ["kubernetes-engine"]
+    },
+    {
+      "path": "extensions/bitbucket-status",
+      "injectedCredentialTypes": ["bitbucket-api-token"]
+    },
+    {
+      "path": "extensions/github-status",
+      "injectedCredentialTypes": ["github-api-token"]
+    },
+    {
+      "path": "extensions/slack-build-status",
+      "injectedCredentialTypes": ["slack-webhook"]
+    }
+  ]
+}

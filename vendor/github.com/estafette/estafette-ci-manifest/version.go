@@ -95,14 +95,35 @@ type EstafetteSemverVersion struct {
 // Version returns the version number as a string
 func (v *EstafetteSemverVersion) Version(params EstafetteVersionParams) string {
 
-	patch := parseTemplate(v.Patch, params.GetFuncMap())
+	patchWithLabel := v.GetPatchWithLabel(params)
+
+	return fmt.Sprintf("%v.%v.%v", v.Major, v.Minor, patchWithLabel)
+}
+
+// GetPatchWithLabel returns the formatted patch and label
+func (v *EstafetteSemverVersion) GetPatchWithLabel(params EstafetteVersionParams) string {
+
+	patch := v.GetPatch(params)
+	label := v.GetLabel(params)
+
+	return fmt.Sprintf("%v%v", patch, label)
+}
+
+// GetPatch returns the formatted patch
+func (v *EstafetteSemverVersion) GetPatch(params EstafetteVersionParams) string {
+
+	return parseTemplate(v.Patch, params.GetFuncMap())
+}
+
+// GetLabel returns the formatted label
+func (v *EstafetteSemverVersion) GetLabel(params EstafetteVersionParams) string {
 
 	label := ""
 	if params.Branch != v.ReleaseBranch {
 		label = fmt.Sprintf("-%v", parseTemplate(v.LabelTemplate, params.GetFuncMap()))
 	}
 
-	return fmt.Sprintf("%v.%v.%v%v", v.Major, v.Minor, patch, label)
+	return label
 }
 
 // EstafetteVersionParams contains parameters used to generate a version number
