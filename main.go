@@ -123,15 +123,15 @@ func main() {
 			log.Fatal().Msg("BUILDER_CONFIG envvar is not set")
 		}
 		os.Unsetenv("BUILDER_CONFIG")
-		log.Debug().Interface("builderConfig", builderConfig).Msg("")
-
-		endOfLifeHelper := NewEndOfLifeHelper(*runAsJob, builderConfig)
 
 		// unmarshal builder config
 		err := json.Unmarshal([]byte(builderConfigJSON), &builderConfig)
 		if err != nil {
 			log.Fatal().Err(err).Msg("Failed to unmarshal BUILDER_CONFIG")
 		}
+		log.Debug().Interface("builderConfig", builderConfig).Msg("")
+
+		endOfLifeHelper := NewEndOfLifeHelper(*runAsJob, builderConfig)
 
 		// todo unset all ESTAFETTE_ envvars so they don't get abused by non-estafette components
 
