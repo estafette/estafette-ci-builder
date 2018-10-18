@@ -7,7 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"strings"
+	"strconv"
 	"time"
 
 	"github.com/estafette/estafette-ci-contracts"
@@ -18,29 +18,22 @@ import (
 
 // EndOfLifeHelper has methods to shutdown the runner after a fatal or successful run
 type EndOfLifeHelper interface {
-	handleGocdFatal(error, string)
 	handleFatal(contracts.BuildLog, error, string)
 	sendBuildFinishedEvent(string)
 	sendBuildJobLogEvent(buildLog contracts.BuildLog)
 }
 
 type endOfLifeHelperImpl struct {
-	envvarHelper EnvvarHelper
-	runAsJob     bool
+	runAsJob bool
+	config   contracts.BuilderConfig
 }
 
 // NewEndOfLifeHelper returns a new EndOfLifeHelper
-func NewEndOfLifeHelper(envvarHelper EnvvarHelper, runAsJob bool) EndOfLifeHelper {
+func NewEndOfLifeHelper(runAsJob bool, config contracts.BuilderConfig) EndOfLifeHelper {
 	return &endOfLifeHelperImpl{
-		envvarHelper: envvarHelper,
-		runAsJob:     runAsJob,
+		runAsJob: runAsJob,
+		config:   config,
 	}
-}
-
-func (elh *endOfLifeHelperImpl) handleGocdFatal(err error, message string) {
-
-	log.Fatal().Err(err).Msg(message)
-	os.Exit(1)
 }
 
 func (elh *endOfLifeHelperImpl) handleFatal(buildLog contracts.BuildLog, err error, message string) {
@@ -78,27 +71,25 @@ func (elh *endOfLifeHelperImpl) handleFatal(buildLog contracts.BuildLog, err err
 
 func (elh *endOfLifeHelperImpl) sendBuildJobLogEvent(buildLog contracts.BuildLog) {
 
-	ciServerBuilderPostLogsURL := elh.envvarHelper.getEstafetteEnv("ESTAFETTE_CI_SERVER_POST_LOGS_URL")
-	ciAPIKey := elh.envvarHelper.getEstafetteEnv("ESTAFETTE_CI_API_KEY")
-	jobName := elh.envvarHelper.getEstafetteEnv("ESTAFETTE_BUILD_JOB_NAME")
+	ciServerBuilderPostLogsURL := elh.config.CIServer.PostLogsURL
+	ciAPIKey := elh.config.CIServer.APIKey
+	jobName := *elh.config.JobName
 
 	if ciServerBuilderPostLogsURL != "" && ciAPIKey != "" && jobName != "" {
 
 		// convert BuildJobLogs to json
 		var requestBody io.Reader
 
-		releaseID := elh.envvarHelper.getEstafetteEnv("ESTAFETTE_RELEASE_ID")
-
 		var data []byte
 		var err error
-		if releaseID != "" {
+		if *elh.config.Action == "release" {
 			// copy buildLog to releaseLog and marshal that
 			releaseLog := contracts.ReleaseLog{
 				ID:         buildLog.ID,
 				RepoSource: buildLog.RepoSource,
 				RepoOwner:  buildLog.RepoOwner,
 				RepoName:   buildLog.RepoName,
-				ReleaseID:  releaseID,
+				ReleaseID:  strconv.Itoa(elh.config.ReleaseParams.ReleaseID),
 				Steps:      buildLog.Steps,
 				InsertedAt: buildLog.InsertedAt,
 			}
@@ -147,24 +138,31 @@ func (elh *endOfLifeHelperImpl) sendBuildJobLogEvent(buildLog contracts.BuildLog
 
 func (elh *endOfLifeHelperImpl) sendBuildFinishedEvent(buildStatus string) {
 
-	ciServerBuilderEventsURL := elh.envvarHelper.getEstafetteEnv("ESTAFETTE_CI_SERVER_BUILDER_EVENTS_URL")
-	ciAPIKey := elh.envvarHelper.getEstafetteEnv("ESTAFETTE_CI_API_KEY")
-	jobName := elh.envvarHelper.getEstafetteEnv("ESTAFETTE_BUILD_JOB_NAME")
+	ciServerBuilderEventsURL := elh.config.CIServer.BuilderEventsURL
+	ciAPIKey := elh.config.CIServer.APIKey
+	jobName := *elh.config.JobName
 
 	if ciServerBuilderEventsURL != "" && ciAPIKey != "" && jobName != "" {
 		// convert EstafetteCiBuilderEvent to json
 		var requestBody io.Reader
 
-		releaseID := elh.envvarHelper.getEstafetteEnv("ESTAFETTE_RELEASE_ID")
-		buildID := elh.envvarHelper.getEstafetteEnv("ESTAFETTE_BUILD_ID")
+		buildID := ""
+		if elh.config.BuildParams != nil {
+			buildID = strconv.Itoa(elh.config.BuildParams.BuildID)
+		}
+
+		releaseID := ""
+		if elh.config.ReleaseParams != nil {
+			releaseID = strconv.Itoa(elh.config.ReleaseParams.ReleaseID)
+		}
 
 		ciBuilderEvent := EstafetteCiBuilderEvent{
 			JobName:      jobName,
-			RepoSource:   elh.envvarHelper.getEstafetteEnv("ESTAFETTE_GIT_SOURCE"),
-			RepoOwner:    strings.Split(elh.envvarHelper.getEstafetteEnv("ESTAFETTE_GIT_NAME"), "/")[0],
-			RepoName:     strings.Split(elh.envvarHelper.getEstafetteEnv("ESTAFETTE_GIT_NAME"), "/")[1],
-			RepoBranch:   elh.envvarHelper.getEstafetteEnv("ESTAFETTE_GIT_BRANCH"),
-			RepoRevision: elh.envvarHelper.getEstafetteEnv("ESTAFETTE_GIT_REVISION"),
+			RepoSource:   elh.config.Git.RepoSource,
+			RepoOwner:    elh.config.Git.RepoOwner,
+			RepoName:     elh.config.Git.RepoName,
+			RepoBranch:   elh.config.Git.RepoBranch,
+			RepoRevision: elh.config.Git.RepoRevision,
 			ReleaseID:    releaseID,
 			BuildID:      buildID,
 			BuildStatus:  buildStatus,

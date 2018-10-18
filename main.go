@@ -40,12 +40,13 @@ func main() {
 	obfuscator := NewObfuscator(secretHelper)
 	dockerRunner := NewDockerRunner(envvarHelper, obfuscator, *runAsJob)
 	pipelineRunner := NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner, *runAsJob)
-	endOfLifeHelper := NewEndOfLifeHelper(envvarHelper, *runAsJob)
 
 	// detect controlling server
 	ciServer := envvarHelper.getEstafetteEnv("ESTAFETTE_CI_SERVER")
 
 	if ciServer == "gocd" {
+
+		fatalHandler := NewGocdFatalHandler()
 
 		// pretty print for go.cd integration
 		log.Logger = zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr}).With().
@@ -66,32 +67,32 @@ func main() {
 		// create docker client
 		_, err := dockerRunner.createDockerClient()
 		if err != nil {
-			endOfLifeHelper.handleGocdFatal(err, "Failed creating a docker client")
+			fatalHandler.handleGocdFatal(err, "Failed creating a docker client")
 		}
 
 		// read yaml
 		manifest, err := manifest.ReadManifestFromFile(".estafette.yaml")
 		if err != nil {
-			endOfLifeHelper.handleGocdFatal(err, "Reading .estafette.yaml manifest failed")
+			fatalHandler.handleGocdFatal(err, "Reading .estafette.yaml manifest failed")
 		}
 
 		// initialize obfuscator
 		err = obfuscator.CollectSecrets(manifest)
 		if err != nil {
-			endOfLifeHelper.handleGocdFatal(err, "Collecting secrets to obfuscate failed")
+			fatalHandler.handleGocdFatal(err, "Collecting secrets to obfuscate failed")
 		}
 
 		// get current working directory
 		dir, err := os.Getwd()
 		if err != nil {
-			endOfLifeHelper.handleGocdFatal(err, "Getting current working directory failed")
+			fatalHandler.handleGocdFatal(err, "Getting current working directory failed")
 		}
 
 		log.Info().Msgf("Running %v stages", len(manifest.Stages))
 
 		err = envvarHelper.setEstafetteGlobalEnvvars()
 		if err != nil {
-			endOfLifeHelper.handleGocdFatal(err, "Setting global environment variables failed")
+			fatalHandler.handleGocdFatal(err, "Setting global environment variables failed")
 		}
 
 		// collect estafette and 'global' envvars from manifest
@@ -103,7 +104,7 @@ func main() {
 
 		result, err := pipelineRunner.runStages(manifest.Stages, dir, envvars)
 		if err != nil {
-			endOfLifeHelper.handleGocdFatal(err, "Executing stages from manifest failed")
+			fatalHandler.handleGocdFatal(err, "Executing stages from manifest failed")
 		}
 
 		renderStats(result)
@@ -122,6 +123,8 @@ func main() {
 			log.Fatal().Msg("BUILDER_CONFIG envvar is not set")
 		}
 		os.Unsetenv("BUILDER_CONFIG")
+
+		endOfLifeHelper := NewEndOfLifeHelper(*runAsJob, builderConfig)
 
 		// unmarshal builder config
 		err := json.Unmarshal([]byte(builderConfigJSON), &builderConfig)
