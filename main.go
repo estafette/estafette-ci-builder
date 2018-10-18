@@ -123,6 +123,7 @@ func main() {
 			log.Fatal().Msg("BUILDER_CONFIG envvar is not set")
 		}
 		os.Unsetenv("BUILDER_CONFIG")
+		log.Debug().Interface("builderConfig", builderConfig).Msg("")
 
 		endOfLifeHelper := NewEndOfLifeHelper(*runAsJob, builderConfig)
 
@@ -135,10 +136,10 @@ func main() {
 		// todo unset all ESTAFETTE_ envvars so they don't get abused by non-estafette components
 
 		// set envvars that can be used by any container
-		os.Setenv("ESTAFETTE_GIT_NAME", fmt.Sprintf("%v/%v", builderConfig.Git.RepoOwner, builderConfig.Git.RepoName))
+		//os.Setenv("ESTAFETTE_GIT_NAME", fmt.Sprintf("%v/%v", builderConfig.Git.RepoOwner, builderConfig.Git.RepoName))
 		os.Setenv("ESTAFETTE_GIT_BRANCH", builderConfig.Git.RepoBranch)
 		os.Setenv("ESTAFETTE_GIT_REVISION", builderConfig.Git.RepoRevision)
-		os.Setenv("ESTAFETTE_CI_BUILDER_TRACK", *builderConfig.Track)
+		//os.Setenv("ESTAFETTE_CI_BUILDER_TRACK", *builderConfig.Track)
 		os.Setenv("ESTAFETTE_BUILD_VERSION", builderConfig.BuildVersion.Version)
 		if builderConfig.BuildVersion.Major != nil {
 			os.Setenv("ESTAFETTE_BUILD_VERSION_MAJOR", strconv.Itoa(*builderConfig.BuildVersion.Major))
@@ -149,19 +150,19 @@ func main() {
 		if builderConfig.BuildVersion.Patch != nil {
 			os.Setenv("ESTAFETTE_BUILD_VERSION_PATCH", *builderConfig.BuildVersion.Patch)
 		}
-		os.Setenv("ESTAFETTE_BUILD_JOB_NAME", *builderConfig.JobName)
-		if builderConfig.CIServer != nil {
-			os.Setenv("ESTAFETTE_CI_SERVER_BASE_URL", builderConfig.CIServer.BaseURL)
-			os.Setenv("ESTAFETTE_CI_SERVER_BUILDER_EVENTS_URL", builderConfig.CIServer.BuilderEventsURL)
-			os.Setenv("ESTAFETTE_CI_SERVER_POST_LOGS_URL", builderConfig.CIServer.PostLogsURL)
-			os.Setenv("ESTAFETTE_CI_API_KEY", builderConfig.CIServer.APIKey)
-		}
+		// os.Setenv("ESTAFETTE_BUILD_JOB_NAME", *builderConfig.JobName)
+		// if builderConfig.CIServer != nil {
+		// 	os.Setenv("ESTAFETTE_CI_SERVER_BASE_URL", builderConfig.CIServer.BaseURL)
+		// 	os.Setenv("ESTAFETTE_CI_SERVER_BUILDER_EVENTS_URL", builderConfig.CIServer.BuilderEventsURL)
+		// 	os.Setenv("ESTAFETTE_CI_SERVER_POST_LOGS_URL", builderConfig.CIServer.PostLogsURL)
+		// 	os.Setenv("ESTAFETTE_CI_API_KEY", builderConfig.CIServer.APIKey)
+		// }
 		if builderConfig.ReleaseParams != nil {
 			os.Setenv("ESTAFETTE_RELEASE_NAME", builderConfig.ReleaseParams.ReleaseName)
-			os.Setenv("ESTAFETTE_RELEASE_ID", strconv.Itoa(builderConfig.ReleaseParams.ReleaseID))
+			//os.Setenv("ESTAFETTE_RELEASE_ID", strconv.Itoa(builderConfig.ReleaseParams.ReleaseID))
 		}
 		if builderConfig.BuildParams != nil {
-			os.Setenv("ESTAFETTE_BUILD_ID", strconv.Itoa(builderConfig.BuildParams.BuildID))
+			//os.Setenv("ESTAFETTE_BUILD_ID", strconv.Itoa(builderConfig.BuildParams.BuildID))
 		}
 		bitbucketAPICredentials := builderConfig.GetCredentialsByType("bitbucket-api-token")
 		if len(bitbucketAPICredentials) > 0 {
