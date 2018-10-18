@@ -56,3 +56,5 @@ trustedImages:
   injectedCredentialTypes:
   - bitbucket-api-token
   - github-api-token
+- path: estafette/estafette-ci-builder
+  runPrivileged: true

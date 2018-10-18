@@ -203,12 +203,12 @@
 			"revisionTime": "2018-02-12T13:46:57Z"
 		},
 		{
-			"checksumSHA1": "j3J4KLdGadH+/zfbQM5LuNhK41U=",
+			"checksumSHA1": "UyZ0ef9bLL1PUnilcEbNfsHMfZw=",
 			"path": "github.com/estafette/estafette-ci-contracts",
-			"revision": "847d1d74405497e69135d0380abdf2f487e5d3da",
-			"revisionTime": "2018-10-18T15:17:01Z",
-			"version": "0.0.72",
-			"versionExact": "0.0.72"
+			"revision": "37db16260194d54c700d4f0cab77dec96cd93bd8",
+			"revisionTime": "2018-10-18T20:31:28Z",
+			"version": "0.0.74",
+			"versionExact": "0.0.74"
 		},
 		{
 			"checksumSHA1": "R054+alU1/88dhwUwqaNyxiTMRY=",

@@ -44,6 +44,7 @@ type CredentialConfig struct {
 // TrustedImageConfig allows trusted images to run docker commands or receive specific credentials
 type TrustedImageConfig struct {
 	ImagePath               string   `yaml:"path" json:"path"`
+	RunPrivileged           bool     `yaml:"runPrivileged" json:"runPrivileged"`
 	RunDocker               bool     `yaml:"runDocker" json:"runDocker"`
 	InjectedCredentialTypes []string `yaml:"injectedCredentialTypes" json:"injectedCredentialTypes"`
 }
