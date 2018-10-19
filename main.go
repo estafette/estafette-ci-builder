@@ -24,6 +24,7 @@ var (
 	buildDate string
 	goVersion = runtime.Version()
 
+	builderConfigFlag   = kingpin.Flag("builder-config", "The Estafette server passes in this json structure to parameterize the build, set trusted images and inject credentials.").Envar("BUILDER_CONFIG").String()
 	secretDecryptionKey = kingpin.Flag("secret-decryption-key", "The AES-256 key used to decrypt secrets that have been encrypted with it.").Envar("SECRET_DECRYPTION_KEY").String()
 	runAsJob            = kingpin.Flag("run-as-job", "To run the builder as a job and prevent build failures to fail the job.").Default("false").OverrideDefaultFromEnvar("RUN_AS_JOB").Bool()
 )
@@ -33,36 +34,51 @@ func main() {
 	// parse command line parameters
 	kingpin.Parse()
 
+	// read builder config from envvar and unset envar; will replace parameterizing the job via separate envvars
+	var builderConfig contracts.BuilderConfig
+	builderConfigJSON := *builderConfigFlag
+	if builderConfigJSON == "" {
+		log.Fatal().Msg("BUILDER_CONFIG envvar is not set")
+	}
+	os.Unsetenv("BUILDER_CONFIG")
+
+	// unmarshal builder config
+	err := json.Unmarshal([]byte(builderConfigJSON), &builderConfig)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to unmarshal BUILDER_CONFIG")
+	}
+	log.Debug().Interface("builderConfig", builderConfig).Msg("")
+
 	// bootstrap
 	secretHelper := crypt.NewSecretHelper(*secretDecryptionKey)
 	envvarHelper := NewEnvvarHelper("ESTAFETTE_", secretHelper)
 	whenEvaluator := NewWhenEvaluator(envvarHelper)
 	obfuscator := NewObfuscator(secretHelper)
+	dockerRunner := NewDockerRunner(envvarHelper, obfuscator, *runAsJob, builderConfig)
+	pipelineRunner := NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner, *runAsJob)
+	endOfLifeHelper := NewEndOfLifeHelper(*runAsJob, builderConfig)
+
+	// set ESTAFETTE_CI_REPOSITORY_CREDENTIALS_JSON for backwards compatibility until extensions/docker supports generic credential injection
+	var credentials []*contracts.ContainerRepositoryCredentialConfig
+	containerRegistryCredentials := builderConfig.GetCredentialsByType("container-registry")
+	for _, cred := range containerRegistryCredentials {
+		credentials = append(credentials, &contracts.ContainerRepositoryCredentialConfig{
+			Repository: cred.AdditionalProperties["repository"].(string),
+			Username:   cred.AdditionalProperties["username"].(string),
+			Password:   cred.AdditionalProperties["password"].(string),
+		})
+	}
+	credentialsBytes, err := json.Marshal(credentials)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to marshal credentials for backwards compatibility")
+	}
+	os.Setenv("ESTAFETTE_CI_REPOSITORY_CREDENTIALS_JSON", string(credentialsBytes))
 
 	// detect controlling server
 	ciServer := envvarHelper.getEstafetteEnv("ESTAFETTE_CI_SERVER")
 
 	if ciServer == "gocd" {
 
-		gocdBuilderConfig := contracts.BuilderConfig{
-			TrustedImages: []*contracts.TrustedImageConfig{
-				&contracts.TrustedImageConfig{
-					ImagePath: "extensions/docker",
-					RunDocker: true,
-				},
-				&contracts.TrustedImageConfig{
-					ImagePath: "extensions/docker",
-					RunDocker: true,
-				},
-				&contracts.TrustedImageConfig{
-					ImagePath: "docker",
-					RunDocker: true,
-				},
-			},
-		}
-
-		dockerRunner := NewDockerRunner(envvarHelper, obfuscator, *runAsJob, gocdBuilderConfig)
-		pipelineRunner := NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner, *runAsJob)
 		fatalHandler := NewGocdFatalHandler()
 
 		// pretty print for go.cd integration
@@ -133,25 +149,6 @@ func main() {
 		// log as severity for stackdriver logging to recognize the level
 		zerolog.LevelFieldName = "severity"
 
-		// read builder config from envvar and unset envar; will replace parameterizing the job via separate envvars
-		var builderConfig contracts.BuilderConfig
-		builderConfigJSON := os.Getenv("BUILDER_CONFIG")
-		if builderConfigJSON == "" {
-			log.Fatal().Msg("BUILDER_CONFIG envvar is not set")
-		}
-		os.Unsetenv("BUILDER_CONFIG")
-
-		// unmarshal builder config
-		err := json.Unmarshal([]byte(builderConfigJSON), &builderConfig)
-		if err != nil {
-			log.Fatal().Err(err).Msg("Failed to unmarshal BUILDER_CONFIG")
-		}
-		log.Debug().Interface("builderConfig", builderConfig).Msg("")
-
-		dockerRunner := NewDockerRunner(envvarHelper, obfuscator, *runAsJob, builderConfig)
-		pipelineRunner := NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner, *runAsJob)
-		endOfLifeHelper := NewEndOfLifeHelper(*runAsJob, builderConfig)
-
 		// todo unset all ESTAFETTE_ envvars so they don't get abused by non-estafette components
 		envvarsToUnset := envvarHelper.collectEstafetteEnvvars()
 		for key := range envvarsToUnset {
@@ -193,22 +190,6 @@ func main() {
 
 		// set ESTAFETTE_GIT_NAME for backwards compatibility with extensions/git-clone
 		os.Setenv("ESTAFETTE_GIT_NAME", fmt.Sprintf("%v/%v", builderConfig.Git.RepoOwner, builderConfig.Git.RepoName))
-
-		// set ESTAFETTE_CI_REPOSITORY_CREDENTIALS_JSON for backwards compatibility until extensions/docker supports generic credential injection
-		var credentials []*contracts.ContainerRepositoryCredentialConfig
-		containerRegistryCredentials := builderConfig.GetCredentialsByType("container-registry")
-		for _, cred := range containerRegistryCredentials {
-			credentials = append(credentials, &contracts.ContainerRepositoryCredentialConfig{
-				Repository: cred.AdditionalProperties["repository"].(string),
-				Username:   cred.AdditionalProperties["username"].(string),
-				Password:   cred.AdditionalProperties["password"].(string),
-			})
-		}
-		credentialsBytes, err := json.Marshal(credentials)
-		if err != nil {
-			log.Fatal().Err(err).Msg("Failed to marshal credentials for backwards compatibility")
-		}
-		os.Setenv("ESTAFETTE_CI_REPOSITORY_CREDENTIALS_JSON", string(credentialsBytes))
 
 		buildLog := contracts.BuildLog{
 			RepoSource:   builderConfig.Git.RepoSource,
