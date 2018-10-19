@@ -1,5 +1,5 @@
 builder:
-  track: dev
+  track: stable
 
 labels:
   app: estafette-ci-builder
