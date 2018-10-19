@@ -187,6 +187,7 @@ func (elh *endOfLifeHelperImpl) sendBuildFinishedEvent(buildStatus string) {
 
 		// add headers
 		request.Header.Add("X-Estafette-Event", fmt.Sprintf("builder:%v", buildStatus))
+		request.Header.Add("X-Estafette-Event-Job-Name", jobName)
 		request.Header.Add("Authorization", fmt.Sprintf("Bearer %v", ciAPIKey))
 
 		// perform actual request
