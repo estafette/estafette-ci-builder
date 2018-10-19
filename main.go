@@ -96,6 +96,7 @@ func main() {
 		log.Fatal().Err(err).Msg("Failed to marshal credentials for backwards compatibility")
 	}
 	os.Setenv("ESTAFETTE_CI_REPOSITORY_CREDENTIALS_JSON", string(credentialsBytes))
+	log.Debug().Msgf("Set ESTAFETTE_CI_REPOSITORY_CREDENTIALS_JSON=%v", os.Getenv("ESTAFETTE_CI_REPOSITORY_CREDENTIALS_JSON"))
 
 	// detect controlling server
 	ciServer := envvarHelper.getEstafetteEnv("ESTAFETTE_CI_SERVER")
