@@ -211,12 +211,12 @@
 			"versionExact": "0.0.77"
 		},
 		{
-			"checksumSHA1": "R054+alU1/88dhwUwqaNyxiTMRY=",
+			"checksumSHA1": "P4YSXU1SxBKzlTMI4Bq1wNUlPtc=",
 			"path": "github.com/estafette/estafette-ci-crypt",
-			"revision": "cb7bb0f87f7b4b4eb6ef2b1cd5c83396507ca362",
-			"revisionTime": "2018-05-25T10:24:12Z",
-			"version": "0.0.2",
-			"versionExact": "0.0.2"
+			"revision": "76fcb1fe0faa47b1d940724775ae299beff716ce",
+			"revisionTime": "2018-10-19T11:42:55Z",
+			"version": "0.0.10",
+			"versionExact": "0.0.10"
 		},
 		{
 			"checksumSHA1": "4ms9q6EIohiRvJr8uRZppSb5sXc=",

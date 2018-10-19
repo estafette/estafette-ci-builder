@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"regexp"
 	"strings"
 )
 
@@ -15,6 +16,9 @@ import (
 type SecretHelper interface {
 	Encrypt(string) (string, error)
 	Decrypt(string) (string, error)
+	EncryptEnvelope(string) (string, error)
+	DecryptEnvelope(string) (string, error)
+	DecryptAllEnvelopes(string) (string, error)
 }
 
 type secretHelperImpl struct {
@@ -89,6 +93,59 @@ func (sh *secretHelperImpl) Decrypt(encryptedTextPlusNonce string) (decryptedTex
 	}
 
 	decryptedText = string(plaintext)
+
+	return
+}
+
+func (sh *secretHelperImpl) EncryptEnvelope(unencryptedText string) (encryptedTextInEnvelope string, err error) {
+
+	encryptedText, err := sh.Encrypt(unencryptedText)
+	if err != nil {
+		return
+	}
+	encryptedTextInEnvelope = fmt.Sprintf("estafette.secret(%v)", encryptedText)
+
+	return
+}
+
+func (sh *secretHelperImpl) DecryptEnvelope(encryptedTextInEnvelope string) (decryptedText string, err error) {
+
+	r, err := regexp.Compile(`^estafette\.secret\(([a-zA-Z0-9.=_-]+)\)$`)
+	if err != nil {
+		return
+	}
+
+	matches := r.FindStringSubmatch(encryptedTextInEnvelope)
+	if matches == nil {
+		return encryptedTextInEnvelope, nil
+	}
+
+	decryptedText, err = sh.Decrypt(matches[1])
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+func (sh *secretHelperImpl) decryptEnvelopeInBytes(encryptedTextInEnvelope []byte) []byte {
+
+	decryptedText, err := sh.DecryptEnvelope(string(encryptedTextInEnvelope))
+	if err != nil {
+		return nil
+	}
+
+	return []byte(decryptedText)
+}
+
+func (sh *secretHelperImpl) DecryptAllEnvelopes(encryptedTextWithEnvelopes string) (decryptedText string, err error) {
+
+	r, err := regexp.Compile(`estafette\.secret\([a-zA-Z0-9.=_-]+\)`)
+	if err != nil {
+		return
+	}
+
+	decryptedText = string(r.ReplaceAllFunc([]byte(encryptedTextWithEnvelopes), sh.decryptEnvelopeInBytes))
 
 	return
 }

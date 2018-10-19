@@ -42,10 +42,11 @@ func main() {
 	if builderConfigJSON == "" {
 		log.Fatal().Msg("BUILDER_CONFIG envvar is not set")
 	}
-	builderConfigJSONDecrypted, err := secretHelper.Decrypt(builderConfigJSON)
+	builderConfigJSONDecrypted, err := secretHelper.DecryptAllEnvelopes(builderConfigJSON)
 	if err != nil {
 		log.Fatal().Err(err).Msgf("Failed decrypting secrets in BUILDER_CONFIG: %v", builderConfigJSON)
 	}
+
 	os.Unsetenv("BUILDER_CONFIG")
 
 	// unmarshal builder config
@@ -182,7 +183,11 @@ func main() {
 		if len(bitbucketAPICredentials) > 0 {
 			token := bitbucketAPICredentials[0].AdditionalProperties["token"].(string)
 			os.Setenv("ESTAFETTE_BITBUCKET_API_TOKEN", token)
+			log.Debug().Msgf("Set ESTAFETTE_BITBUCKET_API_TOKEN=%v", os.Getenv("ESTAFETTE_BITBUCKET_API_TOKEN"))
 			os.Setenv("ESTAFETTE_GIT_URL", fmt.Sprintf("https://x-token-auth:%v@%v/%v/%v", token, builderConfig.Git.RepoSource, builderConfig.Git.RepoOwner, builderConfig.Git.RepoName))
+			log.Debug().Msgf("Set ESTAFETTE_GIT_URL=%v", os.Getenv("ESTAFETTE_GIT_URL"))
+		} else {
+			log.Debug().Msg("Failed getting bitbucket-api-token credentials ")
 		}
 
 		// set ESTAFETTE_GITHUB_API_TOKEN and ESTAFETTE_GIT_URL for backward compatibility with extensions/github-status and extensions/git-clone until it supports generic credential injection
@@ -190,7 +195,11 @@ func main() {
 		if len(githubAPICredentials) > 0 {
 			token := githubAPICredentials[0].AdditionalProperties["token"].(string)
 			os.Setenv("ESTAFETTE_GITHUB_API_TOKEN", token)
+			log.Debug().Msgf("Set ESTAFETTE_GITHUB_API_TOKEN=%v", os.Getenv("ESTAFETTE_GITHUB_API_TOKEN"))
 			os.Setenv("ESTAFETTE_GIT_URL", fmt.Sprintf("https://x-access-token:%v@%v/%v/%v", token, builderConfig.Git.RepoSource, builderConfig.Git.RepoOwner, builderConfig.Git.RepoName))
+			log.Debug().Msgf("Set ESTAFETTE_GIT_URL=%v", os.Getenv("ESTAFETTE_GIT_URL"))
+		} else {
+			log.Debug().Msg("Failed getting github-api-token credentials ")
 		}
 
 		// set ESTAFETTE_GIT_NAME for backwards compatibility with extensions/git-clone
