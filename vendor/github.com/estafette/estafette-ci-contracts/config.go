@@ -46,7 +46,7 @@ type TrustedImageConfig struct {
 	ImagePath               string   `yaml:"path" json:"path"`
 	RunPrivileged           bool     `yaml:"runPrivileged" json:"runPrivileged"`
 	RunDocker               bool     `yaml:"runDocker" json:"runDocker"`
-	InjectedCredentialTypes []string `yaml:"injectedCredentialTypes" json:"injectedCredentialTypes"`
+	InjectedCredentialTypes []string `yaml:"injectedCredentialTypes,omitempty" json:"injectedCredentialTypes,omitempty"`
 }
 
 // GitConfig contains all information for cloning the git repository for building/releasing a specific version

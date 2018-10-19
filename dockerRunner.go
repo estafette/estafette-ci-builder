@@ -35,24 +35,24 @@ type DockerRunner interface {
 	startDockerDaemon() error
 	waitForDockerDaemon()
 	createDockerClient() (*client.Client, error)
-	setRepositoryCredentials([]*contracts.ContainerRepositoryCredentialConfig)
 	getImagePullOptions(containerImage string) types.ImagePullOptions
 }
 
 type dockerRunnerImpl struct {
-	envvarHelper          EnvvarHelper
-	obfuscator            Obfuscator
-	dockerClient          *client.Client
-	repositoryCredentials []*contracts.ContainerRepositoryCredentialConfig
-	runAsJob              bool
+	envvarHelper EnvvarHelper
+	obfuscator   Obfuscator
+	dockerClient *client.Client
+	runAsJob     bool
+	config       contracts.BuilderConfig
 }
 
 // NewDockerRunner returns a new DockerRunner
-func NewDockerRunner(envvarHelper EnvvarHelper, obfuscator Obfuscator, runAsJob bool) DockerRunner {
+func NewDockerRunner(envvarHelper EnvvarHelper, obfuscator Obfuscator, runAsJob bool, config contracts.BuilderConfig) DockerRunner {
 	return &dockerRunnerImpl{
 		envvarHelper: envvarHelper,
 		obfuscator:   obfuscator,
 		runAsJob:     runAsJob,
+		config:       config,
 	}
 }
 
@@ -111,6 +111,9 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 
 	logLines = make([]contracts.BuildLogLine, 0)
 	exitCode = -1
+
+	// check if image is trusted image
+	trustedImage := dr.config.GetTrustedImage(p.ContainerImage)
 
 	// run docker with image and commands from yaml
 	ctx := context.Background()
@@ -191,12 +194,17 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 	if runtime.GOOS != "windows" {
 		binds = append(binds, fmt.Sprintf("%v:%v", dir, os.Expand(p.WorkingDirectory, dr.envvarHelper.getEstafetteEnv)))
 	}
-	if ok, _ := pathExists("/var/run/docker.sock"); ok {
-		binds = append(binds, "/var/run/docker.sock:/var/run/docker.sock")
+
+	// check if this is a trusted image with RunDocker set to true
+	if trustedImage != nil && trustedImage.RunDocker {
+		if ok, _ := pathExists("/var/run/docker.sock"); ok {
+			binds = append(binds, "/var/run/docker.sock:/var/run/docker.sock")
+		}
 	}
-	if ok, _ := pathExists("/var/run/secrets/kubernetes.io/serviceaccount"); ok {
-		binds = append(binds, "/var/run/secrets/kubernetes.io/serviceaccount:/var/run/secrets/kubernetes.io/serviceaccount")
-	}
+
+	// if ok, _ := pathExists("/var/run/secrets/kubernetes.io/serviceaccount"); ok {
+	// 	binds = append(binds, "/var/run/secrets/kubernetes.io/serviceaccount:/var/run/secrets/kubernetes.io/serviceaccount")
+	// }
 
 	// define config
 	config := container.Config{
@@ -213,11 +221,17 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 		config.Entrypoint = entrypoint
 	}
 
+	// check if this is a trusted image with RunPrivileged or RunDocker set to true
+	privileged := false
+	if trustedImage != nil {
+		privileged = trustedImage.RunDocker || trustedImage.RunPrivileged
+	}
+
 	// create container
 	resp, err := dr.dockerClient.ContainerCreate(ctx, &config, &container.HostConfig{
 		Binds:      binds,
 		AutoRemove: true,
-		Privileged: true,
+		Privileged: privileged,
 	}, &network.NetworkingConfig{}, "")
 	if err != nil {
 		return
@@ -356,20 +370,19 @@ func (dr *dockerRunnerImpl) createDockerClient() (*client.Client, error) {
 	return dockerClient, err
 }
 
-func (dr *dockerRunnerImpl) setRepositoryCredentials(repositoryCredentials []*contracts.ContainerRepositoryCredentialConfig) {
-	dr.repositoryCredentials = repositoryCredentials
-}
-
 func (dr *dockerRunnerImpl) getImagePullOptions(containerImage string) types.ImagePullOptions {
-	if dr.repositoryCredentials != nil {
-		for _, credentials := range dr.repositoryCredentials {
+
+	containerRegistryCredentials := dr.config.GetCredentialsByType("container-registry")
+
+	if len(containerRegistryCredentials) > 0 {
+		for _, credential := range containerRegistryCredentials {
 			containerImageSlice := strings.Split(containerImage, "/")
 			containerRepo := strings.Join(containerImageSlice[:len(containerImageSlice)-1], "/")
 
-			if containerRepo == credentials.Repository {
+			if containerRepo == credential.AdditionalProperties["repository"].(string) {
 				authConfig := types.AuthConfig{
-					Username: credentials.Username,
-					Password: credentials.Password,
+					Username: credential.AdditionalProperties["username"].(string),
+					Password: credential.AdditionalProperties["password"].(string),
 				}
 				encodedJSON, err := json.Marshal(authConfig)
 				if err == nil {

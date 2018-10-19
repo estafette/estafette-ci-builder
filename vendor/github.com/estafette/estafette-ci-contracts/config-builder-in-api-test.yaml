@@ -1,12 +1,12 @@
 credentials:
 - name: container-registry-extensions
   type: container-registry
-  path: extensions
+  repository: extensions
   username: username
   password: secret
 - name: container-registry-estafette
   type: container-registry
-  path: estafette
+  repository: estafette
   username: username
   password: secret
 - name: gke-estafette-production

@@ -4,12 +4,13 @@ import (
 	"os"
 	"testing"
 
+	contracts "github.com/estafette/estafette-ci-contracts"
 	mft "github.com/estafette/estafette-ci-manifest"
 	"github.com/stretchr/testify/assert"
 )
 
 var (
-	pipelineRunner = NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner, true)
+	pipelineRunner = NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner, true, contracts.BuilderConfig{})
 )
 
 func TestRunStages(t *testing.T) {

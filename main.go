@@ -38,14 +38,31 @@ func main() {
 	envvarHelper := NewEnvvarHelper("ESTAFETTE_", secretHelper)
 	whenEvaluator := NewWhenEvaluator(envvarHelper)
 	obfuscator := NewObfuscator(secretHelper)
-	dockerRunner := NewDockerRunner(envvarHelper, obfuscator, *runAsJob)
-	pipelineRunner := NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner, *runAsJob)
 
 	// detect controlling server
 	ciServer := envvarHelper.getEstafetteEnv("ESTAFETTE_CI_SERVER")
 
 	if ciServer == "gocd" {
 
+		gocdBuilderConfig := contracts.BuilderConfig{
+			TrustedImages: []*contracts.TrustedImageConfig{
+				&contracts.TrustedImageConfig{
+					ImagePath: "extensions/docker",
+					RunDocker: true,
+				},
+				&contracts.TrustedImageConfig{
+					ImagePath: "extensions/docker",
+					RunDocker: true,
+				},
+				&contracts.TrustedImageConfig{
+					ImagePath: "docker",
+					RunDocker: true,
+				},
+			},
+		}
+
+		dockerRunner := NewDockerRunner(envvarHelper, obfuscator, *runAsJob, gocdBuilderConfig)
+		pipelineRunner := NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner, *runAsJob, gocdBuilderConfig)
 		fatalHandler := NewGocdFatalHandler()
 
 		// pretty print for go.cd integration
@@ -131,15 +148,15 @@ func main() {
 		}
 		log.Debug().Interface("builderConfig", builderConfig).Msg("")
 
+		dockerRunner := NewDockerRunner(envvarHelper, obfuscator, *runAsJob, builderConfig)
+		pipelineRunner := NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner, *runAsJob, builderConfig)
 		endOfLifeHelper := NewEndOfLifeHelper(*runAsJob, builderConfig)
 
 		// todo unset all ESTAFETTE_ envvars so they don't get abused by non-estafette components
 
 		// set envvars that can be used by any container
-		//os.Setenv("ESTAFETTE_GIT_NAME", fmt.Sprintf("%v/%v", builderConfig.Git.RepoOwner, builderConfig.Git.RepoName))
 		os.Setenv("ESTAFETTE_GIT_BRANCH", builderConfig.Git.RepoBranch)
 		os.Setenv("ESTAFETTE_GIT_REVISION", builderConfig.Git.RepoRevision)
-		//os.Setenv("ESTAFETTE_CI_BUILDER_TRACK", *builderConfig.Track)
 		os.Setenv("ESTAFETTE_BUILD_VERSION", builderConfig.BuildVersion.Version)
 		if builderConfig.BuildVersion.Major != nil {
 			os.Setenv("ESTAFETTE_BUILD_VERSION_MAJOR", strconv.Itoa(*builderConfig.BuildVersion.Major))
@@ -150,31 +167,37 @@ func main() {
 		if builderConfig.BuildVersion.Patch != nil {
 			os.Setenv("ESTAFETTE_BUILD_VERSION_PATCH", *builderConfig.BuildVersion.Patch)
 		}
-		// os.Setenv("ESTAFETTE_BUILD_JOB_NAME", *builderConfig.JobName)
-		// if builderConfig.CIServer != nil {
-		// 	os.Setenv("ESTAFETTE_CI_SERVER_BASE_URL", builderConfig.CIServer.BaseURL)
-		// 	os.Setenv("ESTAFETTE_CI_SERVER_BUILDER_EVENTS_URL", builderConfig.CIServer.BuilderEventsURL)
-		// 	os.Setenv("ESTAFETTE_CI_SERVER_POST_LOGS_URL", builderConfig.CIServer.PostLogsURL)
-		// 	os.Setenv("ESTAFETTE_CI_API_KEY", builderConfig.CIServer.APIKey)
-		// }
 		if builderConfig.ReleaseParams != nil {
 			os.Setenv("ESTAFETTE_RELEASE_NAME", builderConfig.ReleaseParams.ReleaseName)
-			//os.Setenv("ESTAFETTE_RELEASE_ID", strconv.Itoa(builderConfig.ReleaseParams.ReleaseID))
 		}
-		if builderConfig.BuildParams != nil {
-			//os.Setenv("ESTAFETTE_BUILD_ID", strconv.Itoa(builderConfig.BuildParams.BuildID))
-		}
+
+		// set for backward compatibility with extensions/bitbucket-status until it supports generic credential injection
 		bitbucketAPICredentials := builderConfig.GetCredentialsByType("bitbucket-api-token")
 		if len(bitbucketAPICredentials) > 0 {
 			os.Setenv("ESTAFETTE_BITBUCKET_API_TOKEN", bitbucketAPICredentials[0].AdditionalProperties["token"].(string))
 		}
+
+		// set for backward compatibility with extensions/github-status until it supports generic credential injection
 		githubAPICredentials := builderConfig.GetCredentialsByType("github-api-token")
 		if len(githubAPICredentials) > 0 {
 			os.Setenv("ESTAFETTE_GITHUB_API_TOKEN", githubAPICredentials[0].AdditionalProperties["token"].(string))
 		}
 
-		// ESTAFETTE_CI_MANIFEST_JSON
-		// ESTAFETTE_CI_REPOSITORY_CREDENTIALS_JSON
+		// set ESTAFETTE_CI_REPOSITORY_CREDENTIALS_JSON for backwards compatibility until extensions/docker supports generic credential injection
+		var credentials []*contracts.ContainerRepositoryCredentialConfig
+		containerRegistryCredentials := builderConfig.GetCredentialsByType("container-registry")
+		for _, cred := range containerRegistryCredentials {
+			credentials = append(credentials, &contracts.ContainerRepositoryCredentialConfig{
+				Repository: cred.AdditionalProperties["repository"].(string),
+				Username:   cred.AdditionalProperties["username"].(string),
+				Password:   cred.AdditionalProperties["password"].(string),
+			})
+		}
+		credentialsBytes, err := json.Marshal(credentials)
+		if err != nil {
+			log.Fatal().Err(err).Msg("Failed to marshal credentials for backwards compatibility")
+		}
+		os.Setenv("ESTAFETTE_CI_REPOSITORY_CREDENTIALS_JSON", string(credentialsBytes))
 
 		buildLog := contracts.BuildLog{
 			RepoSource:   builderConfig.Git.RepoSource,
@@ -263,14 +286,6 @@ func main() {
 		_, err = dockerRunner.createDockerClient()
 		if err != nil {
 			endOfLifeHelper.handleFatal(buildLog, err, "Failed creating a docker client")
-		}
-
-		// get private container registries credentials
-		credentialsJSON := os.Getenv("ESTAFETTE_CI_REPOSITORY_CREDENTIALS_JSON")
-		if credentialsJSON != "" {
-			var credentials []*contracts.ContainerRepositoryCredentialConfig
-			json.Unmarshal([]byte(credentialsJSON), &credentials)
-			dockerRunner.setRepositoryCredentials(credentials)
 		}
 
 		// collect estafette envvars and run stages from manifest

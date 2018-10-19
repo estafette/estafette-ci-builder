@@ -20,7 +20,7 @@
       "name": "container-registry-extensions",
       "type": "container-registry",
       "additionalProperties": {
-        "path": "extensions",
+        "repository": "extensions",
         "username": "username",
         "password": "secret"  
       }
@@ -29,7 +29,7 @@
       "name": "container-registry-estafette",
       "type": "container-registry",
       "additionalProperties": {
-        "path": "estafette",
+        "repository": "estafette",
         "username": "username",
         "password": "secret"
       }
