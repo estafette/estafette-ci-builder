@@ -81,6 +81,21 @@ func main() {
 	pipelineRunner := NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner, *runAsJob)
 	endOfLifeHelper := NewEndOfLifeHelper(*runAsJob, builderConfig)
 
+	// detect controlling server
+	ciServer := envvarHelper.getEstafetteEnv("ESTAFETTE_CI_SERVER")
+
+	if ciServer == "estafette" {
+
+		// log as severity for stackdriver logging to recognize the level
+		zerolog.LevelFieldName = "severity"
+
+		// todo unset all ESTAFETTE_ envvars so they don't get abused by non-estafette components
+		envvarsToUnset := envvarHelper.collectEstafetteEnvvars()
+		for key := range envvarsToUnset {
+			os.Unsetenv(key)
+		}
+	}
+
 	// set ESTAFETTE_CI_REPOSITORY_CREDENTIALS_JSON for backwards compatibility until extensions/docker supports generic credential injection
 	var credentials []*contracts.ContainerRepositoryCredentialConfig
 	containerRegistryCredentials := builderConfig.GetCredentialsByType("container-registry")
@@ -97,9 +112,6 @@ func main() {
 	}
 	os.Setenv("ESTAFETTE_CI_REPOSITORY_CREDENTIALS_JSON", string(credentialsBytes))
 	log.Debug().Msgf("Set ESTAFETTE_CI_REPOSITORY_CREDENTIALS_JSON=%v", os.Getenv("ESTAFETTE_CI_REPOSITORY_CREDENTIALS_JSON"))
-
-	// detect controlling server
-	ciServer := envvarHelper.getEstafetteEnv("ESTAFETTE_CI_SERVER")
 
 	if ciServer == "gocd" {
 
