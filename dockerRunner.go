@@ -130,7 +130,7 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 
 			if s, isString := v.(string); isString {
 				// if custom property is of type string add the envvar
-				extensionEnvVars[extensionkey] = dr.envvarHelper.decryptSecret(os.Expand(s, dr.envvarHelper.getEstafetteEnv))
+				extensionEnvVars[extensionkey] = os.Expand(s, dr.envvarHelper.getEstafetteEnv)
 			} else if s, isBool := v.(bool); isBool {
 				// if custom property is of type bool add the envvar
 				extensionEnvVars[extensionkey] = os.Expand(strconv.FormatBool(s), dr.envvarHelper.getEstafetteEnv)
@@ -152,7 +152,7 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 
 				if valid {
 					// if all array items are string, pass as comma-separated list to extension
-					extensionEnvVars[extensionkey] = dr.envvarHelper.decryptSecret(os.Expand(strings.Join(stringValues, ","), dr.envvarHelper.getEstafetteEnv))
+					extensionEnvVars[extensionkey] = os.Expand(strings.Join(stringValues, ","), dr.envvarHelper.getEstafetteEnv)
 				} else {
 					log.Warn().Interface("customProperty", v).Msgf("Cannot turn custom property %v into extension envvar", k)
 				}
@@ -164,16 +164,39 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 		// also add add custom properties as json object in ESTAFETTE_EXTENSION_CUSTOM_PROPERTIES envvar
 		customPropertiesBytes, err := json.Marshal(p.CustomProperties)
 		if err == nil {
-			extensionEnvVars["ESTAFETTE_EXTENSION_CUSTOM_PROPERTIES"] = dr.envvarHelper.decryptSecret(os.Expand(string(customPropertiesBytes), dr.envvarHelper.getEstafetteEnv))
+			extensionEnvVars["ESTAFETTE_EXTENSION_CUSTOM_PROPERTIES"] = os.Expand(string(customPropertiesBytes), dr.envvarHelper.getEstafetteEnv)
 		} else {
 			log.Warn().Err(err).Interface("customProperty", p.CustomProperties).Msg("Cannot marshal custom properties for ESTAFETTE_EXTENSION_CUSTOM_PROPERTIES envvar")
 		}
 	}
 
-	// combine and override estafette and global envvars with pipeline envvars
-	combinedEnvVars := dr.envvarHelper.overrideEnvvars(envvars, p.EnvVars, extensionEnvVars)
+	// add credentials if trusted image with injectedCredentialTypes
+	credentialEnvVars := map[string]string{}
+	if trustedImage != nil {
+		// add credentials as ESTAFETTE_CREDENTIALS_... envvar with snake cased credential type so they can be unmarshalled separately in the image
 
-	// decrypt secrets
+		credentialMap := dr.config.GetCredentialsForTrustedImage(*trustedImage)
+		for credentialType, credentialsForType := range credentialMap {
+
+			credentialkey := dr.envvarHelper.getEstafetteEnvvarName(fmt.Sprintf("ESTAFETTE_CREDENTIALS_%v", dr.envvarHelper.toUpperSnake(credentialType)))
+
+			// convert credentialsForType to json string
+			credentialsForTypeBytes, err := json.Marshal(credentialsForType)
+			if err != nil {
+				log.Warn().Err(err).Msgf("Failed to marshal credentials of type %v for envvar %v", credentialType, credentialkey)
+			}
+
+			// set envvar
+			credentialEnvVars[credentialkey] = string(credentialsForTypeBytes)
+
+			log.Debug().Msgf("Set envvar %v to credentials of type %v", credentialkey, credentialType)
+		}
+	}
+
+	// combine and override estafette and global envvars with pipeline envvars
+	combinedEnvVars := dr.envvarHelper.overrideEnvvars(envvars, p.EnvVars, extensionEnvVars, credentialEnvVars)
+
+	// decrypt secrets in all envvars
 	combinedEnvVars = dr.envvarHelper.decryptSecrets(combinedEnvVars)
 
 	// define docker envvars

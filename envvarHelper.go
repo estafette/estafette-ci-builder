@@ -24,7 +24,9 @@ type EnvvarHelper interface {
 	initGitBranch() error
 	initBuildDatetime() error
 	initBuildStatus() error
-	collectEstafetteEnvvars(manifest.EstafetteManifest) map[string]string
+	initLabels(manifest.EstafetteManifest) error
+	collectEstafetteEnvvars() map[string]string
+	collectEstafetteEnvvarsAndLabels(manifest.EstafetteManifest) map[string]string
 	collectGlobalEnvvars(manifest.EstafetteManifest) map[string]string
 	unsetEstafetteEnvvars()
 	getEstafetteEnv(string) string
@@ -140,15 +142,32 @@ func (h *envvarHelperImpl) initBuildStatus() (err error) {
 	return
 }
 
-func (h *envvarHelperImpl) collectEstafetteEnvvars(m manifest.EstafetteManifest) (envvars map[string]string) {
+func (h *envvarHelperImpl) initLabels(m manifest.EstafetteManifest) (err error) {
 
 	// set labels as envvars
 	if m.Labels != nil && len(m.Labels) > 0 {
 		for key, value := range m.Labels {
 			envvarName := "ESTAFETTE_LABEL_" + h.toUpperSnake(key)
-			h.setEstafetteEnv(envvarName, value)
+			err = h.setEstafetteEnv(envvarName, value)
+			if err != nil {
+				return
+			}
 		}
 	}
+
+	return
+}
+
+func (h *envvarHelperImpl) collectEstafetteEnvvarsAndLabels(m manifest.EstafetteManifest) (envvars map[string]string) {
+
+	// set labels as envvars
+	h.initLabels(m)
+
+	// return all envvars starting with ESTAFETTE_
+	return h.collectEstafetteEnvvars()
+}
+
+func (h *envvarHelperImpl) collectEstafetteEnvvars() (envvars map[string]string) {
 
 	// return all envvars starting with ESTAFETTE_
 	envvars = map[string]string{}

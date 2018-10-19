@@ -102,15 +102,15 @@ func (c *BuilderConfig) GetCredentialsByType(filterType string) []*CredentialCon
 }
 
 // GetCredentialsForTrustedImage returns all credentials of a certain type
-func (c *BuilderConfig) GetCredentialsForTrustedImage(trustedImage TrustedImageConfig) []*CredentialConfig {
+func (c *BuilderConfig) GetCredentialsForTrustedImage(trustedImage TrustedImageConfig) map[string][]*CredentialConfig {
 
-	credentialsForTrustedImage := []*CredentialConfig{}
+	credentialMap := map[string][]*CredentialConfig{}
 
 	for _, filterType := range trustedImage.InjectedCredentialTypes {
-		credentialsForTrustedImage = append(credentialsForTrustedImage, c.GetCredentialsByType(filterType)...)
+		credentialMap[filterType] = c.GetCredentialsByType(filterType)
 	}
 
-	return credentialsForTrustedImage
+	return credentialMap
 }
 
 // GetTrustedImage returns a trusted image if the path without tag matches any of the trustedImages

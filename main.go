@@ -113,7 +113,7 @@ func main() {
 		}
 
 		// collect estafette and 'global' envvars from manifest
-		estafetteEnvvars := envvarHelper.collectEstafetteEnvvars(manifest)
+		estafetteEnvvars := envvarHelper.collectEstafetteEnvvarsAndLabels(manifest)
 		globalEnvvars := envvarHelper.collectGlobalEnvvars(manifest)
 
 		// merge estafette and global envvars
@@ -153,6 +153,10 @@ func main() {
 		endOfLifeHelper := NewEndOfLifeHelper(*runAsJob, builderConfig)
 
 		// todo unset all ESTAFETTE_ envvars so they don't get abused by non-estafette components
+		envvarsToUnset := envvarHelper.collectEstafetteEnvvars()
+		for key := range envvarsToUnset {
+			os.Unsetenv(key)
+		}
 
 		// set envvars that can be used by any container
 		os.Setenv("ESTAFETTE_GIT_BRANCH", builderConfig.Git.RepoBranch)
@@ -171,16 +175,20 @@ func main() {
 			os.Setenv("ESTAFETTE_RELEASE_NAME", builderConfig.ReleaseParams.ReleaseName)
 		}
 
-		// set for backward compatibility with extensions/bitbucket-status until it supports generic credential injection
+		// set ESTAFETTE_BITBUCKET_API_TOKEN and ESTAFETTE_GIT_URL for backward compatibility with extensions/bitbucket-status and extensions/git-clone until it supports generic credential injection
 		bitbucketAPICredentials := builderConfig.GetCredentialsByType("bitbucket-api-token")
 		if len(bitbucketAPICredentials) > 0 {
-			os.Setenv("ESTAFETTE_BITBUCKET_API_TOKEN", bitbucketAPICredentials[0].AdditionalProperties["token"].(string))
+			token := bitbucketAPICredentials[0].AdditionalProperties["token"].(string)
+			os.Setenv("ESTAFETTE_BITBUCKET_API_TOKEN", token)
+			os.Setenv("ESTAFETTE_GIT_URL", fmt.Sprintf("https://x-token-auth:%v@%v/%v/%v", token, builderConfig.Git.RepoSource, builderConfig.Git.RepoOwner, builderConfig.Git.RepoName))
 		}
 
-		// set for backward compatibility with extensions/github-status until it supports generic credential injection
+		// set ESTAFETTE_GITHUB_API_TOKEN and ESTAFETTE_GIT_URL for backward compatibility with extensions/github-status and extensions/git-clone until it supports generic credential injection
 		githubAPICredentials := builderConfig.GetCredentialsByType("github-api-token")
 		if len(githubAPICredentials) > 0 {
-			os.Setenv("ESTAFETTE_GITHUB_API_TOKEN", githubAPICredentials[0].AdditionalProperties["token"].(string))
+			token := githubAPICredentials[0].AdditionalProperties["token"].(string)
+			os.Setenv("ESTAFETTE_GITHUB_API_TOKEN", token)
+			os.Setenv("ESTAFETTE_GIT_URL", fmt.Sprintf("https://x-access-token:%v@%v/%v/%v", token, builderConfig.Git.RepoSource, builderConfig.Git.RepoOwner, builderConfig.Git.RepoName))
 		}
 
 		// set ESTAFETTE_CI_REPOSITORY_CREDENTIALS_JSON for backwards compatibility until extensions/docker supports generic credential injection
@@ -290,7 +298,7 @@ func main() {
 
 		// collect estafette envvars and run stages from manifest
 		log.Info().Msgf("Running %v stages", len(stages))
-		estafetteEnvvars := envvarHelper.collectEstafetteEnvvars(*builderConfig.Manifest)
+		estafetteEnvvars := envvarHelper.collectEstafetteEnvvarsAndLabels(*builderConfig.Manifest)
 		globalEnvvars := envvarHelper.collectGlobalEnvvars(*builderConfig.Manifest)
 		envvars := envvarHelper.overrideEnvvars(estafetteEnvvars, globalEnvvars)
 		result, err := pipelineRunner.runStages(stages, dir, envvars)

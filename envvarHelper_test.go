@@ -64,7 +64,7 @@ func TestGetEstafetteEnvvarName(t *testing.T) {
 	})
 }
 
-func TestCollectEstafetteEnvvars(t *testing.T) {
+func TestCollectEstafetteEnvvarsAndLabels(t *testing.T) {
 
 	t.Run("ReturnsEmptyMapIfManifestHasNoLabelsAndNoEnvvarsStartWithEstafette", func(t *testing.T) {
 
@@ -72,7 +72,7 @@ func TestCollectEstafetteEnvvars(t *testing.T) {
 		manifest := manifest.EstafetteManifest{}
 
 		// act
-		envvars := envvarHelper.collectEstafetteEnvvars(manifest)
+		envvars := envvarHelper.collectEstafetteEnvvarsAndLabels(manifest)
 
 		assert.Equal(t, 0, len(envvars))
 	})
@@ -83,7 +83,7 @@ func TestCollectEstafetteEnvvars(t *testing.T) {
 		manifest := manifest.EstafetteManifest{Labels: map[string]string{"app": "estafette-ci-builder"}}
 
 		// act
-		envvars := envvarHelper.collectEstafetteEnvvars(manifest)
+		envvars := envvarHelper.collectEstafetteEnvvarsAndLabels(manifest)
 
 		assert.Equal(t, 1, len(envvars))
 		_, exists := envvars["TESTPREFIX_LABEL_APP"]
@@ -97,7 +97,7 @@ func TestCollectEstafetteEnvvars(t *testing.T) {
 		manifest := manifest.EstafetteManifest{Labels: map[string]string{"owningTeam": "estafette-ci-team"}}
 
 		// act
-		envvars := envvarHelper.collectEstafetteEnvvars(manifest)
+		envvars := envvarHelper.collectEstafetteEnvvarsAndLabels(manifest)
 
 		log.Debug().Interface("envvars", envvars).Msg("")
 		assert.Equal(t, 1, len(envvars))
@@ -112,7 +112,7 @@ func TestCollectEstafetteEnvvars(t *testing.T) {
 		manifest := manifest.EstafetteManifest{Labels: map[string]string{"app": "estafette-ci-builder", "team": "estafette-ci-team"}}
 
 		// act
-		envvars := envvarHelper.collectEstafetteEnvvars(manifest)
+		envvars := envvarHelper.collectEstafetteEnvvarsAndLabels(manifest)
 
 		assert.Equal(t, 2, len(envvars))
 		_, exists := envvars["TESTPREFIX_LABEL_APP"]
@@ -131,7 +131,7 @@ func TestCollectEstafetteEnvvars(t *testing.T) {
 		os.Setenv("TESTPREFIX_VERSION", "1.0.3")
 
 		// act
-		envvars := envvarHelper.collectEstafetteEnvvars(manifest)
+		envvars := envvarHelper.collectEstafetteEnvvarsAndLabels(manifest)
 
 		assert.Equal(t, 1, len(envvars))
 		_, exists := envvars["TESTPREFIX_VERSION"]
@@ -146,7 +146,7 @@ func TestCollectEstafetteEnvvars(t *testing.T) {
 		os.Setenv("TESTPREFIX_VERSION", "b=c")
 
 		// act
-		envvars := envvarHelper.collectEstafetteEnvvars(manifest)
+		envvars := envvarHelper.collectEstafetteEnvvarsAndLabels(manifest)
 
 		assert.Equal(t, 1, len(envvars))
 		_, exists := envvars["TESTPREFIX_VERSION"]
@@ -162,7 +162,7 @@ func TestCollectEstafetteEnvvars(t *testing.T) {
 		os.Setenv("TESTPREFIX_GIT_REPOSITORY", "git@github.com:estafette/estafette-ci-builder.git")
 
 		// act
-		envvars := envvarHelper.collectEstafetteEnvvars(manifest)
+		envvars := envvarHelper.collectEstafetteEnvvarsAndLabels(manifest)
 
 		assert.Equal(t, 2, len(envvars))
 		_, exists := envvars["TESTPREFIX_VERSION"]
@@ -181,7 +181,7 @@ func TestCollectEstafetteEnvvars(t *testing.T) {
 		os.Setenv("TESTPREFIX_VERSION", "1.0.3")
 
 		// act
-		envvars := envvarHelper.collectEstafetteEnvvars(manifest)
+		envvars := envvarHelper.collectEstafetteEnvvarsAndLabels(manifest)
 
 		assert.Equal(t, 2, len(envvars))
 		_, exists := envvars["TESTPREFIX_VERSION"]
