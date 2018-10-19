@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	stdlog "log"
 	"os"
 	"runtime"
@@ -49,7 +48,6 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(err).Interface("builderConfigJSON", builderConfigJSON).Msg("Failed to unmarshal BUILDER_CONFIG")
 	}
-	log.Debug().Interface("builderConfig", builderConfig).Msg("")
 
 	// decrypt all credentials
 	decryptedCredentials := []*contracts.CredentialConfig{}
@@ -107,7 +105,6 @@ func main() {
 		log.Fatal().Err(err).Msg("Failed to marshal credentials for backwards compatibility")
 	}
 	os.Setenv("ESTAFETTE_CI_REPOSITORY_CREDENTIALS_JSON", string(credentialsBytes))
-	log.Debug().Msgf("Set ESTAFETTE_CI_REPOSITORY_CREDENTIALS_JSON=%v", os.Getenv("ESTAFETTE_CI_REPOSITORY_CREDENTIALS_JSON"))
 
 	if ciServer == "gocd" {
 
@@ -203,11 +200,7 @@ func main() {
 		if len(bitbucketAPICredentials) > 0 {
 			token := bitbucketAPICredentials[0].AdditionalProperties["token"].(string)
 			os.Setenv("ESTAFETTE_BITBUCKET_API_TOKEN", token)
-			log.Debug().Msgf("Set ESTAFETTE_BITBUCKET_API_TOKEN=%v", os.Getenv("ESTAFETTE_BITBUCKET_API_TOKEN"))
 			os.Setenv("ESTAFETTE_GIT_URL", fmt.Sprintf("https://x-token-auth:%v@%v/%v/%v", token, builderConfig.Git.RepoSource, builderConfig.Git.RepoOwner, builderConfig.Git.RepoName))
-			log.Debug().Msgf("Set ESTAFETTE_GIT_URL=%v", os.Getenv("ESTAFETTE_GIT_URL"))
-		} else {
-			log.Debug().Msg("Failed getting bitbucket-api-token credentials ")
 		}
 
 		// set ESTAFETTE_GITHUB_API_TOKEN and ESTAFETTE_GIT_URL for backward compatibility with extensions/github-status and extensions/git-clone until it supports generic credential injection
@@ -215,11 +208,7 @@ func main() {
 		if len(githubAPICredentials) > 0 {
 			token := githubAPICredentials[0].AdditionalProperties["token"].(string)
 			os.Setenv("ESTAFETTE_GITHUB_API_TOKEN", token)
-			log.Debug().Msgf("Set ESTAFETTE_GITHUB_API_TOKEN=%v", os.Getenv("ESTAFETTE_GITHUB_API_TOKEN"))
 			os.Setenv("ESTAFETTE_GIT_URL", fmt.Sprintf("https://x-access-token:%v@%v/%v/%v", token, builderConfig.Git.RepoSource, builderConfig.Git.RepoOwner, builderConfig.Git.RepoName))
-			log.Debug().Msgf("Set ESTAFETTE_GIT_URL=%v", os.Getenv("ESTAFETTE_GIT_URL"))
-		} else {
-			log.Debug().Msg("Failed getting github-api-token credentials ")
 		}
 
 		// set ESTAFETTE_GIT_NAME for backwards compatibility with extensions/git-clone
@@ -234,16 +223,8 @@ func main() {
 			Steps:        make([]contracts.BuildLogStep, 0),
 		}
 
-		// log to file and stdout
-		logFile, err := os.OpenFile("/log.txt", os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
-		if err != nil {
-			log.Fatal().Err(err).Msg("Failed to create log file log.txt")
-		}
-		defer logFile.Close()
-		multiLogWriter := io.MultiWriter(os.Stdout, logFile)
-
 		// set some default fields added to all logs
-		log.Logger = zerolog.New(multiLogWriter).With().
+		log.Logger = zerolog.New(os.Stdout).With().
 			Timestamp().
 			Str("app", "estafette-ci-builder").
 			Str("version", version).
