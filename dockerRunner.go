@@ -237,7 +237,13 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 		Image:        p.ContainerImage,
 		WorkingDir:   os.Expand(p.WorkingDirectory, dr.envvarHelper.getEstafetteEnv),
 	}
-	if len(p.Commands) > 0 && (trustedImage == nil || trustedImage.AllowCommands) {
+	if len(p.Commands) > 0 {
+		if trustedImage != nil && !trustedImage.AllowCommands && len(trustedImage.InjectedCredentialTypes) > 0 {
+			// return stage as failed with error message indicating that this trusted image doesn't allow commands
+			err = fmt.Errorf("This trusted image does not allow for commands to be set as a protection against snooping injected credentials")
+			return
+		}
+
 		// only pass commands when they are set, so extensions can work without
 		config.Cmd = cmdSlice
 		// only override entrypoint when commands are set, so extensions can work without commands
