@@ -53,6 +53,7 @@ trustedImages:
 - path: docker
   runDocker: true
 - path: multiple-git-sources-test
+  allowCommands: true
   injectedCredentialTypes:
   - bitbucket-api-token
   - github-api-token

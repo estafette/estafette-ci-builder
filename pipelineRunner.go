@@ -21,17 +21,15 @@ type pipelineRunnerImpl struct {
 	whenEvaluator WhenEvaluator
 	dockerRunner  DockerRunner
 	runAsJob      bool
-	config        contracts.BuilderConfig
 }
 
 // NewPipelineRunner returns a new PipelineRunner
-func NewPipelineRunner(envvarHelper EnvvarHelper, whenEvaluator WhenEvaluator, dockerRunner DockerRunner, runAsJob bool, config contracts.BuilderConfig) PipelineRunner {
+func NewPipelineRunner(envvarHelper EnvvarHelper, whenEvaluator WhenEvaluator, dockerRunner DockerRunner, runAsJob bool) PipelineRunner {
 	return &pipelineRunnerImpl{
 		envvarHelper:  envvarHelper,
 		whenEvaluator: whenEvaluator,
 		dockerRunner:  dockerRunner,
 		runAsJob:      runAsJob,
-		config:        config,
 	}
 }
 

@@ -214,7 +214,7 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 		Image:        p.ContainerImage,
 		WorkingDir:   os.Expand(p.WorkingDirectory, dr.envvarHelper.getEstafetteEnv),
 	}
-	if len(p.Commands) > 0 {
+	if len(p.Commands) > 0 && (trustedImage == nil || trustedImage.AllowCommands) {
 		// only pass commands when they are set, so extensions can work without
 		config.Cmd = cmdSlice
 		// only override entrypoint when commands are set, so extensions can work without commands

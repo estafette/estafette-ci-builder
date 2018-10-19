@@ -46,6 +46,7 @@ type TrustedImageConfig struct {
 	ImagePath               string   `yaml:"path" json:"path"`
 	RunPrivileged           bool     `yaml:"runPrivileged" json:"runPrivileged"`
 	RunDocker               bool     `yaml:"runDocker" json:"runDocker"`
+	AllowCommands           bool     `yaml:"allowCommands" json:"allowCommands"`
 	InjectedCredentialTypes []string `yaml:"injectedCredentialTypes,omitempty" json:"injectedCredentialTypes,omitempty"`
 }
 

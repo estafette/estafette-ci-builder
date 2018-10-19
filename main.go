@@ -62,7 +62,7 @@ func main() {
 		}
 
 		dockerRunner := NewDockerRunner(envvarHelper, obfuscator, *runAsJob, gocdBuilderConfig)
-		pipelineRunner := NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner, *runAsJob, gocdBuilderConfig)
+		pipelineRunner := NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner, *runAsJob)
 		fatalHandler := NewGocdFatalHandler()
 
 		// pretty print for go.cd integration
@@ -149,7 +149,7 @@ func main() {
 		log.Debug().Interface("builderConfig", builderConfig).Msg("")
 
 		dockerRunner := NewDockerRunner(envvarHelper, obfuscator, *runAsJob, builderConfig)
-		pipelineRunner := NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner, *runAsJob, builderConfig)
+		pipelineRunner := NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner, *runAsJob)
 		endOfLifeHelper := NewEndOfLifeHelper(*runAsJob, builderConfig)
 
 		// todo unset all ESTAFETTE_ envvars so they don't get abused by non-estafette components
