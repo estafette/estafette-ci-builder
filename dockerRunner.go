@@ -130,13 +130,13 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 
 			if s, isString := v.(string); isString {
 				// if custom property is of type string add the envvar
-				extensionEnvVars[extensionkey] = os.Expand(s, dr.envvarHelper.getEstafetteEnv)
+				extensionEnvVars[extensionkey] = s
 			} else if s, isBool := v.(bool); isBool {
 				// if custom property is of type bool add the envvar
-				extensionEnvVars[extensionkey] = os.Expand(strconv.FormatBool(s), dr.envvarHelper.getEstafetteEnv)
+				extensionEnvVars[extensionkey] = strconv.FormatBool(s)
 			} else if s, isInt := v.(int); isInt {
 				// if custom property is of type bool add the envvar
-				extensionEnvVars[extensionkey] = os.Expand(strconv.FormatInt(int64(s), 10), dr.envvarHelper.getEstafetteEnv)
+				extensionEnvVars[extensionkey] = strconv.FormatInt(int64(s), 10)
 			} else if i, isInterfaceArray := v.([]interface{}); isInterfaceArray {
 				// check whether all array items are of type string
 				valid := true
@@ -152,7 +152,7 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 
 				if valid {
 					// if all array items are string, pass as comma-separated list to extension
-					extensionEnvVars[extensionkey] = os.Expand(strings.Join(stringValues, ","), dr.envvarHelper.getEstafetteEnv)
+					extensionEnvVars[extensionkey] = strings.Join(stringValues, ",")
 				} else {
 					log.Warn().Interface("customProperty", v).Msgf("Cannot turn custom property %v into extension envvar", k)
 				}
@@ -164,7 +164,7 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 		// also add add custom properties as json object in ESTAFETTE_EXTENSION_CUSTOM_PROPERTIES envvar
 		customPropertiesBytes, err := json.Marshal(p.CustomProperties)
 		if err == nil {
-			extensionEnvVars["ESTAFETTE_EXTENSION_CUSTOM_PROPERTIES"] = os.Expand(string(customPropertiesBytes), dr.envvarHelper.getEstafetteEnv)
+			extensionEnvVars["ESTAFETTE_EXTENSION_CUSTOM_PROPERTIES"] = string(customPropertiesBytes)
 		} else {
 			log.Warn().Err(err).Interface("customProperty", p.CustomProperties).Msg("Cannot marshal custom properties for ESTAFETTE_EXTENSION_CUSTOM_PROPERTIES envvar")
 		}
@@ -199,11 +199,11 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 	// decrypt secrets in all envvars
 	combinedEnvVars = dr.envvarHelper.decryptSecrets(combinedEnvVars)
 
-	// define docker envvars
+	// define docker envvars and expand ESTAFETTE_ variables
 	dockerEnvVars := make([]string, 0)
 	if combinedEnvVars != nil && len(combinedEnvVars) > 0 {
 		for k, v := range combinedEnvVars {
-			dockerEnvVars = append(dockerEnvVars, fmt.Sprintf("%v=%v", k, v))
+			dockerEnvVars = append(dockerEnvVars, fmt.Sprintf("%v=%v", k, os.Expand(v, dr.envvarHelper.getEstafetteEnv)))
 		}
 	}
 
