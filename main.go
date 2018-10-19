@@ -34,23 +34,28 @@ func main() {
 	// parse command line parameters
 	kingpin.Parse()
 
+	secretHelper := crypt.NewSecretHelper(*secretDecryptionKey)
+
 	// read builder config from envvar and unset envar; will replace parameterizing the job via separate envvars
 	var builderConfig contracts.BuilderConfig
 	builderConfigJSON := *builderConfigFlag
 	if builderConfigJSON == "" {
 		log.Fatal().Msg("BUILDER_CONFIG envvar is not set")
 	}
+	builderConfigJSON, err := secretHelper.Decrypt(builderConfigJSON)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed decrypting secrets in BUILDER_CONFIG")
+	}
 	os.Unsetenv("BUILDER_CONFIG")
 
 	// unmarshal builder config
-	err := json.Unmarshal([]byte(builderConfigJSON), &builderConfig)
+	err = json.Unmarshal([]byte(builderConfigJSON), &builderConfig)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to unmarshal BUILDER_CONFIG")
 	}
 	log.Debug().Interface("builderConfig", builderConfig).Msg("")
 
 	// bootstrap
-	secretHelper := crypt.NewSecretHelper(*secretDecryptionKey)
 	envvarHelper := NewEnvvarHelper("ESTAFETTE_", secretHelper)
 	whenEvaluator := NewWhenEvaluator(envvarHelper)
 	obfuscator := NewObfuscator(secretHelper)
