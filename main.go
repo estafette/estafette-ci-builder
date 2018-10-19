@@ -42,19 +42,36 @@ func main() {
 	if builderConfigJSON == "" {
 		log.Fatal().Msg("BUILDER_CONFIG envvar is not set")
 	}
-	builderConfigJSONDecrypted, err := secretHelper.DecryptAllEnvelopes(builderConfigJSON)
-	if err != nil {
-		log.Fatal().Err(err).Msgf("Failed decrypting secrets in BUILDER_CONFIG: %v", builderConfigJSON)
-	}
-
 	os.Unsetenv("BUILDER_CONFIG")
 
 	// unmarshal builder config
-	err = json.Unmarshal([]byte(builderConfigJSONDecrypted), &builderConfig)
+	err := json.Unmarshal([]byte(builderConfigJSON), &builderConfig)
 	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to unmarshal BUILDER_CONFIG")
+		log.Fatal().Err(err).Interface("builderConfigJSON", builderConfigJSON).Msg("Failed to unmarshal BUILDER_CONFIG")
 	}
 	log.Debug().Interface("builderConfig", builderConfig).Msg("")
+
+	// decrypt all credentials
+	decryptedCredentials := []*contracts.CredentialConfig{}
+	for _, c := range builderConfig.Credentials {
+
+		// loop all additional properties and decrypt
+		decryptedAdditionalProperties := map[string]interface{}{}
+		for key, value := range c.AdditionalProperties {
+			if s, isString := value.(string); isString {
+				decryptedAdditionalProperties[key], err = secretHelper.DecryptAllEnvelopes(s)
+				if err != nil {
+					log.Fatal().Err(err).Msgf("Failed decrypting credential %v property %v", c.Name, key)
+				}
+			} else {
+				decryptedAdditionalProperties[key] = value
+			}
+		}
+		c.AdditionalProperties = decryptedAdditionalProperties
+
+		decryptedCredentials = append(decryptedCredentials, c)
+	}
+	builderConfig.Credentials = decryptedCredentials
 
 	// bootstrap
 	envvarHelper := NewEnvvarHelper("ESTAFETTE_", secretHelper)
