@@ -85,11 +85,7 @@ func main() {
 	ciServer := envvarHelper.getEstafetteEnv("ESTAFETTE_CI_SERVER")
 
 	if ciServer == "estafette" {
-
-		// log as severity for stackdriver logging to recognize the level
-		zerolog.LevelFieldName = "severity"
-
-		// todo unset all ESTAFETTE_ envvars so they don't get abused by non-estafette components
+		// unset all ESTAFETTE_ envvars so they don't get abused by non-estafette components
 		envvarsToUnset := envvarHelper.collectEstafetteEnvvars()
 		for key := range envvarsToUnset {
 			os.Unsetenv(key)
@@ -184,12 +180,6 @@ func main() {
 
 		// log as severity for stackdriver logging to recognize the level
 		zerolog.LevelFieldName = "severity"
-
-		// todo unset all ESTAFETTE_ envvars so they don't get abused by non-estafette components
-		envvarsToUnset := envvarHelper.collectEstafetteEnvvars()
-		for key := range envvarsToUnset {
-			os.Unsetenv(key)
-		}
 
 		// set envvars that can be used by any container
 		os.Setenv("ESTAFETTE_GIT_BRANCH", builderConfig.Git.RepoBranch)
