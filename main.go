@@ -42,14 +42,14 @@ func main() {
 	if builderConfigJSON == "" {
 		log.Fatal().Msg("BUILDER_CONFIG envvar is not set")
 	}
-	builderConfigJSON, err := secretHelper.Decrypt(builderConfigJSON)
+	builderConfigJSONDecrypted, err := secretHelper.Decrypt(builderConfigJSON)
 	if err != nil {
-		log.Fatal().Err(err).Msg("Failed decrypting secrets in BUILDER_CONFIG")
+		log.Fatal().Err(err).Msgf("Failed decrypting secrets in BUILDER_CONFIG: %v", builderConfigJSON)
 	}
 	os.Unsetenv("BUILDER_CONFIG")
 
 	// unmarshal builder config
-	err = json.Unmarshal([]byte(builderConfigJSON), &builderConfig)
+	err = json.Unmarshal([]byte(builderConfigJSONDecrypted), &builderConfig)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to unmarshal BUILDER_CONFIG")
 	}
