@@ -60,7 +60,6 @@ stages:
     repositories:
     - estafette
     tags:
-    - alpha
     - dev
 
   push-to-gcr-io:
@@ -69,7 +68,6 @@ stages:
     repositories:
     - estafette.secret(ugcaPF_CdqMZsxsh.4ZumU_A0ufxsjV3MPInyc1VjATZgX9hcB2KQM1KDIOQs)
     tags:
-    - alpha
     - dev
 
   slack-notify:
