@@ -191,6 +191,9 @@ func main() {
 			os.Setenv("ESTAFETTE_GIT_URL", fmt.Sprintf("https://x-access-token:%v@%v/%v/%v", token, builderConfig.Git.RepoSource, builderConfig.Git.RepoOwner, builderConfig.Git.RepoName))
 		}
 
+		// set ESTAFETTE_GIT_NAME for backwards compatibility with extensions/git-clone
+		os.Setenv("ESTAFETTE_GIT_NAME", fmt.Sprintf("%v/%v", builderConfig.Git.RepoOwner, builderConfig.Git.RepoName))
+
 		// set ESTAFETTE_CI_REPOSITORY_CREDENTIALS_JSON for backwards compatibility until extensions/docker supports generic credential injection
 		var credentials []*contracts.ContainerRepositoryCredentialConfig
 		containerRegistryCredentials := builderConfig.GetCredentialsByType("container-registry")
