@@ -179,6 +179,13 @@ func main() {
 		zerolog.LevelFieldName = "severity"
 
 		// set envvars that can be used by any container
+		os.Setenv("ESTAFETTE_GIT_SOURCE", builderConfig.Git.RepoSource)
+		os.Setenv("ESTAFETTE_GIT_OWNER", builderConfig.Git.RepoOwner)
+
+		// set ESTAFETTE_GIT_NAME for backwards compatibility with estafette extensions until they switch to ESTAFETTE_GIT_FULLNAME
+		os.Setenv("ESTAFETTE_GIT_NAME", fmt.Sprintf("%v/%v", builderConfig.Git.RepoOwner, builderConfig.Git.RepoName))
+		os.Setenv("ESTAFETTE_GIT_FULLNAME", fmt.Sprintf("%v/%v", builderConfig.Git.RepoOwner, builderConfig.Git.RepoName))
+
 		os.Setenv("ESTAFETTE_GIT_BRANCH", builderConfig.Git.RepoBranch)
 		os.Setenv("ESTAFETTE_GIT_REVISION", builderConfig.Git.RepoRevision)
 		os.Setenv("ESTAFETTE_BUILD_VERSION", builderConfig.BuildVersion.Version)
@@ -210,9 +217,6 @@ func main() {
 			os.Setenv("ESTAFETTE_GITHUB_API_TOKEN", token)
 			os.Setenv("ESTAFETTE_GIT_URL", fmt.Sprintf("https://x-access-token:%v@%v/%v/%v", token, builderConfig.Git.RepoSource, builderConfig.Git.RepoOwner, builderConfig.Git.RepoName))
 		}
-
-		// set ESTAFETTE_GIT_NAME for backwards compatibility with extensions/git-clone
-		os.Setenv("ESTAFETTE_GIT_NAME", fmt.Sprintf("%v/%v", builderConfig.Git.RepoOwner, builderConfig.Git.RepoName))
 
 		buildLog := contracts.BuildLog{
 			RepoSource:   builderConfig.Git.RepoSource,
