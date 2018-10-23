@@ -291,18 +291,14 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 		// strip first 8 bytes, they contain docker control characters (https://github.com/docker/docker-ce/blob/v18.06.1-ce/components/engine/client/container_logs.go#L23-L32)
 		logLine, readError := in.ReadBytes('\n')
 
-		// https://github.com/docker/docker-ce/blob/v18.06.1-ce/components/engine/pkg/stdcopy/stdcopy.go
-
-		//written, err := StdCopy(ioutil.Discard, ioutil.Discard, reader)
-
 		if readError != nil {
 			break
 		}
 
 		streamType := "stdout"
-		if len(logLine) >= 8 {
+		if len(logLine) > 8 {
 
-			headers := []byte(logLine[0:8])
+			headers := logLine[0:8]
 
 			// first byte contains the streamType
 			// -   0: stdin (will be written on stdout)
@@ -311,6 +307,8 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 			if headers[0] == 2 {
 				streamType = "stderr"
 			}
+
+			// [8]byte{STREAM_TYPE, 0, 0, 0, SIZE1, SIZE2, SIZE3, SIZE4}[]byte{OUTPUT}
 
 			if headers[0] == 1 || headers[0] == 2 {
 				logLine = logLine[8:]
