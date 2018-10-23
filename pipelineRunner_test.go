@@ -177,4 +177,22 @@ func TestRunStages(t *testing.T) {
 		assert.Nil(t, err)
 		assert.True(t, result.HasErrors())
 	})
+
+	t.Run("ReturnsResultWithSucceededPipelineResultWhenStagesSucceededAfterRetrial", func(t *testing.T) {
+
+		envvarHelper.unsetEstafetteEnvvars()
+		envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
+		cmd := "if [ -f retried ]; then rm retried && exit 0; else touch retried && exit 1; fi;"
+		manifest := &mft.EstafetteManifest{}
+		manifest.Stages = append(manifest.Stages, &mft.EstafetteStage{Name: "TestStep", ContainerImage: "busybox:latest", Shell: "/bin/sh", WorkingDirectory: "/estafette-work", Retries: 1, Commands: []string{cmd}, When: "status == 'succeeded'"})
+		envvars := map[string]string{}
+		dir, _ := os.Getwd()
+
+		// act
+		result, err := pipelineRunner.runStages(manifest.Stages, dir, envvars)
+
+		assert.Nil(t, err)
+		assert.True(t, result.HasErrors())
+		assert.Equal(t, "succeeded", result.Status)
+	})
 }

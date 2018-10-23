@@ -151,6 +151,7 @@ func (pr *pipelineRunnerImpl) runStage(dir string, envvars map[string]string, p 
 
 type estafetteRunStagesResult struct {
 	StageResults []estafetteStageRunResult
+	Status       string
 }
 
 // Errors combines the different type of errors that occurred during this pipeline stage
@@ -218,16 +219,19 @@ func (pr *pipelineRunnerImpl) runStages(stages []*manifest.EstafetteStage, dir s
 					r.OtherError = err
 
 					result.StageResults = append(result.StageResults, r)
+					// set 'failed' build status
+					result.Status = "failed"
 
 					runIndex++
 
 					continue
 				}
 
-				// set 'succeeded' build status
 				r.Status = "SUCCEEDED"
 
 				result.StageResults = append(result.StageResults, r)
+				// set 'succeeded' build status
+				result.Status = "succeeded"
 
 				break
 			}
@@ -241,6 +245,7 @@ func (pr *pipelineRunnerImpl) runStages(stages []*manifest.EstafetteStage, dir s
 			}
 
 			result.StageResults = append(result.StageResults, r)
+			result.Status = "succeeded"
 
 			continue
 		}
