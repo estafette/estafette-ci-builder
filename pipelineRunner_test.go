@@ -184,7 +184,7 @@ func TestRunStages(t *testing.T) {
 		envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
 		cmd := "if [ -f retried ]; then rm retried && exit 0; else touch retried && exit 1; fi;"
 		manifest := &mft.EstafetteManifest{}
-		manifest.Stages = append(manifest.Stages, &mft.EstafetteStage{Name: "TestStep", ContainerImage: "busybox:latest", Shell: "/bin/sh", WorkingDirectory: "/estafette-work", Retries: 1, Commands: []string{cmd}, When: "status == 'succeeded'"})
+		manifest.Stages = append(manifest.Stages, &mft.EstafetteStage{Name: "TestRetryStep", ContainerImage: "busybox:latest", Shell: "/bin/sh", WorkingDirectory: "/estafette-work", Retries: 1, Commands: []string{cmd}, When: "status == 'succeeded'"})
 		envvars := map[string]string{}
 		dir, _ := os.Getwd()
 
