@@ -288,8 +288,12 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 	var readError error
 	for {
 
-		// strip first 8 bytes, they contain docker control characters (https://github.com/docker/docker/issues/7375)
+		// strip first 8 bytes, they contain docker control characters (https://github.com/docker/docker-ce/blob/v18.06.1-ce/components/engine/client/container_logs.go#L23-L32)
 		logLine, readError := in.ReadBytes('\n')
+
+		// https://github.com/docker/docker-ce/blob/v18.06.1-ce/components/engine/pkg/stdcopy/stdcopy.go
+
+		//written, err := StdCopy(ioutil.Discard, ioutil.Discard, reader)
 
 		if readError != nil {
 			break
@@ -308,7 +312,9 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 				streamType = "stderr"
 			}
 
-			logLine = logLine[8:]
+			if headers[0] == 1 || headers[0] == 2 {
+				logLine = logLine[8:]
+			}
 		}
 
 		logLineString := dr.obfuscator.Obfuscate(string(logLine))
