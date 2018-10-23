@@ -36,6 +36,9 @@ func renderStats(result estafetteRunStagesResult) {
 	dockerRunDurationTotal := 0.0
 	dockerImageSizeTotal := int64(0)
 	statusTotal := "SUCCEEDED"
+	if result.HasAggregatedErrors() {
+		statusTotal = "FAILED"
+	}
 
 	for _, s := range result.StageResults {
 
@@ -52,10 +55,6 @@ func renderStats(result estafetteRunStagesResult) {
 			for _, err := range s.Errors() {
 				detail += err.Error()
 			}
-		}
-
-		if s.Status == "FAILED" {
-			statusTotal = "FAILED"
 		}
 
 		data = append(data, []string{
