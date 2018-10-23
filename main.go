@@ -201,6 +201,15 @@ func main() {
 		if builderConfig.ReleaseParams != nil {
 			os.Setenv("ESTAFETTE_RELEASE_NAME", builderConfig.ReleaseParams.ReleaseName)
 		}
+		if builderConfig.BuildParams != nil {
+			// set ESTAFETTE_BUILD_ID for backwards compatibility with extensions/github-status and extensions/bitbucket-status
+			os.Setenv("ESTAFETTE_BUILD_ID", strconv.Itoa(builderConfig.BuildParams.BuildID))
+		}
+
+		// set ESTAFETTE_CI_SERVER_BASE_URL for backwards compatibility with extensions/github-status and extensions/bitbucket-status
+		if builderConfig.CIServer != nil {
+			os.Setenv("ESTAFETTE_CI_SERVER_BASE_URL", builderConfig.CIServer.BaseURL)
+		}
 
 		// set ESTAFETTE_BITBUCKET_API_TOKEN and ESTAFETTE_GIT_URL for backward compatibility with extensions/bitbucket-status and extensions/git-clone until it supports generic credential injection
 		bitbucketAPICredentials := builderConfig.GetCredentialsByType("bitbucket-api-token")
