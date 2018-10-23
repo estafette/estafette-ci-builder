@@ -200,13 +200,15 @@ func main() {
 		}
 		if builderConfig.ReleaseParams != nil {
 			os.Setenv("ESTAFETTE_RELEASE_NAME", builderConfig.ReleaseParams.ReleaseName)
+			// set ESTAFETTE_RELEASE_ID for backwards compatibility with extensions/slack-build-status
+			os.Setenv("ESTAFETTE_RELEASE_ID", strconv.Itoa(builderConfig.ReleaseParams.ReleaseID))
 		}
 		if builderConfig.BuildParams != nil {
-			// set ESTAFETTE_BUILD_ID for backwards compatibility with extensions/github-status and extensions/bitbucket-status
+			// set ESTAFETTE_BUILD_ID for backwards compatibility with extensions/github-status and extensions/bitbucket-status and extensions/slack-build-status
 			os.Setenv("ESTAFETTE_BUILD_ID", strconv.Itoa(builderConfig.BuildParams.BuildID))
 		}
 
-		// set ESTAFETTE_CI_SERVER_BASE_URL for backwards compatibility with extensions/github-status and extensions/bitbucket-status
+		// set ESTAFETTE_CI_SERVER_BASE_URL for backwards compatibility with extensions/github-status and extensions/bitbucket-status and extensions/slack-build-status
 		if builderConfig.CIServer != nil {
 			os.Setenv("ESTAFETTE_CI_SERVER_BASE_URL", builderConfig.CIServer.BaseURL)
 		}
