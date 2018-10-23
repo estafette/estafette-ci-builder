@@ -57,7 +57,7 @@ func TestRunStages(t *testing.T) {
 		result, err := pipelineRunner.runStages(manifest.Stages, dir, envvars)
 
 		assert.Nil(t, err)
-		assert.False(t, result.HasErrors())
+		assert.False(t, result.HasAggregatedErrors())
 	})
 
 	t.Run("ReturnsResultWithSucceededPipelineResultWhenStagesSucceeded", func(t *testing.T) {
@@ -89,7 +89,7 @@ func TestRunStages(t *testing.T) {
 		result, err := pipelineRunner.runStages(manifest.Stages, dir, envvars)
 
 		assert.Nil(t, err)
-		assert.True(t, result.HasErrors())
+		assert.True(t, result.HasAggregatedErrors())
 	})
 
 	t.Run("ReturnsResultWithFailedPipelineResultWhenStagesFailed", func(t *testing.T) {
@@ -121,7 +121,7 @@ func TestRunStages(t *testing.T) {
 		result, err := pipelineRunner.runStages(manifest.Stages, dir, envvars)
 
 		assert.Nil(t, err)
-		assert.False(t, result.HasErrors())
+		assert.False(t, result.HasAggregatedErrors())
 	})
 
 	t.Run("ReturnsResultWithSkippedStageResultWhenStagesSkipped", func(t *testing.T) {
@@ -175,7 +175,7 @@ func TestRunStages(t *testing.T) {
 		result, err := pipelineRunner.runStages(manifest.Stages, dir, envvars)
 
 		assert.Nil(t, err)
-		assert.True(t, result.HasErrors())
+		assert.True(t, result.HasAggregatedErrors())
 	})
 
 	t.Run("ReturnsResultWithoutErrorsWhenStagesSucceededAfterRetrial", func(t *testing.T) {
@@ -192,7 +192,7 @@ func TestRunStages(t *testing.T) {
 		result, err := pipelineRunner.runStages(manifest.Stages, dir, envvars)
 
 		assert.Nil(t, err)
-		assert.False(t, result.HasErrors())
+		assert.False(t, result.HasAggregatedErrors())
 	})
 
 	t.Run("ReturnsResultWithErrorsWhenStagesFailedAfterRetrial", func(t *testing.T) {
@@ -209,6 +209,6 @@ func TestRunStages(t *testing.T) {
 		result, err := pipelineRunner.runStages(manifest.Stages, dir, envvars)
 
 		assert.Nil(t, err)
-		assert.True(t, result.HasErrors())
+		assert.True(t, result.HasAggregatedErrors())
 	})
 }

@@ -325,7 +325,7 @@ func main() {
 		buildLog.Steps = transformPipelineRunResultToBuildLogSteps(result)
 		endOfLifeHelper.sendBuildJobLogEvent(buildLog)
 		buildStatus := "succeeded"
-		if result.HasErrors() {
+		if result.HasAggregatedErrors() {
 			buildStatus = "failed"
 		}
 		endOfLifeHelper.sendBuildFinishedEvent(buildStatus)

@@ -153,8 +153,8 @@ type estafetteRunStagesResult struct {
 	StageResults []estafetteStageRunResult
 }
 
-// Errors combines the different type of errors that occurred during this pipeline stage
-func (result *estafetteRunStagesResult) Errors() (errors []error) {
+// AggregatedErrors combines the different type of errors that occurred during this pipeline stage
+func (result *estafetteRunStagesResult) AggregatedErrors() (errors []error) {
 
 	for _, pr := range result.StageResults {
 		if pr.RunIndex == pr.Stage.Retries && pr.HasErrors() {
@@ -165,10 +165,10 @@ func (result *estafetteRunStagesResult) Errors() (errors []error) {
 	return errors
 }
 
-// HasErrors indicates whether any errors happened in this pipeline stages
-func (result *estafetteRunStagesResult) HasErrors() bool {
+// HasAggregatedErrors indicates whether any errors happened in all pipeline stages excluding retried stages that succeeded eventually
+func (result *estafetteRunStagesResult) HasAggregatedErrors() bool {
 
-	errors := result.Errors()
+	errors := result.AggregatedErrors()
 
 	return len(errors) > 0
 }

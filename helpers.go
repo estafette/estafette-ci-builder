@@ -21,7 +21,7 @@ func contains(s []string, e string) bool {
 
 func handleExit(result estafetteRunStagesResult) {
 
-	if result.HasErrors() {
+	if result.HasAggregatedErrors() {
 		os.Exit(1)
 	}
 
