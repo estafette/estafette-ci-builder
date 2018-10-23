@@ -296,24 +296,24 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 		}
 
 		streamType := "stdout"
-		if len(logLine) > 8 {
+		// if len(logLine) > 8 {
 
-			headers := logLine[0:8]
+		// 	headers := logLine[0:8]
 
-			// first byte contains the streamType
-			// -   0: stdin (will be written on stdout)
-			// -   1: stdout
-			// -   2: stderr
-			if headers[0] == 2 {
-				streamType = "stderr"
-			}
+		// 	// first byte contains the streamType
+		// 	// -   0: stdin (will be written on stdout)
+		// 	// -   1: stdout
+		// 	// -   2: stderr
+		// 	if headers[0] == 2 {
+		// 		streamType = "stderr"
+		// 	}
 
-			// [8]byte{STREAM_TYPE, 0, 0, 0, SIZE1, SIZE2, SIZE3, SIZE4}[]byte{OUTPUT}
+		// 	// [8]byte{STREAM_TYPE, 0, 0, 0, SIZE1, SIZE2, SIZE3, SIZE4}[]byte{OUTPUT}
 
-			if headers[0] == 1 || headers[0] == 2 {
-				logLine = logLine[8:]
-			}
-		}
+		// 	if headers[0] == 1 || headers[0] == 2 {
+		// 		logLine = logLine[8:]
+		// 	}
+		// }
 
 		logLineString := dr.obfuscator.Obfuscate(string(logLine))
 
