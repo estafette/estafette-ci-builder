@@ -178,7 +178,7 @@ func TestRunStages(t *testing.T) {
 		assert.True(t, result.HasErrors())
 	})
 
-	t.Run("ReturnsResultWithSucceededPipelineResultWhenStagesSucceededAfterRetrial", func(t *testing.T) {
+	t.Run("ReturnsResultWithoutErrorsWhenStagesSucceededAfterRetrial", func(t *testing.T) {
 
 		envvarHelper.unsetEstafetteEnvvars()
 		envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
@@ -193,5 +193,22 @@ func TestRunStages(t *testing.T) {
 
 		assert.Nil(t, err)
 		assert.False(t, result.HasErrors())
+	})
+
+	t.Run("ReturnsResultWithErrorsWhenStagesFailedAfterRetrial", func(t *testing.T) {
+
+		envvarHelper.unsetEstafetteEnvvars()
+		envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
+		cmd := "exit 1"
+		manifest := &mft.EstafetteManifest{}
+		manifest.Stages = append(manifest.Stages, &mft.EstafetteStage{Name: "TestRetryStep", ContainerImage: "busybox:latest", Shell: "/bin/sh", WorkingDirectory: "/estafette-work", Retries: 1, Commands: []string{cmd}, When: "status == 'succeeded'"})
+		envvars := map[string]string{}
+		dir, _ := os.Getwd()
+
+		// act
+		result, err := pipelineRunner.runStages(manifest.Stages, dir, envvars)
+
+		assert.Nil(t, err)
+		assert.True(t, result.HasErrors())
 	})
 }
