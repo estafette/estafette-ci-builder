@@ -307,15 +307,16 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 			// -   2: stderr
 			// -   3: system error
 			switch headers[0] {
-			case 0:
-				continue
 			case 1:
 				streamType = "stdout"
 			case 2:
 				streamType = "stderr"
-			case 3:
-				continue
 			default:
+				continue
+			}
+
+			// don't output if all this line has is a header
+			if len(logLine) == 8 {
 				continue
 			}
 
