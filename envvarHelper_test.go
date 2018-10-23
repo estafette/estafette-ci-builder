@@ -306,3 +306,38 @@ func TestDecryptSecrets(t *testing.T) {
 		assert.Equal(t, "this is my secret", result["SOME_SECRET"])
 	})
 }
+
+func TestToUpperSnake(t *testing.T) {
+
+	t.Run("ReturnsLowercaseAsUppercase", func(t *testing.T) {
+
+		// act
+		snake := envvarHelper.toUpperSnake("lowercase")
+
+		assert.Equal(t, "LOWERCASE", snake)
+	})
+
+	t.Run("ReturnsPascalCaseAsUppercaseWithUnderscoreBetweenWords", func(t *testing.T) {
+
+		// act
+		snake := envvarHelper.toUpperSnake("PascalCase")
+
+		assert.Equal(t, "PASCAL_CASE", snake)
+	})
+
+	t.Run("ReturnsCamelCaseAsUppercaseWithUnderscoreBetweenWords", func(t *testing.T) {
+
+		// act
+		snake := envvarHelper.toUpperSnake("camelCase")
+
+		assert.Equal(t, "CAMEL_CASE", snake)
+	})
+
+	t.Run("ReturnsHyphenSeparatedCaseAsUppercaseWithUnderscoreBetweenWords", func(t *testing.T) {
+
+		// act
+		snake := envvarHelper.toUpperSnake("kubernetes-engine")
+
+		assert.Equal(t, "KUBERNETES_ENGINE", snake)
+	})
+}

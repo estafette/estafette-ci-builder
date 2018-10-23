@@ -64,7 +64,16 @@ func (h *envvarHelperImpl) toUpperSnake(in string) string {
 		out = append(out, unicode.ToUpper(runes[i]))
 	}
 
-	return string(out)
+	snake := string(out)
+
+	// make sure nothing but alphanumeric characters and underscores are returned
+	reg, err := regexp.Compile("[^A-Z0-9]+")
+	if err != nil {
+		log.Fatal().Err(err).Msgf("Failed converting %v to upper snake case", in)
+	}
+	cleanSnake := reg.ReplaceAllString(snake, "_")
+
+	return cleanSnake
 }
 
 func (h *envvarHelperImpl) getCommandOutput(name string, arg ...string) (string, error) {
