@@ -157,7 +157,7 @@ type estafetteRunStagesResult struct {
 func (result *estafetteRunStagesResult) Errors() (errors []error) {
 
 	for _, pr := range result.StageResults {
-		if pr.HasErrors() {
+		if pr.RunIndex == pr.Stage.Retries && pr.HasErrors() {
 			errors = append(errors, pr.Errors()...)
 		}
 	}
