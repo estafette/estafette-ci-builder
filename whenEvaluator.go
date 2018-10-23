@@ -33,6 +33,9 @@ func (we *whenEvaluatorImpl) evaluate(pipelineName, input string, parameters map
 	log.Info().Msgf("[%v] Evaluating when expression \"%v\" with parameters \"%v\"", pipelineName, input, parameters)
 
 	expression, err := govaluate.NewEvaluableExpression(input)
+	if err != nil {
+		return
+	}
 
 	r, err := expression.Evaluate(parameters)
 
