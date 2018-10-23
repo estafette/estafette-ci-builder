@@ -296,53 +296,50 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 			break
 		}
 
-		streamType := "stdout"
-		if len(logLine) >= 8 {
-
-			headers := logLine[0:8]
-
-			// first byte contains the streamType
-			// -   0: stdin (will be written on stdout)
-			// -   1: stdout
-			// -   2: stderr
-			// -   3: system error
-			switch headers[0] {
-			case 1:
-				streamType = "stdout"
-			case 2:
-				streamType = "stderr"
-			default:
-				continue
-			}
-
-			// don't output if all this line has is a header
-			if len(logLine) == 8 {
-				continue
-			}
-
-			logLine = logLine[8:]
+		// skip this log line if it has no docker log headers
+		if len(logLine) <= 8 {
+			continue
 		}
 
-		logLineString := dr.obfuscator.Obfuscate(string(logLine))
+		// inspect the docker log header for stream type
 
+		// first byte contains the streamType
+		// -   0: stdin (will be written on stdout)
+		// -   1: stdout
+		// -   2: stderr
+		// -   3: system error
+		streamType := ""
+		switch logLine[0] {
+		case 1:
+			streamType = "stdout"
+		case 2:
+			streamType = "stderr"
+		default:
+			continue
+		}
+
+		// strip headers and obfuscate secret values
+		logLineString := dr.obfuscator.Obfuscate(string(logLine[8:]))
+
+		// create object for tailing logs and storing in the db when done
 		logLineObject := contracts.BuildLogLine{
 			Timestamp:  time.Now().UTC(),
 			StreamType: streamType,
 			Text:       logLineString,
 		}
 
-		tailLogLine := contracts.TailLogLine{
-			Step:    p.Name,
-			LogLine: &logLineObject,
-		}
-
 		if dr.runAsJob {
 			// log as json, to be tailed when looking at live logs from gui
+			tailLogLine := contracts.TailLogLine{
+				Step:    p.Name,
+				LogLine: &logLineObject,
+			}
 			log.Info().Interface("tailLogLine", tailLogLine).Msg("")
 		} else {
 			log.Info().Msgf("[%v] %v", p.Name, logLineString)
 		}
 
+		// add to log lines send when build/release job is finished
 		logLines = append(logLines, logLineObject)
 	}
 
