@@ -64,6 +64,25 @@ stages:
       - supported1
       - supported2
 
+  test-alpha-version:
+    image: extensions/gke:${ESTAFETTE_BUILD_VERSION}
+    retries: 1
+    credentials: gke-tooling
+    app: gke
+    namespace: estafette
+    visibility: private
+    container:
+      repository: extensions
+      name: gke
+      tag: alpha
+    cpu:
+      request: 100m
+      limit: 100m
+    memory:
+      request: 256Mi
+      limit: 256Mi
+    dryrun: true
+
 # releases are automatically triggered from stages or manually from gui, cli or slack
 releases:
   docker-hub:

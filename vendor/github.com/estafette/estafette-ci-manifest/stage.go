@@ -43,8 +43,8 @@ func (stage *EstafetteStage) UnmarshalYAML(unmarshal func(interface{}) error) (e
 	stage.When = aux.When
 	stage.EnvVars = aux.EnvVars
 	stage.AutoInjected = aux.AutoInjected
-	stage.CustomProperties = aux.CustomProperties
 	stage.Retries = aux.Retries
+	stage.CustomProperties = cleanUpStringMap(aux.CustomProperties)
 
 	// set default property values
 	stage.setDefaults()
