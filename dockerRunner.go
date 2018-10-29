@@ -291,15 +291,27 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 
 		// strip first 8 bytes, they contain docker control characters (https://github.com/docker/docker-ce/blob/v18.06.1-ce/components/engine/client/container_logs.go#L23-L32)
 		logLine, readError := in.ReadBytes('\n')
-
 		if readError != nil {
 			break
 		}
 
+		if len(logLine) == 8 && logLine[7] == '\n' {
+			// "\x01\x00\x00\x00\x00\x00\x00\n" (8)
+			// "metadata:\n" (10)
+
+			// log line broke in 2 pieces due to the delimiter; append the following line to this one
+			logLineSecondPart, readError := in.ReadBytes('\n')
+			if readError != nil {
+				break
+			}
+
+			logLine = append(logLine, logLineSecondPart...)
+		}
+
 		// skip this log line if it has no docker log headers
-		// if len(logLine) <= 8 {
-		// 	continue
-		// }
+		if len(logLine) <= 8 {
+			continue
+		}
 
 		// inspect the docker log header for stream type
 
@@ -308,21 +320,20 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 		// -   1: stdout
 		// -   2: stderr
 		// -   3: system error
-		streamType := "stdout"
+		streamType := ""
 		if len(logLines) > 0 {
 			switch logLine[0] {
 			case 1:
 				streamType = "stdout"
 			case 2:
 				streamType = "stderr"
-				// default:
-				// 	continue
+			default:
+				continue
 			}
 		}
 
 		// strip headers and obfuscate secret values
-		// logLineString := dr.obfuscator.Obfuscate(string(logLine[8:]))
-		logLineString := dr.obfuscator.Obfuscate(fmt.Sprintf("%q (%v)", string(logLine), len(logLine)))
+		logLineString := dr.obfuscator.Obfuscate(string(logLine[8:]))
 
 		// create object for tailing logs and storing in the db when done
 		logLineObject := contracts.BuildLogLine{
