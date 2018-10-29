@@ -297,9 +297,9 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 		}
 
 		// skip this log line if it has no docker log headers
-		if len(logLine) <= 8 {
-			continue
-		}
+		// if len(logLine) <= 8 {
+		// 	continue
+		// }
 
 		// inspect the docker log header for stream type
 
@@ -308,18 +308,21 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 		// -   1: stdout
 		// -   2: stderr
 		// -   3: system error
-		streamType := ""
-		switch logLine[0] {
-		case 1:
-			streamType = "stdout"
-		case 2:
-			streamType = "stderr"
-		default:
-			continue
+		streamType := "stdout"
+		if len(logLines) > 0 {
+			switch logLine[0] {
+			case 1:
+				streamType = "stdout"
+			case 2:
+				streamType = "stderr"
+				// default:
+				// 	continue
+			}
 		}
 
 		// strip headers and obfuscate secret values
-		logLineString := dr.obfuscator.Obfuscate(string(logLine[8:]))
+		// logLineString := dr.obfuscator.Obfuscate(string(logLine[8:]))
+		logLineString := dr.obfuscator.Obfuscate(fmt.Sprintf("%s: %v", logLine[0], string(logLine)))
 
 		// create object for tailing logs and storing in the db when done
 		logLineObject := contracts.BuildLogLine{
