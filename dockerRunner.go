@@ -322,7 +322,7 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 
 		// strip headers and obfuscate secret values
 		// logLineString := dr.obfuscator.Obfuscate(string(logLine[8:]))
-		logLineString := dr.obfuscator.Obfuscate(fmt.Sprintf("%q", string(logLine)))
+		logLineString := dr.obfuscator.Obfuscate(fmt.Sprintf("%q (%v)", string(logLine), len(logLine)))
 
 		// create object for tailing logs and storing in the db when done
 		logLineObject := contracts.BuildLogLine{
