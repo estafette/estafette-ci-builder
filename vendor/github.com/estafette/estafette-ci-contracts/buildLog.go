@@ -35,6 +35,7 @@ type BuildLogStepDockerImage struct {
 	ImageSize    int64         `json:"imageSize"`
 	PullDuration time.Duration `json:"pullDuration"`
 	Error        string        `json:"error,omitempty"`
+	IsTrusted    bool          `json:"isTrusted,omitempty"`
 }
 
 // BuildLogLine has low level log information

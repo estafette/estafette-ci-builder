@@ -40,6 +40,7 @@ message BuildLogStepDockerImage {
 	int64 image_size = 4;
 	google.protobuf.Duration pull_duration = 5;
 	string error = 6;
+	bool is_trusted = 7;
 }
 
 message BuildLogLine {

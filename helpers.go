@@ -136,5 +136,6 @@ func getBuildLogStepDockerImage(result estafetteStageRunResult) *contracts.Build
 		ImageSize:    result.DockerImageSize,
 		PullDuration: result.DockerPullDuration,
 		Error:        pullError,
+		IsTrusted:    result.IsTrustedImage,
 	}
 }

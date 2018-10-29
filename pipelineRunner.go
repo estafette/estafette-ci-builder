@@ -37,6 +37,7 @@ type estafetteStageRunResult struct {
 	Stage               manifest.EstafetteStage
 	RunIndex            int
 	IsDockerImagePulled bool
+	IsTrustedImage      bool
 	DockerImageSize     int64
 	DockerPullDuration  time.Duration
 	DockerPullError     error
@@ -84,6 +85,7 @@ func (pr *pipelineRunnerImpl) runStage(dir string, envvars map[string]string, p 
 	log.Info().Msgf("[%v] Starting pipeline '%v'", p.Name, p.Name)
 
 	result.IsDockerImagePulled = pr.dockerRunner.isDockerImagePulled(p)
+	result.IsTrustedImage = pr.dockerRunner.isTrustedImage(p)
 
 	if !result.IsDockerImagePulled {
 
@@ -101,7 +103,6 @@ func (pr *pipelineRunnerImpl) runStage(dir string, envvars map[string]string, p 
 			return result, err
 		}
 		result.DockerImageSize = size
-
 	}
 
 	// log tailing - start stage

@@ -36,6 +36,7 @@ type DockerRunner interface {
 	waitForDockerDaemon()
 	createDockerClient() (*client.Client, error)
 	getImagePullOptions(containerImage string) types.ImagePullOptions
+	isTrustedImage(manifest.EstafetteStage) bool
 }
 
 type dockerRunnerImpl struct {
@@ -294,7 +295,7 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 
 		if n < 8 {
 			// doesn't seem to be a valid header
-			continue
+			break
 		}
 
 		// inspect the docker log header for stream type
@@ -439,4 +440,14 @@ func (dr *dockerRunnerImpl) getImagePullOptions(containerImage string) types.Ima
 	}
 
 	return types.ImagePullOptions{}
+}
+
+func (dr *dockerRunnerImpl) isTrustedImage(p manifest.EstafetteStage) bool {
+
+	log.Info().Msgf("[%v] Checking if docker image '%v' is trusted...", p.Name, p.ContainerImage)
+
+	// check if image is trusted image
+	trustedImage := dr.config.GetTrustedImage(p.ContainerImage)
+
+	return trustedImage != nil
 }

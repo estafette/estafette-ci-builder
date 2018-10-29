@@ -101,13 +101,35 @@ func (c *BuilderConfig) GetCredentialsByType(filterType string) []*CredentialCon
 	return filteredCredentials
 }
 
+// GetCredentialsByType returns all credentials of a certain type
+func GetCredentialsByType(credentials []*CredentialConfig, filterType string) []*CredentialConfig {
+
+	filteredCredentials := []*CredentialConfig{}
+
+	for _, cred := range credentials {
+		if cred.Type == filterType {
+			filteredCredentials = append(filteredCredentials, cred)
+		}
+	}
+
+	return filteredCredentials
+}
+
 // GetCredentialsForTrustedImage returns all credentials of a certain type
 func (c *BuilderConfig) GetCredentialsForTrustedImage(trustedImage TrustedImageConfig) map[string][]*CredentialConfig {
+	return GetCredentialsForTrustedImage(c.Credentials, trustedImage)
+}
+
+// GetCredentialsForTrustedImage returns all credentials of a certain type
+func GetCredentialsForTrustedImage(credentials []*CredentialConfig, trustedImage TrustedImageConfig) map[string][]*CredentialConfig {
 
 	credentialMap := map[string][]*CredentialConfig{}
 
 	for _, filterType := range trustedImage.InjectedCredentialTypes {
-		credentialMap[filterType] = c.GetCredentialsByType(filterType)
+		credsByType := GetCredentialsByType(credentials, filterType)
+		if len(credsByType) > 0 {
+			credentialMap[filterType] = credsByType
+		}
 	}
 
 	return credentialMap
@@ -115,15 +137,75 @@ func (c *BuilderConfig) GetCredentialsForTrustedImage(trustedImage TrustedImageC
 
 // GetTrustedImage returns a trusted image if the path without tag matches any of the trustedImages
 func (c *BuilderConfig) GetTrustedImage(imagePath string) *TrustedImageConfig {
+	return GetTrustedImage(c.TrustedImages, imagePath)
+}
+
+// GetTrustedImage returns a trusted image if the path without tag matches any of the trustedImages
+func GetTrustedImage(trustedImages []*TrustedImageConfig, imagePath string) *TrustedImageConfig {
 
 	imagePathSlice := strings.Split(imagePath, ":")
 	imagePathWithoutTag := imagePathSlice[0]
 
-	for _, trustedImage := range c.TrustedImages {
+	for _, trustedImage := range trustedImages {
 		if trustedImage.ImagePath == imagePathWithoutTag {
 			return trustedImage
 		}
 	}
 
 	return nil
+}
+
+// FilterTrustedImages returns only trusted images used in the stages
+func FilterTrustedImages(trustedImages []*TrustedImageConfig, stages []*manifest.EstafetteStage) []*TrustedImageConfig {
+
+	filteredImages := []*TrustedImageConfig{}
+
+	for _, s := range stages {
+		ti := GetTrustedImage(trustedImages, s.ContainerImage)
+		if ti != nil {
+			alreadyAdded := false
+			for _, fi := range filteredImages {
+				if fi.ImagePath == ti.ImagePath {
+					alreadyAdded = true
+					break
+				}
+			}
+
+			if !alreadyAdded {
+				filteredImages = append(filteredImages, ti)
+			}
+		}
+	}
+
+	return filteredImages
+}
+
+// FilterCredentials returns only credentials used by the trusted images
+func FilterCredentials(credentials []*CredentialConfig, trustedImages []*TrustedImageConfig) []*CredentialConfig {
+
+	filteredCredentials := []*CredentialConfig{}
+
+	for _, i := range trustedImages {
+		credMap := GetCredentialsForTrustedImage(credentials, *i)
+
+		// loop all items in credmap and add to filtered credentials if they haven't been already added
+		for _, v := range credMap {
+			for _, c := range v {
+
+				alreadyAdded := false
+				for _, fc := range filteredCredentials {
+					if fc.Name == c.Name && fc.Type == c.Type {
+						alreadyAdded = true
+						break
+					}
+				}
+
+				if !alreadyAdded {
+					filteredCredentials = append(filteredCredentials, c)
+				}
+			}
+		}
+	}
+
+	return filteredCredentials
 }
