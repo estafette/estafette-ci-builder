@@ -295,7 +295,7 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 
 		if n < 8 {
 			// doesn't seem to be a valid header
-			break
+			continue
 		}
 
 		// inspect the docker log header for stream type
