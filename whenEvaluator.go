@@ -54,7 +54,7 @@ func (we *whenEvaluatorImpl) getParameters() map[string]interface{} {
 	parameters["branch"] = we.envvarHelper.getEstafetteEnv("ESTAFETTE_GIT_BRANCH")
 	parameters["trigger"] = we.envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER")
 	parameters["status"] = we.envvarHelper.getEstafetteEnv("ESTAFETTE_BUILD_STATUS")
-	parameters["server"] = we.envvarHelper.getEstafetteEnv("ESTAFETTE_CI_SERVER")
+	parameters["server"] = we.envvarHelper.getCiServer()
 
 	return parameters
 }

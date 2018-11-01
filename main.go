@@ -73,6 +73,7 @@ func main() {
 
 	// bootstrap
 	envvarHelper := NewEnvvarHelper("ESTAFETTE_", secretHelper)
+
 	whenEvaluator := NewWhenEvaluator(envvarHelper)
 	obfuscator := NewObfuscator(secretHelper)
 	dockerRunner := NewDockerRunner(envvarHelper, obfuscator, *runAsJob, builderConfig)
@@ -80,14 +81,11 @@ func main() {
 	endOfLifeHelper := NewEndOfLifeHelper(*runAsJob, builderConfig)
 
 	// detect controlling server
-	ciServer := envvarHelper.getEstafetteEnv("ESTAFETTE_CI_SERVER")
+	ciServer := envvarHelper.getCiServer()
 
 	if ciServer == "estafette" {
 		// unset all ESTAFETTE_ envvars so they don't get abused by non-estafette components
-		envvarsToUnset := envvarHelper.collectEstafetteEnvvars()
-		for key := range envvarsToUnset {
-			os.Unsetenv(key)
-		}
+		envvarHelper.unsetEstafetteEnvvars()
 	}
 
 	// set ESTAFETTE_CI_REPOSITORY_CREDENTIALS_JSON for backwards compatibility until extensions/docker supports generic credential injection
