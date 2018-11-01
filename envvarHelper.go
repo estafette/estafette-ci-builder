@@ -36,10 +36,12 @@ type EnvvarHelper interface {
 	overrideEnvvars(...map[string]string) map[string]string
 	decryptSecret(string) string
 	decryptSecrets(map[string]string) map[string]string
+	getCiServer() string
 }
 
 type envvarHelperImpl struct {
 	prefix       string
+	ciServer     string
 	secretHelper crypt.SecretHelper
 }
 
@@ -47,6 +49,7 @@ type envvarHelperImpl struct {
 func NewEnvvarHelper(prefix string, secretHelper crypt.SecretHelper) EnvvarHelper {
 	return &envvarHelperImpl{
 		prefix:       prefix,
+		ciServer:     os.Getenv("ESTAFETTE_CI_SERVER"),
 		secretHelper: secretHelper,
 	}
 }
@@ -211,16 +214,9 @@ func (h *envvarHelperImpl) collectGlobalEnvvars(m manifest.EstafetteManifest) (e
 // only to be used from unit tests
 func (h *envvarHelperImpl) unsetEstafetteEnvvars() {
 
-	for _, e := range os.Environ() {
-		kvPair := strings.SplitN(e, "=", 2)
-
-		if len(kvPair) == 2 {
-			envvarName := kvPair[0]
-
-			if strings.HasPrefix(envvarName, h.prefix) {
-				h.unsetEstafetteEnv(envvarName)
-			}
-		}
+	envvarsToUnset := h.collectEstafetteEnvvars()
+	for key := range envvarsToUnset {
+		h.unsetEstafetteEnv(key)
 	}
 }
 
@@ -301,4 +297,8 @@ func (h *envvarHelperImpl) decryptSecrets(encryptedEnvvars map[string]string) (e
 	}
 
 	return
+}
+
+func (h *envvarHelperImpl) getCiServer() string {
+	return h.ciServer
 }
