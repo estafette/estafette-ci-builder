@@ -14,6 +14,7 @@ import (
 type PipelineRunner interface {
 	runStage(string, map[string]string, manifest.EstafetteStage) (estafetteStageRunResult, error)
 	runStages([]*manifest.EstafetteStage, string, map[string]string) (estafetteRunStagesResult, error)
+	prefetchImages([]*manifest.EstafetteStage)
 }
 
 type pipelineRunnerImpl struct {
@@ -176,6 +177,9 @@ func (result *estafetteRunStagesResult) HasAggregatedErrors() bool {
 
 func (pr *pipelineRunnerImpl) runStages(stages []*manifest.EstafetteStage, dir string, envvars map[string]string) (result estafetteRunStagesResult, err error) {
 
+	// prefetch images in parallel
+	pr.prefetchImages(stages)
+
 	// set default build status if not set
 	err = pr.envvarHelper.initBuildStatus()
 	if err != nil {
@@ -248,4 +252,31 @@ func (pr *pipelineRunnerImpl) runStages(stages []*manifest.EstafetteStage, dir s
 	}
 
 	return
+}
+
+func (pr *pipelineRunnerImpl) prefetchImages(stages []*manifest.EstafetteStage) {
+
+	// deduplicate stages by image path
+	dedupedStages := []*manifest.EstafetteStage{}
+	for _, p := range stages {
+
+		// test if it's already added
+		alreadyAdded := false
+		for _, d := range dedupedStages {
+			if p.ContainerImage == d.ContainerImage {
+				alreadyAdded = true
+				break
+			}
+		}
+
+		// added if it hasn't been added before
+		if !alreadyAdded {
+			dedupedStages = append(dedupedStages, p)
+		}
+	}
+
+	// pull all images in parallel
+	for _, p := range dedupedStages {
+		go pr.dockerRunner.runDockerPull(*p)
+	}
 }
