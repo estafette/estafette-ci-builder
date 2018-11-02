@@ -373,6 +373,12 @@ func (dr *dockerRunnerImpl) startDockerDaemon() error {
 	// dockerd --host=unix:///var/run/docker.sock --host=tcp://0.0.0.0:2375 --storage-driver=$STORAGE_DRIVER &
 	log.Debug().Msg("Starting docker daemon...")
 	args := []string{"--host=unix:///var/run/docker.sock", "--host=tcp://0.0.0.0:2375", "--storage-driver=overlay2"}
+
+	// if a registry mirror is set in config configured docker daemon to use it
+	if dr.config.RegistryMirror != nil && *dr.config.RegistryMirror != "" {
+		args = append(args, fmt.Sprintf("--registry-mirror=%v", *dr.config.RegistryMirror))
+	}
+
 	dockerDaemonCommand := exec.Command("dockerd", args...)
 	dockerDaemonCommand.Stdout = log.Logger
 	dockerDaemonCommand.Stderr = log.Logger
