@@ -162,6 +162,10 @@ func main() {
 		// merge estafette and global envvars
 		envvars := envvarHelper.overrideEnvvars(estafetteEnvvars, globalEnvvars)
 
+		// prefetch images in parallel
+		pipelineRunner.prefetchImages(stages)
+
+		// run stages
 		result, err := pipelineRunner.runStages(manifest.Stages, dir, envvars)
 		if err != nil {
 			fatalHandler.handleGocdFatal(err, "Executing stages from manifest failed")
@@ -313,6 +317,11 @@ func main() {
 		estafetteEnvvars := envvarHelper.collectEstafetteEnvvarsAndLabels(*builderConfig.Manifest)
 		globalEnvvars := envvarHelper.collectGlobalEnvvars(*builderConfig.Manifest)
 		envvars := envvarHelper.overrideEnvvars(estafetteEnvvars, globalEnvvars)
+
+		// prefetch images in parallel
+		pipelineRunner.prefetchImages(stages)
+
+		// run stages
 		result, err := pipelineRunner.runStages(stages, dir, envvars)
 		if err != nil {
 			endOfLifeHelper.handleFatal(buildLog, err, "Executing stages from manifest failed")

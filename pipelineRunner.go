@@ -177,9 +177,6 @@ func (result *estafetteRunStagesResult) HasAggregatedErrors() bool {
 
 func (pr *pipelineRunnerImpl) runStages(stages []*manifest.EstafetteStage, dir string, envvars map[string]string) (result estafetteRunStagesResult, err error) {
 
-	// prefetch images in parallel
-	pr.prefetchImages(stages)
-
 	// set default build status if not set
 	err = pr.envvarHelper.initBuildStatus()
 	if err != nil {
