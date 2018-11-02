@@ -435,11 +435,20 @@ func (dr *dockerRunnerImpl) getImagePullOptions(containerImage string) types.Ima
 				if err == nil {
 					authStr := base64.URLEncoding.EncodeToString(encodedJSON)
 
+					// check whether this is a private repo and should be authenticated in advance
+					if private, ok := credential.AdditionalProperties["private"].(bool); !ok || private {
+						return types.ImagePullOptions{
+							RegistryAuth: authStr,
+						}
+					}
+
+					// otherwise provide the option to authenticate after an authorization error
 					return types.ImagePullOptions{
-						RegistryAuth: authStr,
+						PrivilegeFunc: func() (string, error) { return authStr, nil },
 					}
 				}
 				log.Error().Err(err).Msgf("Failed marshaling docker auth config for container image %v", containerImage)
+
 				break
 			}
 		}
