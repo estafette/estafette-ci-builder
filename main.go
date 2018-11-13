@@ -122,7 +122,7 @@ func main() {
 			Str("revision", revision).
 			Str("buildDate", buildDate).
 			Str("goVersion", goVersion).
-			Msg("Starting estafette-ci-builder...")
+			Msgf("Starting estafette-ci-builder version %v...", version)
 
 		// create docker client
 		_, err := dockerRunner.createDockerClient()
