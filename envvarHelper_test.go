@@ -341,3 +341,60 @@ func TestToUpperSnake(t *testing.T) {
 		assert.Equal(t, "KUBERNETES_ENGINE", snake)
 	})
 }
+
+func TestGetSourceFromOrigin(t *testing.T) {
+
+	t.Run("ReturnsHostFromHttpsUrl", func(t *testing.T) {
+
+		// act
+		source := envvarHelper.getSourceFromOrigin("https://github.com/estafette/estafette-gcloud-mig-scaler.git")
+
+		assert.Equal(t, "github.com", source)
+	})
+
+	t.Run("ReturnsHostFromGitUrl", func(t *testing.T) {
+
+		// act
+		source := envvarHelper.getSourceFromOrigin("git@github.com:estafette/estafette-ci-builder.git")
+
+		assert.Equal(t, "github.com", source)
+	})
+}
+
+func TestGetOwnerFromOrigin(t *testing.T) {
+
+	t.Run("ReturnsOwnerFromHttpsUrl", func(t *testing.T) {
+
+		// act
+		owner := envvarHelper.getOwnerFromOrigin("https://github.com/estafette/estafette-gcloud-mig-scaler.git")
+
+		assert.Equal(t, "estafette", owner)
+	})
+
+	t.Run("ReturnsOwnerFromGitUrl", func(t *testing.T) {
+
+		// act
+		owner := envvarHelper.getOwnerFromOrigin("git@github.com:estafette/estafette-ci-builder.git")
+
+		assert.Equal(t, "estafette", owner)
+	})
+}
+
+func TestGetNameFromOrigin(t *testing.T) {
+
+	t.Run("ReturnsNameFromHttpsUrl", func(t *testing.T) {
+
+		// act
+		name := envvarHelper.getNameFromOrigin("https://github.com/estafette/estafette-gcloud-mig-scaler.git")
+
+		assert.Equal(t, "estafette-gcloud-mig-scaler", name)
+	})
+
+	t.Run("ReturnsNameFromGitUrl", func(t *testing.T) {
+
+		// act
+		name := envvarHelper.getNameFromOrigin("git@github.com:estafette/estafette-ci-builder.git")
+
+		assert.Equal(t, "estafette-ci-builder", name)
+	})
+}

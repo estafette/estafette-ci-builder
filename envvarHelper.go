@@ -20,6 +20,10 @@ type EnvvarHelper interface {
 	toUpperSnake(string) string
 	getCommandOutput(string, ...string) (string, error)
 	setEstafetteGlobalEnvvars() error
+	initGitSource() error
+	initGitOwner() error
+	initGitName() error
+	initGitFullName() error
 	initGitRevision() error
 	initGitBranch() error
 	initBuildDatetime() error
@@ -37,6 +41,11 @@ type EnvvarHelper interface {
 	decryptSecret(string) string
 	decryptSecrets(map[string]string) map[string]string
 	getCiServer() string
+
+	getGitOrigin() (string, error)
+	getSourceFromOrigin(string) string
+	getOwnerFromOrigin(string) string
+	getNameFromOrigin(string) string
 }
 
 type envvarHelperImpl struct {
@@ -91,6 +100,30 @@ func (h *envvarHelperImpl) getCommandOutput(name string, arg ...string) (string,
 
 func (h *envvarHelperImpl) setEstafetteGlobalEnvvars() (err error) {
 
+	// initialize git source envvar
+	err = h.initGitSource()
+	if err != nil {
+		return err
+	}
+
+	// initialize git owner envvar
+	err = h.initGitOwner()
+	if err != nil {
+		return err
+	}
+
+	// initialize git name envvar
+	err = h.initGitName()
+	if err != nil {
+		return err
+	}
+
+	// initialize git full name envvar
+	err = h.initGitFullName()
+	if err != nil {
+		return err
+	}
+
 	// initialize git revision envvar
 	err = h.initGitRevision()
 	if err != nil {
@@ -116,6 +149,95 @@ func (h *envvarHelperImpl) setEstafetteGlobalEnvvars() (err error) {
 	}
 
 	return
+}
+
+func (h *envvarHelperImpl) getGitOrigin() (string, error) {
+	return h.getCommandOutput("git", "config", "--get", "remote.origin.url")
+}
+
+func (h *envvarHelperImpl) initGitSource() (err error) {
+	if h.getEstafetteEnv("ESTAFETTE_GIT_SOURCE") == "" {
+		origin, err := h.getGitOrigin()
+		if err != nil {
+			return err
+		}
+		source := h.getSourceFromOrigin(origin)
+		return h.setEstafetteEnv("ESTAFETTE_GIT_SOURCE", source)
+	}
+	return
+}
+
+func (h *envvarHelperImpl) initGitOwner() (err error) {
+	if h.getEstafetteEnv("ESTAFETTE_GIT_OWNER") == "" {
+		origin, err := h.getGitOrigin()
+		if err != nil {
+			return err
+		}
+		owner := h.getOwnerFromOrigin(origin)
+		return h.setEstafetteEnv("ESTAFETTE_GIT_OWNER", owner)
+	}
+	return
+}
+
+func (h *envvarHelperImpl) initGitName() (err error) {
+	if h.getEstafetteEnv("ESTAFETTE_GIT_NAME") == "" {
+		origin, err := h.getGitOrigin()
+		if err != nil {
+			return err
+		}
+		name := h.getNameFromOrigin(origin)
+		return h.setEstafetteEnv("ESTAFETTE_GIT_NAME", name)
+	}
+	return
+}
+
+func (h *envvarHelperImpl) initGitFullName() (err error) {
+	if h.getEstafetteEnv("ESTAFETTE_GIT_FULLNAME") == "" {
+		origin, err := h.getGitOrigin()
+		if err != nil {
+			return err
+		}
+		owner := h.getOwnerFromOrigin(origin)
+		name := h.getNameFromOrigin(origin)
+		return h.setEstafetteEnv("ESTAFETTE_GIT_FULLNAME", fmt.Sprintf("%v/%v", owner, name))
+	}
+	return
+}
+
+func (h *envvarHelperImpl) getSourceFromOrigin(origin string) string {
+
+	re := regexp.MustCompile(`^(git@|https://)([^:\/]+)(:|/)([^\/]+)/([^\/]+)\.git`)
+	match := re.FindStringSubmatch(origin)
+
+	if len(match) < 6 {
+		return ""
+	}
+
+	return match[2]
+}
+
+func (h *envvarHelperImpl) getOwnerFromOrigin(origin string) string {
+
+	re := regexp.MustCompile(`^(git@|https://)([^:\/]+)(:|/)([^\/]+)/([^\/]+)\.git`)
+	match := re.FindStringSubmatch(origin)
+
+	if len(match) < 6 {
+		return ""
+	}
+
+	return match[4]
+}
+
+func (h *envvarHelperImpl) getNameFromOrigin(origin string) string {
+
+	re := regexp.MustCompile(`^(git@|https://)([^:\/]+)(:|/)([^\/]+)/([^\/]+)\.git`)
+	match := re.FindStringSubmatch(origin)
+
+	if len(match) < 6 {
+		return ""
+	}
+
+	return match[5]
 }
 
 func (h *envvarHelperImpl) initGitRevision() (err error) {
