@@ -197,8 +197,8 @@ func main() {
 		if builderConfig.BuildVersion.Minor != nil {
 			os.Setenv("ESTAFETTE_BUILD_VERSION_MINOR", strconv.Itoa(*builderConfig.BuildVersion.Minor))
 		}
-		if builderConfig.BuildVersion.Patch != nil {
-			os.Setenv("ESTAFETTE_BUILD_VERSION_PATCH", *builderConfig.BuildVersion.Patch)
+		if builderConfig.BuildVersion.AutoIncrement != nil {
+			os.Setenv("ESTAFETTE_BUILD_VERSION_PATCH", strconv.Itoa(*builderConfig.BuildVersion.AutoIncrement))
 		}
 		if builderConfig.ReleaseParams != nil {
 			os.Setenv("ESTAFETTE_RELEASE_NAME", builderConfig.ReleaseParams.ReleaseName)
