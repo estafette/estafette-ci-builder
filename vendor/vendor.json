@@ -61,20 +61,20 @@
 			"revisionTime": "2018-09-06T00:48:03Z"
 		},
 		{
-			"checksumSHA1": "jBEoPu3+m89LyZGDcw1d0yPwpkM=",
+			"checksumSHA1": "E83lMr1vlxWqrLMGDajXFE6VumQ=",
 			"path": "github.com/docker/docker-ce/components/engine/api",
-			"revision": "e68fc7a215d7133c34aa18e3b72b4a21fd0c6136",
-			"revisionTime": "2018-08-21T17:16:31Z",
-			"version": "v18.06.1-ce",
-			"versionExact": "v18.06.1-ce"
+			"revision": "4d60db472b2bde6931072ca6467f2667c2590dff",
+			"revisionTime": "2018-11-06T23:13:32Z",
+			"version": "v18.09.0",
+			"versionExact": "v18.09.0"
 		},
 		{
-			"checksumSHA1": "kbdTn2y20KrG/+sQVioW5Tm/s3s=",
+			"checksumSHA1": "Ghr2cI9sp1rCYwLGCcTlGu1WmIY=",
 			"path": "github.com/docker/docker-ce/components/engine/client",
-			"revision": "e68fc7a215d7133c34aa18e3b72b4a21fd0c6136",
-			"revisionTime": "2018-08-21T17:16:31Z",
-			"version": "v18.06.1-ce",
-			"versionExact": "v18.06.1-ce"
+			"revision": "4d60db472b2bde6931072ca6467f2667c2590dff",
+			"revisionTime": "2018-11-06T23:13:32Z",
+			"version": "v18.09.0",
+			"versionExact": "v18.09.0"
 		},
 		{
 			"checksumSHA1": "+9CQFjRH60a1FgNYai/dh3ZBgfE=",
