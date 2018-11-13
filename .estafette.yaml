@@ -70,6 +70,15 @@ stages:
     tags:
     - dev
 
+  slack-notify:
+    image: extensions/slack-build-status:dev
+    workspace: estafette
+    channels:
+    - '#build-status'
+    when:
+      status == 'succeeded' ||
+      status == 'failed'
+
 releases:
   beta:
     stages:
@@ -88,6 +97,15 @@ releases:
         - estafette.secret(ugcaPF_CdqMZsxsh.4ZumU_A0ufxsjV3MPInyc1VjATZgX9hcB2KQM1KDIOQs)
         tags:
         - beta
+
+      slack-notify:
+        image: extensions/slack-build-status:dev
+        workspace: estafette
+        channels:
+        - '#build-status'
+        when:
+          status == 'succeeded' ||
+          status == 'failed'
 
   stable:
     stages:
@@ -108,3 +126,12 @@ releases:
         tags:
         - stable
         - latest
+
+      slack-notify:
+        image: extensions/slack-build-status:dev
+        workspace: estafette
+        channels:
+        - '#build-status'
+        when:
+          status == 'succeeded' ||
+          status == 'failed'
