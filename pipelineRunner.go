@@ -18,19 +18,21 @@ type PipelineRunner interface {
 }
 
 type pipelineRunnerImpl struct {
-	envvarHelper  EnvvarHelper
-	whenEvaluator WhenEvaluator
-	dockerRunner  DockerRunner
-	runAsJob      bool
+	envvarHelper        EnvvarHelper
+	whenEvaluator       WhenEvaluator
+	dockerRunner        DockerRunner
+	runAsJob            bool
+	cancellationChannel chan struct{}
 }
 
 // NewPipelineRunner returns a new PipelineRunner
-func NewPipelineRunner(envvarHelper EnvvarHelper, whenEvaluator WhenEvaluator, dockerRunner DockerRunner, runAsJob bool) PipelineRunner {
+func NewPipelineRunner(envvarHelper EnvvarHelper, whenEvaluator WhenEvaluator, dockerRunner DockerRunner, runAsJob bool, cancellationChannel chan struct{}) PipelineRunner {
 	return &pipelineRunnerImpl{
-		envvarHelper:  envvarHelper,
-		whenEvaluator: whenEvaluator,
-		dockerRunner:  dockerRunner,
-		runAsJob:      runAsJob,
+		envvarHelper:        envvarHelper,
+		whenEvaluator:       whenEvaluator,
+		dockerRunner:        dockerRunner,
+		runAsJob:            runAsJob,
+		cancellationChannel: cancellationChannel,
 	}
 }
 
@@ -48,6 +50,7 @@ type estafetteStageRunResult struct {
 	ExitCode            int64
 	Status              string
 	LogLines            []contracts.BuildLogLine
+	Canceled            bool
 }
 
 // Errors combines the different type of errors that occurred during this pipeline stage
@@ -146,6 +149,15 @@ func (pr *pipelineRunnerImpl) runStage(dir string, envvars map[string]string, p 
 		return result, result.DockerRunError
 	}
 
+	// handle cancellation
+	select {
+	case <-pr.cancellationChannel:
+		log.Info().Msgf("[%v] Canceled pipeline '%v'", p.Name, p.Name)
+		result.Canceled = true
+		return
+	default:
+	}
+
 	log.Info().Msgf("[%v] Finished pipeline '%v' successfully", p.Name, p.Name)
 
 	return
@@ -153,6 +165,7 @@ func (pr *pipelineRunnerImpl) runStage(dir string, envvars map[string]string, p 
 
 type estafetteRunStagesResult struct {
 	StageResults []estafetteStageRunResult
+	canceled     bool
 }
 
 // AggregatedErrors combines the different type of errors that occurred during this pipeline stage
@@ -189,6 +202,14 @@ func (pr *pipelineRunnerImpl) runStages(stages []*manifest.EstafetteStage, dir s
 
 	for _, p := range stages {
 
+		// handle cancellation happening in between stages
+		select {
+		case <-pr.cancellationChannel:
+			result.canceled = true
+			return
+		default:
+		}
+
 		whenEvaluationResult, err := pr.whenEvaluator.evaluate(p.Name, p.When, pr.whenEvaluator.getParameters())
 		if err != nil {
 			return result, err
@@ -198,12 +219,20 @@ func (pr *pipelineRunnerImpl) runStages(stages []*manifest.EstafetteStage, dir s
 
 			runIndex := 0
 			for runIndex <= p.Retries {
-
 				r, err := pr.runStage(dir, envvars, *p)
+				r.RunIndex = runIndex
+
+				// if canceled during stage stop further execution
+				if r.Canceled {
+					r.Status = "CANCELED"
+					result.StageResults = append(result.StageResults, r)
+					result.canceled = true
+					return result, nil
+				}
+
 				if err != nil {
 
 					// add error to log lines
-					r.RunIndex = runIndex
 					r.LogLines = append(r.LogLines, contracts.BuildLogLine{
 						Timestamp:  time.Now().UTC(),
 						StreamType: "stderr",

@@ -40,20 +40,22 @@ type DockerRunner interface {
 }
 
 type dockerRunnerImpl struct {
-	envvarHelper EnvvarHelper
-	obfuscator   Obfuscator
-	dockerClient *client.Client
-	runAsJob     bool
-	config       contracts.BuilderConfig
+	envvarHelper        EnvvarHelper
+	obfuscator          Obfuscator
+	dockerClient        *client.Client
+	runAsJob            bool
+	config              contracts.BuilderConfig
+	cancellationChannel chan struct{}
 }
 
 // NewDockerRunner returns a new DockerRunner
-func NewDockerRunner(envvarHelper EnvvarHelper, obfuscator Obfuscator, runAsJob bool, config contracts.BuilderConfig) DockerRunner {
+func NewDockerRunner(envvarHelper EnvvarHelper, obfuscator Obfuscator, runAsJob bool, config contracts.BuilderConfig, cancellationChannel chan struct{}) DockerRunner {
 	return &dockerRunnerImpl{
-		envvarHelper: envvarHelper,
-		obfuscator:   obfuscator,
-		runAsJob:     runAsJob,
-		config:       config,
+		envvarHelper:        envvarHelper,
+		obfuscator:          obfuscator,
+		runAsJob:            runAsJob,
+		config:              config,
+		cancellationChannel: cancellationChannel,
 	}
 }
 
@@ -285,6 +287,15 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 	in := bufio.NewReader(rc)
 	var readError error
 	for {
+
+		// on cancellation stop container and return
+		select {
+		case <-dr.cancellationChannel:
+			timeout := 5 * time.Second
+			dr.dockerClient.ContainerStop(ctx, resp.ID, &timeout)
+			return
+		default:
+		}
 
 		// strip first 8 bytes, they contain docker control characters (https://github.com/docker/docker-ce/blob/v18.06.1-ce/components/engine/client/container_logs.go#L23-L32)
 		headers := make([]byte, 8)

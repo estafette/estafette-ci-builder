@@ -5,8 +5,10 @@ import (
 	"fmt"
 	stdlog "log"
 	"os"
+	"os/signal"
 	"runtime"
 	"strconv"
+	"syscall"
 
 	"github.com/alecthomas/kingpin"
 	"github.com/estafette/estafette-ci-contracts"
@@ -32,6 +34,17 @@ func main() {
 
 	// parse command line parameters
 	kingpin.Parse()
+
+	// define channel to catch SIGTERM and send out cancellation to stop further execution of stages and send the final state and logs to the ci server
+	osSignals := make(chan os.Signal, 1)
+	signal.Notify(osSignals, os.Interrupt, syscall.SIGTERM)
+	cancellationChannel := make(chan struct{})
+	go func(osSignals chan os.Signal, cancellationChannel chan struct{}) {
+		// wait for sigterm
+		<-osSignals
+		// broadcast a cancellation
+		close(cancellationChannel)
+	}(osSignals, cancellationChannel)
 
 	secretHelper := crypt.NewSecretHelper(*secretDecryptionKey)
 
@@ -76,8 +89,8 @@ func main() {
 
 	whenEvaluator := NewWhenEvaluator(envvarHelper)
 	obfuscator := NewObfuscator(secretHelper)
-	dockerRunner := NewDockerRunner(envvarHelper, obfuscator, *runAsJob, builderConfig)
-	pipelineRunner := NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner, *runAsJob)
+	dockerRunner := NewDockerRunner(envvarHelper, obfuscator, *runAsJob, builderConfig, cancellationChannel)
+	pipelineRunner := NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner, *runAsJob, cancellationChannel)
 	endOfLifeHelper := NewEndOfLifeHelper(*runAsJob, builderConfig)
 
 	// detect controlling server
@@ -323,7 +336,7 @@ func main() {
 
 		// run stages
 		result, err := pipelineRunner.runStages(stages, dir, envvars)
-		if err != nil {
+		if err != nil && !result.canceled {
 			endOfLifeHelper.handleFatal(buildLog, err, "Executing stages from manifest failed")
 		}
 
@@ -334,6 +347,9 @@ func main() {
 		buildStatus := "succeeded"
 		if result.HasAggregatedErrors() {
 			buildStatus = "failed"
+		}
+		if result.canceled {
+			buildStatus = "canceled"
 		}
 		endOfLifeHelper.sendBuildFinishedEvent(buildStatus)
 
