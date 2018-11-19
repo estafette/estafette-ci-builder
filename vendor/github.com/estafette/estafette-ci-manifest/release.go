@@ -1,21 +1,23 @@
 package manifest
 
 import (
-	yaml "gopkg.in/yaml.v2"
+	yaml "github.com/buildkite/yaml"
 )
 
 // EstafetteRelease represents a release action that in itself contains one or multiple stages
 type EstafetteRelease struct {
-	Name   string            `yaml:"-"`
-	Stages []*EstafetteStage `yaml:"-"`
+	Name            string            `yaml:"-"`
+	CloneRepository bool              `yaml:"clone,omitempty"`
+	Stages          []*EstafetteStage `yaml:"-"`
 }
 
 // UnmarshalYAML customizes unmarshalling an EstafetteRelease
 func (release *EstafetteRelease) UnmarshalYAML(unmarshal func(interface{}) error) (err error) {
 
 	var aux struct {
-		Name   string        `yaml:"-"`
-		Stages yaml.MapSlice `yaml:"stages"`
+		Name            string        `yaml:"-"`
+		CloneRepository bool          `yaml:"clone,omitempty"`
+		Stages          yaml.MapSlice `yaml:"stages"`
 	}
 
 	// unmarshal to auxiliary type
@@ -24,6 +26,8 @@ func (release *EstafetteRelease) UnmarshalYAML(unmarshal func(interface{}) error
 	}
 
 	// map auxiliary properties
+	release.CloneRepository = aux.CloneRepository
+
 	for _, mi := range aux.Stages {
 
 		bytes, err := yaml.Marshal(mi.Value)

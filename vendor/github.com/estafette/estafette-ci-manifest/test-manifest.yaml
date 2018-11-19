@@ -92,8 +92,14 @@ releases:
 
   beta:
     stages:
-      tag-image:
-        image: extensions/tag-container-image:dev
+      tag-container-image: &tagImage
+        image: extensions/docker:stable
+        action: tag
+        container: gke
+        repositories:
+        - extensions
+        tags:
+        - beta
 
   development:
     stages:
@@ -106,6 +112,7 @@ releases:
         image: extensions/deploy-to-kubernetes-engine:beta
 
   production:
+    clone: true
     stages:
       deploy:
         image: extensions/deploy-to-kubernetes-engine:stable
@@ -114,3 +121,11 @@ releases:
         image: extensions/create-release-notes-from-changelog:stable
 
   tooling:
+
+  stable:
+    stages:
+      tag-container-image:
+        << : *tagImage
+        tags:
+        - stable
+        - latest

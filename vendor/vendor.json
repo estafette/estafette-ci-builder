@@ -43,6 +43,14 @@
 			"revisionTime": "2015-10-22T06:55:26Z"
 		},
 		{
+			"checksumSHA1": "wJu+LI2AmCiamn9Pg0upEKJptdM=",
+			"path": "github.com/buildkite/yaml",
+			"revision": "0caa5f0796e36057e59d6782832a9c774f457842",
+			"revisionTime": "2018-10-16T23:27:59Z",
+			"version": "v2.2.0",
+			"versionExact": "v2.2.0"
+		},
+		{
 			"checksumSHA1": "CSPbwbyzqA6sfORicn4HFtIhF/c=",
 			"path": "github.com/davecgh/go-spew/spew",
 			"revision": "d8f796af33cc11cb798c1aaeb27a4ebc5099927d",
@@ -219,12 +227,12 @@
 			"versionExact": "0.0.10"
 		},
 		{
-			"checksumSHA1": "Re6OAE1RGQBZ0wyTfHVo9OUL/uc=",
+			"checksumSHA1": "UbIUdTyHBv6J6NuI07D+rQCLUKk=",
 			"path": "github.com/estafette/estafette-ci-manifest",
-			"revision": "5ba01e3964137f1f06ec41460853cc12693b4f65",
-			"revisionTime": "2018-10-26T06:09:16Z",
-			"version": "0.1.38",
-			"versionExact": "0.1.38"
+			"revision": "86b4f694fad382fa29d6cfbce7bec67205edcdee",
+			"revisionTime": "2018-11-19T10:38:06Z",
+			"version": "0.1.42",
+			"versionExact": "0.1.42"
 		},
 		{
 			"checksumSHA1": "47nJ3iu1bVvK9jPXwAinFYr4mBU=",
@@ -349,12 +357,6 @@
 			"path": "golang.org/x/sys/windows",
 			"revision": "8cf3aee429924738c56c34bb819c4ea8273fc434",
 			"revisionTime": "2018-09-06T12:36:02Z"
-		},
-		{
-			"checksumSHA1": "ZSWoOPUNRr5+3dhkLK3C4cZAQPk=",
-			"path": "gopkg.in/yaml.v2",
-			"revision": "5420a8b6744d3b0345ab293f6fcba19c978f1183",
-			"revisionTime": "2018-03-28T19:50:20Z"
 		}
 	],
 	"rootPath": "github.com/estafette/estafette-ci-builder"
