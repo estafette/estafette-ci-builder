@@ -84,8 +84,9 @@ type BuildParamsConfig struct {
 
 // ReleaseParamsConfig has config specific to releases
 type ReleaseParamsConfig struct {
-	ReleaseName string `json:"releaseName"`
-	ReleaseID   int    `json:"releaseID"`
+	ReleaseName   string `json:"releaseName"`
+	ReleaseID     int    `json:"releaseID"`
+	ReleaseAction string `json:"releaseAction,omitempty"`
 }
 
 // GetCredentialsByType returns all credentials of a certain type

@@ -4,20 +4,22 @@ import (
 	yaml "github.com/buildkite/yaml"
 )
 
-// EstafetteRelease represents a release action that in itself contains one or multiple stages
+// EstafetteRelease represents a release target that in itself contains one or multiple stages
 type EstafetteRelease struct {
-	Name            string            `yaml:"-"`
-	CloneRepository bool              `yaml:"clone,omitempty"`
-	Stages          []*EstafetteStage `yaml:"-"`
+	Name            string                    `yaml:"-"`
+	CloneRepository bool                      `yaml:"clone,omitempty"`
+	Actions         []*EstafetteReleaseAction `yaml:"actions,omitempty"`
+	Stages          []*EstafetteStage         `yaml:"-"`
 }
 
 // UnmarshalYAML customizes unmarshalling an EstafetteRelease
 func (release *EstafetteRelease) UnmarshalYAML(unmarshal func(interface{}) error) (err error) {
 
 	var aux struct {
-		Name            string        `yaml:"-"`
-		CloneRepository bool          `yaml:"clone,omitempty"`
-		Stages          yaml.MapSlice `yaml:"stages"`
+		Name            string                    `yaml:"-"`
+		CloneRepository bool                      `yaml:"clone,omitempty"`
+		Actions         []*EstafetteReleaseAction `yaml:"actions,omitempty"`
+		Stages          yaml.MapSlice             `yaml:"stages"`
 	}
 
 	// unmarshal to auxiliary type
@@ -27,6 +29,7 @@ func (release *EstafetteRelease) UnmarshalYAML(unmarshal func(interface{}) error
 
 	// map auxiliary properties
 	release.CloneRepository = aux.CloneRepository
+	release.Actions = aux.Actions
 
 	for _, mi := range aux.Stages {
 

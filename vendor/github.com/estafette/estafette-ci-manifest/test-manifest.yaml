@@ -112,6 +112,11 @@ releases:
         image: extensions/deploy-to-kubernetes-engine:beta
 
   production:
+    actions:
+    - name: deploy-canary
+    - name: rollback-canary
+    - name: deploy-stable
+
     clone: true
     stages:
       deploy:

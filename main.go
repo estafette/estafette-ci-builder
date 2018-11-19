@@ -215,6 +215,7 @@ func main() {
 		}
 		if builderConfig.ReleaseParams != nil {
 			os.Setenv("ESTAFETTE_RELEASE_NAME", builderConfig.ReleaseParams.ReleaseName)
+			os.Setenv("ESTAFETTE_RELEASE_ACTION", builderConfig.ReleaseParams.ReleaseAction)
 			// set ESTAFETTE_RELEASE_ID for backwards compatibility with extensions/slack-build-status
 			os.Setenv("ESTAFETTE_RELEASE_ID", strconv.Itoa(builderConfig.ReleaseParams.ReleaseID))
 		}
