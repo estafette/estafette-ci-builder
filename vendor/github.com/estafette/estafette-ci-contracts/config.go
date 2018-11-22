@@ -42,6 +42,30 @@ type CredentialConfig struct {
 	AdditionalProperties map[string]interface{} `yaml:",inline" json:"additionalProperties,omitempty"`
 }
 
+// UnmarshalYAML customizes unmarshalling an EstafetteStage
+func (cc *CredentialConfig) UnmarshalYAML(unmarshal func(interface{}) error) (err error) {
+
+	var aux struct {
+		Name                 string                 `yaml:"name" json:"name"`
+		Type                 string                 `yaml:"type" json:"type"`
+		AdditionalProperties map[string]interface{} `yaml:",inline" json:"additionalProperties,omitempty"`
+	}
+
+	// unmarshal to auxiliary type
+	if err := unmarshal(&aux); err != nil {
+		return err
+	}
+
+	// map auxiliary properties
+	cc.Name = aux.Name
+	cc.Type = aux.Type
+
+	// fix for map[interface{}]interface breaking json.marshal - see https://github.com/go-yaml/yaml/issues/139
+	cc.AdditionalProperties = cleanUpStringMap(aux.AdditionalProperties)
+
+	return nil
+}
+
 // TrustedImageConfig allows trusted images to run docker commands or receive specific credentials
 type TrustedImageConfig struct {
 	ImagePath               string   `yaml:"path" json:"path"`

@@ -92,7 +92,7 @@ releases:
 
   beta:
     stages:
-      tag-container-image: &tagImage
+      tag-container-image:
         image: extensions/docker:stable
         action: tag
         container: gke
@@ -126,11 +126,3 @@ releases:
         image: extensions/create-release-notes-from-changelog:stable
 
   tooling:
-
-  stable:
-    stages:
-      tag-container-image:
-        << : *tagImage
-        tags:
-        - stable
-        - latest

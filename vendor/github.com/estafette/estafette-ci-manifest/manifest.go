@@ -6,7 +6,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 
-	yaml "github.com/buildkite/yaml"
+	yaml "gopkg.in/yaml.v2"
 )
 
 // EstafetteManifest is the object that the .estafette.yaml deserializes to
