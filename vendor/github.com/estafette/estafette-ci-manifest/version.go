@@ -49,8 +49,8 @@ func (version *EstafetteVersion) setDefaults() {
 		if version.SemVer.LabelTemplate == "" {
 			version.SemVer.LabelTemplate = "{{branch}}"
 		}
-		if version.SemVer.ReleaseBranch == "" {
-			version.SemVer.ReleaseBranch = "master"
+		if len(version.SemVer.ReleaseBranch.Values) == 0 {
+			version.SemVer.ReleaseBranch.Values = []string{"master"}
 		}
 	}
 
@@ -85,11 +85,11 @@ func (v *EstafetteCustomVersion) Version(params EstafetteVersionParams) string {
 
 // EstafetteSemverVersion represents semantic versioning (http://semver.org/)
 type EstafetteSemverVersion struct {
-	Major         int    `yaml:"major"`
-	Minor         int    `yaml:"minor"`
-	Patch         string `yaml:"patch"`
-	LabelTemplate string `yaml:"labelTemplate"`
-	ReleaseBranch string `yaml:"releaseBranch"`
+	Major         int                 `yaml:"major"`
+	Minor         int                 `yaml:"minor"`
+	Patch         string              `yaml:"patch"`
+	LabelTemplate string              `yaml:"labelTemplate"`
+	ReleaseBranch StringOrStringArray `yaml:"releaseBranch"`
 }
 
 // Version returns the version number as a string
@@ -119,7 +119,7 @@ func (v *EstafetteSemverVersion) GetPatch(params EstafetteVersionParams) string 
 func (v *EstafetteSemverVersion) GetLabel(params EstafetteVersionParams) string {
 
 	label := ""
-	if params.Branch != v.ReleaseBranch {
+	if !v.ReleaseBranch.Contains(params.Branch) {
 		label = fmt.Sprintf("-%v", parseTemplate(v.LabelTemplate, params.GetFuncMap()))
 	}
 
