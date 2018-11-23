@@ -278,10 +278,10 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 		Follow:     true,
 		Details:    false,
 	})
-	defer rc.Close()
 	if err != nil {
 		return
 	}
+	defer rc.Close()
 
 	// stream logs to stdout with buffering
 	in := bufio.NewReader(rc)
