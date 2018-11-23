@@ -109,7 +109,20 @@ releases:
   staging:
     stages:
       deploy:
-        image: extensions/deploy-to-kubernetes-engine:beta
+        image: extensions/gke:beta
+        volumemounts:
+        - name: client-certs
+          mountpath: /cockroach-certs
+          volume:
+            secret:
+              secretName: estafette.client.estafette
+              items:
+              - key: key
+                path: key
+                mode: 600
+                enabled: true
+              - key: cert
+                path: cert
 
   production:
     actions:
