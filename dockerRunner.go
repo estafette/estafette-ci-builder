@@ -371,6 +371,7 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 	case result := <-resultC:
 		exitCode = result.StatusCode
 	case err = <-errC:
+		log.Warn().Err(err).Msgf("Container %v exited with error", dr.containerID)
 		return
 	}
 
