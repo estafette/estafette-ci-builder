@@ -37,6 +37,7 @@ type DockerRunner interface {
 	createDockerClient() (*client.Client, error)
 	getImagePullOptions(containerImage string) types.ImagePullOptions
 	isTrustedImage(manifest.EstafetteStage) bool
+	stopContainerOnCancellation()
 }
 
 type dockerRunnerImpl struct {
@@ -46,6 +47,7 @@ type dockerRunnerImpl struct {
 	runAsJob            bool
 	config              contracts.BuilderConfig
 	cancellationChannel chan struct{}
+	containerID         string
 }
 
 // NewDockerRunner returns a new DockerRunner
@@ -264,6 +266,7 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 	if err != nil {
 		return
 	}
+	dr.containerID = resp.ID
 
 	// start container
 	if err := dr.dockerClient.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{}); err != nil {
@@ -291,8 +294,7 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 		// on cancellation stop container and return
 		select {
 		case <-dr.cancellationChannel:
-			timeout := 5 * time.Second
-			dr.dockerClient.ContainerStop(ctx, resp.ID, &timeout)
+			log.Debug().Msgf("Cancelled tailing logs for container %v", dr.containerID)
 			return
 		default:
 		}
@@ -371,6 +373,9 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 	case err = <-errC:
 		return
 	}
+
+	// clear container id
+	dr.containerID = ""
 
 	if exitCode != 0 {
 		return logLines, exitCode, fmt.Errorf("Failed with exit code: %v", exitCode)
@@ -476,4 +481,21 @@ func (dr *dockerRunnerImpl) isTrustedImage(p manifest.EstafetteStage) bool {
 	trustedImage := dr.config.GetTrustedImage(p.ContainerImage)
 
 	return trustedImage != nil
+}
+
+func (dr *dockerRunnerImpl) stopContainerOnCancellation() {
+	// wait for cancellation
+	<-dr.cancellationChannel
+
+	if dr.containerID != "" {
+		timeout := 5 * time.Second
+		err := dr.dockerClient.ContainerStop(context.Background(), dr.containerID, &timeout)
+		if err != nil {
+			log.Warn().Err(err).Msgf("Stopping container %v for cancellation failed", dr.containerID)
+		} else {
+			log.Info().Msgf("Stopped container %v for cancellation", dr.containerID)
+		}
+	} else {
+		log.Info().Msg("No container to stop for cancellation")
+	}
 }

@@ -283,6 +283,9 @@ func main() {
 		// wait for docker daemon to be ready for usage
 		dockerRunner.waitForDockerDaemon()
 
+		// listen to cancellation in order to stop any running container
+		go dockerRunner.stopContainerOnCancellation()
+
 		// get current working directory
 		dir, err := os.Getwd()
 		if err != nil {
