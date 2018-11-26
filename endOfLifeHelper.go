@@ -38,6 +38,11 @@ func NewEndOfLifeHelper(runAsJob bool, config contracts.BuilderConfig) EndOfLife
 
 func (elh *endOfLifeHelperImpl) handleFatal(buildLog contracts.BuildLog, err error, message string) {
 
+	errorText := ""
+	if err != nil {
+		errorText = err.Error()
+	}
+
 	// add error messages as step to show in logs
 	fatalStep := contracts.BuildLogStep{
 		Step: "init",
@@ -45,7 +50,7 @@ func (elh *endOfLifeHelperImpl) handleFatal(buildLog contracts.BuildLog, err err
 			contracts.BuildLogLine{
 				Timestamp:  time.Now().UTC(),
 				StreamType: "stderr",
-				Text:       err.Error(),
+				Text:       errorText,
 			},
 			contracts.BuildLogLine{
 				Timestamp:  time.Now().UTC(),
