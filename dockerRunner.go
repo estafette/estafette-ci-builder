@@ -30,7 +30,7 @@ type DockerRunner interface {
 	isDockerImagePulled(manifest.EstafetteStage) bool
 	runDockerPull(manifest.EstafetteStage) error
 	getDockerImageSize(manifest.EstafetteStage) (int64, error)
-	runDockerRun(string, map[string]string, manifest.EstafetteStage) ([]contracts.BuildLogLine, int64, error)
+	runDockerRun(string, map[string]string, manifest.EstafetteStage) ([]contracts.BuildLogLine, int64, bool, error)
 
 	startDockerDaemon() error
 	waitForDockerDaemon()
@@ -48,6 +48,7 @@ type dockerRunnerImpl struct {
 	config              contracts.BuilderConfig
 	cancellationChannel chan struct{}
 	containerID         string
+	canceled            bool
 }
 
 // NewDockerRunner returns a new DockerRunner
@@ -112,10 +113,10 @@ func (dr *dockerRunnerImpl) getDockerImageSize(p manifest.EstafetteStage) (total
 	return totalSize, nil
 }
 
-func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, p manifest.EstafetteStage) (logLines []contracts.BuildLogLine, exitCode int64, err error) {
+func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, p manifest.EstafetteStage) ([]contracts.BuildLogLine, int64, bool, error) {
 
-	logLines = make([]contracts.BuildLogLine, 0)
-	exitCode = -1
+	logLines := make([]contracts.BuildLogLine, 0)
+	exitCode := int64(-1)
 
 	// check if image is trusted image
 	trustedImage := dr.config.GetTrustedImage(p.ContainerImage)
@@ -241,8 +242,8 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 	if len(p.Commands) > 0 {
 		if trustedImage != nil && !trustedImage.AllowCommands && len(trustedImage.InjectedCredentialTypes) > 0 {
 			// return stage as failed with error message indicating that this trusted image doesn't allow commands
-			err = fmt.Errorf("This trusted image does not allow for commands to be set as a protection against snooping injected credentials")
-			return
+			err := fmt.Errorf("This trusted image does not allow for commands to be set as a protection against snooping injected credentials")
+			return logLines, exitCode, dr.canceled, err
 		}
 
 		// only pass commands when they are set, so extensions can work without
@@ -264,13 +265,13 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 		Privileged: privileged,
 	}, &network.NetworkingConfig{}, "")
 	if err != nil {
-		return
+		return logLines, exitCode, dr.canceled, err
 	}
 	dr.containerID = resp.ID
 
 	// start container
 	if err := dr.dockerClient.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{}); err != nil {
-		return logLines, exitCode, err
+		return logLines, exitCode, dr.canceled, err
 	}
 
 	// follow logs
@@ -282,7 +283,7 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 		Details:    false,
 	})
 	if err != nil {
-		return
+		return logLines, exitCode, dr.canceled, err
 	}
 	defer rc.Close()
 
@@ -291,12 +292,9 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 	var readError error
 	for {
 
-		// on cancellation stop container and return
-		select {
-		case <-dr.cancellationChannel:
+		if dr.canceled {
 			log.Debug().Msgf("Cancelled tailing logs for container %v", dr.containerID)
-			return
-		default:
+			return logLines, exitCode, dr.canceled, err
 		}
 
 		// strip first 8 bytes, they contain docker control characters (https://github.com/docker/docker-ce/blob/v18.06.1-ce/components/engine/client/container_logs.go#L23-L32)
@@ -361,7 +359,7 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 
 	if readError != nil && readError != io.EOF {
 		log.Error().Msgf("[%v] Error: %v", p.Name, readError)
-		return logLines, exitCode, readError
+		return logLines, exitCode, dr.canceled, readError
 	}
 
 	// wait for container to stop running
@@ -372,17 +370,17 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 		exitCode = result.StatusCode
 	case err = <-errC:
 		log.Warn().Err(err).Msgf("Container %v exited with error", dr.containerID)
-		return
+		return logLines, exitCode, dr.canceled, err
 	}
 
 	// clear container id
 	dr.containerID = ""
 
 	if exitCode != 0 {
-		return logLines, exitCode, fmt.Errorf("Failed with exit code: %v", exitCode)
+		return logLines, exitCode, dr.canceled, fmt.Errorf("Failed with exit code: %v", exitCode)
 	}
 
-	return
+	return logLines, exitCode, dr.canceled, err
 }
 
 func (dr *dockerRunnerImpl) startDockerDaemon() error {
@@ -487,6 +485,8 @@ func (dr *dockerRunnerImpl) isTrustedImage(p manifest.EstafetteStage) bool {
 func (dr *dockerRunnerImpl) stopContainerOnCancellation() {
 	// wait for cancellation
 	<-dr.cancellationChannel
+
+	dr.canceled = true
 
 	if dr.containerID != "" {
 		timeout := 5 * time.Second

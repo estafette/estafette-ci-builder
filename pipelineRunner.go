@@ -15,6 +15,7 @@ type PipelineRunner interface {
 	runStage(string, map[string]string, manifest.EstafetteStage) (estafetteStageRunResult, error)
 	runStages([]*manifest.EstafetteStage, string, map[string]string) (estafetteRunStagesResult, error)
 	prefetchImages([]*manifest.EstafetteStage)
+	stopPipelineOnCancellation()
 }
 
 type pipelineRunnerImpl struct {
@@ -23,6 +24,7 @@ type pipelineRunnerImpl struct {
 	dockerRunner        DockerRunner
 	runAsJob            bool
 	cancellationChannel chan struct{}
+	canceled            bool
 }
 
 // NewPipelineRunner returns a new PipelineRunner
@@ -123,7 +125,7 @@ func (pr *pipelineRunnerImpl) runStage(dir string, envvars map[string]string, p 
 
 	// run commands in docker container
 	dockerRunStart := time.Now()
-	result.LogLines, result.ExitCode, result.DockerRunError = pr.dockerRunner.runDockerRun(dir, envvars, p)
+	result.LogLines, result.ExitCode, result.Canceled, result.DockerRunError = pr.dockerRunner.runDockerRun(dir, envvars, p)
 	result.DockerRunDuration = time.Since(dockerRunStart)
 
 	// log tailing - finalize stage
@@ -132,6 +134,9 @@ func (pr *pipelineRunnerImpl) runStage(dir string, envvars map[string]string, p 
 		status := "SUCCEEDED"
 		if result.DockerRunError != nil {
 			status = "FAILED"
+		}
+		if result.Canceled {
+			status = "CANCELED"
 		}
 
 		tailLogLine := contracts.TailLogLine{
@@ -146,19 +151,16 @@ func (pr *pipelineRunnerImpl) runStage(dir string, envvars map[string]string, p 
 	}
 
 	if result.DockerRunError != nil {
-		return result, result.DockerRunError
+		err = result.DockerRunError
 	}
 
-	// handle cancellation
-	select {
-	case <-pr.cancellationChannel:
+	if result.Canceled {
 		log.Info().Msgf("[%v] Canceled pipeline '%v'", p.Name, p.Name)
-		result.Canceled = true
-		return
-	default:
+	} else if err != nil {
+		log.Warn().Err(err).Msgf("[%v] Pipeline '%v' container failed", p.Name, p.Name)
+	} else {
+		log.Info().Msgf("[%v] Finished pipeline '%v' successfully", p.Name, p.Name)
 	}
-
-	log.Info().Msgf("[%v] Finished pipeline '%v' successfully", p.Name, p.Name)
 
 	return
 }
@@ -203,15 +205,14 @@ func (pr *pipelineRunnerImpl) runStages(stages []*manifest.EstafetteStage, dir s
 	for _, p := range stages {
 
 		// handle cancellation happening in between stages
-		select {
-		case <-pr.cancellationChannel:
-			result.canceled = true
+		if pr.canceled {
+			result.canceled = pr.canceled
 			return
-		default:
 		}
 
 		whenEvaluationResult, err := pr.whenEvaluator.evaluate(p.Name, p.When, pr.whenEvaluator.getParameters())
 		if err != nil {
+			result.canceled = pr.canceled
 			return result, err
 		}
 
@@ -224,9 +225,8 @@ func (pr *pipelineRunnerImpl) runStages(stages []*manifest.EstafetteStage, dir s
 
 				// if canceled during stage stop further execution
 				if r.Canceled {
-					r.Status = "CANCELED"
 					result.StageResults = append(result.StageResults, r)
-					result.canceled = true
+					result.canceled = r.Canceled
 					return result, nil
 				}
 
@@ -277,6 +277,7 @@ func (pr *pipelineRunnerImpl) runStages(stages []*manifest.EstafetteStage, dir s
 		}
 	}
 
+	result.canceled = pr.canceled
 	return
 }
 
@@ -305,4 +306,11 @@ func (pr *pipelineRunnerImpl) prefetchImages(stages []*manifest.EstafetteStage) 
 	for _, p := range dedupedStages {
 		go pr.dockerRunner.runDockerPull(*p)
 	}
+}
+
+func (pr *pipelineRunnerImpl) stopPipelineOnCancellation() {
+	// wait for cancellation
+	<-pr.cancellationChannel
+
+	pr.canceled = true
 }

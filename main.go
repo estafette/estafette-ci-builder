@@ -283,7 +283,8 @@ func main() {
 		// wait for docker daemon to be ready for usage
 		dockerRunner.waitForDockerDaemon()
 
-		// listen to cancellation in order to stop any running container
+		// listen to cancellation in order to stop any running pipeline or container
+		go pipelineRunner.stopPipelineOnCancellation()
 		go dockerRunner.stopContainerOnCancellation()
 
 		// get current working directory
