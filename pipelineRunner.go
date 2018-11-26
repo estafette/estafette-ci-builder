@@ -224,7 +224,8 @@ func (pr *pipelineRunnerImpl) runStages(stages []*manifest.EstafetteStage, dir s
 				r.RunIndex = runIndex
 
 				// if canceled during stage stop further execution
-				if r.Canceled {
+				if r.Canceled || pr.canceled {
+					r.Status = "CANCELED"
 					result.StageResults = append(result.StageResults, r)
 					result.canceled = r.Canceled
 					return result, nil

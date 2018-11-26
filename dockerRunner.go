@@ -489,7 +489,7 @@ func (dr *dockerRunnerImpl) stopContainerOnCancellation() {
 	dr.canceled = true
 
 	if dr.containerID != "" {
-		timeout := 5 * time.Second
+		timeout := 20 * time.Second
 		err := dr.dockerClient.ContainerStop(context.Background(), dr.containerID, &timeout)
 		if err != nil {
 			log.Warn().Err(err).Msgf("Stopping container %v for cancellation failed", dr.containerID)
