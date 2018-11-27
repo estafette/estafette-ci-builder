@@ -40,6 +40,7 @@ type BuildLogStepDockerImage struct {
 
 // BuildLogLine has low level log information
 type BuildLogLine struct {
+	LineNumber int       `json:"line,omitempty"`
 	Timestamp  time.Time `json:"timestamp"`
 	StreamType string    `json:"streamType"`
 	Text       string    `json:"text"`

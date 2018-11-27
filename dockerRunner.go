@@ -116,6 +116,7 @@ func (dr *dockerRunnerImpl) getDockerImageSize(p manifest.EstafetteStage) (total
 func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, p manifest.EstafetteStage) ([]contracts.BuildLogLine, int64, bool, error) {
 
 	logLines := make([]contracts.BuildLogLine, 0)
+	lineNumber := 1
 	exitCode := int64(-1)
 
 	// check if image is trusted image
@@ -337,6 +338,7 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 
 		// create object for tailing logs and storing in the db when done
 		logLineObject := contracts.BuildLogLine{
+			LineNumber: lineNumber,
 			Timestamp:  time.Now().UTC(),
 			StreamType: streamType,
 			Text:       logLineString,

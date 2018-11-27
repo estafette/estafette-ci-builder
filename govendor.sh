@@ -7,7 +7,7 @@ govendor fetch github.com/estafette/estafette-ci-manifest@0.1.47
 govendor fetch github.com/sethgrid/pester
 govendor fetch github.com/alecthomas/kingpin@v2.2.5
 govendor fetch github.com/estafette/estafette-ci-crypt@0.0.10
-govendor fetch github.com/estafette/estafette-ci-contracts@0.0.97
+govendor fetch github.com/estafette/estafette-ci-contracts@0.0.98
 govendor fetch github.com/docker/docker-ce/components/engine/api@v18.09.0
 govendor fetch github.com/docker/docker-ce/components/engine/client@v18.09.0
 govendor fetch gopkg.in/yaml.v2

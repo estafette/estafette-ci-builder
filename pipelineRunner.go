@@ -235,6 +235,7 @@ func (pr *pipelineRunnerImpl) runStages(stages []*manifest.EstafetteStage, dir s
 
 					// add error to log lines
 					r.LogLines = append(r.LogLines, contracts.BuildLogLine{
+						LineNumber: 1,
 						Timestamp:  time.Now().UTC(),
 						StreamType: "stderr",
 						Text:       err.Error(),
