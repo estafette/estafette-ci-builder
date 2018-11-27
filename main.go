@@ -196,9 +196,7 @@ func main() {
 		// set envvars that can be used by any container
 		os.Setenv("ESTAFETTE_GIT_SOURCE", builderConfig.Git.RepoSource)
 		os.Setenv("ESTAFETTE_GIT_OWNER", builderConfig.Git.RepoOwner)
-
-		// set ESTAFETTE_GIT_NAME for backwards compatibility with estafette extensions until they switch to ESTAFETTE_GIT_FULLNAME
-		os.Setenv("ESTAFETTE_GIT_NAME", fmt.Sprintf("%v/%v", builderConfig.Git.RepoOwner, builderConfig.Git.RepoName))
+		os.Setenv("ESTAFETTE_GIT_NAME", builderConfig.Git.RepoName)
 		os.Setenv("ESTAFETTE_GIT_FULLNAME", fmt.Sprintf("%v/%v", builderConfig.Git.RepoOwner, builderConfig.Git.RepoName))
 
 		os.Setenv("ESTAFETTE_GIT_BRANCH", builderConfig.Git.RepoBranch)
@@ -317,7 +315,7 @@ func main() {
 				}
 			}
 			if !releaseExists {
-				endOfLifeHelper.handleFatal(buildLog, err, fmt.Sprintf("Release %v does not exist", builderConfig.ReleaseParams.ReleaseName))
+				endOfLifeHelper.handleFatal(buildLog, nil, fmt.Sprintf("Release %v does not exist", builderConfig.ReleaseParams.ReleaseName))
 			}
 			log.Info().Msgf("Starting release %v at version %v...", builderConfig.ReleaseParams.ReleaseName, builderConfig.BuildVersion.Version)
 		} else {
