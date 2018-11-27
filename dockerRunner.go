@@ -343,6 +343,7 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 			StreamType: streamType,
 			Text:       logLineString,
 		}
+		lineNumber++
 
 		if dr.runAsJob {
 			// log as json, to be tailed when looking at live logs from gui
