@@ -78,7 +78,7 @@ stages:
             "Pipelines":[
               {
                 "Name":"git-clone",
-                "ContainerImage":"extensions/git-clone:stable",
+                "ContainerImage":"extensions/git-clone:dev",
                 "Shell":"/bin/sh",
                 "WorkingDirectory":"/estafette-work",
                 "Commands":null,
