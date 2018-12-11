@@ -101,21 +101,21 @@ func main() {
 		envvarHelper.unsetEstafetteEnvvars()
 	}
 
-	// set ESTAFETTE_CI_REPOSITORY_CREDENTIALS_JSON for backwards compatibility until extensions/docker supports generic credential injection
-	var credentials []*contracts.ContainerRepositoryCredentialConfig
-	containerRegistryCredentials := builderConfig.GetCredentialsByType("container-registry")
-	for _, cred := range containerRegistryCredentials {
-		credentials = append(credentials, &contracts.ContainerRepositoryCredentialConfig{
-			Repository: cred.AdditionalProperties["repository"].(string),
-			Username:   cred.AdditionalProperties["username"].(string),
-			Password:   cred.AdditionalProperties["password"].(string),
-		})
-	}
-	credentialsBytes, err := json.Marshal(credentials)
-	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to marshal credentials for backwards compatibility")
-	}
-	os.Setenv("ESTAFETTE_CI_REPOSITORY_CREDENTIALS_JSON", string(credentialsBytes))
+	// // set ESTAFETTE_CI_REPOSITORY_CREDENTIALS_JSON for backwards compatibility until extensions/docker supports generic credential injection
+	// var credentials []*contracts.ContainerRepositoryCredentialConfig
+	// containerRegistryCredentials := builderConfig.GetCredentialsByType("container-registry")
+	// for _, cred := range containerRegistryCredentials {
+	// 	credentials = append(credentials, &contracts.ContainerRepositoryCredentialConfig{
+	// 		Repository: cred.AdditionalProperties["repository"].(string),
+	// 		Username:   cred.AdditionalProperties["username"].(string),
+	// 		Password:   cred.AdditionalProperties["password"].(string),
+	// 	})
+	// }
+	// credentialsBytes, err := json.Marshal(credentials)
+	// if err != nil {
+	// 	log.Fatal().Err(err).Msg("Failed to marshal credentials for backwards compatibility")
+	// }
+	// os.Setenv("ESTAFETTE_CI_REPOSITORY_CREDENTIALS_JSON", string(credentialsBytes))
 
 	if ciServer == "gocd" {
 
@@ -227,21 +227,21 @@ func main() {
 			os.Setenv("ESTAFETTE_CI_SERVER_BASE_URL", builderConfig.CIServer.BaseURL)
 		}
 
-		// set ESTAFETTE_BITBUCKET_API_TOKEN and ESTAFETTE_GIT_URL for backward compatibility with extensions/bitbucket-status and extensions/git-clone until it supports generic credential injection
-		bitbucketAPICredentials := builderConfig.GetCredentialsByType("bitbucket-api-token")
-		if len(bitbucketAPICredentials) > 0 {
-			token := bitbucketAPICredentials[0].AdditionalProperties["token"].(string)
-			os.Setenv("ESTAFETTE_BITBUCKET_API_TOKEN", token)
-			os.Setenv("ESTAFETTE_GIT_URL", fmt.Sprintf("https://x-token-auth:%v@%v/%v/%v", token, builderConfig.Git.RepoSource, builderConfig.Git.RepoOwner, builderConfig.Git.RepoName))
-		}
+		// // set ESTAFETTE_BITBUCKET_API_TOKEN and ESTAFETTE_GIT_URL for backward compatibility with extensions/bitbucket-status and extensions/git-clone until it supports generic credential injection
+		// bitbucketAPICredentials := builderConfig.GetCredentialsByType("bitbucket-api-token")
+		// if len(bitbucketAPICredentials) > 0 {
+		// 	token := bitbucketAPICredentials[0].AdditionalProperties["token"].(string)
+		// 	os.Setenv("ESTAFETTE_BITBUCKET_API_TOKEN", token)
+		// 	os.Setenv("ESTAFETTE_GIT_URL", fmt.Sprintf("https://x-token-auth:%v@%v/%v/%v", token, builderConfig.Git.RepoSource, builderConfig.Git.RepoOwner, builderConfig.Git.RepoName))
+		// }
 
-		// set ESTAFETTE_GITHUB_API_TOKEN and ESTAFETTE_GIT_URL for backward compatibility with extensions/github-status and extensions/git-clone until it supports generic credential injection
-		githubAPICredentials := builderConfig.GetCredentialsByType("github-api-token")
-		if len(githubAPICredentials) > 0 {
-			token := githubAPICredentials[0].AdditionalProperties["token"].(string)
-			os.Setenv("ESTAFETTE_GITHUB_API_TOKEN", token)
-			os.Setenv("ESTAFETTE_GIT_URL", fmt.Sprintf("https://x-access-token:%v@%v/%v/%v", token, builderConfig.Git.RepoSource, builderConfig.Git.RepoOwner, builderConfig.Git.RepoName))
-		}
+		// // set ESTAFETTE_GITHUB_API_TOKEN and ESTAFETTE_GIT_URL for backward compatibility with extensions/github-status and extensions/git-clone until it supports generic credential injection
+		// githubAPICredentials := builderConfig.GetCredentialsByType("github-api-token")
+		// if len(githubAPICredentials) > 0 {
+		// 	token := githubAPICredentials[0].AdditionalProperties["token"].(string)
+		// 	os.Setenv("ESTAFETTE_GITHUB_API_TOKEN", token)
+		// 	os.Setenv("ESTAFETTE_GIT_URL", fmt.Sprintf("https://x-access-token:%v@%v/%v/%v", token, builderConfig.Git.RepoSource, builderConfig.Git.RepoOwner, builderConfig.Git.RepoName))
+		// }
 
 		buildLog := contracts.BuildLog{
 			RepoSource:   builderConfig.Git.RepoSource,
