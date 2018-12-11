@@ -155,22 +155,11 @@ stages:
             "patch":"0",
             "autoincrement":0
           },
-          "credentials":[
-            {
-              "name":"github-api-token",
-              "type":"github-api-token",
-              "additionalProperties":{
-                "token":"${ESTAFETTE_GITHUB_API_TOKEN}"
-              }
-            }
-          ],
+          "credentials":null,
           "trustedImages":[
             {
               "path":"extensions/docker",
-              "runDocker":true,
-              "injectedCredentialTypes":[
-                "container-registry"
-              ]
+              "runDocker":true
             },
             {
               "path":"estafette/estafette-ci-builder",
@@ -182,10 +171,7 @@ stages:
               "allowCommands":true
             },
             {
-              "path":"extensions/git-clone",
-              "injectedCredentialTypes":[
-                "github-api-token"
-              ]
+              "path":"extensions/git-clone"
             }
           ]
         }'
