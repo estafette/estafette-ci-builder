@@ -124,7 +124,7 @@ func (elh *endOfLifeHelperImpl) sendBuildJobLogEvent(buildLog contracts.BuildLog
 		client.MaxRetries = 5
 		client.Backoff = pester.ExponentialJitterBackoff
 		client.KeepLog = true
-		client.Timeout = time.Duration(120) * time.Second
+		client.Timeout = time.Second * 120
 		request, err := http.NewRequest("POST", ciServerBuilderPostLogsURL, requestBody)
 		if err != nil {
 			log.Error().Err(err).Msgf("Failed creating http client for job %v", jobName)
@@ -201,7 +201,7 @@ func (elh *endOfLifeHelperImpl) sendBuilderEvent(buildStatus, event string) (err
 		client.MaxRetries = 5
 		client.Backoff = pester.ExponentialJitterBackoff
 		client.KeepLog = true
-		client.Timeout = time.Duration(10) * time.Second
+		client.Timeout = time.Second * 10
 		request, err := http.NewRequest("POST", ciServerBuilderEventsURL, requestBody)
 		if err != nil {
 			log.Error().Err(err).Msgf("Failed creating http client for job %v", jobName)
