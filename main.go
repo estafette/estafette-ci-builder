@@ -314,7 +314,6 @@ func main() {
 		// send result to ci-api
 		log.Info().Interface("result", result).Msg("Finished running stages")
 		buildLog.Steps = transformPipelineRunResultToBuildLogSteps(result)
-		endOfLifeHelper.sendBuildJobLogEvent(buildLog)
 		buildStatus := "succeeded"
 		if result.HasAggregatedErrors() {
 			buildStatus = "failed"
@@ -322,7 +321,10 @@ func main() {
 		if result.canceled {
 			buildStatus = "canceled"
 		}
-		endOfLifeHelper.sendBuildFinishedEvent(buildStatus)
+
+		_ = endOfLifeHelper.sendBuildJobLogEvent(buildLog)
+		_ = endOfLifeHelper.sendBuildFinishedEvent(buildStatus)
+		_ = endOfLifeHelper.sendBuildCleanEvent(buildStatus)
 
 		if *runAsJob {
 			os.Exit(0)

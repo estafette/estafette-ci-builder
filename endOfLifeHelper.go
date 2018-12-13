@@ -19,8 +19,9 @@ import (
 // EndOfLifeHelper has methods to shutdown the runner after a fatal or successful run
 type EndOfLifeHelper interface {
 	handleFatal(contracts.BuildLog, error, string)
-	sendBuildFinishedEvent(string)
-	sendBuildJobLogEvent(buildLog contracts.BuildLog)
+	sendBuildFinishedEvent(buildStatus string) error
+	sendBuildCleanEvent(buildStatus string) error
+	sendBuildJobLogEvent(buildLog contracts.BuildLog) error
 }
 
 type endOfLifeHelperImpl struct {
@@ -68,8 +69,9 @@ func (elh *endOfLifeHelperImpl) handleFatal(buildLog contracts.BuildLog, err err
 
 	buildLog.Steps = append(buildLog.Steps, fatalStep)
 
-	elh.sendBuildJobLogEvent(buildLog)
-	elh.sendBuildFinishedEvent("failed")
+	_ = elh.sendBuildJobLogEvent(buildLog)
+	_ = elh.sendBuildFinishedEvent("failed")
+	_ = elh.sendBuildCleanEvent("failed")
 
 	if elh.runAsJob {
 		log.Error().Err(err).Msg(message)
@@ -79,7 +81,7 @@ func (elh *endOfLifeHelperImpl) handleFatal(buildLog contracts.BuildLog, err err
 	}
 }
 
-func (elh *endOfLifeHelperImpl) sendBuildJobLogEvent(buildLog contracts.BuildLog) {
+func (elh *endOfLifeHelperImpl) sendBuildJobLogEvent(buildLog contracts.BuildLog) (err error) {
 
 	ciServerBuilderPostLogsURL := elh.config.CIServer.PostLogsURL
 	ciAPIKey := elh.config.CIServer.APIKey
@@ -91,7 +93,6 @@ func (elh *endOfLifeHelperImpl) sendBuildJobLogEvent(buildLog contracts.BuildLog
 		var requestBody io.Reader
 
 		var data []byte
-		var err error
 		if *elh.config.Action == "release" {
 			// copy buildLog to releaseLog and marshal that
 			releaseLog := contracts.ReleaseLog{
@@ -126,7 +127,7 @@ func (elh *endOfLifeHelperImpl) sendBuildJobLogEvent(buildLog contracts.BuildLog
 		request, err := http.NewRequest("POST", ciServerBuilderPostLogsURL, requestBody)
 		if err != nil {
 			log.Error().Err(err).Msgf("Failed creating http client for job %v", jobName)
-			return
+			return err
 		}
 
 		// add headers
@@ -136,17 +137,27 @@ func (elh *endOfLifeHelperImpl) sendBuildJobLogEvent(buildLog contracts.BuildLog
 		// perform actual request
 		response, err := client.Do(request)
 		if err != nil {
-			log.Error().Err(err).Msgf("Failed performing http request to %v for job %v", ciServerBuilderPostLogsURL, jobName)
-			return
+			log.Error().Err(err).Str("logs", client.LogString()).Msgf("Failed performing http request to %v for job %v", ciServerBuilderPostLogsURL, jobName)
+			return err
 		}
 
 		defer response.Body.Close()
 
-		log.Debug().Str("url", ciServerBuilderPostLogsURL).Msg("Sent ci-builder logs v2")
+		log.Debug().Str("logs", client.LogString()).Str("url", ciServerBuilderPostLogsURL).Msg("Sent ci-builder logs v2")
 	}
+
+	return nil
 }
 
-func (elh *endOfLifeHelperImpl) sendBuildFinishedEvent(buildStatus string) {
+func (elh *endOfLifeHelperImpl) sendBuildFinishedEvent(buildStatus string) error {
+	return elh.sendBuilderEvent(buildStatus, fmt.Sprintf("builder:%v", buildStatus))
+}
+
+func (elh *endOfLifeHelperImpl) sendBuildCleanEvent(buildStatus string) error {
+	return elh.sendBuilderEvent(buildStatus, "builder:clean")
+}
+
+func (elh *endOfLifeHelperImpl) sendBuilderEvent(buildStatus, event string) (err error) {
 
 	ciServerBuilderEventsURL := elh.config.CIServer.BuilderEventsURL
 	ciAPIKey := elh.config.CIServer.APIKey
@@ -180,7 +191,7 @@ func (elh *endOfLifeHelperImpl) sendBuildFinishedEvent(buildStatus string) {
 		data, err := json.Marshal(ciBuilderEvent)
 		if err != nil {
 			log.Error().Err(err).Msgf("Failed marshalling EstafetteCiBuilderEvent for job %v", jobName)
-			return
+			return err
 		}
 		requestBody = bytes.NewReader(data)
 
@@ -192,23 +203,25 @@ func (elh *endOfLifeHelperImpl) sendBuildFinishedEvent(buildStatus string) {
 		request, err := http.NewRequest("POST", ciServerBuilderEventsURL, requestBody)
 		if err != nil {
 			log.Error().Err(err).Msgf("Failed creating http client for job %v", jobName)
-			return
+			return err
 		}
 
 		// add headers
-		request.Header.Add("X-Estafette-Event", fmt.Sprintf("builder:%v", buildStatus))
+		request.Header.Add("X-Estafette-Event", event)
 		request.Header.Add("X-Estafette-Event-Job-Name", jobName)
 		request.Header.Add("Authorization", fmt.Sprintf("Bearer %v", ciAPIKey))
 
 		// perform actual request
 		response, err := client.Do(request)
 		if err != nil {
-			log.Error().Err(err).Msgf("Failed performing http request to %v for job %v", ciServerBuilderEventsURL, jobName)
-			return
+			log.Error().Err(err).Str("logs", client.LogString()).Msgf("Failed performing http request to %v for job %v", ciServerBuilderEventsURL, jobName)
+			return err
 		}
 
 		defer response.Body.Close()
 
-		log.Debug().Str("url", ciServerBuilderEventsURL).Msg("Notified ci-api that ci-builder has finished")
+		log.Debug().Str("logs", client.LogString()).Str("url", ciServerBuilderEventsURL).Msg("Notified ci-api that ci-builder has finished")
 	}
+
+	return nil
 }
