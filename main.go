@@ -322,8 +322,8 @@ func main() {
 			buildStatus = "canceled"
 		}
 
-		_ = endOfLifeHelper.sendBuildJobLogEvent(buildLog)
 		_ = endOfLifeHelper.sendBuildFinishedEvent(buildStatus)
+		_ = endOfLifeHelper.sendBuildJobLogEvent(buildLog)
 		_ = endOfLifeHelper.sendBuildCleanEvent(buildStatus)
 
 		if *runAsJob {

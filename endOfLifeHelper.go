@@ -69,8 +69,8 @@ func (elh *endOfLifeHelperImpl) handleFatal(buildLog contracts.BuildLog, err err
 
 	buildLog.Steps = append(buildLog.Steps, fatalStep)
 
-	_ = elh.sendBuildJobLogEvent(buildLog)
 	_ = elh.sendBuildFinishedEvent("failed")
+	_ = elh.sendBuildJobLogEvent(buildLog)
 	_ = elh.sendBuildCleanEvent("failed")
 
 	if elh.runAsJob {
