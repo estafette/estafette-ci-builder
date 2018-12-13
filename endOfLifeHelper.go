@@ -137,13 +137,13 @@ func (elh *endOfLifeHelperImpl) sendBuildJobLogEvent(buildLog contracts.BuildLog
 		// perform actual request
 		response, err := client.Do(request)
 		if err != nil {
-			log.Error().Err(err).Str("logs", client.LogString()).Msgf("Failed performing http request to %v for job %v", ciServerBuilderPostLogsURL, jobName)
+			log.Error().Err(err).Str("logs", client.LogString()).Msgf("Failed shipping logs to %v for job %v", ciServerBuilderPostLogsURL, jobName)
 			return err
 		}
 
 		defer response.Body.Close()
 
-		log.Debug().Str("logs", client.LogString()).Str("url", ciServerBuilderPostLogsURL).Msg("Sent ci-builder logs v2")
+		log.Debug().Msgf("Successfully shipped logs to %v for job %v", ciServerBuilderPostLogsURL, jobName)
 	}
 
 	return nil
