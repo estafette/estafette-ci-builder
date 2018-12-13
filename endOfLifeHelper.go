@@ -220,7 +220,7 @@ func (elh *endOfLifeHelperImpl) sendBuilderEvent(buildStatus, event string) (err
 
 		defer response.Body.Close()
 
-		log.Debug().Str("logs", client.LogString()).Str("url", ciServerBuilderEventsURL).Msg("Notified ci-api that ci-builder has finished")
+		log.Debug().Str("url", ciServerBuilderEventsURL).Msgf("Succesfully sent %v event to api", event)
 	}
 
 	return nil
