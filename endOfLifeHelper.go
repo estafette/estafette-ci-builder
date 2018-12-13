@@ -121,7 +121,7 @@ func (elh *endOfLifeHelperImpl) sendBuildJobLogEvent(buildLog contracts.BuildLog
 
 		// create client, in order to add headers
 		client := pester.New()
-		client.MaxRetries = 3
+		client.MaxRetries = 5
 		client.Backoff = pester.ExponentialJitterBackoff
 		client.KeepLog = true
 		request, err := http.NewRequest("POST", ciServerBuilderPostLogsURL, requestBody)
@@ -143,7 +143,7 @@ func (elh *endOfLifeHelperImpl) sendBuildJobLogEvent(buildLog contracts.BuildLog
 
 		defer response.Body.Close()
 
-		log.Debug().Msgf("Successfully shipped logs to %v for job %v", ciServerBuilderPostLogsURL, jobName)
+		log.Debug().Str("logs", client.LogString()).Msgf("Successfully shipped logs to %v for job %v", ciServerBuilderPostLogsURL, jobName)
 	}
 
 	return nil
@@ -197,7 +197,7 @@ func (elh *endOfLifeHelperImpl) sendBuilderEvent(buildStatus, event string) (err
 
 		// create client, in order to add headers
 		client := pester.New()
-		client.MaxRetries = 3
+		client.MaxRetries = 5
 		client.Backoff = pester.ExponentialJitterBackoff
 		client.KeepLog = true
 		request, err := http.NewRequest("POST", ciServerBuilderEventsURL, requestBody)
@@ -220,7 +220,7 @@ func (elh *endOfLifeHelperImpl) sendBuilderEvent(buildStatus, event string) (err
 
 		defer response.Body.Close()
 
-		log.Debug().Str("url", ciServerBuilderEventsURL).Msgf("Succesfully sent %v event to api", event)
+		log.Debug().Str("logs", client.LogString()).Str("url", ciServerBuilderEventsURL).Msgf("Succesfully sent %v event to api", event)
 	}
 
 	return nil
