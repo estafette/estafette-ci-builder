@@ -216,13 +216,13 @@ func (elh *endOfLifeHelperImpl) sendBuilderEvent(buildStatus, event string) (err
 		// perform actual request
 		response, err := client.Do(request)
 		if err != nil {
-			log.Error().Err(err).Str("logs", client.LogString()).Msgf("Failed performing http request to %v for job %v", ciServerBuilderEventsURL, jobName)
+			log.Error().Err(err).Str("pesterLogs", client.LogString()).Msgf("Failed performing http request to %v for job %v", ciServerBuilderEventsURL, jobName)
 			return err
 		}
 
 		defer response.Body.Close()
 
-		log.Debug().Str("logs", client.LogString()).Str("url", ciServerBuilderEventsURL).Msgf("Succesfully sent %v event to api", event)
+		log.Debug().Str("pesterLogs", client.LogString()).Str("url", ciServerBuilderEventsURL).Msgf("Succesfully sent %v event to api", event)
 	}
 
 	return nil
