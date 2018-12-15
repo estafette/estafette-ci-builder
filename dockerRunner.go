@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"reflect"
 	"runtime"
 	"strconv"
 	"strings"
@@ -21,7 +22,6 @@ import (
 	"github.com/docker/docker/api/types/network"
 	contracts "github.com/estafette/estafette-ci-contracts"
 	manifest "github.com/estafette/estafette-ci-manifest"
-
 	"github.com/rs/zerolog/log"
 )
 
@@ -164,7 +164,7 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 					log.Warn().Interface("customProperty", v).Msgf("Cannot turn custom property %v into extension envvar", k)
 				}
 			} else {
-				log.Warn().Interface("customProperty", v).Msgf("Cannot turn custom property %v into extension envvar", k)
+				log.Warn().Interface("customProperty", v).Msgf("Cannot turn custom property %v of type %v into extension envvar", k, reflect.TypeOf(v))
 			}
 		}
 
