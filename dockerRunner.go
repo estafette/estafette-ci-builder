@@ -144,6 +144,10 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 			} else if s, isInt := v.(int); isInt {
 				// if custom property is of type bool add the envvar
 				extensionEnvVars[extensionkey] = strconv.FormatInt(int64(s), 10)
+			} else if s, isFloat := v.(float64); isFloat {
+				// if custom property is of type bool add the envvar
+				extensionEnvVars[extensionkey] = strconv.FormatFloat(float64(s), 'f', -1, 64)
+
 			} else if i, isInterfaceArray := v.([]interface{}); isInterfaceArray {
 				// check whether all array items are of type string
 				valid := true
