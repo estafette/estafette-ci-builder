@@ -111,6 +111,7 @@ type ReleaseParamsConfig struct {
 	ReleaseName   string `json:"releaseName"`
 	ReleaseID     int    `json:"releaseID"`
 	ReleaseAction string `json:"releaseAction,omitempty"`
+	TriggeredBy   string `json:"triggeredBy,omitempty"`
 }
 
 // GetCredentialsByType returns all credentials of a certain type
