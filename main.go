@@ -194,10 +194,11 @@ func main() {
 		}
 		if builderConfig.BuildVersion.AutoIncrement != nil {
 			os.Setenv("ESTAFETTE_BUILD_VERSION_COUNT", strconv.Itoa(*builderConfig.BuildVersion.AutoIncrement))
+			os.Setenv("ESTAFETTE_BUILD_VERSION_PATCH", strconv.Itoa(*builderConfig.BuildVersion.AutoIncrement))
 		}
-		if builderConfig.BuildVersion.Patch != nil {
-			os.Setenv("ESTAFETTE_BUILD_VERSION_PATCH", *builderConfig.BuildVersion.Patch)
-		}
+		// if builderConfig.BuildVersion.Patch != nil {
+		// 	os.Setenv("ESTAFETTE_BUILD_VERSION_PATCH", *builderConfig.BuildVersion.Patch)
+		// }
 		if builderConfig.BuildVersion.Label != nil {
 			os.Setenv("ESTAFETTE_BUILD_VERSION_LABEL", *builderConfig.BuildVersion.Label)
 		}
