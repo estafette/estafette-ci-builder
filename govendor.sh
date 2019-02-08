@@ -9,5 +9,5 @@ govendor fetch github.com/docker/docker-ce/components/engine/api@v18.09.1
 govendor fetch github.com/docker/docker-ce/components/engine/client@v18.09.1
 govendor fetch gopkg.in/yaml.v2
 govendor fetch github.com/estafette/estafette-ci-crypt@0.0.10
-govendor fetch github.com/estafette/estafette-ci-manifest@0.1.47
-govendor fetch github.com/estafette/estafette-ci-contracts@0.0.100
+govendor fetch github.com/estafette/estafette-ci-manifest@0.1.59
+govendor fetch github.com/estafette/estafette-ci-contracts@0.0.103

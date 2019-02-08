@@ -90,6 +90,7 @@ type BuildVersionConfig struct {
 	Major         *int    `json:"major,omitempty"`
 	Minor         *int    `json:"minor,omitempty"`
 	Patch         *string `json:"patch,omitempty"`
+	Label         *string `json:"label,omitempty"`
 	AutoIncrement *int    `json:"autoincrement,omitempty"`
 }
 

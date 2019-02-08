@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"fmt"
 	"html/template"
+	"regexp"
+	"strings"
 )
 
 // EstafetteVersion is the object that determines how version numbers are generated
@@ -106,7 +108,11 @@ func (v *EstafetteSemverVersion) GetPatchWithLabel(params EstafetteVersionParams
 	patch := v.GetPatch(params)
 	label := v.GetLabel(params)
 
-	return fmt.Sprintf("%v%v", patch, label)
+	if v.ReleaseBranch.Contains(params.Branch) {
+		return patch
+	}
+
+	return fmt.Sprintf("%v-%v", patch, label)
 }
 
 // GetPatch returns the formatted patch
@@ -118,12 +124,16 @@ func (v *EstafetteSemverVersion) GetPatch(params EstafetteVersionParams) string 
 // GetLabel returns the formatted label
 func (v *EstafetteSemverVersion) GetLabel(params EstafetteVersionParams) string {
 
-	label := ""
-	if !v.ReleaseBranch.Contains(params.Branch) {
-		label = fmt.Sprintf("-%v", parseTemplate(v.LabelTemplate, params.GetFuncMap()))
-	}
+	label := parseTemplate(v.LabelTemplate, params.GetFuncMap())
 
-	return label
+	return v.tidyLabel(label)
+}
+
+func (v *EstafetteSemverVersion) tidyLabel(label string) string {
+	// A tag name must be valid ASCII and may contain lowercase and uppercase letters, digits, underscores, periods and dashes.
+	// A tag name may not start with a period or a dash and may contain a maximum of 128 characters.
+	reg := regexp.MustCompile(`[^a-zA-Z0-9_.\-]+`)
+	return strings.Replace(strings.Trim(reg.ReplaceAllString(label, "-"), "-"), "--", "-", -1)
 }
 
 // EstafetteVersionParams contains parameters used to generate a version number
