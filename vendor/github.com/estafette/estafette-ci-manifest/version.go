@@ -130,10 +130,32 @@ func (v *EstafetteSemverVersion) GetLabel(params EstafetteVersionParams) string 
 }
 
 func (v *EstafetteSemverVersion) tidyLabel(label string) string {
-	// A tag name must be valid ASCII and may contain lowercase and uppercase letters, digits, underscores, periods and dashes.
-	// A tag name may not start with a period or a dash and may contain a maximum of 128 characters.
-	reg := regexp.MustCompile(`[^a-zA-Z0-9_.\-]+`)
-	return strings.Replace(strings.Trim(reg.ReplaceAllString(label, "-"), "-"), "--", "-", -1)
+	// in order for the label to be used as a dns label (part between dots) it should only use
+	// lowercase letters, digits and hyphens and have a max length of 63 characters;
+	// also it should start with a letter and not end in a hyphen
+
+	// ensure the label is lowercase
+	label = strings.ToLower(label)
+
+	// replace all invalid characters with a hyphen
+	reg := regexp.MustCompile(`[^a-z0-9-]+`)
+	label = reg.ReplaceAllString(label, "-")
+
+	// replace double hyphens with a single one
+	label = strings.Replace(label, "--", "-", -1)
+
+	// trim hyphens from start and end
+	label = strings.Trim(label, "-")
+
+	// ensure it starts with a letter, not a digit or hyphen
+	reg = regexp.MustCompile(`^[0-9-]+`)
+	label = reg.ReplaceAllString(label, "")
+
+	if len(label) > 63 {
+		label = label[:63]
+	}
+
+	return label
 }
 
 // EstafetteVersionParams contains parameters used to generate a version number

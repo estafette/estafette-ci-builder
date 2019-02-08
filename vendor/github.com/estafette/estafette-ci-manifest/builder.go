@@ -2,14 +2,16 @@ package manifest
 
 // EstafetteBuilder contains configuration for the ci-builder component
 type EstafetteBuilder struct {
-	Track string `yaml:"track,omitempty"`
+	Track                    string `yaml:"track,omitempty"`
+	InMemoryWorkingDirectory bool   `yaml:"inMemoryWorkDir,omitempty"`
 }
 
 // UnmarshalYAML customizes unmarshalling an EstafetteBuilder
 func (builder *EstafetteBuilder) UnmarshalYAML(unmarshal func(interface{}) error) (err error) {
 
 	var aux struct {
-		Track string `yaml:"track"`
+		Track                    string `yaml:"track"`
+		InMemoryWorkingDirectory bool   `yaml:"inMemoryWorkDir,omitempty"`
 	}
 
 	// unmarshal to auxiliary type
@@ -19,6 +21,7 @@ func (builder *EstafetteBuilder) UnmarshalYAML(unmarshal func(interface{}) error
 
 	// map auxiliary properties
 	builder.Track = aux.Track
+	builder.InMemoryWorkingDirectory = aux.InMemoryWorkingDirectory
 
 	// set default property values
 	builder.setDefaults()
