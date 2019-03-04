@@ -20,5 +20,6 @@ cd estafette-ci-crypt
 Before committing your changes run
 
 ```bash
-go test `go list ./... | grep -v /vendor/`
+go test
+go mod tidy
 ```
