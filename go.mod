@@ -18,9 +18,9 @@ require (
 	github.com/docker/docker-ce v0.0.0-20190228055049-774a1f4eee66
 	github.com/docker/go-connections v0.0.0-20180821093606-97c2040d34df // indirect
 	github.com/docker/go-units v0.3.3 // indirect
-	github.com/estafette/estafette-ci-contracts v0.0.0-20190208082836-c1f2850e050d
-	github.com/estafette/estafette-ci-crypt v0.0.0-20181019114255-76fcb1fe0faa
-	github.com/estafette/estafette-ci-manifest v0.0.0-20190208101328-34473e8dcffc
+	github.com/estafette/estafette-ci-contracts v0.0.107
+	github.com/estafette/estafette-ci-crypt v0.0.19
+	github.com/estafette/estafette-ci-manifest v0.1.71
 	github.com/gogo/protobuf v0.0.0-20180830160456-5669497fd644 // indirect
 	github.com/google/go-cmp v0.2.0 // indirect
 	github.com/gorilla/mux v1.7.0 // indirect
@@ -37,6 +37,5 @@ require (
 	github.com/stretchr/testify v1.2.2
 	golang.org/x/time v0.0.0-20181108054448-85acf8d2951c // indirect
 	google.golang.org/grpc v1.19.0 // indirect
-	gopkg.in/yaml.v2 v2.2.1 // indirect
 	gotest.tools v2.2.0+incompatible // indirect
 )
