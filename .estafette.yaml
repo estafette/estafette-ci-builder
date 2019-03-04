@@ -17,6 +17,11 @@ version:
     releaseBranch: master
 
 stages:
+  restore:
+    image: golang:1.12.0-stretch
+    commands:
+    - go mod download
+
   build:
     image: golang:1.12.0-stretch
     env:
