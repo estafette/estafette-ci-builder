@@ -1,0 +1,37 @@
+builder:
+  track: dev
+
+labels:
+  app: estafette-ci-contracts
+  app-group: estafette-ci
+  team: estafette-team
+  language: golang
+
+version:
+  semver:
+    major: 0
+    minor: 0
+    patch: '{{auto}}'
+    labelTemplate: '{{branch}}'
+    releaseBranch: master
+
+stages:
+  build:
+    image: golang:1.12.0-stretch
+    commands:
+    - go test
+
+  tag-revision:
+    image: golang:1.12.0-stretch
+    commands:
+    - git tag v${ESTAFETTE_BUILD_VERSION}
+    - git push origin v${ESTAFETTE_BUILD_VERSION}
+
+  slack-notify:
+    image: extensions/slack-build-status:dev
+    workspace: estafette
+    channels:
+    - '#build-status'
+    when:
+      status == 'succeeded' ||
+      status == 'failed'
