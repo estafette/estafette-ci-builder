@@ -108,7 +108,7 @@ func (v *EstafetteSemverVersion) GetPatchWithLabel(params EstafetteVersionParams
 	patch := v.GetPatch(params)
 	label := v.GetLabel(params)
 
-	if v.ReleaseBranch.Contains(params.Branch) {
+	if v.ReleaseBranch.Contains(params.Branch) || label == "" {
 		return patch
 	}
 
@@ -125,6 +125,20 @@ func (v *EstafetteSemverVersion) GetPatch(params EstafetteVersionParams) string 
 func (v *EstafetteSemverVersion) GetLabel(params EstafetteVersionParams) string {
 
 	label := parseTemplate(v.LabelTemplate, params.GetFuncMap())
+
+	if startsWithNumber, _ := regexp.Match(`^[0-9]`, []byte(label)); startsWithNumber {
+
+		// get first placeholder from label template to use as prefix
+		re := regexp.MustCompile(`{{([^}]+)}}`)
+		match := re.FindStringSubmatch(v.LabelTemplate)
+
+		prefix := "label-"
+		if len(match) > 1 {
+			prefix = match[1] + "-"
+		}
+
+		return v.tidyLabel(prefix + label)
+	}
 
 	return v.tidyLabel(label)
 }

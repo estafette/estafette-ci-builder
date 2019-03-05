@@ -14,9 +14,6 @@ version:
   semver:
     major: 0
     minor: 1
-    patch: '{{auto}}'
-    labelTemplate: '{{branch}}'
-    releaseBranch: master
 
 # global environments variables that are automatically injected into all pipeline steps and can be overridden by defining an envvar in a pipeline step with the same name
 env:
@@ -26,13 +23,18 @@ env:
 # pipeline stages to be executed sequentially; for each step the 'when' is evaluated to see whether it should be executed or skipped
 stages:
   build:
-    image: golang:1.12.0-stretch
+    image: golang:1.12.0-alpine3.9
+    env:
+      CGO_ENABLED: 0
+      GOOS: linux
+      GOFLAGS: -mod=vendor
     commands:
-    - go test
+    - go test ./...
 
   tag-revision:
-    image: golang:1.12.0-stretch
+    image: golang:1.12.0-alpine3.9
     commands:
+    - apk add git
     - git tag v${ESTAFETTE_BUILD_VERSION}
     - git push origin v${ESTAFETTE_BUILD_VERSION}
 
