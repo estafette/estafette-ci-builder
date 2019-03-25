@@ -41,6 +41,8 @@ github.com/estafette/estafette-ci-crypt v0.0.19 h1:a1sRH/ETgs7HtwVSjhsacvDTwmCyI
 github.com/estafette/estafette-ci-crypt v0.0.19/go.mod h1:yODzGbzW7Jj0xEFjAv1Is+FHcYaugHUtrPdkJdHV8/c=
 github.com/estafette/estafette-ci-manifest v0.1.74 h1:jiR24eRo9PFsvRAho6XpqCQYPyvX7T9MN9glq024mpM=
 github.com/estafette/estafette-ci-manifest v0.1.74/go.mod h1:u+q8CliqPuK87sSh/FAknAPLtMIlBNs/NGzTWvmxniA=
+github.com/estafette/estafette-ci-manifest v0.1.75 h1:7CdC8ZaBOyslvFcjtnRsnEC4rpQ4p4UzdXcTwjraygw=
+github.com/estafette/estafette-ci-manifest v0.1.75/go.mod h1:u+q8CliqPuK87sSh/FAknAPLtMIlBNs/NGzTWvmxniA=
 github.com/gogo/protobuf v0.0.0-20180830160456-5669497fd644 h1:ejqIk5+HcUzFHeUWv086LPWecAi7Juip6GgzS6RlA88=
 github.com/gogo/protobuf v0.0.0-20180830160456-5669497fd644/go.mod h1:r8qH/GZQm5c6nD/R0oafs1akxWv10x8SbQlK7atdtwQ=
 github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b h1:VKtxabqXZkF25pY9ekfRL6a582T4P37/31XEstQ5p58=

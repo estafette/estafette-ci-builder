@@ -44,7 +44,7 @@ github.com/docker/go-units
 github.com/estafette/estafette-ci-contracts
 # github.com/estafette/estafette-ci-crypt v0.0.19
 github.com/estafette/estafette-ci-crypt
-# github.com/estafette/estafette-ci-manifest v0.1.74
+# github.com/estafette/estafette-ci-manifest v0.1.75
 github.com/estafette/estafette-ci-manifest
 # github.com/gogo/protobuf v0.0.0-20180830160456-5669497fd644
 github.com/gogo/protobuf/proto

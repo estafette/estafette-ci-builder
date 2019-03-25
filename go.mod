@@ -20,7 +20,7 @@ require (
 	github.com/docker/go-units v0.3.3 // indirect
 	github.com/estafette/estafette-ci-contracts v0.0.112
 	github.com/estafette/estafette-ci-crypt v0.0.19
-	github.com/estafette/estafette-ci-manifest v0.1.74
+	github.com/estafette/estafette-ci-manifest v0.1.75
 	github.com/gogo/protobuf v0.0.0-20180830160456-5669497fd644 // indirect
 	github.com/google/go-cmp v0.2.0 // indirect
 	github.com/gorilla/mux v1.7.0 // indirect
