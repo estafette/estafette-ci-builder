@@ -398,3 +398,96 @@ func TestGetNameFromOrigin(t *testing.T) {
 		assert.Equal(t, "estafette-ci-builder", name)
 	})
 }
+
+func TestMakeDNSLabelSafe(t *testing.T) {
+
+	t.Run("ReturnsValueIfAlreadySafeForDNSLabel", func(t *testing.T) {
+
+		value := "dns-safe-value"
+
+		// act
+		safeValue := envvarHelper.makeDNSLabelSafe(value)
+
+		assert.Equal(t, "dns-safe-value", safeValue)
+	})
+
+	t.Run("ReturnsAllLowercaseIfHasUppercase", func(t *testing.T) {
+
+		value := "DNS-safe-value"
+
+		// act
+		safeValue := envvarHelper.makeDNSLabelSafe(value)
+
+		assert.Equal(t, "dns-safe-value", safeValue)
+	})
+
+	t.Run("ReturnsAllLowercaseIfHasUppercase", func(t *testing.T) {
+
+		value := "DNS-safe-value"
+
+		// act
+		safeValue := envvarHelper.makeDNSLabelSafe(value)
+
+		assert.Equal(t, "dns-safe-value", safeValue)
+	})
+
+	t.Run("ReturnsCharactersOtherThanLettersDigitsOrHyphensAsHyphens", func(t *testing.T) {
+
+		value := "dns-safe.value"
+
+		// act
+		safeValue := envvarHelper.makeDNSLabelSafe(value)
+
+		assert.Equal(t, "dns-safe-value", safeValue)
+	})
+
+	t.Run("ReturnsMultipleHyphensAsSingleHyphen", func(t *testing.T) {
+
+		value := "dns-safe--value"
+
+		// act
+		safeValue := envvarHelper.makeDNSLabelSafe(value)
+
+		assert.Equal(t, "dns-safe-value", safeValue)
+	})
+
+	t.Run("ReturnsStartingWithLetter", func(t *testing.T) {
+
+		value := "10-dns-safe-value"
+
+		// act
+		safeValue := envvarHelper.makeDNSLabelSafe(value)
+
+		assert.Equal(t, "dns-safe-value", safeValue)
+	})
+
+	t.Run("ReturnsWithHyphensTrimmed", func(t *testing.T) {
+
+		value := "-dns-safe-value-"
+
+		// act
+		safeValue := envvarHelper.makeDNSLabelSafe(value)
+
+		assert.Equal(t, "dns-safe-value", safeValue)
+	})
+
+	t.Run("ReturnsTruncatedTo63Characters", func(t *testing.T) {
+
+		value := "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijkl"
+
+		// act
+		safeValue := envvarHelper.makeDNSLabelSafe(value)
+
+		assert.Equal(t, "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijk", safeValue)
+	})
+
+	t.Run("ReturnsTruncatedTo63CharactersWithHyphensTrimmed", func(t *testing.T) {
+
+		value := "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghij-l"
+
+		// act
+		safeValue := envvarHelper.makeDNSLabelSafe(value)
+
+		assert.Equal(t, "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghij", safeValue)
+	})
+}

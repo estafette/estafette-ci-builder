@@ -41,6 +41,7 @@ type EnvvarHelper interface {
 	decryptSecret(string) string
 	decryptSecrets(map[string]string) map[string]string
 	getCiServer() string
+	makeDNSLabelSafe(string) string
 
 	getGitOrigin() (string, error)
 	getSourceFromOrigin(string) string
@@ -357,7 +358,18 @@ func (h *envvarHelperImpl) setEstafetteEnv(key, value string) error {
 
 	key = h.getEstafetteEnvvarName(key)
 
-	return os.Setenv(key, value)
+	err := os.Setenv(key, value)
+	if err != nil {
+		return err
+	}
+
+	// set dns safe version
+	err = os.Setenv(fmt.Sprintf("%v_DNS_SAFE", key), h.makeDNSLabelSafe(value))
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (h *envvarHelperImpl) unsetEstafetteEnv(key string) error {
@@ -413,4 +425,36 @@ func (h *envvarHelperImpl) decryptSecrets(encryptedEnvvars map[string]string) (e
 
 func (h *envvarHelperImpl) getCiServer() string {
 	return h.ciServer
+}
+
+func (h *envvarHelperImpl) makeDNSLabelSafe(value string) string {
+	// in order for the label to be used as a dns label (part between dots) it should only use
+	// lowercase letters, digits and hyphens and have a max length of 63 characters;
+	// also it should start with a letter and not end in a hyphen
+
+	// ensure the label is lowercase
+	value = strings.ToLower(value)
+
+	// replace all invalid characters with a hyphen
+	reg := regexp.MustCompile(`[^a-z0-9-]+`)
+	value = reg.ReplaceAllString(value, "-")
+
+	// replace double hyphens with a single one
+	value = strings.Replace(value, "--", "-", -1)
+
+	// trim hyphens from start and end
+	value = strings.Trim(value, "-")
+
+	// ensure it starts with a letter, not a digit or hyphen
+	reg = regexp.MustCompile(`^[0-9-]+`)
+	value = reg.ReplaceAllString(value, "")
+
+	if len(value) > 63 {
+		value = value[:63]
+	}
+
+	// trim hyphens from start and end
+	value = strings.Trim(value, "-")
+
+	return value
 }
