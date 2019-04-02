@@ -85,7 +85,6 @@ func TestCollectEstafetteEnvvarsAndLabels(t *testing.T) {
 		// act
 		envvars := envvarHelper.collectEstafetteEnvvarsAndLabels(manifest)
 
-		assert.Equal(t, 1, len(envvars))
 		_, exists := envvars["TESTPREFIX_LABEL_APP"]
 		assert.True(t, exists)
 		assert.Equal(t, "estafette-ci-builder", envvars["TESTPREFIX_LABEL_APP"])
@@ -100,7 +99,6 @@ func TestCollectEstafetteEnvvarsAndLabels(t *testing.T) {
 		envvars := envvarHelper.collectEstafetteEnvvarsAndLabels(manifest)
 
 		log.Debug().Interface("envvars", envvars).Msg("")
-		assert.Equal(t, 1, len(envvars))
 		_, exists := envvars["TESTPREFIX_LABEL_OWNING_TEAM"]
 		assert.True(t, exists)
 		assert.Equal(t, "estafette-ci-team", envvars["TESTPREFIX_LABEL_OWNING_TEAM"])
@@ -114,7 +112,6 @@ func TestCollectEstafetteEnvvarsAndLabels(t *testing.T) {
 		// act
 		envvars := envvarHelper.collectEstafetteEnvvarsAndLabels(manifest)
 
-		assert.Equal(t, 2, len(envvars))
 		_, exists := envvars["TESTPREFIX_LABEL_APP"]
 		assert.True(t, exists)
 		assert.Equal(t, "estafette-ci-builder", envvars["TESTPREFIX_LABEL_APP"])
@@ -133,7 +130,6 @@ func TestCollectEstafetteEnvvarsAndLabels(t *testing.T) {
 		// act
 		envvars := envvarHelper.collectEstafetteEnvvarsAndLabels(manifest)
 
-		assert.Equal(t, 1, len(envvars))
 		_, exists := envvars["TESTPREFIX_VERSION"]
 		assert.True(t, exists)
 		assert.Equal(t, "1.0.3", envvars["TESTPREFIX_VERSION"])
@@ -148,7 +144,6 @@ func TestCollectEstafetteEnvvarsAndLabels(t *testing.T) {
 		// act
 		envvars := envvarHelper.collectEstafetteEnvvarsAndLabels(manifest)
 
-		assert.Equal(t, 1, len(envvars))
 		_, exists := envvars["TESTPREFIX_VERSION"]
 		assert.True(t, exists)
 		assert.Equal(t, "b=c", envvars["TESTPREFIX_VERSION"])
@@ -164,7 +159,6 @@ func TestCollectEstafetteEnvvarsAndLabels(t *testing.T) {
 		// act
 		envvars := envvarHelper.collectEstafetteEnvvarsAndLabels(manifest)
 
-		assert.Equal(t, 2, len(envvars))
 		_, exists := envvars["TESTPREFIX_VERSION"]
 		assert.True(t, exists)
 		assert.Equal(t, "1.0.3", envvars["TESTPREFIX_VERSION"])
@@ -183,7 +177,6 @@ func TestCollectEstafetteEnvvarsAndLabels(t *testing.T) {
 		// act
 		envvars := envvarHelper.collectEstafetteEnvvarsAndLabels(manifest)
 
-		assert.Equal(t, 2, len(envvars))
 		_, exists := envvars["TESTPREFIX_VERSION"]
 		assert.True(t, exists)
 		assert.Equal(t, "1.0.3", envvars["TESTPREFIX_VERSION"])
