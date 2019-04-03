@@ -21,6 +21,7 @@ type Pipeline struct {
 	Manifest             string                      `json:"manifest,omitempty"`
 	ManifestWithDefaults string                      `json:"manifestWithDefaults,omitempty"`
 	Commits              []GitCommit                 `json:"commits,omitempty"`
+	Triggers             []manifest.EstafetteTrigger `json:"triggers,omitempty"`
 	InsertedAt           time.Time                   `json:"insertedAt"`
 	UpdatedAt            time.Time                   `json:"updatedAt"`
 	Duration             time.Duration               `json:"duration"`

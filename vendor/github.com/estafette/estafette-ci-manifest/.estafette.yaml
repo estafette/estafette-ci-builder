@@ -23,7 +23,7 @@ env:
 # pipeline stages to be executed sequentially; for each step the 'when' is evaluated to see whether it should be executed or skipped
 stages:
   build:
-    image: golang:1.12.0-alpine3.9
+    image: golang:1.12.1-alpine3.9
     env:
       CGO_ENABLED: 0
       GOOS: linux

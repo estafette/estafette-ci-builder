@@ -1,0 +1,64 @@
+labels:
+  app: estafette-ci-api
+  team: estafette-team
+  language: golang
+
+# in addition to git push to the pipeline repository, the triggers will start a build as well
+triggers:
+- pipeline:
+    event: finished
+    status: succeeded
+    name: github.com/estafette/estafette-ci-manifest
+    branch: master
+  builds:
+    branch: master
+- git:
+    event: push
+    repository: github.com/estafette/estafette-ci-builder
+    branch: master
+- docker:
+    event: push
+    image: golang
+    tag: 1.8-alpine
+
+# automatically executed stages on a push to the repository
+stages:
+  build:
+    image: golang:1.12.1-alpine3.9
+    env:
+      CGO_ENABLED: 0
+      GOOS: linux
+      GOFLAGS: -mod=vendor
+    commands:
+    - go test ./...
+
+# releases are automatically triggered from stages or manually from gui, cli or slack
+releases:
+  development:
+    triggers:
+    - pipeline:
+        name: github.com/estafette/estafette-ci-builder
+        branch: .*
+    - cron: 
+        expression: '0 10 */1 * *'
+
+    stages:
+      deploy:
+        image: extensions/deploy-to-kubernetes-engine:dev
+
+  staging:
+    actions:
+    - name: deploy-canary
+    - name: rollback-canary
+    - name: deploy-stable
+
+    triggers:
+    - release:
+        name: github.com/estafette/estafette-ci-builder
+        target: development
+      releases:
+        action: deploy-canary
+
+    stages:
+      deploy:
+        image: extensions/deploy-to-kubernetes-engine:dev
