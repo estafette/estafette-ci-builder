@@ -21,8 +21,9 @@ type BuilderConfig struct {
 
 	Manifest *manifest.EstafetteManifest `json:"manifest,omitempty"`
 
-	JobName     *string `json:"jobName,omitempty"`
-	ReleaseName *string `json:"releaseName,omitempty"`
+	JobName     *string                    `json:"jobName,omitempty"`
+	ReleaseName *string                    `json:"releaseName,omitempty"`
+	Events      []*manifest.EstafetteEvent `json:"events,omitempty"`
 
 	CIServer      *CIServerConfig      `json:"ciServer,omitempty"`
 	BuildParams   *BuildParamsConfig   `json:"buildParams,omitempty"`

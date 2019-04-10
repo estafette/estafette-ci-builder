@@ -38,9 +38,9 @@ releases:
     triggers:
     - pipeline:
         name: github.com/estafette/estafette-ci-builder
-        branch: .*
+        branch: '!~ master'
     - cron: 
-        expression: '0 10 */1 * *'
+        schedule: '0 10 */1 * *'
 
     stages:
       deploy:

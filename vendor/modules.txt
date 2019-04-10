@@ -40,11 +40,11 @@ github.com/docker/go-connections/tlsconfig
 github.com/docker/go-connections/nat
 # github.com/docker/go-units v0.3.3
 github.com/docker/go-units
-# github.com/estafette/estafette-ci-contracts v0.0.118
+# github.com/estafette/estafette-ci-contracts v0.0.123
 github.com/estafette/estafette-ci-contracts
 # github.com/estafette/estafette-ci-crypt v0.0.19
 github.com/estafette/estafette-ci-crypt
-# github.com/estafette/estafette-ci-manifest v0.1.92
+# github.com/estafette/estafette-ci-manifest v0.1.97
 github.com/estafette/estafette-ci-manifest
 # github.com/gogo/protobuf v0.0.0-20180830160456-5669497fd644
 github.com/gogo/protobuf/proto
@@ -61,6 +61,8 @@ github.com/opencontainers/image-spec/specs-go
 github.com/pkg/errors
 # github.com/pmezard/go-difflib v1.0.0
 github.com/pmezard/go-difflib/difflib
+# github.com/robfig/cron v0.0.0-20180505203441-b41be1df6967
+github.com/robfig/cron
 # github.com/rs/zerolog v1.8.0
 github.com/rs/zerolog
 github.com/rs/zerolog/log

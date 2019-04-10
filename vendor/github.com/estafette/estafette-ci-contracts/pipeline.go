@@ -25,5 +25,6 @@ type Pipeline struct {
 	InsertedAt           time.Time                   `json:"insertedAt"`
 	UpdatedAt            time.Time                   `json:"updatedAt"`
 	Duration             time.Duration               `json:"duration"`
+	LastUpdatedAt        time.Time                   `json:"lastUpdatedAt"`
 	ManifestObject       *manifest.EstafetteManifest `json:"-"`
 }

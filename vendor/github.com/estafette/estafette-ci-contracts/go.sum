@@ -1,10 +1,12 @@
 github.com/davecgh/go-spew v0.0.0-20170711183451-adab96458c51/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/estafette/estafette-ci-manifest v0.1.92 h1:JjXiFsN6Spt4fYYePubrijowHMxhGn1HkeI3lwu9Rbw=
-github.com/estafette/estafette-ci-manifest v0.1.92/go.mod h1:u+q8CliqPuK87sSh/FAknAPLtMIlBNs/NGzTWvmxniA=
+github.com/estafette/estafette-ci-manifest v0.1.97 h1:2aH9qnHX23vtqU7dCv8eltpehLO92l0HhxHyL7bWUoI=
+github.com/estafette/estafette-ci-manifest v0.1.97/go.mod h1:jhTvn+nleUBAmhwc0kn1n0CfeUd1AJYHVYJjcfXMXEY=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
+github.com/robfig/cron v0.0.0-20180505203441-b41be1df6967 h1:x7xEyJDP7Hv3LVgvWhzioQqbC/KtuUhTigKlH/8ehhE=
+github.com/robfig/cron v0.0.0-20180505203441-b41be1df6967/go.mod h1:JGuDeoQd7Z6yL4zQhZ3OPEVHB7fL6Ka6skscFHfmt2k=
 github.com/rs/zerolog v1.8.0 h1:Oglcb4i6h42uWacEjomB2MI8gfkwCwTMFaDY3+Vgj5k=
 github.com/rs/zerolog v1.8.0/go.mod h1:YbFCdg8HfsridGWAh22vktObvhZbQsZXe4/zB0OKkWU=
 github.com/stretchr/testify v1.1.4 h1:ToftOQTytwshuOSj6bDSolVUa3GINfJP/fg3OkkOzQQ=
