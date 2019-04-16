@@ -1,6 +1,5 @@
 builder:
   track: dev
-  inMemoryWorkDir: true
 
 labels:
   app: estafette-ci-builder

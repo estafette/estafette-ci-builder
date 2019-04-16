@@ -23,7 +23,7 @@ type BuilderConfig struct {
 
 	JobName     *string                    `json:"jobName,omitempty"`
 	ReleaseName *string                    `json:"releaseName,omitempty"`
-	Events      []*manifest.EstafetteEvent `json:"events,omitempty"`
+	Events      []*manifest.EstafetteEvent `json:"triggerEvents,omitempty"`
 
 	CIServer      *CIServerConfig      `json:"ciServer,omitempty"`
 	BuildParams   *BuildParamsConfig   `json:"buildParams,omitempty"`

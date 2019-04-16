@@ -22,6 +22,7 @@ type Build struct {
 	ManifestWithDefaults string                      `json:"manifestWithDefaults,omitempty"`
 	Commits              []GitCommit                 `json:"commits,omitempty"`
 	Triggers             []manifest.EstafetteTrigger `json:"triggers,omitempty"`
+	Events               []manifest.EstafetteEvent   `json:"triggerEvents,omitempty"`
 	InsertedAt           time.Time                   `json:"insertedAt"`
 	UpdatedAt            time.Time                   `json:"updatedAt"`
 	Duration             time.Duration               `json:"duration"`

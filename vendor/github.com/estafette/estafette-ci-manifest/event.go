@@ -43,6 +43,11 @@ type EstafetteCronEvent struct {
 	Time time.Time `yaml:"time,omitempty" json:"time,omitempty"`
 }
 
+// EstafetteManualEvent fires when a user manually triggers a build or release
+type EstafetteManualEvent struct {
+	UserID string `yaml:"userID,omitempty" json:"userID,omitempty"`
+}
+
 // EstafetteEvent is a container for any trigger event
 type EstafetteEvent struct {
 	Pipeline *EstafettePipelineEvent `yaml:"pipeline,omitempty" json:"pipeline,omitempty"`
@@ -50,4 +55,5 @@ type EstafetteEvent struct {
 	Git      *EstafetteGitEvent      `yaml:"git,omitempty" json:"git,omitempty"`
 	Docker   *EstafetteDockerEvent   `yaml:"docker,omitempty" json:"docker,omitempty"`
 	Cron     *EstafetteCronEvent     `yaml:"cron,omitempty" json:"cron,omitempty"`
+	Manual   *EstafetteManualEvent   `yaml:"manual,omitempty" json:"manual,omitempty"`
 }
