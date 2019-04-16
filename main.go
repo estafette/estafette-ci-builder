@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
-	"strconv"
 	"syscall"
 
 	"github.com/alecthomas/kingpin"
@@ -177,43 +176,7 @@ func main() {
 		// log as severity for stackdriver logging to recognize the level
 		zerolog.LevelFieldName = "severity"
 
-		// set envvars that can be used by any container
-		envvarHelper.setEstafetteEnv("ESTAFETTE_GIT_SOURCE", builderConfig.Git.RepoSource)
-		envvarHelper.setEstafetteEnv("ESTAFETTE_GIT_OWNER", builderConfig.Git.RepoOwner)
-		envvarHelper.setEstafetteEnv("ESTAFETTE_GIT_NAME", builderConfig.Git.RepoName)
-		envvarHelper.setEstafetteEnv("ESTAFETTE_GIT_FULLNAME", fmt.Sprintf("%v/%v", builderConfig.Git.RepoOwner, builderConfig.Git.RepoName))
-
-		envvarHelper.setEstafetteEnv("ESTAFETTE_GIT_BRANCH", builderConfig.Git.RepoBranch)
-		envvarHelper.setEstafetteEnv("ESTAFETTE_GIT_REVISION", builderConfig.Git.RepoRevision)
-		envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_VERSION", builderConfig.BuildVersion.Version)
-		if builderConfig.BuildVersion.Major != nil {
-			envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_VERSION_MAJOR", strconv.Itoa(*builderConfig.BuildVersion.Major))
-		}
-		if builderConfig.BuildVersion.Minor != nil {
-			envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_VERSION_MINOR", strconv.Itoa(*builderConfig.BuildVersion.Minor))
-		}
-		if builderConfig.BuildVersion.AutoIncrement != nil {
-			envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_VERSION_PATCH", strconv.Itoa(*builderConfig.BuildVersion.AutoIncrement))
-		}
-		if builderConfig.BuildVersion.Label != nil {
-			envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_VERSION_LABEL", *builderConfig.BuildVersion.Label)
-		}
-		if builderConfig.ReleaseParams != nil {
-			envvarHelper.setEstafetteEnv("ESTAFETTE_RELEASE_NAME", builderConfig.ReleaseParams.ReleaseName)
-			envvarHelper.setEstafetteEnv("ESTAFETTE_RELEASE_ACTION", builderConfig.ReleaseParams.ReleaseAction)
-			envvarHelper.setEstafetteEnv("ESTAFETTE_RELEASE_TRIGGERED_BY", builderConfig.ReleaseParams.TriggeredBy)
-			// set ESTAFETTE_RELEASE_ID for backwards compatibility with extensions/slack-build-status
-			envvarHelper.setEstafetteEnv("ESTAFETTE_RELEASE_ID", strconv.Itoa(builderConfig.ReleaseParams.ReleaseID))
-		}
-		if builderConfig.BuildParams != nil {
-			// set ESTAFETTE_BUILD_ID for backwards compatibility with extensions/github-status and extensions/bitbucket-status and extensions/slack-build-status
-			envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_ID", strconv.Itoa(builderConfig.BuildParams.BuildID))
-		}
-
-		// set ESTAFETTE_CI_SERVER_BASE_URL for backwards compatibility with extensions/github-status and extensions/bitbucket-status and extensions/slack-build-status
-		if builderConfig.CIServer != nil {
-			envvarHelper.setEstafetteEnv("ESTAFETTE_CI_SERVER_BASE_URL", builderConfig.CIServer.BaseURL)
-		}
+		envvarHelper.setEstafetteBuilderConfigEnvvars(builderConfig)
 
 		buildLog := contracts.BuildLog{
 			RepoSource:   builderConfig.Git.RepoSource,

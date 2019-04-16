@@ -1,16 +1,20 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
+	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
 
 	"github.com/rs/zerolog/log"
 
+	contracts "github.com/estafette/estafette-ci-contracts"
 	crypt "github.com/estafette/estafette-ci-crypt"
 	manifest "github.com/estafette/estafette-ci-manifest"
 )
@@ -20,6 +24,8 @@ type EnvvarHelper interface {
 	toUpperSnake(string) string
 	getCommandOutput(string, ...string) (string, error)
 	setEstafetteGlobalEnvvars() error
+	setEstafetteBuilderConfigEnvvars(builderConfig contracts.BuilderConfig) error
+	setEstafetteEventEnvvars(events []*manifest.EstafetteEvent) error
 	initGitSource() error
 	initGitOwner() error
 	initGitName() error
@@ -150,6 +156,108 @@ func (h *envvarHelperImpl) setEstafetteGlobalEnvvars() (err error) {
 	}
 
 	return
+}
+
+func (h *envvarHelperImpl) setEstafetteBuilderConfigEnvvars(builderConfig contracts.BuilderConfig) (err error) {
+	// set envvars that can be used by any container
+	h.setEstafetteEnv("ESTAFETTE_GIT_SOURCE", builderConfig.Git.RepoSource)
+	h.setEstafetteEnv("ESTAFETTE_GIT_OWNER", builderConfig.Git.RepoOwner)
+	h.setEstafetteEnv("ESTAFETTE_GIT_NAME", builderConfig.Git.RepoName)
+	h.setEstafetteEnv("ESTAFETTE_GIT_FULLNAME", fmt.Sprintf("%v/%v", builderConfig.Git.RepoOwner, builderConfig.Git.RepoName))
+
+	h.setEstafetteEnv("ESTAFETTE_GIT_BRANCH", builderConfig.Git.RepoBranch)
+	h.setEstafetteEnv("ESTAFETTE_GIT_REVISION", builderConfig.Git.RepoRevision)
+	h.setEstafetteEnv("ESTAFETTE_BUILD_VERSION", builderConfig.BuildVersion.Version)
+	if builderConfig.BuildVersion.Major != nil {
+		h.setEstafetteEnv("ESTAFETTE_BUILD_VERSION_MAJOR", strconv.Itoa(*builderConfig.BuildVersion.Major))
+	}
+	if builderConfig.BuildVersion.Minor != nil {
+		h.setEstafetteEnv("ESTAFETTE_BUILD_VERSION_MINOR", strconv.Itoa(*builderConfig.BuildVersion.Minor))
+	}
+	if builderConfig.BuildVersion.AutoIncrement != nil {
+		h.setEstafetteEnv("ESTAFETTE_BUILD_VERSION_PATCH", strconv.Itoa(*builderConfig.BuildVersion.AutoIncrement))
+	}
+	if builderConfig.BuildVersion.Label != nil {
+		h.setEstafetteEnv("ESTAFETTE_BUILD_VERSION_LABEL", *builderConfig.BuildVersion.Label)
+	}
+	if builderConfig.ReleaseParams != nil {
+		h.setEstafetteEnv("ESTAFETTE_RELEASE_NAME", builderConfig.ReleaseParams.ReleaseName)
+		h.setEstafetteEnv("ESTAFETTE_RELEASE_ACTION", builderConfig.ReleaseParams.ReleaseAction)
+		h.setEstafetteEnv("ESTAFETTE_RELEASE_TRIGGERED_BY", builderConfig.ReleaseParams.TriggeredBy)
+		// set ESTAFETTE_RELEASE_ID for backwards compatibility with extensions/slack-build-status
+		h.setEstafetteEnv("ESTAFETTE_RELEASE_ID", strconv.Itoa(builderConfig.ReleaseParams.ReleaseID))
+	}
+	if builderConfig.BuildParams != nil {
+		// set ESTAFETTE_BUILD_ID for backwards compatibility with extensions/github-status and extensions/bitbucket-status and extensions/slack-build-status
+		h.setEstafetteEnv("ESTAFETTE_BUILD_ID", strconv.Itoa(builderConfig.BuildParams.BuildID))
+	}
+
+	// set ESTAFETTE_CI_SERVER_BASE_URL for backwards compatibility with extensions/github-status and extensions/bitbucket-status and extensions/slack-build-status
+	if builderConfig.CIServer != nil {
+		h.setEstafetteEnv("ESTAFETTE_CI_SERVER_BASE_URL", builderConfig.CIServer.BaseURL)
+	}
+
+	return h.setEstafetteEventEnvvars(builderConfig.Events)
+}
+
+func (h *envvarHelperImpl) setEstafetteEventEnvvars(events []*manifest.EstafetteEvent) (err error) {
+
+	if events != nil {
+		for _, e := range events {
+
+			if e == nil {
+				continue
+			}
+
+			triggerFields := reflect.TypeOf(*e)
+			triggerValues := reflect.ValueOf(*e)
+
+			for i := 0; i < triggerFields.NumField(); i++ {
+
+				triggerField := triggerFields.Field(i).Name
+				triggerValue := triggerValues.Field(i)
+
+				// fmt.Println("Actual type is:", triggerFields.Field(i))
+				// fmt.Println("Value type is:", triggerValues.Field(i).Kind())
+
+				if triggerValue.Kind() != reflect.Ptr || triggerValue.IsNil() {
+					continue
+				}
+
+				fmt.Println("Indirect type is:", reflect.Indirect(triggerValue).Type())
+				fmt.Println("Indirect value type is:", reflect.Indirect(triggerValue).Kind())
+
+				// dereference the pointer
+				derefencedPointerValue := reflect.Indirect(triggerValue)
+
+				triggerPropertyFields := derefencedPointerValue.Type()
+				triggerPropertyValues := derefencedPointerValue
+
+				for j := 0; j < triggerPropertyFields.NumField(); j++ {
+
+					triggerPropertyField := triggerPropertyFields.Field(j).Name
+					triggerPropertyValue := triggerPropertyValues.Field(j)
+
+					envvarName := "ESTAFETTE_TRIGGER_" + h.toUpperSnake(triggerField) + "_" + h.toUpperSnake(triggerPropertyField)
+					envvarValue := ""
+
+					switch triggerPropertyValue.Kind() {
+					case reflect.String:
+						envvarValue = triggerPropertyValue.String()
+					default:
+						jsonValue, _ := json.Marshal(triggerPropertyValue.Interface())
+						envvarValue = string(jsonValue)
+
+						envvarValue = strings.Trim(envvarValue, "\"")
+					}
+
+					h.setEstafetteEnv(envvarName, envvarValue)
+				}
+			}
+		}
+	}
+
+	return nil
 }
 
 func (h *envvarHelperImpl) getGitOrigin() (string, error) {

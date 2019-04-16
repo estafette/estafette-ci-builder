@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"testing"
+	"time"
 
 	crypt "github.com/estafette/estafette-ci-crypt"
 	manifest "github.com/estafette/estafette-ci-manifest"
@@ -482,5 +483,121 @@ func TestMakeDNSLabelSafe(t *testing.T) {
 		safeValue := envvarHelper.makeDNSLabelSafe(value)
 
 		assert.Equal(t, "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghij", safeValue)
+	})
+}
+
+func TestSetEstafetteEventEnvvars(t *testing.T) {
+
+	t.Run("ReturnsPipelineEventPropertiesAsEnvvars", func(t *testing.T) {
+
+		envvarHelper.unsetEstafetteEnvvars()
+		event := manifest.EstafetteEvent{
+			Pipeline: &manifest.EstafettePipelineEvent{
+				BuildVersion: "1.0.50-some-branch",
+				RepoSource:   "github.com",
+				RepoOwner:    "estafette",
+				RepoName:     "estafette-ci-api",
+				Branch:       "master",
+				Status:       "succeeded",
+				Event:        "finished",
+			},
+		}
+
+		// act
+		envvarHelper.setEstafetteEventEnvvars([]*manifest.EstafetteEvent{&event})
+
+		envvars := envvarHelper.collectEstafetteEnvvars()
+		assert.Equal(t, 14, len(envvars))
+		assert.Equal(t, "1.0.50-some-branch", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_PIPELINE_BUILD_VERSION"))
+		assert.Equal(t, "github.com", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_PIPELINE_REPO_SOURCE"))
+		assert.Equal(t, "estafette", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_PIPELINE_REPO_OWNER"))
+		assert.Equal(t, "estafette-ci-api", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_PIPELINE_REPO_NAME"))
+		assert.Equal(t, "master", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_PIPELINE_BRANCH"))
+		assert.Equal(t, "succeeded", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_PIPELINE_STATUS"))
+		assert.Equal(t, "finished", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_PIPELINE_EVENT"))
+	})
+
+	t.Run("ReturnsReleaseEventPropertiesAsEnvvars", func(t *testing.T) {
+
+		envvarHelper.unsetEstafetteEnvvars()
+		event := manifest.EstafetteEvent{
+			Release: &manifest.EstafetteReleaseEvent{
+				ReleaseVersion: "1.0.50-some-branch",
+				RepoSource:     "github.com",
+				RepoOwner:      "estafette",
+				RepoName:       "estafette-ci-api",
+				Target:         "development",
+				Status:         "succeeded",
+				Event:          "finished",
+			},
+		}
+
+		// act
+		envvarHelper.setEstafetteEventEnvvars([]*manifest.EstafetteEvent{&event})
+
+		envvars := envvarHelper.collectEstafetteEnvvars()
+		assert.Equal(t, 14, len(envvars))
+		assert.Equal(t, "1.0.50-some-branch", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_RELEASE_RELEASE_VERSION"))
+		assert.Equal(t, "github.com", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_RELEASE_REPO_SOURCE"))
+		assert.Equal(t, "estafette", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_RELEASE_REPO_OWNER"))
+		assert.Equal(t, "estafette-ci-api", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_RELEASE_REPO_NAME"))
+		assert.Equal(t, "development", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_RELEASE_TARGET"))
+		assert.Equal(t, "succeeded", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_RELEASE_STATUS"))
+		assert.Equal(t, "finished", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_RELEASE_EVENT"))
+	})
+
+	t.Run("ReturnsGitEventPropertiesAsEnvvars", func(t *testing.T) {
+
+		envvarHelper.unsetEstafetteEnvvars()
+		event := manifest.EstafetteEvent{
+			Git: &manifest.EstafetteGitEvent{
+				Event:      "push",
+				Repository: "github.com/estafette/estafette-ci-api",
+				Branch:     "master",
+			},
+		}
+
+		// act
+		envvarHelper.setEstafetteEventEnvvars([]*manifest.EstafetteEvent{&event})
+
+		envvars := envvarHelper.collectEstafetteEnvvars()
+		assert.Equal(t, 6, len(envvars))
+		assert.Equal(t, "push", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_GIT_EVENT"))
+		assert.Equal(t, "github.com/estafette/estafette-ci-api", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_GIT_REPOSITORY"))
+		assert.Equal(t, "master", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_GIT_BRANCH"))
+	})
+
+	t.Run("ReturnsCronEventPropertiesAsEnvvars", func(t *testing.T) {
+
+		envvarHelper.unsetEstafetteEnvvars()
+		event := manifest.EstafetteEvent{
+			Cron: &manifest.EstafetteCronEvent{
+				Time: time.Date(2009, 11, 17, 20, 34, 58, 651387237, time.UTC),
+			},
+		}
+
+		// act
+		envvarHelper.setEstafetteEventEnvvars([]*manifest.EstafetteEvent{&event})
+
+		envvars := envvarHelper.collectEstafetteEnvvars()
+		assert.Equal(t, 2, len(envvars))
+		assert.Equal(t, "2009-11-17T20:34:58.651387237Z", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_CRON_TIME"))
+	})
+
+	t.Run("ReturnsManualEventPropertiesAsEnvvars", func(t *testing.T) {
+
+		envvarHelper.unsetEstafetteEnvvars()
+		event := manifest.EstafetteEvent{
+			Manual: &manifest.EstafetteManualEvent{
+				UserID: "user@server.com",
+			},
+		}
+
+		// act
+		envvarHelper.setEstafetteEventEnvvars([]*manifest.EstafetteEvent{&event})
+
+		envvars := envvarHelper.collectEstafetteEnvvars()
+		assert.Equal(t, 2, len(envvars))
+		assert.Equal(t, "user@server.com", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_MANUAL_USER_ID"))
 	})
 }
