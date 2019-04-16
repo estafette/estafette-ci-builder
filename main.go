@@ -280,7 +280,7 @@ func main() {
 
 		// send result to ci-api
 		log.Info().Interface("result", result).Msg("Finished running stages")
-		buildLog.Steps = transformPipelineRunResultToBuildLogSteps(result)
+		buildLog.Steps = transformPipelineRunResultToBuildLogSteps(estafetteEnvvars, result)
 		buildStatus := "succeeded"
 		if result.HasAggregatedErrors() {
 			buildStatus = "failed"

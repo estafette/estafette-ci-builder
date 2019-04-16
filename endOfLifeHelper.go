@@ -44,7 +44,7 @@ func (elh *endOfLifeHelperImpl) handleFatal(buildLog contracts.BuildLog, err err
 		Step:     "init",
 		LogLines: []contracts.BuildLogLine{},
 		ExitCode: -1,
-		Status:   "failed",
+		Status:   "FAILED",
 	}
 	lineNumber := 1
 

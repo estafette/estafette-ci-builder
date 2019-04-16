@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/estafette/estafette-ci-contracts"
 
@@ -92,9 +93,38 @@ func pathExists(path string) (bool, error) {
 	return true, err
 }
 
-func transformPipelineRunResultToBuildLogSteps(result estafetteRunStagesResult) (buildLogSteps []contracts.BuildLogStep) {
+func transformEstafetteEnvvarsToBuildLogStep(estafetteEnvvars map[string]string) (buildLogSteps []contracts.BuildLogStep) {
 
 	buildLogSteps = make([]contracts.BuildLogStep, 0)
+
+	initStep := contracts.BuildLogStep{
+		Step:         "init",
+		LogLines:     []contracts.BuildLogLine{},
+		ExitCode:     0,
+		Status:       "SUCCEEDED",
+		AutoInjected: true,
+	}
+	lineNumber := 1
+
+	for key, value := range estafetteEnvvars {
+		initStep.LogLines = append(initStep.LogLines, contracts.BuildLogLine{
+			LineNumber: lineNumber,
+			Timestamp:  time.Now().UTC(),
+			StreamType: "stderr",
+			Text:       fmt.Sprintf("%v: %v", key, value),
+		})
+
+		lineNumber++
+	}
+
+	buildLogSteps = append(buildLogSteps, initStep)
+
+	return
+}
+
+func transformPipelineRunResultToBuildLogSteps(estafetteEnvvars map[string]string, result estafetteRunStagesResult) (buildLogSteps []contracts.BuildLogStep) {
+
+	buildLogSteps = transformEstafetteEnvvarsToBuildLogStep(estafetteEnvvars)
 
 	for _, r := range result.StageResults {
 
