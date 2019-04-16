@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 	"time"
 
@@ -98,7 +99,7 @@ func transformEstafetteEnvvarsToBuildLogStep(estafetteEnvvars map[string]string)
 	buildLogSteps = make([]contracts.BuildLogStep, 0)
 
 	initStep := contracts.BuildLogStep{
-		Step:         "init",
+		Step:         "envvars",
 		LogLines:     []contracts.BuildLogLine{},
 		ExitCode:     0,
 		Status:       "SUCCEEDED",
@@ -106,12 +107,18 @@ func transformEstafetteEnvvarsToBuildLogStep(estafetteEnvvars map[string]string)
 	}
 	lineNumber := 1
 
-	for key, value := range estafetteEnvvars {
+	sortedKeys := make([]string, 0, len(estafetteEnvvars))
+	for key := range estafetteEnvvars {
+		sortedKeys = append(sortedKeys, key)
+	}
+	sort.Strings(sortedKeys)
+
+	for _, key := range sortedKeys {
 		initStep.LogLines = append(initStep.LogLines, contracts.BuildLogLine{
 			LineNumber: lineNumber,
 			Timestamp:  time.Now().UTC(),
 			StreamType: "stderr",
-			Text:       fmt.Sprintf("%v: %v", key, value),
+			Text:       fmt.Sprintf("%v: %v", key, estafetteEnvvars[key]),
 		})
 
 		lineNumber++
