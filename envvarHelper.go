@@ -217,15 +217,9 @@ func (h *envvarHelperImpl) setEstafetteEventEnvvars(events []*manifest.Estafette
 				triggerField := triggerFields.Field(i).Name
 				triggerValue := triggerValues.Field(i)
 
-				// fmt.Println("Actual type is:", triggerFields.Field(i))
-				// fmt.Println("Value type is:", triggerValues.Field(i).Kind())
-
 				if triggerValue.Kind() != reflect.Ptr || triggerValue.IsNil() {
 					continue
 				}
-
-				fmt.Println("Indirect type is:", reflect.Indirect(triggerValue).Type())
-				fmt.Println("Indirect value type is:", reflect.Indirect(triggerValue).Kind())
 
 				// dereference the pointer
 				derefencedPointerValue := reflect.Indirect(triggerValue)
