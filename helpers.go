@@ -105,19 +105,37 @@ func transformEstafetteEnvvarsToBuildLogStep(estafetteEnvvars map[string]string)
 		Status:       "SUCCEEDED",
 		AutoInjected: true,
 	}
-	lineNumber := 1
 
+	timestamp := time.Now().UTC()
+
+	// explanation
+	initStep.LogLines = append(initStep.LogLines, contracts.BuildLogLine{
+		LineNumber: 1,
+		Timestamp:  timestamp,
+		StreamType: "stdout",
+		Text:       "All available estafette environment variables; the _DNS_SAFE suffixed ones can be used to set dns labels. Since leading digits are not allowed some of them are empty.",
+	})
+	initStep.LogLines = append(initStep.LogLines, contracts.BuildLogLine{
+		LineNumber: 2,
+		Timestamp:  timestamp,
+		StreamType: "stdout",
+		Text:       "",
+	})
+
+	// keys in a map are deliberately unsorted, so sort them here
 	sortedKeys := make([]string, 0, len(estafetteEnvvars))
 	for key := range estafetteEnvvars {
 		sortedKeys = append(sortedKeys, key)
 	}
 	sort.Strings(sortedKeys)
 
+	// log all estafette environment variables and their values
+	lineNumber := 3
 	for _, key := range sortedKeys {
 		initStep.LogLines = append(initStep.LogLines, contracts.BuildLogLine{
 			LineNumber: lineNumber,
-			Timestamp:  time.Now().UTC(),
-			StreamType: "stderr",
+			Timestamp:  timestamp,
+			StreamType: "stdout",
 			Text:       fmt.Sprintf("%v: %v", key, estafetteEnvvars[key]),
 		})
 
