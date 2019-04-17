@@ -37,6 +37,19 @@ func NewSecretHelper(key string, base64encodedKey bool) SecretHelper {
 	}
 }
 
+func (sh *secretHelperImpl) getKey(key string, base64encodedKey bool) (keyBytes []byte, err error) {
+
+	keyBytes = []byte(key)
+	if base64encodedKey {
+		keyBytes, err = base64.StdEncoding.DecodeString(key)
+		if err != nil {
+			return keyBytes, err
+		}
+	}
+
+	return keyBytes, nil
+}
+
 func (sh *secretHelperImpl) Encrypt(unencryptedText string) (encryptedTextPlusNonce string, err error) {
 	return sh.encryptWithKey(unencryptedText, sh.key, sh.base64encodedKey)
 }
@@ -44,12 +57,9 @@ func (sh *secretHelperImpl) Encrypt(unencryptedText string) (encryptedTextPlusNo
 func (sh *secretHelperImpl) encryptWithKey(unencryptedText, key string, base64encodedKey bool) (encryptedTextPlusNonce string, err error) {
 
 	// The key argument should be the AES key, either 16 or 32 bytes to select AES-128 or AES-256.
-	keyBytes := []byte(key)
-	if base64encodedKey {
-		keyBytes, err = base64.StdEncoding.DecodeString(key)
-		if err != nil {
-			return
-		}
+	keyBytes, err := sh.getKey(key, base64encodedKey)
+	if err != nil {
+		return
 	}
 	plaintext := []byte(unencryptedText)
 
@@ -78,6 +88,11 @@ func (sh *secretHelperImpl) encryptWithKey(unencryptedText, key string, base64en
 
 func (sh *secretHelperImpl) Decrypt(encryptedTextPlusNonce string) (decryptedText string, err error) {
 
+	return sh.decryptWithKey(encryptedTextPlusNonce, sh.key, sh.base64encodedKey)
+}
+
+func (sh *secretHelperImpl) decryptWithKey(encryptedTextPlusNonce string, key string, base64encodedKey bool) (decryptedText string, err error) {
+
 	splittedStrings := strings.Split(encryptedTextPlusNonce, ".")
 	if splittedStrings == nil || len(splittedStrings) != 2 {
 		err = errors.New("The encrypted text plus nonce doesn't split correctly")
@@ -88,12 +103,15 @@ func (sh *secretHelperImpl) Decrypt(encryptedTextPlusNonce string) (decryptedTex
 	encryptedText := splittedStrings[1]
 
 	// The key argument should be the AES key, either 16 or 32 bytes to select AES-128 or AES-256.
-	key := []byte(sh.key)
+	keyBytes, err := sh.getKey(key, base64encodedKey)
+	if err != nil {
+		return
+	}
 	ciphertext, _ := base64.URLEncoding.DecodeString(encryptedText)
 
 	nonce, _ := base64.URLEncoding.DecodeString(usedNonce)
 
-	block, err := aes.NewCipher(key)
+	block, err := aes.NewCipher(keyBytes)
 	if err != nil {
 		return
 	}

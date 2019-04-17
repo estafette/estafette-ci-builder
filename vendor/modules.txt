@@ -42,7 +42,7 @@ github.com/docker/go-connections/nat
 github.com/docker/go-units
 # github.com/estafette/estafette-ci-contracts v0.0.127
 github.com/estafette/estafette-ci-contracts
-# github.com/estafette/estafette-ci-crypt v0.0.22
+# github.com/estafette/estafette-ci-crypt v0.0.23
 github.com/estafette/estafette-ci-crypt
 # github.com/estafette/estafette-ci-manifest v0.1.99
 github.com/estafette/estafette-ci-manifest
