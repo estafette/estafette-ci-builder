@@ -14,30 +14,46 @@ import (
 
 // SecretHelper is the interface for encrypting and decrypting secrets
 type SecretHelper interface {
-	Encrypt(string) (string, error)
-	Decrypt(string) (string, error)
-	EncryptEnvelope(string) (string, error)
-	DecryptEnvelope(string) (string, error)
-	DecryptAllEnvelopes(string) (string, error)
+	Encrypt(unencryptedText string) (encryptedTextPlusNonce string, err error)
+	Decrypt(encryptedTextPlusNonce string) (decryptedText string, err error)
+	EncryptEnvelope(unencryptedText string) (encryptedTextInEnvelope string, err error)
+	DecryptEnvelope(encryptedTextInEnvelope string) (decryptedText string, err error)
+	DecryptAllEnvelopes(encryptedTextWithEnvelopes string) (decryptedText string, err error)
+	ReencryptAllEnvelopes(encryptedTextWithEnvelopes string, base64encodedKey bool) (reencryptedText string, key string, err error)
+	GenerateKey(numberOfBytes int, base64encodedKey bool) (key string, err error)
 }
 
 type secretHelperImpl struct {
-	key string
+	key              string
+	base64encodedKey bool
 }
 
 // NewSecretHelper returns a new SecretHelper
-func NewSecretHelper(key string) SecretHelper {
+func NewSecretHelper(key string, base64encodedKey bool) SecretHelper {
+
 	return &secretHelperImpl{
-		key: key,
+		key:              key,
+		base64encodedKey: base64encodedKey,
 	}
 }
 
 func (sh *secretHelperImpl) Encrypt(unencryptedText string) (encryptedTextPlusNonce string, err error) {
+	return sh.encryptWithKey(unencryptedText, sh.key, sh.base64encodedKey)
+}
+
+func (sh *secretHelperImpl) encryptWithKey(unencryptedText, key string, base64encodedKey bool) (encryptedTextPlusNonce string, err error) {
+
 	// The key argument should be the AES key, either 16 or 32 bytes to select AES-128 or AES-256.
-	key := []byte(sh.key)
+	keyBytes := []byte(key)
+	if base64encodedKey {
+		keyBytes, err = base64.StdEncoding.DecodeString(key)
+		if err != nil {
+			return
+		}
+	}
 	plaintext := []byte(unencryptedText)
 
-	block, err := aes.NewCipher(key)
+	block, err := aes.NewCipher(keyBytes)
 	if err != nil {
 		return
 	}
@@ -99,7 +115,12 @@ func (sh *secretHelperImpl) Decrypt(encryptedTextPlusNonce string) (decryptedTex
 
 func (sh *secretHelperImpl) EncryptEnvelope(unencryptedText string) (encryptedTextInEnvelope string, err error) {
 
-	encryptedText, err := sh.Encrypt(unencryptedText)
+	return sh.encryptEnvelopeWithKey(unencryptedText, sh.key, sh.base64encodedKey)
+}
+
+func (sh *secretHelperImpl) encryptEnvelopeWithKey(unencryptedText, key string, base64encodedKey bool) (encryptedTextInEnvelope string, err error) {
+
+	encryptedText, err := sh.encryptWithKey(unencryptedText, key, base64encodedKey)
 	if err != nil {
 		return
 	}
@@ -148,4 +169,53 @@ func (sh *secretHelperImpl) DecryptAllEnvelopes(encryptedTextWithEnvelopes strin
 	decryptedText = string(r.ReplaceAllFunc([]byte(encryptedTextWithEnvelopes), sh.decryptEnvelopeInBytes))
 
 	return
+}
+
+func (sh *secretHelperImpl) GenerateKey(numberOfBytes int, base64encodedKey bool) (string, error) {
+
+	key := make([]byte, numberOfBytes)
+
+	_, err := rand.Read(key)
+	if err != nil {
+		return "", err
+	}
+
+	keyString := string(key)
+	if base64encodedKey {
+		keyString = base64.StdEncoding.EncodeToString(key)
+	}
+
+	return keyString, nil
+}
+
+func (sh *secretHelperImpl) ReencryptAllEnvelopes(encryptedTextWithEnvelopes string, base64encodedKey bool) (reencryptedText string, key string, err error) {
+
+	// generate 32 bytes key
+	key, err = sh.GenerateKey(32, base64encodedKey)
+	if err != nil {
+		return encryptedTextWithEnvelopes, key, err
+	}
+
+	// scan for all secrets and replace them with new secret
+	r, err := regexp.Compile(`estafette\.secret\([a-zA-Z0-9.=_-]+\)`)
+	if err != nil {
+		return
+	}
+
+	reencryptedText = string(r.ReplaceAllFunc([]byte(encryptedTextWithEnvelopes), func(encryptedTextInEnvelope []byte) []byte {
+
+		decryptedText, err := sh.DecryptEnvelope(string(encryptedTextInEnvelope))
+		if err != nil {
+			return nil
+		}
+
+		reencryptedTextInEnvelope, err := sh.encryptEnvelopeWithKey(decryptedText, key, base64encodedKey)
+		if err != nil {
+			return nil
+		}
+
+		return []byte(reencryptedTextInEnvelope)
+	}))
+
+	return reencryptedText, key, nil
 }

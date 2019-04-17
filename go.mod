@@ -7,7 +7,7 @@ require (
 	github.com/Knetic/govaluate v3.0.0+incompatible
 	github.com/Microsoft/go-winio v0.4.11 // indirect
 	github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5 // indirect
-	github.com/alecthomas/assert v0.0.0-20170929043011-405dbfeb8e38
+	github.com/alecthomas/assert v0.0.0-20170929043011-405dbfeb8e38 // indirect
 	github.com/alecthomas/colour v0.0.0-20160524082231-60882d9e2721 // indirect
 	github.com/alecthomas/kingpin v2.2.5+incompatible
 	github.com/alecthomas/repr v0.0.0-20181024024818-d37bc2a10ba1 // indirect
@@ -19,7 +19,7 @@ require (
 	github.com/docker/go-connections v0.0.0-20180821093606-97c2040d34df // indirect
 	github.com/docker/go-units v0.3.3 // indirect
 	github.com/estafette/estafette-ci-contracts v0.0.127
-	github.com/estafette/estafette-ci-crypt v0.0.19
+	github.com/estafette/estafette-ci-crypt v0.0.22
 	github.com/estafette/estafette-ci-manifest v0.1.99
 	github.com/gogo/protobuf v0.0.0-20180830160456-5669497fd644 // indirect
 	github.com/google/go-cmp v0.2.0 // indirect

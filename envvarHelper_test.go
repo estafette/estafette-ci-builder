@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	secretHelper = crypt.NewSecretHelper("SazbwMf3NZxVVbBqQHebPcXCqrVn3DDp")
+	secretHelper = crypt.NewSecretHelper("SazbwMf3NZxVVbBqQHebPcXCqrVn3DDp", false)
 	envvarHelper = NewEnvvarHelper("TESTPREFIX_", secretHelper)
 )
 

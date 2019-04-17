@@ -24,9 +24,10 @@ var (
 	buildDate string
 	goVersion = runtime.Version()
 
-	builderConfigFlag   = kingpin.Flag("builder-config", "The Estafette server passes in this json structure to parameterize the build, set trusted images and inject credentials.").Envar("BUILDER_CONFIG").String()
-	secretDecryptionKey = kingpin.Flag("secret-decryption-key", "The AES-256 key used to decrypt secrets that have been encrypted with it.").Envar("SECRET_DECRYPTION_KEY").String()
-	runAsJob            = kingpin.Flag("run-as-job", "To run the builder as a job and prevent build failures to fail the job.").Default("false").OverrideDefaultFromEnvar("RUN_AS_JOB").Bool()
+	builderConfigFlag         = kingpin.Flag("builder-config", "The Estafette server passes in this json structure to parameterize the build, set trusted images and inject credentials.").Envar("BUILDER_CONFIG").String()
+	secretDecryptionKey       = kingpin.Flag("secret-decryption-key", "The AES-256 key used to decrypt secrets that have been encrypted with it.").Envar("SECRET_DECRYPTION_KEY").String()
+	secretDecryptionKeyBase64 = kingpin.Flag("secret-decryption-key-base64", "The base64 encoded AES-256 key used to decrypt secrets that have been encrypted with it.").Envar("SECRET_DECRYPTION_KEY_BASE64").String()
+	runAsJob                  = kingpin.Flag("run-as-job", "To run the builder as a job and prevent build failures to fail the job.").Default("false").OverrideDefaultFromEnvar("RUN_AS_JOB").Bool()
 )
 
 func main() {
@@ -45,7 +46,14 @@ func main() {
 		close(cancellationChannel)
 	}(osSignals, cancellationChannel)
 
-	secretHelper := crypt.NewSecretHelper(*secretDecryptionKey)
+	// support both base64 encoded decryption key and non-encoded
+	secretDecryptionKeyBase64Encoded := *secretDecryptionKeyBase64 != ""
+	decryptionKey := *secretDecryptionKey
+	if secretDecryptionKeyBase64Encoded {
+		decryptionKey = *secretDecryptionKeyBase64
+	}
+
+	secretHelper := crypt.NewSecretHelper(decryptionKey, secretDecryptionKeyBase64Encoded)
 
 	// read builder config from envvar and unset envar; will replace parameterizing the job via separate envvars
 	var builderConfig contracts.BuilderConfig
