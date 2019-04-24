@@ -3,9 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
-	"sort"
 	"strings"
-	"time"
 
 	"github.com/estafette/estafette-ci-contracts"
 
@@ -94,62 +92,9 @@ func pathExists(path string) (bool, error) {
 	return true, err
 }
 
-func transformEstafetteEnvvarsToBuildLogStep(estafetteEnvvars map[string]string) (buildLogSteps []contracts.BuildLogStep) {
-
-	buildLogSteps = make([]contracts.BuildLogStep, 0)
-
-	initStep := contracts.BuildLogStep{
-		Step:         "envvars",
-		LogLines:     []contracts.BuildLogLine{},
-		ExitCode:     0,
-		Status:       "SUCCEEDED",
-		AutoInjected: true,
-	}
-
-	timestamp := time.Now().UTC()
-
-	// explanation
-	initStep.LogLines = append(initStep.LogLines, contracts.BuildLogLine{
-		LineNumber: 1,
-		Timestamp:  timestamp,
-		StreamType: "stdout",
-		Text:       "All available estafette environment variables; the _DNS_SAFE suffixed ones can be used to set dns labels. Since leading digits are not allowed some of them are empty.",
-	})
-	initStep.LogLines = append(initStep.LogLines, contracts.BuildLogLine{
-		LineNumber: 2,
-		Timestamp:  timestamp,
-		StreamType: "stdout",
-		Text:       "",
-	})
-
-	// keys in a map are deliberately unsorted, so sort them here
-	sortedKeys := make([]string, 0, len(estafetteEnvvars))
-	for key := range estafetteEnvvars {
-		sortedKeys = append(sortedKeys, key)
-	}
-	sort.Strings(sortedKeys)
-
-	// log all estafette environment variables and their values
-	lineNumber := 3
-	for _, key := range sortedKeys {
-		initStep.LogLines = append(initStep.LogLines, contracts.BuildLogLine{
-			LineNumber: lineNumber,
-			Timestamp:  timestamp,
-			StreamType: "stdout",
-			Text:       fmt.Sprintf("%v: %v", key, estafetteEnvvars[key]),
-		})
-
-		lineNumber++
-	}
-
-	buildLogSteps = append(buildLogSteps, initStep)
-
-	return
-}
-
 func transformPipelineRunResultToBuildLogSteps(estafetteEnvvars map[string]string, result estafetteRunStagesResult) (buildLogSteps []contracts.BuildLogStep) {
 
-	buildLogSteps = transformEstafetteEnvvarsToBuildLogStep(estafetteEnvvars)
+	buildLogSteps = make([]contracts.BuildLogStep, 0)
 
 	for _, r := range result.StageResults {
 
