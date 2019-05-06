@@ -2,7 +2,6 @@ builder:
   track: dev
 
 labels:
-  app: estafette-ci-contracts
   app-group: estafette-ci
   team: estafette-team
   language: golang

@@ -3,7 +3,7 @@ package contracts
 import (
 	"strings"
 
-	"github.com/estafette/estafette-ci-manifest"
+	manifest "github.com/estafette/estafette-ci-manifest"
 )
 
 // ContainerRepositoryCredentialConfig is used to authenticate for (private) container repositories (will be replaced by CredentialConfig eventually)
@@ -15,9 +15,10 @@ type ContainerRepositoryCredentialConfig struct {
 
 // BuilderConfig parameterizes a build/release job
 type BuilderConfig struct {
-	Action         *string `json:"action,omitempty"`
-	Track          *string `json:"track,omitempty"`
-	RegistryMirror *string `json:"registryMirror,omitempty"`
+	Action          *string `json:"action,omitempty"`
+	Track           *string `json:"track,omitempty"`
+	RegistryMirror  *string `json:"registryMirror,omitempty"`
+	DockerDaemonMTU *string `json:"dindMtu,omitempty"`
 
 	Manifest *manifest.EstafetteManifest `json:"manifest,omitempty"`
 
