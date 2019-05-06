@@ -392,9 +392,9 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 
 func (dr *dockerRunnerImpl) startDockerDaemon() error {
 
-	mtu := *dr.config.DockerDaemonMTU
-	if mtu == "" {
-		mtu = "1500"
+	mtu := "1500"
+	if dr.config.DockerDaemonMTU != nil && *dr.config.DockerDaemonMTU != "" {
+		mtu = *dr.config.DockerDaemonMTU
 	}
 
 	// dockerd --host=unix:///var/run/docker.sock --host=tcp://0.0.0.0:2375 --storage-driver=$STORAGE_DRIVER &
