@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
 	contracts "github.com/estafette/estafette-ci-contracts"
@@ -304,10 +305,19 @@ func (pr *pipelineRunnerImpl) prefetchImages(stages []*manifest.EstafetteStage) 
 		}
 	}
 
+	var wg sync.WaitGroup
+	wg.Add(len(dedupedStages))
+
 	// pull all images in parallel
 	for _, p := range dedupedStages {
-		go pr.dockerRunner.runDockerPull(*p)
+		go func(p manifest.EstafetteStage) {
+			defer wg.Done()
+			pr.dockerRunner.runDockerPull(p)
+		}(*p)
 	}
+
+	// wait for all pulls to finish
+	wg.Wait()
 }
 
 func (pr *pipelineRunnerImpl) stopPipelineOnCancellation() {
