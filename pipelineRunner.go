@@ -323,7 +323,7 @@ func (pr *pipelineRunnerImpl) prefetchImages(stages []*manifest.EstafetteStage) 
 	wg.Wait()
 	prefetchDuration := time.Since(prefetchStart)
 
-	log.Debug().Msgf("Done prefetching %v images in %v seconds", len(dedupedStages), prefetchDuration.Seconds)
+	log.Debug().Msgf("Done prefetching %v images in %v seconds", len(dedupedStages), prefetchDuration.Seconds())
 }
 
 func (pr *pipelineRunnerImpl) stopPipelineOnCancellation() {
