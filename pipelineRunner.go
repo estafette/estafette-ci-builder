@@ -286,6 +286,8 @@ func (pr *pipelineRunnerImpl) runStages(stages []*manifest.EstafetteStage, dir s
 
 func (pr *pipelineRunnerImpl) prefetchImages(stages []*manifest.EstafetteStage) {
 
+	prefetchStart := time.Now()
+
 	// deduplicate stages by image path
 	dedupedStages := []*manifest.EstafetteStage{}
 	for _, p := range stages {
@@ -312,12 +314,16 @@ func (pr *pipelineRunnerImpl) prefetchImages(stages []*manifest.EstafetteStage) 
 	for _, p := range dedupedStages {
 		go func(p manifest.EstafetteStage) {
 			defer wg.Done()
+			log.Debug().Msgf("Prefetching image %v...", p.ContainerImage)
 			pr.dockerRunner.runDockerPull(p)
 		}(*p)
 	}
 
 	// wait for all pulls to finish
 	wg.Wait()
+	prefetchDuration := time.Since(prefetchStart)
+
+	log.Debug().Msgf("Done prefetching %v images in %v seconds", len(dedupedStages), prefetchDuration.Seconds)
 }
 
 func (pr *pipelineRunnerImpl) stopPipelineOnCancellation() {
