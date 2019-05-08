@@ -72,18 +72,6 @@ stages:
             "GlobalEnvVars":null,
             "Pipelines":[
               {
-                "Name":"prefetch",
-                "ContainerImage":"extensions/prefetch:dev",
-                "Shell":"/bin/sh",
-                "WorkingDirectory":"/estafette-work",
-                "Commands":null,
-                "When":"status == ''succeeded''",
-                "EnvVars":null,
-                "AutoInjected":true,
-                "Retries":0,
-                "CustomProperties":null
-              },
-              {
                 "Name":"git-clone",
                 "ContainerImage":"extensions/git-clone:dev",
                 "Shell":"/bin/sh",
