@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"sync"
 	"time"
 
 	contracts "github.com/estafette/estafette-ci-contracts"
@@ -15,7 +14,6 @@ import (
 type PipelineRunner interface {
 	runStage(string, map[string]string, manifest.EstafetteStage) (estafetteStageRunResult, error)
 	runStages([]*manifest.EstafetteStage, string, map[string]string) (estafetteRunStagesResult, error)
-	prefetchImages([]*manifest.EstafetteStage)
 	stopPipelineOnCancellation()
 }
 
@@ -282,48 +280,6 @@ func (pr *pipelineRunnerImpl) runStages(stages []*manifest.EstafetteStage, dir s
 
 	result.canceled = pr.canceled
 	return
-}
-
-func (pr *pipelineRunnerImpl) prefetchImages(stages []*manifest.EstafetteStage) {
-
-	prefetchStart := time.Now()
-
-	// deduplicate stages by image path
-	dedupedStages := []*manifest.EstafetteStage{}
-	for _, p := range stages {
-
-		// test if it's already added
-		alreadyAdded := false
-		for _, d := range dedupedStages {
-			if p.ContainerImage == d.ContainerImage {
-				alreadyAdded = true
-				break
-			}
-		}
-
-		// added if it hasn't been added before
-		if !alreadyAdded {
-			dedupedStages = append(dedupedStages, p)
-		}
-	}
-
-	var wg sync.WaitGroup
-	wg.Add(len(dedupedStages))
-
-	// pull all images in parallel
-	for _, p := range dedupedStages {
-		go func(p manifest.EstafetteStage) {
-			defer wg.Done()
-			log.Debug().Msgf("Prefetching image %v...", p.ContainerImage)
-			pr.dockerRunner.runDockerPull(p)
-		}(*p)
-	}
-
-	// wait for all pulls to finish
-	wg.Wait()
-	prefetchDuration := time.Since(prefetchStart)
-
-	log.Debug().Msgf("Done prefetching %v images in %v seconds", len(dedupedStages), prefetchDuration.Seconds())
 }
 
 func (pr *pipelineRunnerImpl) stopPipelineOnCancellation() {
