@@ -601,3 +601,26 @@ func TestSetEstafetteEventEnvvars(t *testing.T) {
 		assert.Equal(t, "user@server.com", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_MANUAL_USER_ID"))
 	})
 }
+
+func TestCollectStagesEnvvars(t *testing.T) {
+
+	t.Run("ReturnsJsonSerializedStages", func(t *testing.T) {
+
+		stages := []*manifest.EstafetteStage{
+			&manifest.EstafetteStage{
+				ContainerImage: "extensions/git-clone:stable",
+			},
+			&manifest.EstafetteStage{
+				ContainerImage: "extensions/github-build-status:stable",
+			},
+			&manifest.EstafetteStage{
+				ContainerImage: "extensions/docker:stable",
+			},
+		}
+
+		// act
+		envvars := envvarHelper.collectStagesEnvvars(stages)
+
+		assert.Equal(t, "[{\"Name\":\"\",\"ContainerImage\":\"extensions/git-clone:stable\",\"Shell\":\"\",\"WorkingDirectory\":\"\",\"Commands\":null,\"When\":\"\",\"EnvVars\":null,\"AutoInjected\":false,\"Retries\":0,\"CustomProperties\":null},{\"Name\":\"\",\"ContainerImage\":\"extensions/github-build-status:stable\",\"Shell\":\"\",\"WorkingDirectory\":\"\",\"Commands\":null,\"When\":\"\",\"EnvVars\":null,\"AutoInjected\":false,\"Retries\":0,\"CustomProperties\":null},{\"Name\":\"\",\"ContainerImage\":\"extensions/docker:stable\",\"Shell\":\"\",\"WorkingDirectory\":\"\",\"Commands\":null,\"When\":\"\",\"EnvVars\":null,\"AutoInjected\":false,\"Retries\":0,\"CustomProperties\":null}]", envvars["TESTPREFIX_STAGES"])
+	})
+}

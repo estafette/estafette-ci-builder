@@ -442,7 +442,7 @@ func (h *envvarHelperImpl) collectStagesEnvvars(stages []*manifest.EstafetteStag
 	envvars = map[string]string{}
 
 	stagesJSONBytes, err := json.Marshal(stages)
-	if err != nil {
+	if err == nil {
 		key := h.getEstafetteEnvvarName("ESTAFETTE_STAGES")
 		envvars[key] = string(stagesJSONBytes)
 	}
