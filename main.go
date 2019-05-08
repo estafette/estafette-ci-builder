@@ -172,7 +172,7 @@ func main() {
 		envvars := envvarHelper.overrideEnvvars(estafetteEnvvars, globalEnvvars)
 
 		// prefetch images in parallel
-		pipelineRunner.prefetchImages(manifest.Stages)
+		// pipelineRunner.prefetchImages(manifest.Stages)
 
 		// run stages
 		result, err := pipelineRunner.runStages(manifest.Stages, dir, envvars)
@@ -288,7 +288,7 @@ func main() {
 		envvars := envvarHelper.overrideEnvvars(estafetteEnvvars, globalEnvvars)
 
 		// prefetch images in parallel
-		pipelineRunner.prefetchImages(stages)
+		// pipelineRunner.prefetchImages(stages)
 
 		// run stages
 		result, err := pipelineRunner.runStages(stages, dir, envvars)
