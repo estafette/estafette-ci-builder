@@ -233,6 +233,7 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 	if trustedImage != nil && trustedImage.RunDocker {
 		if ok, _ := pathExists("/var/run/docker.sock"); ok {
 			binds = append(binds, "/var/run/docker.sock:/var/run/docker.sock")
+			binds = append(binds, "/usr/bin/docker:/usr/bin/docker")
 		}
 	}
 
