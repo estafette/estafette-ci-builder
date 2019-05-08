@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"os/user"
 	"reflect"
 	"runtime"
 	"strconv"
@@ -233,6 +234,8 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 	if trustedImage != nil && trustedImage.RunDocker {
 		if ok, _ := pathExists("/var/run/docker.sock"); ok {
 			binds = append(binds, "/var/run/docker.sock:/var/run/docker.sock")
+		}
+		if ok, _ := pathExists("/usr/bin/docker"); ok {
 			binds = append(binds, "/usr/bin/docker:/usr/bin/docker")
 		}
 	}
@@ -256,6 +259,12 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 		config.Cmd = cmdSlice
 		// only override entrypoint when commands are set, so extensions can work without commands
 		config.Entrypoint = entrypoint
+	}
+	if trustedImage != nil && trustedImage.RunDocker {
+		currentUser, err := user.Current()
+		if err == nil && currentUser != nil {
+			config.User = fmt.Sprintf("%v:%v", currentUser.Uid, currentUser.Gid)
+		}
 	}
 
 	// check if this is a trusted image with RunPrivileged or RunDocker set to true
