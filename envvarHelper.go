@@ -38,6 +38,7 @@ type EnvvarHelper interface {
 	collectEstafetteEnvvars() map[string]string
 	collectEstafetteEnvvarsAndLabels(manifest.EstafetteManifest) map[string]string
 	collectGlobalEnvvars(manifest.EstafetteManifest) map[string]string
+	collectStagesEnvvars([]*manifest.EstafetteStage) map[string]string
 	unsetEstafetteEnvvars()
 	getEstafetteEnv(string) string
 	setEstafetteEnv(string, string) error
@@ -431,6 +432,19 @@ func (h *envvarHelperImpl) collectGlobalEnvvars(m manifest.EstafetteManifest) (e
 
 	if m.GlobalEnvVars != nil {
 		envvars = m.GlobalEnvVars
+	}
+
+	return
+}
+
+func (h *envvarHelperImpl) collectStagesEnvvars(stages []*manifest.EstafetteStage) (envvars map[string]string) {
+
+	envvars = map[string]string{}
+
+	stagesJSONBytes, err := json.Marshal(stages)
+	if err != nil {
+		key := h.getEstafetteEnvvarName("ESTAFETTE_STAGES")
+		envvars[key] = string(stagesJSONBytes)
 	}
 
 	return

@@ -10,7 +10,7 @@ import (
 	"syscall"
 
 	"github.com/alecthomas/kingpin"
-	"github.com/estafette/estafette-ci-contracts"
+	contracts "github.com/estafette/estafette-ci-contracts"
 	crypt "github.com/estafette/estafette-ci-crypt"
 	manifest "github.com/estafette/estafette-ci-manifest"
 	"github.com/rs/zerolog"
@@ -162,9 +162,10 @@ func main() {
 		// collect estafette and 'global' envvars from manifest
 		estafetteEnvvars := envvarHelper.collectEstafetteEnvvarsAndLabels(manifest)
 		globalEnvvars := envvarHelper.collectGlobalEnvvars(manifest)
+		stagesEnvvars := envvarHelper.collectStagesEnvvars(manifest.Stages)
 
 		// merge estafette and global envvars
-		envvars := envvarHelper.overrideEnvvars(estafetteEnvvars, globalEnvvars)
+		envvars := envvarHelper.overrideEnvvars(estafetteEnvvars, globalEnvvars, stagesEnvvars)
 
 		// prefetch images in parallel
 		pipelineRunner.prefetchImages(manifest.Stages)
@@ -275,7 +276,8 @@ func main() {
 		log.Info().Msgf("Running %v stages", len(stages))
 		estafetteEnvvars := envvarHelper.collectEstafetteEnvvarsAndLabels(*builderConfig.Manifest)
 		globalEnvvars := envvarHelper.collectGlobalEnvvars(*builderConfig.Manifest)
-		envvars := envvarHelper.overrideEnvvars(estafetteEnvvars, globalEnvvars)
+		stagesEnvvars := envvarHelper.collectStagesEnvvars(stages)
+		envvars := envvarHelper.overrideEnvvars(estafetteEnvvars, globalEnvvars, stagesEnvvars)
 
 		// prefetch images in parallel
 		pipelineRunner.prefetchImages(stages)
