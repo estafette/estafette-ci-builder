@@ -235,8 +235,8 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 		if ok, _ := pathExists("/var/run/docker.sock"); ok {
 			binds = append(binds, "/var/run/docker.sock:/var/run/docker.sock")
 		}
-		if ok, _ := pathExists("/usr/bin/docker"); ok {
-			binds = append(binds, "/usr/bin/docker:/usr/bin/docker")
+		if ok, _ := pathExists("/usr/local/bin/docker"); ok {
+			binds = append(binds, "/usr/local/bin/docker:/usr/local/bin/docker")
 		}
 	}
 
