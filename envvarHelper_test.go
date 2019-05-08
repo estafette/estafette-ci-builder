@@ -602,7 +602,7 @@ func TestSetEstafetteEventEnvvars(t *testing.T) {
 	})
 }
 
-func TestCollectStagesEnvvars(t *testing.T) {
+func TestSetEstafetteStagesEnvvar(t *testing.T) {
 
 	t.Run("ReturnsJsonSerializedStages", func(t *testing.T) {
 
@@ -619,8 +619,9 @@ func TestCollectStagesEnvvars(t *testing.T) {
 		}
 
 		// act
-		envvars := envvarHelper.collectStagesEnvvars(stages)
+		err := envvarHelper.setEstafetteStagesEnvvar(stages)
 
-		assert.Equal(t, "[{\"Name\":\"\",\"ContainerImage\":\"extensions/git-clone:stable\",\"Shell\":\"\",\"WorkingDirectory\":\"\",\"Commands\":null,\"When\":\"\",\"EnvVars\":null,\"AutoInjected\":false,\"Retries\":0,\"CustomProperties\":null},{\"Name\":\"\",\"ContainerImage\":\"extensions/github-build-status:stable\",\"Shell\":\"\",\"WorkingDirectory\":\"\",\"Commands\":null,\"When\":\"\",\"EnvVars\":null,\"AutoInjected\":false,\"Retries\":0,\"CustomProperties\":null},{\"Name\":\"\",\"ContainerImage\":\"extensions/docker:stable\",\"Shell\":\"\",\"WorkingDirectory\":\"\",\"Commands\":null,\"When\":\"\",\"EnvVars\":null,\"AutoInjected\":false,\"Retries\":0,\"CustomProperties\":null}]", envvars["TESTPREFIX_STAGES"])
+		assert.Nil(t, err)
+		assert.Equal(t, "[{\"Name\":\"\",\"ContainerImage\":\"extensions/git-clone:stable\",\"Shell\":\"\",\"WorkingDirectory\":\"\",\"Commands\":null,\"When\":\"\",\"EnvVars\":null,\"AutoInjected\":false,\"Retries\":0,\"CustomProperties\":null},{\"Name\":\"\",\"ContainerImage\":\"extensions/github-build-status:stable\",\"Shell\":\"\",\"WorkingDirectory\":\"\",\"Commands\":null,\"When\":\"\",\"EnvVars\":null,\"AutoInjected\":false,\"Retries\":0,\"CustomProperties\":null},{\"Name\":\"\",\"ContainerImage\":\"extensions/docker:stable\",\"Shell\":\"\",\"WorkingDirectory\":\"\",\"Commands\":null,\"When\":\"\",\"EnvVars\":null,\"AutoInjected\":false,\"Retries\":0,\"CustomProperties\":null}]", envvarHelper.getEstafetteEnv("ESTAFETTE_STAGES"))
 	})
 }

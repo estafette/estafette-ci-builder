@@ -159,13 +159,17 @@ func main() {
 			fatalHandler.handleGocdFatal(err, "Setting global environment variables failed")
 		}
 
+		err = envvarHelper.setEstafetteStagesEnvvar(manifest.Stages)
+		if err != nil {
+			fatalHandler.handleGocdFatal(err, "Setting estafette stages environment variables failed")
+		}
+
 		// collect estafette and 'global' envvars from manifest
 		estafetteEnvvars := envvarHelper.collectEstafetteEnvvarsAndLabels(manifest)
 		globalEnvvars := envvarHelper.collectGlobalEnvvars(manifest)
-		stagesEnvvars := envvarHelper.collectStagesEnvvars(manifest.Stages)
 
 		// merge estafette and global envvars
-		envvars := envvarHelper.overrideEnvvars(estafetteEnvvars, globalEnvvars, stagesEnvvars)
+		envvars := envvarHelper.overrideEnvvars(estafetteEnvvars, globalEnvvars)
 
 		// prefetch images in parallel
 		pipelineRunner.prefetchImages(manifest.Stages)
@@ -266,6 +270,11 @@ func main() {
 			log.Info().Msgf("Starting build version %v...", builderConfig.BuildVersion.Version)
 		}
 
+		err = envvarHelper.setEstafetteStagesEnvvar(stages)
+		if err != nil {
+			endOfLifeHelper.handleFatal(buildLog, err, "Setting estafette stages environment variables failed")
+		}
+
 		// create docker client
 		_, err = dockerRunner.createDockerClient()
 		if err != nil {
@@ -276,8 +285,7 @@ func main() {
 		log.Info().Msgf("Running %v stages", len(stages))
 		estafetteEnvvars := envvarHelper.collectEstafetteEnvvarsAndLabels(*builderConfig.Manifest)
 		globalEnvvars := envvarHelper.collectGlobalEnvvars(*builderConfig.Manifest)
-		stagesEnvvars := envvarHelper.collectStagesEnvvars(stages)
-		envvars := envvarHelper.overrideEnvvars(estafetteEnvvars, globalEnvvars, stagesEnvvars)
+		envvars := envvarHelper.overrideEnvvars(estafetteEnvvars, globalEnvvars)
 
 		// prefetch images in parallel
 		pipelineRunner.prefetchImages(stages)
