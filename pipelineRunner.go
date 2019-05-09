@@ -101,14 +101,14 @@ func (pr *pipelineRunnerImpl) runStage(dir string, envvars map[string]string, p 
 		if result.DockerPullError != nil {
 			return result, result.DockerPullError
 		}
-
-		// set docker image size
-		size, err := pr.dockerRunner.getDockerImageSize(p)
-		if err != nil {
-			return result, err
-		}
-		result.DockerImageSize = size
 	}
+
+	// set docker image size
+	size, err := pr.dockerRunner.getDockerImageSize(p)
+	if err != nil {
+		return result, err
+	}
+	result.DockerImageSize = size
 
 	// log tailing - start stage
 	if pr.runAsJob {
