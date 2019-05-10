@@ -625,3 +625,27 @@ func TestSetEstafetteStagesEnvvar(t *testing.T) {
 		assert.Equal(t, "[{\"Name\":\"\",\"ContainerImage\":\"extensions/git-clone:stable\",\"Shell\":\"\",\"WorkingDirectory\":\"\",\"Commands\":null,\"When\":\"\",\"EnvVars\":null,\"AutoInjected\":false,\"Retries\":0,\"CustomProperties\":null},{\"Name\":\"\",\"ContainerImage\":\"extensions/github-build-status:stable\",\"Shell\":\"\",\"WorkingDirectory\":\"\",\"Commands\":null,\"When\":\"\",\"EnvVars\":null,\"AutoInjected\":false,\"Retries\":0,\"CustomProperties\":null},{\"Name\":\"\",\"ContainerImage\":\"extensions/docker:stable\",\"Shell\":\"\",\"WorkingDirectory\":\"\",\"Commands\":null,\"When\":\"\",\"EnvVars\":null,\"AutoInjected\":false,\"Retries\":0,\"CustomProperties\":null}]", envvarHelper.getEstafetteEnv("ESTAFETTE_STAGES"))
 	})
 }
+
+func TestSetEstafetteStageImagesEnvvar(t *testing.T) {
+
+	t.Run("ReturnsJsonSerializedStageImages", func(t *testing.T) {
+
+		stages := []*manifest.EstafetteStage{
+			&manifest.EstafetteStage{
+				ContainerImage: "extensions/git-clone:stable",
+			},
+			&manifest.EstafetteStage{
+				ContainerImage: "extensions/github-build-status:stable",
+			},
+			&manifest.EstafetteStage{
+				ContainerImage: "extensions/docker:stable",
+			},
+		}
+
+		// act
+		err := envvarHelper.setEstafetteStageImagesEnvvar(stages)
+
+		assert.Nil(t, err)
+		assert.Equal(t, "[\"extensions/git-clone:stable\",\"extensions/github-build-status:stable\",\"extensions/docker:stable\"]", envvarHelper.getEstafetteEnv("ESTAFETTE_STAGE_IMAGES"))
+	})
+}

@@ -158,10 +158,13 @@ func main() {
 		if err != nil {
 			fatalHandler.handleGocdFatal(err, "Setting global environment variables failed")
 		}
-
 		err = envvarHelper.setEstafetteStagesEnvvar(manifest.Stages)
 		if err != nil {
-			fatalHandler.handleGocdFatal(err, "Setting estafette stages environment variables failed")
+			fatalHandler.handleGocdFatal(err, "Setting ESTAFETTE_STAGES environment variable failed")
+		}
+		err = envvarHelper.setEstafetteStageImagesEnvvar(manifest.Stages)
+		if err != nil {
+			fatalHandler.handleGocdFatal(err, "Setting ESTAFETTE_STAGE_IMAGES environment variable failed")
 		}
 
 		// collect estafette and 'global' envvars from manifest
@@ -269,7 +272,11 @@ func main() {
 
 		err = envvarHelper.setEstafetteStagesEnvvar(stages)
 		if err != nil {
-			endOfLifeHelper.handleFatal(buildLog, err, "Setting estafette stages environment variables failed")
+			endOfLifeHelper.handleFatal(buildLog, err, "Setting ESTAFETTE_STAGES environment variable failed")
+		}
+		err = envvarHelper.setEstafetteStageImagesEnvvar(stages)
+		if err != nil {
+			endOfLifeHelper.handleFatal(buildLog, err, "Setting ESTAFETTE_STAGE_IMAGES environment variable failed")
 		}
 
 		// create docker client
