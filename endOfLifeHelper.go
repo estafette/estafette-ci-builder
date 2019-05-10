@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/estafette/estafette-ci-contracts"
+	contracts "github.com/estafette/estafette-ci-contracts"
 
 	"github.com/rs/zerolog/log"
 	"github.com/sethgrid/pester"
@@ -82,6 +82,38 @@ func (elh *endOfLifeHelperImpl) handleFatal(buildLog contracts.BuildLog, err err
 }
 
 func (elh *endOfLifeHelperImpl) sendBuildJobLogEvent(buildLog contracts.BuildLog) (err error) {
+
+	err = elh.sendBuildJobLogEventCore(buildLog)
+
+	if err == nil {
+		return
+	}
+
+	// strip log lines from successful steps to reduce size of the logs and still keep the useful information
+	slimBuildLog := buildLog
+	slimBuildLog.Steps = []contracts.BuildLogStep{}
+	for _, s := range buildLog.Steps {
+		slimBuildLogStep := s
+		if s.Status == "SUCCEEDED" {
+			if len(s.LogLines) > 0 {
+				slimBuildLogStep.LogLines = []contracts.BuildLogLine{
+					contracts.BuildLogLine{
+						LineNumber: s.LogLines[0].LineNumber,
+						Timestamp:  s.LogLines[0].Timestamp,
+						StreamType: "stdout",
+						Text:       "Truncated logs for reducing total log size; to prevent this use less verbose logging",
+					},
+				}
+			}
+		}
+
+		slimBuildLog.Steps = append(slimBuildLog.Steps, slimBuildLogStep)
+	}
+
+	return elh.sendBuildJobLogEventCore(slimBuildLog)
+}
+
+func (elh *endOfLifeHelperImpl) sendBuildJobLogEventCore(buildLog contracts.BuildLog) (err error) {
 
 	ciServerBuilderPostLogsURL := elh.config.CIServer.PostLogsURL
 	ciAPIKey := elh.config.CIServer.APIKey
