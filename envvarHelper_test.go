@@ -13,7 +13,7 @@ import (
 
 var (
 	secretHelper = crypt.NewSecretHelper("SazbwMf3NZxVVbBqQHebPcXCqrVn3DDp", false)
-	envvarHelper = NewEnvvarHelper("TESTPREFIX_", secretHelper)
+	envvarHelper = NewEnvvarHelper("TESTPREFIX_", secretHelper, obfuscator)
 )
 
 func TestOverrideEnvvars(t *testing.T) {
@@ -624,11 +624,8 @@ func TestSetEstafetteStagesEnvvar(t *testing.T) {
 		assert.Nil(t, err)
 		assert.Equal(t, "[{\"Name\":\"\",\"ContainerImage\":\"extensions/git-clone:stable\",\"Shell\":\"\",\"WorkingDirectory\":\"\",\"Commands\":null,\"When\":\"\",\"EnvVars\":null,\"AutoInjected\":false,\"Retries\":0,\"CustomProperties\":null},{\"Name\":\"\",\"ContainerImage\":\"extensions/github-build-status:stable\",\"Shell\":\"\",\"WorkingDirectory\":\"\",\"Commands\":null,\"When\":\"\",\"EnvVars\":null,\"AutoInjected\":false,\"Retries\":0,\"CustomProperties\":null},{\"Name\":\"\",\"ContainerImage\":\"extensions/docker:stable\",\"Shell\":\"\",\"WorkingDirectory\":\"\",\"Commands\":null,\"When\":\"\",\"EnvVars\":null,\"AutoInjected\":false,\"Retries\":0,\"CustomProperties\":null}]", envvarHelper.getEstafetteEnv("ESTAFETTE_STAGES"))
 	})
-}
 
-func TestSetEstafetteStageImagesEnvvar(t *testing.T) {
-
-	t.Run("ReturnsJsonSerializedStageImages", func(t *testing.T) {
+	t.Run("ReturnsJsonSerializedStagesWithObfuscatedSecrets", func(t *testing.T) {
 
 		stages := []*manifest.EstafetteStage{
 			&manifest.EstafetteStage{
@@ -639,13 +636,16 @@ func TestSetEstafetteStageImagesEnvvar(t *testing.T) {
 			},
 			&manifest.EstafetteStage{
 				ContainerImage: "extensions/docker:stable",
+				EnvVars: map[string]string{
+					"mysecret": "estafette.secret(deFTz5Bdjg6SUe29.oPIkXbze5G9PNEWS2-ZnArl8BCqHnx4MdTdxHg37th9u)",
+				},
 			},
 		}
 
 		// act
-		err := envvarHelper.setEstafetteStageImagesEnvvar(stages)
+		err := envvarHelper.setEstafetteStagesEnvvar(stages)
 
 		assert.Nil(t, err)
-		assert.Equal(t, "[\"extensions/git-clone:stable\",\"extensions/github-build-status:stable\",\"extensions/docker:stable\"]", envvarHelper.getEstafetteEnv("ESTAFETTE_STAGE_IMAGES"))
+		assert.Equal(t, "[{\"Name\":\"\",\"ContainerImage\":\"extensions/git-clone:stable\",\"Shell\":\"\",\"WorkingDirectory\":\"\",\"Commands\":null,\"When\":\"\",\"EnvVars\":null,\"AutoInjected\":false,\"Retries\":0,\"CustomProperties\":null},{\"Name\":\"\",\"ContainerImage\":\"extensions/github-build-status:stable\",\"Shell\":\"\",\"WorkingDirectory\":\"\",\"Commands\":null,\"When\":\"\",\"EnvVars\":null,\"AutoInjected\":false,\"Retries\":0,\"CustomProperties\":null},{\"Name\":\"\",\"ContainerImage\":\"extensions/docker:stable\",\"Shell\":\"\",\"WorkingDirectory\":\"\",\"Commands\":null,\"When\":\"\",\"EnvVars\":{\"mysecret\":\"***\"},\"AutoInjected\":false,\"Retries\":0,\"CustomProperties\":null}]", envvarHelper.getEstafetteEnv("ESTAFETTE_STAGES"))
 	})
 }

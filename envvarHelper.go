@@ -25,7 +25,6 @@ type EnvvarHelper interface {
 	getCommandOutput(string, ...string) (string, error)
 	setEstafetteGlobalEnvvars() error
 	setEstafetteStagesEnvvar([]*manifest.EstafetteStage) error
-	setEstafetteStageImagesEnvvar([]*manifest.EstafetteStage) error
 	setEstafetteBuilderConfigEnvvars(builderConfig contracts.BuilderConfig) error
 	setEstafetteEventEnvvars(events []*manifest.EstafetteEvent) error
 	initGitSource() error
@@ -61,14 +60,16 @@ type envvarHelperImpl struct {
 	prefix       string
 	ciServer     string
 	secretHelper crypt.SecretHelper
+	obfuscator   Obfuscator
 }
 
 // NewEnvvarHelper returns a new EnvvarHelper
-func NewEnvvarHelper(prefix string, secretHelper crypt.SecretHelper) EnvvarHelper {
+func NewEnvvarHelper(prefix string, secretHelper crypt.SecretHelper, obfuscator Obfuscator) EnvvarHelper {
 	return &envvarHelperImpl{
 		prefix:       prefix,
 		ciServer:     os.Getenv("ESTAFETTE_CI_SERVER"),
 		secretHelper: secretHelper,
+		obfuscator:   obfuscator,
 	}
 }
 
@@ -167,26 +168,9 @@ func (h *envvarHelperImpl) setEstafetteStagesEnvvar(stages []*manifest.Estafette
 		return err
 	}
 
-	h.setEstafetteEnv("ESTAFETTE_STAGES", string(stagesJSONBytes))
+	stagesJSON := h.obfuscator.ObfuscateSecrets(string(stagesJSONBytes))
 
-	return
-}
-
-func (h *envvarHelperImpl) setEstafetteStageImagesEnvvar(stages []*manifest.EstafetteStage) (err error) {
-
-	images := []string{}
-	for _, s := range stages {
-		if s != nil && s.ContainerImage != "" {
-			images = append(images, s.ContainerImage)
-		}
-	}
-
-	stageImagesJSONBytes, err := json.Marshal(images)
-	if err != nil {
-		return err
-	}
-
-	h.setEstafetteEnv("ESTAFETTE_STAGE_IMAGES", string(stageImagesJSONBytes))
+	h.setEstafetteEnv("ESTAFETTE_STAGES", stagesJSON)
 
 	return
 }

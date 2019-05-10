@@ -92,10 +92,9 @@ func main() {
 	builderConfig.Credentials = decryptedCredentials
 
 	// bootstrap
-	envvarHelper := NewEnvvarHelper("ESTAFETTE_", secretHelper)
-
-	whenEvaluator := NewWhenEvaluator(envvarHelper)
 	obfuscator := NewObfuscator(secretHelper)
+	envvarHelper := NewEnvvarHelper("ESTAFETTE_", secretHelper, obfuscator)
+	whenEvaluator := NewWhenEvaluator(envvarHelper)
 	dockerRunner := NewDockerRunner(envvarHelper, obfuscator, *runAsJob, builderConfig, cancellationChannel)
 	pipelineRunner := NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner, *runAsJob, cancellationChannel)
 	endOfLifeHelper := NewEndOfLifeHelper(*runAsJob, builderConfig)
@@ -161,10 +160,6 @@ func main() {
 		err = envvarHelper.setEstafetteStagesEnvvar(manifest.Stages)
 		if err != nil {
 			fatalHandler.handleGocdFatal(err, "Setting ESTAFETTE_STAGES environment variable failed")
-		}
-		err = envvarHelper.setEstafetteStageImagesEnvvar(manifest.Stages)
-		if err != nil {
-			fatalHandler.handleGocdFatal(err, "Setting ESTAFETTE_STAGE_IMAGES environment variable failed")
 		}
 
 		// collect estafette and 'global' envvars from manifest
@@ -273,10 +268,6 @@ func main() {
 		err = envvarHelper.setEstafetteStagesEnvvar(stages)
 		if err != nil {
 			endOfLifeHelper.handleFatal(buildLog, err, "Setting ESTAFETTE_STAGES environment variable failed")
-		}
-		err = envvarHelper.setEstafetteStageImagesEnvvar(stages)
-		if err != nil {
-			endOfLifeHelper.handleFatal(buildLog, err, "Setting ESTAFETTE_STAGE_IMAGES environment variable failed")
 		}
 
 		// create docker client
