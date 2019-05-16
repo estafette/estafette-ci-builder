@@ -172,8 +172,8 @@ func (elh *endOfLifeHelperImpl) sendBuildJobLogEventCore(ctx context.Context, bu
 
 		// add tracing context
 		ext.SpanKindRPCClient.Set(span)
-		ext.HTTPUrl.Set(span, request.URL.String())
 		ext.HTTPMethod.Set(span, request.Method)
+		ext.HTTPUrl.Set(span, request.URL.String())
 		span.Tracer().Inject(
 			span.Context(),
 			opentracing.HTTPHeaders,
@@ -266,8 +266,8 @@ func (elh *endOfLifeHelperImpl) sendBuilderEvent(ctx context.Context, buildStatu
 
 		// add tracing context
 		ext.SpanKindRPCClient.Set(span)
-		ext.HTTPUrl.Set(span, request.URL.String())
 		ext.HTTPMethod.Set(span, request.Method)
+		ext.HTTPUrl.Set(span, request.URL.String())
 		span.Tracer().Inject(
 			span.Context(),
 			opentracing.HTTPHeaders,
