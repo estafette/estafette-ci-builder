@@ -32,7 +32,7 @@ type DockerRunner interface {
 	isDockerImagePulled(manifest.EstafetteStage) bool
 	runDockerPull(context.Context, manifest.EstafetteStage) error
 	getDockerImageSize(manifest.EstafetteStage) (int64, error)
-	runDockerRun(string, map[string]string, manifest.EstafetteStage) ([]contracts.BuildLogLine, int64, bool, error)
+	runDockerRun(context.Context, string, map[string]string, manifest.EstafetteStage) ([]contracts.BuildLogLine, int64, bool, error)
 
 	startDockerDaemon() error
 	waitForDockerDaemon()
@@ -119,7 +119,11 @@ func (dr *dockerRunnerImpl) getDockerImageSize(p manifest.EstafetteStage) (total
 	return totalSize, nil
 }
 
-func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, p manifest.EstafetteStage) ([]contracts.BuildLogLine, int64, bool, error) {
+func (dr *dockerRunnerImpl) runDockerRun(ctx context.Context, dir string, envvars map[string]string, p manifest.EstafetteStage) ([]contracts.BuildLogLine, int64, bool, error) {
+
+	span, ctx := opentracing.StartSpanFromContext(ctx, "DockerRun")
+	defer span.Finish()
+	span.SetTag("docker-image", p.ContainerImage)
 
 	logLines := make([]contracts.BuildLogLine, 0)
 	lineNumber := 1
@@ -129,7 +133,6 @@ func (dr *dockerRunnerImpl) runDockerRun(dir string, envvars map[string]string, 
 	trustedImage := dr.config.GetTrustedImage(p.ContainerImage)
 
 	// run docker with image and commands from yaml
-	ctx := context.Background()
 
 	// define commands
 	cmdSlice := make([]string, 0)

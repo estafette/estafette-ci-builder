@@ -130,7 +130,7 @@ func (pr *pipelineRunnerImpl) runStage(ctx context.Context, dir string, envvars 
 
 	// run commands in docker container
 	dockerRunStart := time.Now()
-	result.LogLines, result.ExitCode, result.Canceled, result.DockerRunError = pr.dockerRunner.runDockerRun(dir, envvars, p)
+	result.LogLines, result.ExitCode, result.Canceled, result.DockerRunError = pr.dockerRunner.runDockerRun(ctx, dir, envvars, p)
 	result.DockerRunDuration = time.Since(dockerRunStart)
 
 	// log tailing - finalize stage
