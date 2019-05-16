@@ -224,9 +224,9 @@ func main() {
 			Str("goVersion", goVersion).
 			Msgf("Starting %v version %v...", app, version)
 
-		rootSpanName := "build"
-		if *builderConfig.Action != "" {
-			rootSpanName = *builderConfig.Action
+		rootSpanName := "RunBuildJob"
+		if *builderConfig.Action == "release" {
+			rootSpanName = "RunReleaseJob"
 		}
 
 		rootSpan := opentracing.StartSpan(rootSpanName)
