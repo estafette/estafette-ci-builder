@@ -96,10 +96,9 @@ github.com/uber/jaeger-client-go/thrift-gen/agent
 github.com/uber/jaeger-client-go/thrift-gen/baggage
 # github.com/uber/jaeger-lib v2.0.0+incompatible
 github.com/uber/jaeger-lib/metrics
-# golang.org/x/net v0.0.0-20180826012351-8a410e7b638d
+# golang.org/x/net v0.0.0-20181201002055-351d144fa1fc
 golang.org/x/net/context/ctxhttp
 golang.org/x/net/proxy
-golang.org/x/net/context
 golang.org/x/net/internal/socks
 # golang.org/x/sys v0.0.0-20190222072716-a9d3bda3a223
 golang.org/x/sys/windows

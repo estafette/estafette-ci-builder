@@ -236,7 +236,7 @@ func main() {
 		ctx = opentracing.ContextWithSpan(ctx, rootSpan)
 
 		// start docker daemon
-		dockerDaemonStartSpan, ctx := opentracing.StartSpanFromContext(ctx, "StartDockerDaemon")
+		dockerDaemonStartSpan, _ := opentracing.StartSpanFromContext(ctx, "StartDockerDaemon")
 		err = dockerRunner.startDockerDaemon()
 		if err != nil {
 			endOfLifeHelper.handleFatal(ctx, buildLog, err, "Error starting docker daemon")
