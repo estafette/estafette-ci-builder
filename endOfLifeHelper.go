@@ -14,6 +14,7 @@ import (
 	contracts "github.com/estafette/estafette-ci-contracts"
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
+	tracingLog "github.com/opentracing/opentracing-go/log"
 
 	"github.com/rs/zerolog/log"
 	"github.com/sethgrid/pester"
@@ -281,6 +282,10 @@ func (elh *endOfLifeHelperImpl) sendBuilderEvent(ctx context.Context, buildStatu
 		// perform actual request
 		response, err := client.Do(request)
 		if err != nil {
+			span.SetTag("error", true)
+			span.LogFields(
+				tracingLog.String("error", err.Error()),
+			)
 			log.Error().Err(err).Str("pesterLogs", client.LogString()).Msgf("Failed performing http request to %v for job %v", ciServerBuilderEventsURL, jobName)
 			return err
 		}
