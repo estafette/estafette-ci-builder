@@ -1,19 +1,21 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"time"
 
 	contracts "github.com/estafette/estafette-ci-contracts"
 	manifest "github.com/estafette/estafette-ci-manifest"
+	"github.com/opentracing/opentracing-go"
 	"github.com/rs/zerolog/log"
 )
 
 // PipelineRunner is the interface for running the pipeline steps
 type PipelineRunner interface {
-	runStage(string, map[string]string, manifest.EstafetteStage) (estafetteStageRunResult, error)
-	runStages([]*manifest.EstafetteStage, string, map[string]string) (estafetteRunStagesResult, error)
+	runStage(context.Context, string, map[string]string, manifest.EstafetteStage) (estafetteStageRunResult, error)
+	runStages(context.Context, []*manifest.EstafetteStage, string, map[string]string) (estafetteRunStagesResult, error)
 	stopPipelineOnCancellation()
 }
 
@@ -80,7 +82,11 @@ func (result *estafetteStageRunResult) HasErrors() bool {
 	return len(errors) > 0
 }
 
-func (pr *pipelineRunnerImpl) runStage(dir string, envvars map[string]string, p manifest.EstafetteStage) (result estafetteStageRunResult, err error) {
+func (pr *pipelineRunnerImpl) runStage(ctx context.Context, dir string, envvars map[string]string, p manifest.EstafetteStage) (result estafetteStageRunResult, err error) {
+
+	span, ctx := opentracing.StartSpanFromContext(ctx, "RunStage")
+	defer span.Finish()
+	span.SetTag("stage", p.Name)
 
 	p.ContainerImage = os.Expand(p.ContainerImage, pr.envvarHelper.getEstafetteEnv)
 
@@ -96,7 +102,7 @@ func (pr *pipelineRunnerImpl) runStage(dir string, envvars map[string]string, p 
 
 		// pull docker image
 		dockerPullStart := time.Now()
-		result.DockerPullError = pr.dockerRunner.runDockerPull(p)
+		result.DockerPullError = pr.dockerRunner.runDockerPull(ctx, p)
 		result.DockerPullDuration = time.Since(dockerPullStart)
 		if result.DockerPullError != nil {
 			return result, result.DockerPullError
@@ -189,7 +195,10 @@ func (result *estafetteRunStagesResult) HasAggregatedErrors() bool {
 	return len(errors) > 0
 }
 
-func (pr *pipelineRunnerImpl) runStages(stages []*manifest.EstafetteStage, dir string, envvars map[string]string) (result estafetteRunStagesResult, err error) {
+func (pr *pipelineRunnerImpl) runStages(ctx context.Context, stages []*manifest.EstafetteStage, dir string, envvars map[string]string) (result estafetteRunStagesResult, err error) {
+
+	span, ctx := opentracing.StartSpanFromContext(ctx, "RunStages")
+	defer span.Finish()
 
 	// set default build status if not set
 	err = pr.envvarHelper.initBuildStatus()
@@ -219,7 +228,7 @@ func (pr *pipelineRunnerImpl) runStages(stages []*manifest.EstafetteStage, dir s
 
 			runIndex := 0
 			for runIndex <= p.Retries {
-				r, err := pr.runStage(dir, envvars, *p)
+				r, err := pr.runStage(ctx, dir, envvars, *p)
 				r.RunIndex = runIndex
 
 				// if canceled during stage stop further execution

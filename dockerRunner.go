@@ -23,13 +23,14 @@ import (
 	"github.com/docker/docker/api/types/network"
 	contracts "github.com/estafette/estafette-ci-contracts"
 	manifest "github.com/estafette/estafette-ci-manifest"
+	"github.com/opentracing/opentracing-go"
 	"github.com/rs/zerolog/log"
 )
 
 // DockerRunner pulls and runs docker containers
 type DockerRunner interface {
 	isDockerImagePulled(manifest.EstafetteStage) bool
-	runDockerPull(manifest.EstafetteStage) error
+	runDockerPull(context.Context, manifest.EstafetteStage) error
 	getDockerImageSize(manifest.EstafetteStage) (int64, error)
 	runDockerRun(string, map[string]string, manifest.EstafetteStage) ([]contracts.BuildLogLine, int64, bool, error)
 
@@ -81,7 +82,11 @@ func (dr *dockerRunnerImpl) isDockerImagePulled(p manifest.EstafetteStage) bool 
 	return false
 }
 
-func (dr *dockerRunnerImpl) runDockerPull(p manifest.EstafetteStage) (err error) {
+func (dr *dockerRunnerImpl) runDockerPull(ctx context.Context, p manifest.EstafetteStage) (err error) {
+
+	span, ctx := opentracing.StartSpanFromContext(ctx, "DockerPull")
+	defer span.Finish()
+	span.SetTag("docker-image", p.ContainerImage)
 
 	log.Info().Msgf("[%v] Pulling docker image '%v'", p.Name, p.ContainerImage)
 

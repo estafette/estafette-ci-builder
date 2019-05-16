@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,6 +12,8 @@ import (
 	"time"
 
 	contracts "github.com/estafette/estafette-ci-contracts"
+	"github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/ext"
 
 	"github.com/rs/zerolog/log"
 	"github.com/sethgrid/pester"
@@ -18,10 +21,10 @@ import (
 
 // EndOfLifeHelper has methods to shutdown the runner after a fatal or successful run
 type EndOfLifeHelper interface {
-	handleFatal(contracts.BuildLog, error, string)
-	sendBuildFinishedEvent(buildStatus string) error
-	sendBuildCleanEvent(buildStatus string) error
-	sendBuildJobLogEvent(buildLog contracts.BuildLog) error
+	handleFatal(context.Context, contracts.BuildLog, error, string)
+	sendBuildFinishedEvent(ctx context.Context, buildStatus string) error
+	sendBuildCleanEvent(ctx context.Context, buildStatus string) error
+	sendBuildJobLogEvent(ctx context.Context, buildLog contracts.BuildLog) error
 }
 
 type endOfLifeHelperImpl struct {
@@ -37,7 +40,7 @@ func NewEndOfLifeHelper(runAsJob bool, config contracts.BuilderConfig) EndOfLife
 	}
 }
 
-func (elh *endOfLifeHelperImpl) handleFatal(buildLog contracts.BuildLog, err error, message string) {
+func (elh *endOfLifeHelperImpl) handleFatal(ctx context.Context, buildLog contracts.BuildLog, err error, message string) {
 
 	// add error messages as step to show in logs
 	fatalStep := contracts.BuildLogStep{
@@ -69,9 +72,9 @@ func (elh *endOfLifeHelperImpl) handleFatal(buildLog contracts.BuildLog, err err
 
 	buildLog.Steps = append(buildLog.Steps, fatalStep)
 
-	_ = elh.sendBuildFinishedEvent("failed")
-	_ = elh.sendBuildJobLogEvent(buildLog)
-	_ = elh.sendBuildCleanEvent("failed")
+	_ = elh.sendBuildFinishedEvent(ctx, "failed")
+	_ = elh.sendBuildJobLogEvent(ctx, buildLog)
+	_ = elh.sendBuildCleanEvent(ctx, "failed")
 
 	if elh.runAsJob {
 		log.Error().Err(err).Msg(message)
@@ -81,9 +84,9 @@ func (elh *endOfLifeHelperImpl) handleFatal(buildLog contracts.BuildLog, err err
 	}
 }
 
-func (elh *endOfLifeHelperImpl) sendBuildJobLogEvent(buildLog contracts.BuildLog) (err error) {
+func (elh *endOfLifeHelperImpl) sendBuildJobLogEvent(ctx context.Context, buildLog contracts.BuildLog) (err error) {
 
-	err = elh.sendBuildJobLogEventCore(buildLog)
+	err = elh.sendBuildJobLogEventCore(ctx, buildLog)
 
 	if err == nil {
 		return
@@ -110,10 +113,13 @@ func (elh *endOfLifeHelperImpl) sendBuildJobLogEvent(buildLog contracts.BuildLog
 		slimBuildLog.Steps = append(slimBuildLog.Steps, slimBuildLogStep)
 	}
 
-	return elh.sendBuildJobLogEventCore(slimBuildLog)
+	return elh.sendBuildJobLogEventCore(ctx, slimBuildLog)
 }
 
-func (elh *endOfLifeHelperImpl) sendBuildJobLogEventCore(buildLog contracts.BuildLog) (err error) {
+func (elh *endOfLifeHelperImpl) sendBuildJobLogEventCore(ctx context.Context, buildLog contracts.BuildLog) (err error) {
+
+	span, ctx := opentracing.StartSpanFromContext(ctx, "SendLog")
+	defer span.Finish()
 
 	ciServerBuilderPostLogsURL := elh.config.CIServer.PostLogsURL
 	ciAPIKey := elh.config.CIServer.APIKey
@@ -163,6 +169,16 @@ func (elh *endOfLifeHelperImpl) sendBuildJobLogEventCore(buildLog contracts.Buil
 			return err
 		}
 
+		// add tracing context
+		ext.SpanKindRPCClient.Set(span)
+		ext.HTTPUrl.Set(span, request.URL.String())
+		ext.HTTPMethod.Set(span, request.Method)
+		span.Tracer().Inject(
+			span.Context(),
+			opentracing.HTTPHeaders,
+			opentracing.HTTPHeadersCarrier(request.Header),
+		)
+
 		// add headers
 		request.Header.Add("Authorization", fmt.Sprintf("Bearer %v", ciAPIKey))
 		request.Header.Add("Content-Type", "application/json")
@@ -182,15 +198,20 @@ func (elh *endOfLifeHelperImpl) sendBuildJobLogEventCore(buildLog contracts.Buil
 	return nil
 }
 
-func (elh *endOfLifeHelperImpl) sendBuildFinishedEvent(buildStatus string) error {
-	return elh.sendBuilderEvent(buildStatus, fmt.Sprintf("builder:%v", buildStatus))
+func (elh *endOfLifeHelperImpl) sendBuildFinishedEvent(ctx context.Context, buildStatus string) error {
+	return elh.sendBuilderEvent(ctx, buildStatus, fmt.Sprintf("builder:%v", buildStatus))
 }
 
-func (elh *endOfLifeHelperImpl) sendBuildCleanEvent(buildStatus string) error {
-	return elh.sendBuilderEvent(buildStatus, "builder:clean")
+func (elh *endOfLifeHelperImpl) sendBuildCleanEvent(ctx context.Context, buildStatus string) error {
+	return elh.sendBuilderEvent(ctx, buildStatus, "builder:clean")
 }
 
-func (elh *endOfLifeHelperImpl) sendBuilderEvent(buildStatus, event string) (err error) {
+func (elh *endOfLifeHelperImpl) sendBuilderEvent(ctx context.Context, buildStatus, event string) (err error) {
+
+	span, ctx := opentracing.StartSpanFromContext(ctx, "SendBuildStatus")
+	defer span.Finish()
+	span.SetTag("build-status", buildStatus)
+	span.SetTag("event-type", event)
 
 	ciServerBuilderEventsURL := elh.config.CIServer.BuilderEventsURL
 	ciAPIKey := elh.config.CIServer.APIKey
@@ -239,6 +260,16 @@ func (elh *endOfLifeHelperImpl) sendBuilderEvent(buildStatus, event string) (err
 			log.Error().Err(err).Msgf("Failed creating http client for job %v", jobName)
 			return err
 		}
+
+		// add tracing context
+		ext.SpanKindRPCClient.Set(span)
+		ext.HTTPUrl.Set(span, request.URL.String())
+		ext.HTTPMethod.Set(span, request.Method)
+		span.Tracer().Inject(
+			span.Context(),
+			opentracing.HTTPHeaders,
+			opentracing.HTTPHeadersCarrier(request.Header),
+		)
 
 		// add headers
 		request.Header.Add("X-Estafette-Event", event)

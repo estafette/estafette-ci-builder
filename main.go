@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	stdlog "log"
 	"os"
 	"os/signal"
@@ -13,11 +15,15 @@ import (
 	contracts "github.com/estafette/estafette-ci-contracts"
 	crypt "github.com/estafette/estafette-ci-crypt"
 	manifest "github.com/estafette/estafette-ci-manifest"
+	"github.com/opentracing/opentracing-go"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"github.com/uber/jaeger-client-go"
+	jaegercfg "github.com/uber/jaeger-client-go/config"
 )
 
 var (
+	app       string
 	version   string
 	branch    string
 	revision  string
@@ -125,7 +131,7 @@ func main() {
 			Str("revision", revision).
 			Str("buildDate", buildDate).
 			Str("goVersion", goVersion).
-			Msgf("Starting estafette-ci-builder version %v...", version)
+			Msgf("Starting %v version %v...", app, version)
 
 		// create docker client
 		_, err := dockerRunner.createDockerClient()
@@ -170,7 +176,7 @@ func main() {
 		envvars := envvarHelper.overrideEnvvars(estafetteEnvvars, globalEnvvars)
 
 		// run stages
-		result, err := pipelineRunner.runStages(manifest.Stages, dir, envvars)
+		result, err := pipelineRunner.runStages(context.Background(), manifest.Stages, dir, envvars)
 		if err != nil {
 			fatalHandler.handleGocdFatal(err, "Executing stages from manifest failed")
 		}
@@ -183,6 +189,9 @@ func main() {
 
 		// log as severity for stackdriver logging to recognize the level
 		zerolog.LevelFieldName = "severity"
+
+		closer := initJaeger(app)
+		defer closer.Close()
 
 		envvarHelper.setEstafetteBuilderConfigEnvvars(builderConfig)
 
@@ -198,7 +207,7 @@ func main() {
 		// set some default fields added to all logs
 		log.Logger = zerolog.New(os.Stdout).With().
 			Timestamp().
-			Str("app", "estafette-ci-builder").
+			Str("app", app).
 			Str("version", version).
 			Str("jobName", *builderConfig.JobName).
 			Interface("git", builderConfig.Git).
@@ -213,16 +222,24 @@ func main() {
 			Str("revision", revision).
 			Str("buildDate", buildDate).
 			Str("goVersion", goVersion).
-			Msgf("Starting estafette-ci-builder version %v...", version)
+			Msgf("Starting %v version %v...", app, version)
+
+		buildSpan := opentracing.StartSpan(*builderConfig.Action)
+		defer buildSpan.Finish()
+
+		ctx := context.Background()
+		ctx = opentracing.ContextWithSpan(ctx, buildSpan)
 
 		// start docker daemon
+		dockerDaemonStartSpan, ctx := opentracing.StartSpanFromContext(ctx, "StartDockerDaemon")
 		err = dockerRunner.startDockerDaemon()
 		if err != nil {
-			endOfLifeHelper.handleFatal(buildLog, err, "Error starting docker daemon")
+			endOfLifeHelper.handleFatal(ctx, buildLog, err, "Error starting docker daemon")
 		}
 
 		// wait for docker daemon to be ready for usage
 		dockerRunner.waitForDockerDaemon()
+		dockerDaemonStartSpan.Finish()
 
 		// listen to cancellation in order to stop any running pipeline or container
 		go pipelineRunner.stopPipelineOnCancellation()
@@ -231,19 +248,19 @@ func main() {
 		// get current working directory
 		dir, err := os.Getwd()
 		if err != nil {
-			endOfLifeHelper.handleFatal(buildLog, err, "Getting current working directory failed")
+			endOfLifeHelper.handleFatal(ctx, buildLog, err, "Getting current working directory failed")
 		}
 
 		// set some envvars
 		err = envvarHelper.setEstafetteGlobalEnvvars()
 		if err != nil {
-			endOfLifeHelper.handleFatal(buildLog, err, "Setting global environment variables failed")
+			endOfLifeHelper.handleFatal(ctx, buildLog, err, "Setting global environment variables failed")
 		}
 
 		// initialize obfuscator
 		err = obfuscator.CollectSecrets(*builderConfig.Manifest)
 		if err != nil {
-			endOfLifeHelper.handleFatal(buildLog, err, "Collecting secrets to obfuscate failed")
+			endOfLifeHelper.handleFatal(ctx, buildLog, err, "Collecting secrets to obfuscate failed")
 		}
 
 		// check whether this is a regular build or a release
@@ -258,7 +275,7 @@ func main() {
 				}
 			}
 			if !releaseExists {
-				endOfLifeHelper.handleFatal(buildLog, nil, fmt.Sprintf("Release %v does not exist", builderConfig.ReleaseParams.ReleaseName))
+				endOfLifeHelper.handleFatal(ctx, buildLog, nil, fmt.Sprintf("Release %v does not exist", builderConfig.ReleaseParams.ReleaseName))
 			}
 			log.Info().Msgf("Starting release %v at version %v...", builderConfig.ReleaseParams.ReleaseName, builderConfig.BuildVersion.Version)
 		} else {
@@ -267,13 +284,13 @@ func main() {
 
 		err = envvarHelper.setEstafetteStagesEnvvar(stages)
 		if err != nil {
-			endOfLifeHelper.handleFatal(buildLog, err, "Setting ESTAFETTE_STAGES environment variable failed")
+			endOfLifeHelper.handleFatal(ctx, buildLog, err, "Setting ESTAFETTE_STAGES environment variable failed")
 		}
 
 		// create docker client
 		_, err = dockerRunner.createDockerClient()
 		if err != nil {
-			endOfLifeHelper.handleFatal(buildLog, err, "Failed creating a docker client")
+			endOfLifeHelper.handleFatal(ctx, buildLog, err, "Failed creating a docker client")
 		}
 
 		// collect estafette envvars and run stages from manifest
@@ -283,9 +300,9 @@ func main() {
 		envvars := envvarHelper.overrideEnvvars(estafetteEnvvars, globalEnvvars)
 
 		// run stages
-		result, err := pipelineRunner.runStages(stages, dir, envvars)
+		result, err := pipelineRunner.runStages(ctx, stages, dir, envvars)
 		if err != nil && !result.canceled {
-			endOfLifeHelper.handleFatal(buildLog, err, "Executing stages from manifest failed")
+			endOfLifeHelper.handleFatal(ctx, buildLog, err, "Executing stages from manifest failed")
 		}
 
 		// send result to ci-api
@@ -299,9 +316,9 @@ func main() {
 			buildStatus = "canceled"
 		}
 
-		_ = endOfLifeHelper.sendBuildFinishedEvent(buildStatus)
-		_ = endOfLifeHelper.sendBuildJobLogEvent(buildLog)
-		_ = endOfLifeHelper.sendBuildCleanEvent(buildStatus)
+		_ = endOfLifeHelper.sendBuildFinishedEvent(ctx, buildStatus)
+		_ = endOfLifeHelper.sendBuildJobLogEvent(ctx, buildLog)
+		_ = endOfLifeHelper.sendBuildCleanEvent(ctx, buildStatus)
 
 		if *runAsJob {
 			os.Exit(0)
@@ -317,4 +334,22 @@ func main() {
 
 		log.Warn().Msgf("The CI Server (\"%s\") is not recognized, exiting.", ciServer)
 	}
+}
+
+// initJaeger returns an instance of Jaeger Tracer that can be configured with environment variables
+// https://github.com/jaegertracing/jaeger-client-go#environment-variables
+func initJaeger(service string) io.Closer {
+
+	cfg, err := jaegercfg.FromEnv()
+	if err != nil {
+		log.Fatal().Err(err).Msg("Generating Jaeger config from environment variables failed")
+	}
+
+	closer, err := cfg.InitGlobalTracer(service, jaegercfg.Logger(jaeger.StdLogger))
+
+	if err != nil {
+		log.Fatal().Err(err).Msg("Generating Jaeger tracer failed")
+	}
+
+	return closer
 }
