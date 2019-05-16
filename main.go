@@ -325,6 +325,10 @@ func main() {
 		_ = endOfLifeHelper.sendBuildJobLogEvent(ctx, buildLog)
 		_ = endOfLifeHelper.sendBuildCleanEvent(ctx, buildStatus)
 
+		// finish and flush so it gets sent to the tracing backend
+		rootSpan.Finish()
+		closer.Close()
+
 		if *runAsJob {
 			os.Exit(0)
 		} else {
