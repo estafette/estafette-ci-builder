@@ -224,11 +224,16 @@ func main() {
 			Str("goVersion", goVersion).
 			Msgf("Starting %v version %v...", app, version)
 
-		buildSpan := opentracing.StartSpan(*builderConfig.Action)
-		defer buildSpan.Finish()
+		rootSpanName := "build"
+		if *builderConfig.Action != "" {
+			rootSpanName = *builderConfig.Action
+		}
+
+		rootSpan := opentracing.StartSpan(rootSpanName)
+		defer rootSpan.Finish()
 
 		ctx := context.Background()
-		ctx = opentracing.ContextWithSpan(ctx, buildSpan)
+		ctx = opentracing.ContextWithSpan(ctx, rootSpan)
 
 		// start docker daemon
 		dockerDaemonStartSpan, ctx := opentracing.StartSpanFromContext(ctx, "StartDockerDaemon")
