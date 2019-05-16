@@ -190,6 +190,8 @@ func (elh *endOfLifeHelperImpl) sendBuildJobLogEventCore(ctx context.Context, bu
 			return err
 		}
 
+		ext.HTTPStatusCode.Set(span, uint16(response.StatusCode))
+
 		defer response.Body.Close()
 
 		log.Debug().Str("logs", client.LogString()).Msgf("Successfully shipped logs to %v for job %v", ciServerBuilderPostLogsURL, jobName)
@@ -282,6 +284,8 @@ func (elh *endOfLifeHelperImpl) sendBuilderEvent(ctx context.Context, buildStatu
 			log.Error().Err(err).Str("pesterLogs", client.LogString()).Msgf("Failed performing http request to %v for job %v", ciServerBuilderEventsURL, jobName)
 			return err
 		}
+
+		ext.HTTPStatusCode.Set(span, uint16(response.StatusCode))
 
 		defer response.Body.Close()
 
