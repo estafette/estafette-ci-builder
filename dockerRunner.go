@@ -284,7 +284,6 @@ func (dr *dockerRunnerImpl) runDockerRun(ctx context.Context, dir string, envvar
 	// create container
 	resp, err := dr.dockerClient.ContainerCreate(ctx, &config, &container.HostConfig{
 		Binds:      binds,
-		AutoRemove: true,
 		Privileged: privileged,
 	}, &network.NetworkingConfig{}, "")
 	if err != nil {
