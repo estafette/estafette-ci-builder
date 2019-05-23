@@ -57,10 +57,12 @@ github.com/opencontainers/go-digest
 # github.com/opencontainers/image-spec v0.0.0-20180411145040-e562b0440392
 github.com/opencontainers/image-spec/specs-go/v1
 github.com/opencontainers/image-spec/specs-go
+# github.com/opentracing-contrib/go-stdlib v0.0.0-20190519235532-cf7a6c988dc9
+github.com/opentracing-contrib/go-stdlib/nethttp
 # github.com/opentracing/opentracing-go v1.1.0
 github.com/opentracing/opentracing-go
-github.com/opentracing/opentracing-go/ext
 github.com/opentracing/opentracing-go/log
+github.com/opentracing/opentracing-go/ext
 # github.com/pkg/errors v0.0.0-20180311214515-816c9085562c
 github.com/pkg/errors
 # github.com/pmezard/go-difflib v1.0.0

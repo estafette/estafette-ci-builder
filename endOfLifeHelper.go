@@ -12,10 +12,9 @@ import (
 	"time"
 
 	contracts "github.com/estafette/estafette-ci-contracts"
+	"github.com/opentracing-contrib/go-stdlib/nethttp"
 	"github.com/opentracing/opentracing-go"
-	"github.com/opentracing/opentracing-go/ext"
 	tracingLog "github.com/opentracing/opentracing-go/log"
-
 	"github.com/rs/zerolog/log"
 	"github.com/sethgrid/pester"
 )
@@ -159,7 +158,7 @@ func (elh *endOfLifeHelperImpl) sendBuildJobLogEventCore(ctx context.Context, bu
 		requestBody = bytes.NewReader(data)
 
 		// create client, in order to add headers
-		client := pester.New()
+		client := pester.NewExtendedClient(&http.Client{Transport: &nethttp.Transport{}})
 		client.MaxRetries = 5
 		client.Backoff = pester.ExponentialJitterBackoff
 		client.KeepLog = true
@@ -171,14 +170,10 @@ func (elh *endOfLifeHelperImpl) sendBuildJobLogEventCore(ctx context.Context, bu
 		}
 
 		// add tracing context
-		ext.SpanKindRPCClient.Set(span)
-		ext.HTTPMethod.Set(span, request.Method)
-		ext.HTTPUrl.Set(span, request.URL.String())
-		span.Tracer().Inject(
-			span.Context(),
-			opentracing.HTTPHeaders,
-			opentracing.HTTPHeadersCarrier(request.Header),
-		)
+		request = request.WithContext(opentracing.ContextWithSpan(request.Context(), span))
+
+		// collect additional information on setting up connections
+		request, ht := nethttp.TraceRequest(span.Tracer(), request)
 
 		// add headers
 		request.Header.Add("Authorization", fmt.Sprintf("Bearer %v", ciAPIKey))
@@ -191,9 +186,8 @@ func (elh *endOfLifeHelperImpl) sendBuildJobLogEventCore(ctx context.Context, bu
 			return err
 		}
 
-		ext.HTTPStatusCode.Set(span, uint16(response.StatusCode))
-
 		defer response.Body.Close()
+		ht.Finish()
 
 		log.Debug().Str("logs", client.LogString()).Msgf("Successfully shipped logs to %v for job %v", ciServerBuilderPostLogsURL, jobName)
 	}
@@ -253,7 +247,7 @@ func (elh *endOfLifeHelperImpl) sendBuilderEvent(ctx context.Context, buildStatu
 		requestBody = bytes.NewReader(data)
 
 		// create client, in order to add headers
-		client := pester.New()
+		client := pester.NewExtendedClient(&http.Client{Transport: &nethttp.Transport{}})
 		client.MaxRetries = 5
 		client.Backoff = pester.ExponentialJitterBackoff
 		client.KeepLog = true
@@ -265,14 +259,10 @@ func (elh *endOfLifeHelperImpl) sendBuilderEvent(ctx context.Context, buildStatu
 		}
 
 		// add tracing context
-		ext.SpanKindRPCClient.Set(span)
-		ext.HTTPMethod.Set(span, request.Method)
-		ext.HTTPUrl.Set(span, request.URL.String())
-		span.Tracer().Inject(
-			span.Context(),
-			opentracing.HTTPHeaders,
-			opentracing.HTTPHeadersCarrier(request.Header),
-		)
+		request = request.WithContext(opentracing.ContextWithSpan(request.Context(), span))
+
+		// collect additional information on setting up connections
+		request, ht := nethttp.TraceRequest(span.Tracer(), request)
 
 		// add headers
 		request.Header.Add("X-Estafette-Event", event)
@@ -290,9 +280,8 @@ func (elh *endOfLifeHelperImpl) sendBuilderEvent(ctx context.Context, buildStatu
 			return err
 		}
 
-		ext.HTTPStatusCode.Set(span, uint16(response.StatusCode))
-
 		defer response.Body.Close()
+		ht.Finish()
 
 		log.Debug().Str("pesterLogs", client.LogString()).Str("url", ciServerBuilderEventsURL).Msgf("Succesfully sent %v event to api", event)
 	}
