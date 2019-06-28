@@ -25,6 +25,7 @@ import (
 	manifest "github.com/estafette/estafette-ci-manifest"
 	"github.com/opentracing/opentracing-go"
 	"github.com/rs/zerolog/log"
+	"gopkg.in/yaml.v2"
 )
 
 // DockerRunner pulls and runs docker containers
@@ -187,6 +188,14 @@ func (dr *dockerRunnerImpl) runDockerRun(ctx context.Context, dir string, envvar
 			extensionEnvVars["ESTAFETTE_EXTENSION_CUSTOM_PROPERTIES"] = string(customPropertiesBytes)
 		} else {
 			log.Warn().Err(err).Interface("customProperty", p.CustomProperties).Msg("Cannot marshal custom properties for ESTAFETTE_EXTENSION_CUSTOM_PROPERTIES envvar")
+		}
+
+		// also add add custom properties as json object in ESTAFETTE_EXTENSION_CUSTOM_PROPERTIES_YAML envvar
+		customPropertiesYamlBytes, err := yaml.Marshal(p.CustomProperties)
+		if err == nil {
+			extensionEnvVars["ESTAFETTE_EXTENSION_CUSTOM_PROPERTIES_YAML"] = string(customPropertiesYamlBytes)
+		} else {
+			log.Warn().Err(err).Interface("customProperty", p.CustomProperties).Msg("Cannot marshal custom properties for ESTAFETTE_EXTENSION_CUSTOM_PROPERTIES_YAML envvar")
 		}
 	}
 
