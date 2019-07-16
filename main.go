@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	stdlog "log"
 	"os"
 	"os/signal"
@@ -31,6 +32,7 @@ var (
 	goVersion = runtime.Version()
 
 	builderConfigFlag         = kingpin.Flag("builder-config", "The Estafette server passes in this json structure to parameterize the build, set trusted images and inject credentials.").Envar("BUILDER_CONFIG").String()
+	builderConfigPath         = kingpin.Flag("builder-config-path", "The path to the builder config json stored in a mounted file, to parameterize the build, set trusted images and inject credentials.").Envar("BUILDER_CONFIG_PATH").String()
 	secretDecryptionKey       = kingpin.Flag("secret-decryption-key", "The AES-256 key used to decrypt secrets that have been encrypted with it.").Envar("SECRET_DECRYPTION_KEY").String()
 	secretDecryptionKeyBase64 = kingpin.Flag("secret-decryption-key-base64", "The base64 encoded AES-256 key used to decrypt secrets that have been encrypted with it.").Envar("SECRET_DECRYPTION_KEY_BASE64").String()
 	runAsJob                  = kingpin.Flag("run-as-job", "To run the builder as a job and prevent build failures to fail the job.").Default("false").OverrideDefaultFromEnvar("RUN_AS_JOB").Bool()
@@ -61,18 +63,37 @@ func main() {
 
 	secretHelper := crypt.NewSecretHelper(decryptionKey, secretDecryptionKeyBase64Encoded)
 
-	// read builder config from envvar and unset envar; will replace parameterizing the job via separate envvars
-	var builderConfig contracts.BuilderConfig
-	builderConfigJSON := *builderConfigFlag
-	if builderConfigJSON == "" {
-		log.Fatal().Msg("BUILDER_CONFIG envvar is not set")
+	// read builder config either from file or envvar
+	var builderConfigJSON []byte
+
+	if *builderConfigPath != "" {
+
+		log.Info().Msgf("Reading builder config from file %v...", *builderConfigPath)
+
+		var err error
+		builderConfigJSON, err = ioutil.ReadFile(*builderConfigPath)
+		if err != nil {
+			log.Fatal().Err(err).Interface("builderConfigJSON", builderConfigJSON).Msgf("Failed to read builder config file at %v", *builderConfigPath)
+		}
+
+	} else if *builderConfigFlag != "" {
+
+		log.Info().Msg("Reading builder config from envvar BUILDER_CONFIG...")
+
+		builderConfigJSON = []byte(*builderConfigFlag)
+		os.Unsetenv("BUILDER_CONFIG")
+
+	} else {
+
+		log.Fatal().Msg("Neither BUILDER_CONFIG_PATH nor BUILDER_CONFIG envvar is not set; one of them is required")
+
 	}
-	os.Unsetenv("BUILDER_CONFIG")
 
 	// unmarshal builder config
-	err := json.Unmarshal([]byte(builderConfigJSON), &builderConfig)
+	var builderConfig contracts.BuilderConfig
+	err := json.Unmarshal(builderConfigJSON, &builderConfig)
 	if err != nil {
-		log.Fatal().Err(err).Interface("builderConfigJSON", builderConfigJSON).Msg("Failed to unmarshal BUILDER_CONFIG")
+		log.Fatal().Err(err).Interface("builderConfigJSON", builderConfigJSON).Msg("Failed to unmarshal builder config")
 	}
 
 	// decrypt all credentials
