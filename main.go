@@ -256,6 +256,9 @@ func main() {
 		ctx := context.Background()
 		ctx = opentracing.ContextWithSpan(ctx, rootSpan)
 
+		// set running state, so a restarted job will show up as running once a new pod runs
+		_ = endOfLifeHelper.sendBuildStartedEvent(ctx)
+
 		// start docker daemon
 		dockerDaemonStartSpan, _ := opentracing.StartSpanFromContext(ctx, "StartDockerDaemon")
 		err = dockerRunner.startDockerDaemon()

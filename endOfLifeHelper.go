@@ -22,6 +22,7 @@ import (
 // EndOfLifeHelper has methods to shutdown the runner after a fatal or successful run
 type EndOfLifeHelper interface {
 	handleFatal(context.Context, contracts.BuildLog, error, string)
+	sendBuildStartedEvent(ctx context.Context) error
 	sendBuildFinishedEvent(ctx context.Context, buildStatus string) error
 	sendBuildCleanEvent(ctx context.Context, buildStatus string) error
 	sendBuildJobLogEvent(ctx context.Context, buildLog contracts.BuildLog) error
@@ -193,6 +194,11 @@ func (elh *endOfLifeHelperImpl) sendBuildJobLogEventCore(ctx context.Context, bu
 	}
 
 	return nil
+}
+
+func (elh *endOfLifeHelperImpl) sendBuildStartedEvent(ctx context.Context) error {
+	buildStatus := "running"
+	return elh.sendBuilderEvent(ctx, buildStatus, fmt.Sprintf("builder:%v", buildStatus))
 }
 
 func (elh *endOfLifeHelperImpl) sendBuildFinishedEvent(ctx context.Context, buildStatus string) error {
