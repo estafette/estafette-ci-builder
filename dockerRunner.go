@@ -182,20 +182,24 @@ func (dr *dockerRunnerImpl) runDockerRun(ctx context.Context, dir string, envvar
 			}
 		}
 
+		// add envvar to custom properties
+		customProperties := p.CustomProperties
+		customProperties["env"] = p.EnvVars
+
 		// also add add custom properties as json object in ESTAFETTE_EXTENSION_CUSTOM_PROPERTIES envvar
-		customPropertiesBytes, err := json.Marshal(p.CustomProperties)
+		customPropertiesBytes, err := json.Marshal(customProperties)
 		if err == nil {
 			extensionEnvVars["ESTAFETTE_EXTENSION_CUSTOM_PROPERTIES"] = string(customPropertiesBytes)
 		} else {
-			log.Warn().Err(err).Interface("customProperty", p.CustomProperties).Msg("Cannot marshal custom properties for ESTAFETTE_EXTENSION_CUSTOM_PROPERTIES envvar")
+			log.Warn().Err(err).Interface("customProperty", customProperties).Msg("Cannot marshal custom properties for ESTAFETTE_EXTENSION_CUSTOM_PROPERTIES envvar")
 		}
 
 		// also add add custom properties as json object in ESTAFETTE_EXTENSION_CUSTOM_PROPERTIES_YAML envvar
-		customPropertiesYamlBytes, err := yaml.Marshal(p.CustomProperties)
+		customPropertiesYamlBytes, err := yaml.Marshal(customProperties)
 		if err == nil {
 			extensionEnvVars["ESTAFETTE_EXTENSION_CUSTOM_PROPERTIES_YAML"] = string(customPropertiesYamlBytes)
 		} else {
-			log.Warn().Err(err).Interface("customProperty", p.CustomProperties).Msg("Cannot marshal custom properties for ESTAFETTE_EXTENSION_CUSTOM_PROPERTIES_YAML envvar")
+			log.Warn().Err(err).Interface("customProperty", customProperties).Msg("Cannot marshal custom properties for ESTAFETTE_EXTENSION_CUSTOM_PROPERTIES_YAML envvar")
 		}
 	}
 

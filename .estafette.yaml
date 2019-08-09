@@ -176,16 +176,12 @@ stages:
     action: push
     repositories:
     - estafette
-    tags:
-    - dev
 
   push-to-gcr-io:
     image: extensions/docker:dev
     action: push
     repositories:
     - estafette.secret(ugcaPF_CdqMZsxsh.4ZumU_A0ufxsjV3MPInyc1VjATZgX9hcB2KQM1KDIOQs)
-    tags:
-    - dev
 
   slack-notify:
     image: extensions/slack-build-status:dev
@@ -197,6 +193,28 @@ stages:
       status == 'failed'
 
 releases:
+  dev:
+    triggers:
+    - pipeline:
+        name: github.com/estafette/estafette-ci-builder
+        branch: .+
+    stages:
+      tag-container-image:
+        image: extensions/docker:dev
+        action: tag
+        repositories:
+        - estafette
+        tags:
+        - dev
+
+      tag-gcr-io-image:
+        image: extensions/docker:dev
+        action: tag
+        repositories:
+        - estafette.secret(ugcaPF_CdqMZsxsh.4ZumU_A0ufxsjV3MPInyc1VjATZgX9hcB2KQM1KDIOQs)
+        tags:
+        - dev
+
   beta:
     stages:
       tag-container-image:
