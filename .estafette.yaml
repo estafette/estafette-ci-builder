@@ -196,7 +196,7 @@ releases:
   dev:
     triggers:
     - pipeline:
-        name: github.com/estafette/estafette-ci-builder
+        name: self
         branch: .+
     stages:
       tag-container-image:
