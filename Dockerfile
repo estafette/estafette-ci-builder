@@ -1,4 +1,4 @@
-FROM docker:18.09.6-dind
+FROM docker:19.03.1-dind
 
 LABEL maintainer="estafette.io" \
       description="The estafette-ci-builder is the component that runs builds as defined in the .estafette.yaml manifest"

@@ -427,9 +427,9 @@ func (dr *dockerRunnerImpl) startDockerDaemon() error {
 		mtu = *dr.config.DockerDaemonMTU
 	}
 
-	// dockerd --host=unix:///var/run/docker.sock --host=tcp://0.0.0.0:2375 --storage-driver=$STORAGE_DRIVER &
+	// dockerd --host=unix:///var/run/docker.sock --host=tcp://0.0.0.0:2375 --mtu=1500 &
 	log.Debug().Msg("Starting docker daemon...")
-	args := []string{"--host=unix:///var/run/docker.sock", fmt.Sprintf("--mtu=%v", mtu), "--host=tcp://0.0.0.0:2375", "--storage-driver=overlay2", "--max-concurrent-downloads=10"}
+	args := []string{"--host=unix:///var/run/docker.sock", "--host=tcp://0.0.0.0:2375", fmt.Sprintf("--mtu=%v", mtu)}
 
 	// if a registry mirror is set in config configured docker daemon to use it
 	if dr.config.RegistryMirror != nil && *dr.config.RegistryMirror != "" {
