@@ -25,6 +25,8 @@ stages:
   bake:
     image: extensions/docker:dev
     action: build
+    no-cache: true
+    expand-variables: false
     repositories:
     - estafette
     path: ./publish
@@ -33,6 +35,7 @@ stages:
     image: extensions/docker:dev
     action: build
     no-cache: true
+    expand-variables: false
     repositories:
     - estafette.secret(ugcaPF_CdqMZsxsh.4ZumU_A0ufxsjV3MPInyc1VjATZgX9hcB2KQM1KDIOQs)
     path: ./publish
