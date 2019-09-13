@@ -152,6 +152,7 @@ func main() {
 			Str("revision", revision).
 			Str("buildDate", buildDate).
 			Str("goVersion", goVersion).
+			Str("os", runtime.GOOS).
 			Msgf("Starting %v version %v...", app, version)
 
 		// create docker client

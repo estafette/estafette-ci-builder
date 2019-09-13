@@ -313,7 +313,7 @@ func (dr *dockerRunnerImpl) runDockerRun(ctx context.Context, dir string, envvar
 
 	// check if this is a trusted image with RunPrivileged or RunDocker set to true
 	privileged := false
-	if trustedImage != nil {
+	if trustedImage != nil && runtime.GOOS != "windows" {
 		privileged = trustedImage.RunDocker || trustedImage.RunPrivileged
 	}
 
