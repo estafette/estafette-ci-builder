@@ -263,7 +263,7 @@ func (dr *dockerRunnerImpl) runDockerRun(ctx context.Context, dir string, envvar
 
 	// define binds
 	if runtime.GOOS == "windows" {
-		dir = strings.ReplaceAll(dir, "\\", "/")
+		dir = "c:/estafette-work"
 	}
 	binds := make([]string, 0)
 	binds = append(binds, fmt.Sprintf("%v:%v", dir, os.Expand(p.WorkingDirectory, dr.envvarHelper.getEstafetteEnv)))
