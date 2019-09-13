@@ -137,7 +137,15 @@ func (dr *dockerRunnerImpl) runDockerRun(ctx context.Context, dir string, envvar
 
 	// define commands
 	cmdSlice := make([]string, 0)
-	cmdSlice = append(cmdSlice, "set -e;"+strings.Join(p.Commands, ";"))
+	if runtime.GOOS == "windows" {
+		if p.Shell == "powershell" {
+			cmdSlice = append(cmdSlice, "$ErrorActionPreference = 'Stop' ; $ProgressPreference = 'SilentlyContinue' ;"+strings.Join(p.Commands, " ;"))
+		} else {
+			cmdSlice = append(cmdSlice, strings.Join(p.Commands, " && "))
+		}
+	} else {
+		cmdSlice = append(cmdSlice, "set -e;"+strings.Join(p.Commands, ";"))
+	}
 
 	// add custom properties as ESTAFETTE_EXTENSION_... envvar
 	extensionEnvVars := map[string]string{}
@@ -243,21 +251,36 @@ func (dr *dockerRunnerImpl) runDockerRun(ctx context.Context, dir string, envvar
 	// define entrypoint
 	entrypoint := make([]string, 0)
 	entrypoint = append(entrypoint, p.Shell)
-	entrypoint = append(entrypoint, "-c")
+	if runtime.GOOS == "windows" {
+		if p.Shell == "powershell" {
+			entrypoint = append(entrypoint, "-Command")
+		} else {
+			entrypoint = append(entrypoint, "/c")
+		}
+	} else {
+		entrypoint = append(entrypoint, "-c")
+	}
 
 	// define binds
 	binds := make([]string, 0)
-	if runtime.GOOS != "windows" {
-		binds = append(binds, fmt.Sprintf("%v:%v", dir, os.Expand(p.WorkingDirectory, dr.envvarHelper.getEstafetteEnv)))
-	}
+	binds = append(binds, fmt.Sprintf("%v:%v", dir, os.Expand(p.WorkingDirectory, dr.envvarHelper.getEstafetteEnv)))
 
 	// check if this is a trusted image with RunDocker set to true
 	if trustedImage != nil && trustedImage.RunDocker {
-		if ok, _ := pathExists("/var/run/docker.sock"); ok {
-			binds = append(binds, "/var/run/docker.sock:/var/run/docker.sock")
-		}
-		if ok, _ := pathExists("/usr/local/bin/docker"); ok {
-			binds = append(binds, "/usr/local/bin/docker:/dod/docker")
+		if runtime.GOOS == "windows" {
+			if ok, _ := pathExists(`\\.\pipe\docker_engine`); ok {
+				binds = append(binds, `\\.\pipe\docker_engine:\\.\pipe\docker_engine`)
+			}
+			if ok, _ := pathExists("C:/Program Files/Docker"); ok {
+				binds = append(binds, "C:/Program Files/Docker:C:/dod")
+			}
+		} else {
+			if ok, _ := pathExists("/var/run/docker.sock"); ok {
+				binds = append(binds, "/var/run/docker.sock:/var/run/docker.sock")
+			}
+			if ok, _ := pathExists("/usr/local/bin/docker"); ok {
+				binds = append(binds, "/usr/local/bin/docker:/dod/docker")
+			}
 		}
 	}
 

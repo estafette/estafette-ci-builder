@@ -260,15 +260,17 @@ func main() {
 		_ = endOfLifeHelper.sendBuildStartedEvent(ctx)
 
 		// start docker daemon
-		dockerDaemonStartSpan, _ := opentracing.StartSpanFromContext(ctx, "StartDockerDaemon")
-		err = dockerRunner.startDockerDaemon()
-		if err != nil {
-			endOfLifeHelper.handleFatal(ctx, buildLog, err, "Error starting docker daemon")
-		}
+		if runtime.GOOS != "windows" {
+			dockerDaemonStartSpan, _ := opentracing.StartSpanFromContext(ctx, "StartDockerDaemon")
+			err = dockerRunner.startDockerDaemon()
+			if err != nil {
+				endOfLifeHelper.handleFatal(ctx, buildLog, err, "Error starting docker daemon")
+			}
 
-		// wait for docker daemon to be ready for usage
-		dockerRunner.waitForDockerDaemon()
-		dockerDaemonStartSpan.Finish()
+			// wait for docker daemon to be ready for usage
+			dockerRunner.waitForDockerDaemon()
+			dockerDaemonStartSpan.Finish()
+		}
 
 		// listen to cancellation in order to stop any running pipeline or container
 		go pipelineRunner.stopPipelineOnCancellation()
