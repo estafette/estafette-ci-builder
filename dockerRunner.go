@@ -426,8 +426,12 @@ func (dr *dockerRunnerImpl) runDockerRun(ctx context.Context, dir string, envvar
 	}
 
 	// wait for container to stop running
-	exitCode, err = dr.dockerClient.ContainerWait(ctx, resp.ID)
-	if err != nil {
+	resultC, errC := dr.dockerClient.ContainerWait(ctx, resp.ID, container.WaitConditionNotRunning)
+
+	select {
+	case result := <-resultC:
+		exitCode = result.StatusCode
+	case err = <-errC:
 		log.Warn().Err(err).Msgf("Container %v exited with error", dr.containerID)
 		return logLines, exitCode, dr.canceled, err
 	}
