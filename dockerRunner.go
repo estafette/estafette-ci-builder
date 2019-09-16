@@ -307,10 +307,13 @@ func (dr *dockerRunnerImpl) runDockerRun(ctx context.Context, dir string, envvar
 		// only override entrypoint when commands are set, so extensions can work without commands
 		config.Entrypoint = entrypoint
 	}
-	if trustedImage != nil && trustedImage.RunDocker && runtime.GOOS != "windows" {
+	if trustedImage != nil && trustedImage.RunDocker {
 		currentUser, err := user.Current()
 		if err == nil && currentUser != nil {
 			config.User = fmt.Sprintf("%v:%v", currentUser.Uid, currentUser.Gid)
+			log.Debug().Msgf("Setting docker user to %v", config.User)
+		} else {
+			log.Debug().Err(err).Msg("Can't retrieve current user")
 		}
 	}
 
