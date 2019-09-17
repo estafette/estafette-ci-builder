@@ -17,10 +17,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker-ce/components/engine/client"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/client"
 	contracts "github.com/estafette/estafette-ci-contracts"
 	manifest "github.com/estafette/estafette-ci-manifest"
 	"github.com/opentracing/opentracing-go"
@@ -135,17 +135,32 @@ func (dr *dockerRunnerImpl) runDockerRun(ctx context.Context, dir string, envvar
 
 	// run docker with image and commands from yaml
 
-	// define commands
-	cmdSlice := make([]string, 0)
-	if runtime.GOOS == "windows" {
-		if p.Shell == "powershell" {
-			cmdSlice = append(cmdSlice, "$ErrorActionPreference = 'Stop' ; $ProgressPreference = 'SilentlyContinue' ;"+strings.Join(p.Commands, " ;"))
-		} else {
-			cmdSlice = append(cmdSlice, strings.Join(p.Commands, " && "))
-		}
+	// define entrypoint
+	entrypoint := make([]string, 0)
+	entrypoint = []string{p.Shell}
+	if runtime.GOOS == "windows" && p.Shell == "powershell" {
+		entrypoint = append(entrypoint, "-Command")
+	} else if runtime.GOOS == "windows" && p.Shell == "cmd" {
+		entrypoint = append(entrypoint, "/S", "/C")
 	} else {
-		cmdSlice = append(cmdSlice, "set -e;"+strings.Join(p.Commands, ";"))
+		entrypoint = append(entrypoint, "-c")
 	}
+
+	// define commands
+	cmds := make([]string, 0)
+	cmdStopOnErrorFlag := ""
+	cmdSeparator := ";"
+	if runtime.GOOS == "windows" && p.Shell == "powershell" {
+		cmdStopOnErrorFlag = "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue'; "
+		cmdSeparator = ";"
+	} else if runtime.GOOS == "windows" && p.Shell == "cmd" {
+		cmdStopOnErrorFlag = ""
+		cmdSeparator = " && "
+	} else {
+		cmdStopOnErrorFlag = "set -e; "
+		cmdSeparator = ";"
+	}
+	cmds = append(cmds, cmdStopOnErrorFlag+strings.Join(p.Commands, cmdSeparator))
 
 	// add custom properties as ESTAFETTE_EXTENSION_... envvar
 	extensionEnvVars := map[string]string{}
@@ -248,23 +263,7 @@ func (dr *dockerRunnerImpl) runDockerRun(ctx context.Context, dir string, envvar
 		}
 	}
 
-	// define entrypoint
-	entrypoint := make([]string, 0)
-	entrypoint = append(entrypoint, p.Shell)
-	if runtime.GOOS == "windows" {
-		if p.Shell == "powershell" {
-			entrypoint = append(entrypoint, "-Command")
-		} else {
-			entrypoint = append(entrypoint, "/c")
-		}
-	} else {
-		entrypoint = append(entrypoint, "-c")
-	}
-
 	// define binds
-	if runtime.GOOS == "windows" {
-		dir = "c:/estafette-work"
-	}
 	binds := make([]string, 0)
 	binds = append(binds, fmt.Sprintf("%v:%v", dir, os.Expand(p.WorkingDirectory, dr.envvarHelper.getEstafetteEnv)))
 
@@ -303,14 +302,21 @@ func (dr *dockerRunnerImpl) runDockerRun(ctx context.Context, dir string, envvar
 		}
 
 		// only pass commands when they are set, so extensions can work without
-		config.Cmd = cmdSlice
+		config.Cmd = cmds
 		// only override entrypoint when commands are set, so extensions can work without commands
 		config.Entrypoint = entrypoint
 	}
 	if trustedImage != nil && trustedImage.RunDocker {
-		currentUser, err := user.Current()
-		if err == nil && currentUser != nil {
-			config.User = fmt.Sprintf("%v:%v", currentUser.Uid, currentUser.Gid)
+		if runtime.GOOS != "windows" {
+			currentUser, err := user.Current()
+			if err == nil && currentUser != nil {
+				config.User = fmt.Sprintf("%v:%v", currentUser.Uid, currentUser.Gid)
+				log.Debug().Msgf("Setting docker user to %v", config.User)
+			} else {
+				log.Debug().Err(err).Msg("Can't retrieve current user")
+			}
+		} else {
+			log.Debug().Msg("Not setting docker user for windows")
 		}
 	}
 
