@@ -278,15 +278,9 @@ func main() {
 		go dockerRunner.stopContainerOnCancellation()
 
 		// get current working directory
-		dir, err := os.Getwd()
-		if err != nil {
-			endOfLifeHelper.handleFatal(ctx, buildLog, err, "Getting current working directory failed")
-		}
-		if runtime.GOOS == "windows" {
-			dir = os.Getenv("WORKING_DIR_HOST_PATH")
-			if dir == "" {
-				endOfLifeHelper.handleFatal(ctx, buildLog, nil, "Getting working directory from environment variable WORKING_DIR_HOST_PATH failed")
-			}
+		dir := os.Getenv("ESTAFETTE_WORKDIR")
+		if dir == "" {
+			endOfLifeHelper.handleFatal(ctx, buildLog, nil, "Getting working directory from environment variable ESTAFETTE_WORKDIR failed")
 		}
 
 		// set some envvars

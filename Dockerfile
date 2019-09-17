@@ -5,11 +5,12 @@ LABEL maintainer="estafette.io" \
 
 RUN addgroup docker
 
-ENV ESTAFETTE_CI_SERVER="estafette"
+ENV ESTAFETTE_CI_SERVER="estafette" \
+    ESTAFETTE_WORKDIR="/estafette-work"
 
 # copy builder & startup script
 COPY estafette-ci-builder /
 
-WORKDIR /estafette-work
+WORKDIR ${ESTAFETTE_WORKDIR}
 
 ENTRYPOINT ["/estafette-ci-builder"]
