@@ -135,6 +135,19 @@ func (dr *dockerRunnerImpl) runDockerRun(ctx context.Context, dir string, envvar
 
 	// run docker with image and commands from yaml
 
+	// define entrypoint
+	entrypoint := make([]string, 0)
+	entrypoint = append(entrypoint, p.Shell)
+	if runtime.GOOS == "windows" {
+		if p.Shell == "powershell" {
+			entrypoint = append(entrypoint, "-Command")
+		} else {
+			entrypoint = append(entrypoint, "/c")
+		}
+	} else {
+		entrypoint = append(entrypoint, "-c")
+	}
+
 	// define commands
 	cmdSlice := make([]string, 0)
 	if runtime.GOOS == "windows" {
@@ -146,6 +159,8 @@ func (dr *dockerRunnerImpl) runDockerRun(ctx context.Context, dir string, envvar
 	} else {
 		cmdSlice = append(cmdSlice, "set -e;"+strings.Join(p.Commands, ";"))
 	}
+
+	log.Debug().Msgf("> %v %v", strings.Join(entrypoint, " "), strings.Join(cmdSlice, " "))
 
 	// add custom properties as ESTAFETTE_EXTENSION_... envvar
 	extensionEnvVars := map[string]string{}
@@ -246,19 +261,6 @@ func (dr *dockerRunnerImpl) runDockerRun(ctx context.Context, dir string, envvar
 		for k, v := range combinedEnvVars {
 			dockerEnvVars = append(dockerEnvVars, fmt.Sprintf("%v=%v", k, os.Expand(v, dr.envvarHelper.getEstafetteEnv)))
 		}
-	}
-
-	// define entrypoint
-	entrypoint := make([]string, 0)
-	entrypoint = append(entrypoint, p.Shell)
-	if runtime.GOOS == "windows" {
-		if p.Shell == "powershell" {
-			entrypoint = append(entrypoint, "-Command")
-		} else {
-			entrypoint = append(entrypoint, "/c")
-		}
-	} else {
-		entrypoint = append(entrypoint, "-c")
 	}
 
 	// define binds
