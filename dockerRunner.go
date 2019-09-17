@@ -139,7 +139,7 @@ func (dr *dockerRunnerImpl) runDockerRun(ctx context.Context, dir string, envvar
 	cmdSlice := make([]string, 0)
 	if runtime.GOOS == "windows" {
 		if p.Shell == "powershell" {
-			cmdSlice = append(cmdSlice, "$ErrorActionPreference = 'Stop' ; $ProgressPreference = 'SilentlyContinue' ;"+strings.Join(p.Commands, " ;"))
+			cmdSlice = append(cmdSlice, "$ErrorActionPreference = 'Stop' ; $ProgressPreference = 'SilentlyContinue' ;"+strings.Join(p.Commands, " ; "))
 		} else {
 			cmdSlice = append(cmdSlice, strings.Join(p.Commands, " && "))
 		}
