@@ -137,30 +137,30 @@ func (dr *dockerRunnerImpl) runDockerRun(ctx context.Context, dir string, envvar
 
 	// define entrypoint
 	entrypoint := make([]string, 0)
-	if runtime.GOOS == "windows" {
-		if p.Shell == "powershell" {
-			entrypoint = []string{"powershell", "-Command"}
-		} else {
-			entrypoint = []string{"cmd", "/S", "/C"}
-		}
+	entrypoint = []string{p.Shell}
+	if runtime.GOOS == "windows" && p.Shell == "powershell" {
+		entrypoint = append(entrypoint, "-Command")
+	} else if runtime.GOOS == "windows" && p.Shell == "cmd" {
+		entrypoint = append(entrypoint, "/S", "/C")
 	} else {
-		entrypoint = []string{p.Shell, "-c"}
+		entrypoint = append(entrypoint, "-c")
 	}
 
 	// define commands
-	cmdSlice := make([]string, 0)
-	if runtime.GOOS == "windows" {
-		if p.Shell == "powershell" {
-			cmdSlice = append(cmdSlice, "$ErrorActionPreference = 'Stop';", "$ProgressPreference = 'SilentlyContinue';")
-			for _, c := range p.Commands {
-				cmdSlice = append(cmdSlice, c+";")
-			}
-		} else {
-			cmdSlice = append(cmdSlice, strings.Join(p.Commands, " && "))
-		}
+	cmds := make([]string, 0)
+	cmdStopOnErrorFlag := ""
+	cmdSeparator := ";"
+	if runtime.GOOS == "windows" && p.Shell == "powershell" {
+		cmdStopOnErrorFlag = "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue'; "
+		cmdSeparator = ";"
+	} else if runtime.GOOS == "windows" && p.Shell == "cmd" {
+		cmdStopOnErrorFlag = ""
+		cmdSeparator = " && "
 	} else {
-		cmdSlice = append(cmdSlice, "set -e;"+strings.Join(p.Commands, ";"))
+		cmdStopOnErrorFlag = "set -e; "
+		cmdSeparator = ";"
 	}
+	cmds = append(cmds, cmdStopOnErrorFlag+strings.Join(p.Commands, cmdSeparator))
 
 	// add custom properties as ESTAFETTE_EXTENSION_... envvar
 	extensionEnvVars := map[string]string{}
@@ -302,7 +302,7 @@ func (dr *dockerRunnerImpl) runDockerRun(ctx context.Context, dir string, envvar
 		}
 
 		// only pass commands when they are set, so extensions can work without
-		config.Cmd = cmdSlice
+		config.Cmd = cmds
 		// only override entrypoint when commands are set, so extensions can work without commands
 		config.Entrypoint = entrypoint
 	}
