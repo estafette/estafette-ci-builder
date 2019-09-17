@@ -162,8 +162,6 @@ func (dr *dockerRunnerImpl) runDockerRun(ctx context.Context, dir string, envvar
 		cmdSlice = append(cmdSlice, "set -e;"+strings.Join(p.Commands, ";"))
 	}
 
-	log.Debug().Msgf("> %v %v", strings.Join(entrypoint, " "), strings.Join(cmdSlice, " "))
-
 	// add custom properties as ESTAFETTE_EXTENSION_... envvar
 	extensionEnvVars := map[string]string{}
 	if p.CustomProperties != nil && len(p.CustomProperties) > 0 {
