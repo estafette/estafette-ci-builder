@@ -137,14 +137,10 @@ func (dr *dockerRunnerImpl) runDockerRun(ctx context.Context, dir string, envvar
 
 	// define entrypoint
 	entrypoint := make([]string, 0)
-	entrypoint = append(entrypoint, p.Shell)
 	if runtime.GOOS == "windows" {
-		if p.Shell == "powershell" {
-			entrypoint = append(entrypoint, "-Command")
-		} else {
-			entrypoint = append(entrypoint, "/c")
-		}
+		entrypoint = append(entrypoint, "cmd", "/S", "/C")
 	} else {
+		entrypoint = append(entrypoint, p.Shell)
 		entrypoint = append(entrypoint, "-c")
 	}
 
@@ -152,7 +148,7 @@ func (dr *dockerRunnerImpl) runDockerRun(ctx context.Context, dir string, envvar
 	cmdSlice := make([]string, 0)
 	if runtime.GOOS == "windows" {
 		if p.Shell == "powershell" {
-			cmdSlice = append(cmdSlice, "$ErrorActionPreference = 'Stop' ; $ProgressPreference = 'SilentlyContinue' ;"+strings.Join(p.Commands, " ; "))
+			cmdSlice = append(cmdSlice, "powershell.exe -Command $ErrorActionPreference = 'Stop' ; $ProgressPreference = 'SilentlyContinue' ; "+strings.Join(p.Commands, " ; "))
 		} else {
 			cmdSlice = append(cmdSlice, strings.Join(p.Commands, " && "))
 		}
