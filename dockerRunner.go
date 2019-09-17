@@ -138,22 +138,23 @@ func (dr *dockerRunnerImpl) runDockerRun(ctx context.Context, dir string, envvar
 	// define entrypoint
 	entrypoint := make([]string, 0)
 	if runtime.GOOS == "windows" {
-		entrypoint = append(entrypoint, "cmd", "/S", "/C")
+		if p.Shell == "powershell" {
+			entrypoint = []string{"powershell", "$ErrorActionPreference = 'Stop';", "$ProgressPreference = 'SilentlyContinue';"}
+		} else {
+			entrypoint = []string{"cmd", "/S", "/C"}
+		}
 	} else {
-		entrypoint = append(entrypoint, p.Shell)
-		entrypoint = append(entrypoint, "-c")
+		entrypoint = []string{p.Shell, "-c", "set -e;"}
 	}
 
 	// define commands
+	cmdSeparator := ";"
+	if runtime.GOOS == "windows" && p.Shell != "powershell" {
+		cmdSeparator = " &&"
+	}
 	cmdSlice := make([]string, 0)
-	if runtime.GOOS == "windows" {
-		if p.Shell == "powershell" {
-			cmdSlice = append(cmdSlice, "powershell.exe -Command $ErrorActionPreference = 'Stop' ; $ProgressPreference = 'SilentlyContinue' ; "+strings.Join(p.Commands, " ; "))
-		} else {
-			cmdSlice = append(cmdSlice, strings.Join(p.Commands, " && "))
-		}
-	} else {
-		cmdSlice = append(cmdSlice, "set -e;"+strings.Join(p.Commands, ";"))
+	for _, c := range p.Commands {
+		cmdSlice = append(cmdSlice, c+cmdSeparator)
 	}
 
 	log.Debug().Msgf("> %v %v", strings.Join(entrypoint, " "), strings.Join(cmdSlice, " "))
