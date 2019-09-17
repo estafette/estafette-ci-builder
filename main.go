@@ -282,6 +282,12 @@ func main() {
 		if err != nil {
 			endOfLifeHelper.handleFatal(ctx, buildLog, err, "Getting current working directory failed")
 		}
+		if runtime.GOOS == "windows" {
+			dir = os.Getenv("WORKING_DIR_HOST_PATH")
+			if dir == "" {
+				endOfLifeHelper.handleFatal(ctx, buildLog, nil, "Getting working directory from environment variable WORKING_DIR_HOST_PATH failed")
+			}
+		}
 
 		// set some envvars
 		err = envvarHelper.setEstafetteGlobalEnvvars()
