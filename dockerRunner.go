@@ -139,7 +139,7 @@ func (dr *dockerRunnerImpl) runDockerRun(ctx context.Context, dir string, envvar
 	entrypoint := make([]string, 0)
 	if runtime.GOOS == "windows" {
 		if p.Shell == "powershell" {
-			entrypoint = []string{"powershell", "$ErrorActionPreference = 'Stop';", "$ProgressPreference = 'SilentlyContinue';"}
+			entrypoint = []string{"powershell", "-Command", "$ErrorActionPreference = 'Stop';", "$ProgressPreference = 'SilentlyContinue';"}
 		} else {
 			entrypoint = []string{"cmd", "/S", "/C"}
 		}
