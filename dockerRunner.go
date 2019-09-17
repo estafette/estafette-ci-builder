@@ -305,12 +305,16 @@ func (dr *dockerRunnerImpl) runDockerRun(ctx context.Context, dir string, envvar
 		config.Entrypoint = entrypoint
 	}
 	if trustedImage != nil && trustedImage.RunDocker {
-		currentUser, err := user.Current()
-		if err == nil && currentUser != nil {
-			config.User = fmt.Sprintf("%v:%v", currentUser.Uid, currentUser.Gid)
-			log.Debug().Msgf("Setting docker user to %v", config.User)
+		if runtime.GOOS != "windows" {
+			currentUser, err := user.Current()
+			if err == nil && currentUser != nil {
+				config.User = fmt.Sprintf("%v:%v", currentUser.Uid, currentUser.Gid)
+				log.Debug().Msgf("Setting docker user to %v", config.User)
+			} else {
+				log.Debug().Err(err).Msg("Can't retrieve current user")
+			}
 		} else {
-			log.Debug().Err(err).Msg("Can't retrieve current user")
+			log.Debug().Msg("Not setting docker user for windows")
 		}
 	}
 
