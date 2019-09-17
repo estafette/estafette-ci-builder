@@ -48,6 +48,7 @@ type EnvvarHelper interface {
 	decryptSecret(string) string
 	decryptSecrets(map[string]string) map[string]string
 	getCiServer() string
+	getWorkDir() string
 	makeDNSLabelSafe(string) string
 
 	getGitOrigin() (string, error)
@@ -59,6 +60,7 @@ type EnvvarHelper interface {
 type envvarHelperImpl struct {
 	prefix       string
 	ciServer     string
+	workDir      string
 	secretHelper crypt.SecretHelper
 	obfuscator   Obfuscator
 }
@@ -68,6 +70,7 @@ func NewEnvvarHelper(prefix string, secretHelper crypt.SecretHelper, obfuscator 
 	return &envvarHelperImpl{
 		prefix:       prefix,
 		ciServer:     os.Getenv("ESTAFETTE_CI_SERVER"),
+		workDir:      os.Getenv("ESTAFETTE_WORKDIR"),
 		secretHelper: secretHelper,
 		obfuscator:   obfuscator,
 	}
@@ -544,6 +547,10 @@ func (h *envvarHelperImpl) decryptSecrets(encryptedEnvvars map[string]string) (e
 
 func (h *envvarHelperImpl) getCiServer() string {
 	return h.ciServer
+}
+
+func (h *envvarHelperImpl) getWorkDir() string {
+	return h.workDir
 }
 
 func (h *envvarHelperImpl) makeDNSLabelSafe(value string) string {
