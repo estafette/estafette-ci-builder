@@ -1,4 +1,4 @@
-FROM golang:1.13.0-nanoserver-1809 as builder
+FROM golang:1.13.0-windowsservercore-1809 as builder
 
 ENV CGO_ENABLED=0 \
     GOOS=windows \
@@ -16,6 +16,8 @@ COPY --from=builder C:/build/estafette-ci-builder.exe c:/estafette-ci-builder.ex
 
 ENV ESTAFETTE_CI_SERVER="estafette" \
     ESTAFETTE_WORKDIR="C:/estafette-work"
+
+USER ContainerAdministrator
 
 WORKDIR ${ESTAFETTE_WORKDIR}
 

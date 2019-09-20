@@ -4,18 +4,20 @@ ENV CGO_ENABLED=0 \
     GOOS=windows \
     GOARCH=amd64
 
-COPY . C:/gopath/estafette-ci-builder
+COPY . C:/build
 
-WORKDIR C:/gopath/estafette-ci-builder
+WORKDIR C:/build
 
 RUN go build
 
 FROM mcr.microsoft.com/windows/servercore:1809
 
-COPY --from=builder C:/gopath/estafette-ci-builder/estafette-ci-builder.exe c:/estafette-ci-builder.exe
+COPY --from=builder C:/build/estafette-ci-builder.exe c:/estafette-ci-builder.exe
 
 ENV ESTAFETTE_CI_SERVER="estafette" \
     ESTAFETTE_WORKDIR="C:/estafette-work"
+
+USER ContainerAdministrator
 
 WORKDIR ${ESTAFETTE_WORKDIR}
 
