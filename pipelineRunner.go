@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"runtime"
 	"time"
 
 	contracts "github.com/estafette/estafette-ci-contracts"
@@ -98,7 +99,7 @@ func (pr *pipelineRunnerImpl) runStage(ctx context.Context, dir string, envvars 
 	result.IsDockerImagePulled = pr.dockerRunner.isDockerImagePulled(p)
 	result.IsTrustedImage = pr.dockerRunner.isTrustedImage(p)
 
-	if !result.IsDockerImagePulled {
+	if !result.IsDockerImagePulled || runtime.GOOS == "windows" {
 
 		// pull docker image
 		dockerPullStart := time.Now()
