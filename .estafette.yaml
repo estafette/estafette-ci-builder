@@ -197,6 +197,29 @@ stages:
       status == 'failed'
 
 releases:
+  windows:
+    builder:
+      os: windows
+    clone: true
+    stages:
+      bake:
+        image: extensions/docker:windowsservercore-1809
+        action: build
+        no-cache: true
+        expand-variables: false
+        repositories:
+        - estafette
+        dockerfile: Dockerfile.windowsservercore-1809
+
+      push-to-docker-hub:
+        image: extensions/docker:windowsservercore-1809
+        action: push
+        repositories:
+        - estafette
+        tags:
+        - windowsservercore-1809
+        pushVersionTag: false
+
   dev:
     triggers:
     - pipeline:
