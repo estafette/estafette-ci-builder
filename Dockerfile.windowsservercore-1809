@@ -13,7 +13,7 @@ RUN write-host 'Setting mtu size to 1410...'; \
     write-host 'Downloading modules...'; \
     go mod download; \
     write-host 'Compiling code...'; \
-    go build
+    go build -v
 
 FROM mcr.microsoft.com/windows/servercore:1809
 
