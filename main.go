@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	stdlog "log"
+	"net"
 	"os"
 	"os/signal"
 	"runtime"
@@ -245,6 +246,14 @@ func main() {
 			Str("buildDate", buildDate).
 			Str("goVersion", goVersion).
 			Msgf("Starting %v version %v...", app, version)
+
+		// log interfaces for investigating windows mtu issue
+		interfaces, err := net.Interfaces()
+		if err != nil {
+			log.Warn().Err(err).Msg("Failed to retrieve network interfaces")
+		} else {
+			log.Info().Interface("interfaces", interfaces).Msg("Retrieved network interfaces")
+		}
 
 		rootSpanName := "RunBuildJob"
 		if *builderConfig.Action == "release" {
