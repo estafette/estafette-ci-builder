@@ -8,17 +8,19 @@ COPY . C:/gopath/estafette-ci-builder
 
 WORKDIR C:/gopath/estafette-ci-builder
 
-RUN go build
+RUN netsh interface ipv4 show interfaces
 
-FROM mcr.microsoft.com/windows/servercore:1809
+# RUN go build
 
-COPY --from=builder C:/gopath/estafette-ci-builder/estafette-ci-builder.exe c:/estafette-ci-builder.exe
+# FROM mcr.microsoft.com/windows/servercore:1809
 
-ENV ESTAFETTE_CI_SERVER="estafette" \
-    ESTAFETTE_WORKDIR="C:/estafette-work"
+# COPY --from=builder C:/gopath/estafette-ci-builder/estafette-ci-builder.exe c:/estafette-ci-builder.exe
 
-USER ContainerAdministrator
+# ENV ESTAFETTE_CI_SERVER="estafette" \
+#     ESTAFETTE_WORKDIR="C:/estafette-work"
 
-WORKDIR ${ESTAFETTE_WORKDIR}
+# USER ContainerAdministrator
 
-ENTRYPOINT ["C:/estafette-ci-builder.exe"]
+# WORKDIR ${ESTAFETTE_WORKDIR}
+
+# ENTRYPOINT ["C:/estafette-ci-builder.exe"]
