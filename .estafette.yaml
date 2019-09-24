@@ -211,14 +211,14 @@ releases:
         - estafette
         dockerfile: Dockerfile.windowsservercore-1809
 
-      push-to-docker-hub:
-        image: extensions/docker:windowsservercore-1809
-        action: push
-        repositories:
-        - estafette
-        tags:
-        - windowsservercore-1809
-        pushVersionTag: false
+      # push-to-docker-hub:
+      #   image: extensions/docker:windowsservercore-1809
+      #   action: push
+      #   repositories:
+      #   - estafette
+      #   tags:
+      #   - windowsservercore-1809
+      #   pushVersionTag: false
 
   dev:
     triggers:
