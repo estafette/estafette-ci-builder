@@ -153,7 +153,11 @@ func (dr *dockerRunnerImpl) runDockerRun(ctx context.Context, dir string, envvar
 	if runtime.GOOS == "windows" && p.Shell == "powershell" {
 		cmdStopOnErrorFlag = "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue'; "
 		if dr.config.DockerDaemonMTU != nil && *dr.config.DockerDaemonMTU != "" {
-			cmdStopOnErrorFlag += fmt.Sprintf("Get-NetAdapter | Where-Object Name -like \"*Ethernet*\" | ForEach-Object { & netsh interface ipv4 set subinterface $_.InterfaceIndex mtu=%v store=persistent }; ", *dr.config.DockerDaemonMTU)
+			mtu, err := strconv.Atoi(*dr.config.DockerDaemonMTU)
+			if err == nil {
+				mtu -= 50
+				cmdStopOnErrorFlag += fmt.Sprintf("Get-NetAdapter | Where-Object Name -like \"*Ethernet*\" | ForEach-Object { & netsh interface ipv4 set subinterface $_.InterfaceIndex mtu=%v store=persistent }; ", mtu)
+			}
 		}
 		cmdSeparator = ";"
 	} else if runtime.GOOS == "windows" && p.Shell == "cmd" {

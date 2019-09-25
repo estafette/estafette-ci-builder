@@ -254,6 +254,7 @@ func main() {
 				if err != nil {
 					log.Warn().Err(err).Msgf("Failed to parse mtu %v from config", *builderConfig.DockerDaemonMTU)
 				} else {
+					mtu -= 50
 					// update any ethernet interfaces to this mtu
 					interfaces, err := net.Interfaces()
 					if err != nil {
