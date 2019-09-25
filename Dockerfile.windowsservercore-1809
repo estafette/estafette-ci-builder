@@ -1,25 +1,6 @@
-FROM golang:1.13.0-windowsservercore-1809 as builder
-
-ENV CGO_ENABLED=0 \
-    GOOS=windows \
-    GOARCH=amd64
-
-COPY . C:/gopath/estafette-ci-builder
-
-WORKDIR C:/gopath/estafette-ci-builder
-
-RUN write-host 'Listing network interfaces...'; \
-    netsh interface ipv4 show interfaces; \
-    write-host 'Setting mtu size to 1410...'; \
-    Get-NetAdapter | Where-Object Name -like "*Ethernet*" | ForEach-Object { & netsh interface ipv4 set subinterface $_.InterfaceIndex mtu=1410 store=persistent }; \
-    write-host 'Downloading modules...'; \
-    go mod download; \
-    write-host 'Compiling code...'; \
-    go build -v
-
 FROM mcr.microsoft.com/windows/servercore:1809
 
-COPY --from=builder C:/gopath/estafette-ci-builder/estafette-ci-builder.exe c:/estafette-ci-builder.exe
+COPY estafette-ci-builder.exe c:/estafette-ci-builder.exe
 
 ENV ESTAFETTE_CI_SERVER="estafette" \
     ESTAFETTE_WORKDIR="C:/estafette-work"
