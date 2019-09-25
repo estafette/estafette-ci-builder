@@ -1,16 +1,20 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
+	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
 
 	"github.com/rs/zerolog/log"
 
+	contracts "github.com/estafette/estafette-ci-contracts"
 	crypt "github.com/estafette/estafette-ci-crypt"
 	manifest "github.com/estafette/estafette-ci-manifest"
 )
@@ -20,11 +24,20 @@ type EnvvarHelper interface {
 	toUpperSnake(string) string
 	getCommandOutput(string, ...string) (string, error)
 	setEstafetteGlobalEnvvars() error
+	setEstafetteStagesEnvvar([]*manifest.EstafetteStage) error
+	setEstafetteBuilderConfigEnvvars(builderConfig contracts.BuilderConfig) error
+	setEstafetteEventEnvvars(events []*manifest.EstafetteEvent) error
+	initGitSource() error
+	initGitOwner() error
+	initGitName() error
+	initGitFullName() error
 	initGitRevision() error
 	initGitBranch() error
 	initBuildDatetime() error
 	initBuildStatus() error
-	collectEstafetteEnvvars(manifest.EstafetteManifest) map[string]string
+	initLabels(manifest.EstafetteManifest) error
+	collectEstafetteEnvvars() map[string]string
+	collectEstafetteEnvvarsAndLabels(manifest.EstafetteManifest) map[string]string
 	collectGlobalEnvvars(manifest.EstafetteManifest) map[string]string
 	unsetEstafetteEnvvars()
 	getEstafetteEnv(string) string
@@ -34,18 +47,32 @@ type EnvvarHelper interface {
 	overrideEnvvars(...map[string]string) map[string]string
 	decryptSecret(string) string
 	decryptSecrets(map[string]string) map[string]string
+	getCiServer() string
+	getWorkDir() string
+	makeDNSLabelSafe(string) string
+
+	getGitOrigin() (string, error)
+	getSourceFromOrigin(string) string
+	getOwnerFromOrigin(string) string
+	getNameFromOrigin(string) string
 }
 
 type envvarHelperImpl struct {
 	prefix       string
+	ciServer     string
+	workDir      string
 	secretHelper crypt.SecretHelper
+	obfuscator   Obfuscator
 }
 
 // NewEnvvarHelper returns a new EnvvarHelper
-func NewEnvvarHelper(prefix string, secretHelper crypt.SecretHelper) EnvvarHelper {
+func NewEnvvarHelper(prefix string, secretHelper crypt.SecretHelper, obfuscator Obfuscator) EnvvarHelper {
 	return &envvarHelperImpl{
 		prefix:       prefix,
+		ciServer:     os.Getenv("ESTAFETTE_CI_SERVER"),
+		workDir:      os.Getenv("ESTAFETTE_WORKDIR"),
 		secretHelper: secretHelper,
+		obfuscator:   obfuscator,
 	}
 }
 
@@ -62,7 +89,16 @@ func (h *envvarHelperImpl) toUpperSnake(in string) string {
 		out = append(out, unicode.ToUpper(runes[i]))
 	}
 
-	return string(out)
+	snake := string(out)
+
+	// make sure nothing but alphanumeric characters and underscores are returned
+	reg, err := regexp.Compile("[^A-Z0-9]+")
+	if err != nil {
+		log.Fatal().Err(err).Msgf("Failed converting %v to upper snake case", in)
+	}
+	cleanSnake := reg.ReplaceAllString(snake, "_")
+
+	return cleanSnake
 }
 
 func (h *envvarHelperImpl) getCommandOutput(name string, arg ...string) (string, error) {
@@ -76,6 +112,30 @@ func (h *envvarHelperImpl) getCommandOutput(name string, arg ...string) (string,
 }
 
 func (h *envvarHelperImpl) setEstafetteGlobalEnvvars() (err error) {
+
+	// initialize git source envvar
+	err = h.initGitSource()
+	if err != nil {
+		return err
+	}
+
+	// initialize git owner envvar
+	err = h.initGitOwner()
+	if err != nil {
+		return err
+	}
+
+	// initialize git name envvar
+	err = h.initGitName()
+	if err != nil {
+		return err
+	}
+
+	// initialize git full name envvar
+	err = h.initGitFullName()
+	if err != nil {
+		return err
+	}
 
 	// initialize git revision envvar
 	err = h.initGitRevision()
@@ -102,6 +162,205 @@ func (h *envvarHelperImpl) setEstafetteGlobalEnvvars() (err error) {
 	}
 
 	return
+}
+
+func (h *envvarHelperImpl) setEstafetteStagesEnvvar(stages []*manifest.EstafetteStage) (err error) {
+
+	stagesJSONBytes, err := json.Marshal(stages)
+	if err != nil {
+		return err
+	}
+
+	stagesJSON := h.obfuscator.ObfuscateSecrets(string(stagesJSONBytes))
+
+	h.setEstafetteEnv("ESTAFETTE_STAGES", stagesJSON)
+
+	return
+}
+
+func (h *envvarHelperImpl) setEstafetteBuilderConfigEnvvars(builderConfig contracts.BuilderConfig) (err error) {
+	// set envvars that can be used by any container
+	h.setEstafetteEnv("ESTAFETTE_GIT_SOURCE", builderConfig.Git.RepoSource)
+	h.setEstafetteEnv("ESTAFETTE_GIT_OWNER", builderConfig.Git.RepoOwner)
+	h.setEstafetteEnv("ESTAFETTE_GIT_NAME", builderConfig.Git.RepoName)
+	h.setEstafetteEnv("ESTAFETTE_GIT_FULLNAME", fmt.Sprintf("%v/%v", builderConfig.Git.RepoOwner, builderConfig.Git.RepoName))
+
+	h.setEstafetteEnv("ESTAFETTE_GIT_BRANCH", builderConfig.Git.RepoBranch)
+	h.setEstafetteEnv("ESTAFETTE_GIT_REVISION", builderConfig.Git.RepoRevision)
+	h.setEstafetteEnv("ESTAFETTE_BUILD_VERSION", builderConfig.BuildVersion.Version)
+	if builderConfig.BuildVersion.Major != nil {
+		h.setEstafetteEnv("ESTAFETTE_BUILD_VERSION_MAJOR", strconv.Itoa(*builderConfig.BuildVersion.Major))
+	}
+	if builderConfig.BuildVersion.Minor != nil {
+		h.setEstafetteEnv("ESTAFETTE_BUILD_VERSION_MINOR", strconv.Itoa(*builderConfig.BuildVersion.Minor))
+	}
+	if builderConfig.BuildVersion.AutoIncrement != nil {
+		h.setEstafetteEnv("ESTAFETTE_BUILD_VERSION_PATCH", strconv.Itoa(*builderConfig.BuildVersion.AutoIncrement))
+	}
+	if builderConfig.BuildVersion.Label != nil {
+		h.setEstafetteEnv("ESTAFETTE_BUILD_VERSION_LABEL", *builderConfig.BuildVersion.Label)
+	}
+	if builderConfig.ReleaseParams != nil {
+		h.setEstafetteEnv("ESTAFETTE_RELEASE_NAME", builderConfig.ReleaseParams.ReleaseName)
+		h.setEstafetteEnv("ESTAFETTE_RELEASE_ACTION", builderConfig.ReleaseParams.ReleaseAction)
+		h.setEstafetteEnv("ESTAFETTE_RELEASE_TRIGGERED_BY", builderConfig.ReleaseParams.TriggeredBy)
+		// set ESTAFETTE_RELEASE_ID for backwards compatibility with extensions/slack-build-status
+		h.setEstafetteEnv("ESTAFETTE_RELEASE_ID", strconv.Itoa(builderConfig.ReleaseParams.ReleaseID))
+	}
+	if builderConfig.BuildParams != nil {
+		// set ESTAFETTE_BUILD_ID for backwards compatibility with extensions/github-status and extensions/bitbucket-status and extensions/slack-build-status
+		h.setEstafetteEnv("ESTAFETTE_BUILD_ID", strconv.Itoa(builderConfig.BuildParams.BuildID))
+	}
+
+	// set ESTAFETTE_CI_SERVER_BASE_URL for backwards compatibility with extensions/github-status and extensions/bitbucket-status and extensions/slack-build-status
+	if builderConfig.CIServer != nil {
+		h.setEstafetteEnv("ESTAFETTE_CI_SERVER_BASE_URL", builderConfig.CIServer.BaseURL)
+	}
+
+	return h.setEstafetteEventEnvvars(builderConfig.Events)
+}
+
+func (h *envvarHelperImpl) setEstafetteEventEnvvars(events []*manifest.EstafetteEvent) (err error) {
+
+	if events != nil {
+		for _, e := range events {
+
+			if e == nil {
+				continue
+			}
+
+			triggerFields := reflect.TypeOf(*e)
+			triggerValues := reflect.ValueOf(*e)
+
+			for i := 0; i < triggerFields.NumField(); i++ {
+
+				triggerField := triggerFields.Field(i).Name
+				triggerValue := triggerValues.Field(i)
+
+				if triggerValue.Kind() != reflect.Ptr || triggerValue.IsNil() {
+					continue
+				}
+
+				// dereference the pointer
+				derefencedPointerValue := reflect.Indirect(triggerValue)
+
+				triggerPropertyFields := derefencedPointerValue.Type()
+				triggerPropertyValues := derefencedPointerValue
+
+				for j := 0; j < triggerPropertyFields.NumField(); j++ {
+
+					triggerPropertyField := triggerPropertyFields.Field(j).Name
+					triggerPropertyValue := triggerPropertyValues.Field(j)
+
+					envvarName := "ESTAFETTE_TRIGGER_" + h.toUpperSnake(triggerField) + "_" + h.toUpperSnake(triggerPropertyField)
+					envvarValue := ""
+
+					switch triggerPropertyValue.Kind() {
+					case reflect.String:
+						envvarValue = triggerPropertyValue.String()
+					default:
+						jsonValue, _ := json.Marshal(triggerPropertyValue.Interface())
+						envvarValue = string(jsonValue)
+
+						envvarValue = strings.Trim(envvarValue, "\"")
+					}
+
+					h.setEstafetteEnv(envvarName, envvarValue)
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func (h *envvarHelperImpl) getGitOrigin() (string, error) {
+	return h.getCommandOutput("git", "config", "--get", "remote.origin.url")
+}
+
+func (h *envvarHelperImpl) initGitSource() (err error) {
+	if h.getEstafetteEnv("ESTAFETTE_GIT_SOURCE") == "" {
+		origin, err := h.getGitOrigin()
+		if err != nil {
+			return err
+		}
+		source := h.getSourceFromOrigin(origin)
+		return h.setEstafetteEnv("ESTAFETTE_GIT_SOURCE", source)
+	}
+	return
+}
+
+func (h *envvarHelperImpl) initGitOwner() (err error) {
+	if h.getEstafetteEnv("ESTAFETTE_GIT_OWNER") == "" {
+		origin, err := h.getGitOrigin()
+		if err != nil {
+			return err
+		}
+		owner := h.getOwnerFromOrigin(origin)
+		return h.setEstafetteEnv("ESTAFETTE_GIT_OWNER", owner)
+	}
+	return
+}
+
+func (h *envvarHelperImpl) initGitName() (err error) {
+	if h.getEstafetteEnv("ESTAFETTE_GIT_NAME") == "" {
+		origin, err := h.getGitOrigin()
+		if err != nil {
+			return err
+		}
+		name := h.getNameFromOrigin(origin)
+		return h.setEstafetteEnv("ESTAFETTE_GIT_NAME", name)
+	}
+	return
+}
+
+func (h *envvarHelperImpl) initGitFullName() (err error) {
+	if h.getEstafetteEnv("ESTAFETTE_GIT_FULLNAME") == "" {
+		origin, err := h.getGitOrigin()
+		if err != nil {
+			return err
+		}
+		owner := h.getOwnerFromOrigin(origin)
+		name := h.getNameFromOrigin(origin)
+		return h.setEstafetteEnv("ESTAFETTE_GIT_FULLNAME", fmt.Sprintf("%v/%v", owner, name))
+	}
+	return
+}
+
+func (h *envvarHelperImpl) getSourceFromOrigin(origin string) string {
+
+	re := regexp.MustCompile(`^(git@|https://)([^:\/]+)(:|/)([^\/]+)/([^\/]+)\.git`)
+	match := re.FindStringSubmatch(origin)
+
+	if len(match) < 6 {
+		return ""
+	}
+
+	return match[2]
+}
+
+func (h *envvarHelperImpl) getOwnerFromOrigin(origin string) string {
+
+	re := regexp.MustCompile(`^(git@|https://)([^:\/]+)(:|/)([^\/]+)/([^\/]+)\.git`)
+	match := re.FindStringSubmatch(origin)
+
+	if len(match) < 6 {
+		return ""
+	}
+
+	return match[4]
+}
+
+func (h *envvarHelperImpl) getNameFromOrigin(origin string) string {
+
+	re := regexp.MustCompile(`^(git@|https://)([^:\/]+)(:|/)([^\/]+)/([^\/]+)\.git`)
+	match := re.FindStringSubmatch(origin)
+
+	if len(match) < 6 {
+		return ""
+	}
+
+	return match[5]
 }
 
 func (h *envvarHelperImpl) initGitRevision() (err error) {
@@ -140,15 +399,32 @@ func (h *envvarHelperImpl) initBuildStatus() (err error) {
 	return
 }
 
-func (h *envvarHelperImpl) collectEstafetteEnvvars(m manifest.EstafetteManifest) (envvars map[string]string) {
+func (h *envvarHelperImpl) initLabels(m manifest.EstafetteManifest) (err error) {
 
 	// set labels as envvars
 	if m.Labels != nil && len(m.Labels) > 0 {
 		for key, value := range m.Labels {
 			envvarName := "ESTAFETTE_LABEL_" + h.toUpperSnake(key)
-			h.setEstafetteEnv(envvarName, value)
+			err = h.setEstafetteEnv(envvarName, value)
+			if err != nil {
+				return
+			}
 		}
 	}
+
+	return
+}
+
+func (h *envvarHelperImpl) collectEstafetteEnvvarsAndLabels(m manifest.EstafetteManifest) (envvars map[string]string) {
+
+	// set labels as envvars
+	h.initLabels(m)
+
+	// return all envvars starting with ESTAFETTE_
+	return h.collectEstafetteEnvvars()
+}
+
+func (h *envvarHelperImpl) collectEstafetteEnvvars() (envvars map[string]string) {
 
 	// return all envvars starting with ESTAFETTE_
 	envvars = map[string]string{}
@@ -183,16 +459,9 @@ func (h *envvarHelperImpl) collectGlobalEnvvars(m manifest.EstafetteManifest) (e
 // only to be used from unit tests
 func (h *envvarHelperImpl) unsetEstafetteEnvvars() {
 
-	for _, e := range os.Environ() {
-		kvPair := strings.SplitN(e, "=", 2)
-
-		if len(kvPair) == 2 {
-			envvarName := kvPair[0]
-
-			if strings.HasPrefix(envvarName, h.prefix) {
-				h.unsetEstafetteEnv(envvarName)
-			}
-		}
+	envvarsToUnset := h.collectEstafetteEnvvars()
+	for key := range envvarsToUnset {
+		h.unsetEstafetteEnv(key)
 	}
 }
 
@@ -211,7 +480,18 @@ func (h *envvarHelperImpl) setEstafetteEnv(key, value string) error {
 
 	key = h.getEstafetteEnvvarName(key)
 
-	return os.Setenv(key, value)
+	err := os.Setenv(key, value)
+	if err != nil {
+		return err
+	}
+
+	// set dns safe version
+	err = os.Setenv(fmt.Sprintf("%v_DNS_SAFE", key), h.makeDNSLabelSafe(value))
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (h *envvarHelperImpl) unsetEstafetteEnv(key string) error {
@@ -241,18 +521,8 @@ func (h *envvarHelperImpl) overrideEnvvars(envvarMaps ...map[string]string) (env
 
 func (h *envvarHelperImpl) decryptSecret(encryptedValue string) (decryptedValue string) {
 
-	r, err := regexp.Compile("^estafette\\.secret\\(([a-zA-Z0-9.=_-]+)\\)$")
-	if err != nil {
-		log.Warn().Err(err).Msg("Failed compiling regexp")
-		return encryptedValue
-	}
+	decryptedValue, err := h.secretHelper.DecryptAllEnvelopes(encryptedValue)
 
-	matches := r.FindStringSubmatch(encryptedValue)
-	if matches == nil {
-		return encryptedValue
-	}
-
-	decryptedValue, err = h.secretHelper.Decrypt(matches[1])
 	if err != nil {
 		log.Warn().Err(err).Msg("Failed decrypting secret")
 		return encryptedValue
@@ -273,4 +543,44 @@ func (h *envvarHelperImpl) decryptSecrets(encryptedEnvvars map[string]string) (e
 	}
 
 	return
+}
+
+func (h *envvarHelperImpl) getCiServer() string {
+	return h.ciServer
+}
+
+func (h *envvarHelperImpl) getWorkDir() string {
+	return h.workDir
+}
+
+func (h *envvarHelperImpl) makeDNSLabelSafe(value string) string {
+	// in order for the label to be used as a dns label (part between dots) it should only use
+	// lowercase letters, digits and hyphens and have a max length of 63 characters;
+	// also it should start with a letter and not end in a hyphen
+
+	// ensure the label is lowercase
+	value = strings.ToLower(value)
+
+	// replace all invalid characters with a hyphen
+	reg := regexp.MustCompile(`[^a-z0-9-]+`)
+	value = reg.ReplaceAllString(value, "-")
+
+	// replace double hyphens with a single one
+	value = strings.Replace(value, "--", "-", -1)
+
+	// trim hyphens from start and end
+	value = strings.Trim(value, "-")
+
+	// ensure it starts with a letter, not a digit or hyphen
+	reg = regexp.MustCompile(`^[0-9-]+`)
+	value = reg.ReplaceAllString(value, "")
+
+	if len(value) > 63 {
+		value = value[:63]
+	}
+
+	// trim hyphens from start and end
+	value = strings.Trim(value, "-")
+
+	return value
 }

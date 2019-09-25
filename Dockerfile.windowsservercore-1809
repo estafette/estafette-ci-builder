@@ -1,0 +1,12 @@
+FROM mcr.microsoft.com/windows/servercore:1809
+
+COPY estafette-ci-builder.exe c:/estafette-ci-builder.exe
+
+ENV ESTAFETTE_CI_SERVER="estafette" \
+    ESTAFETTE_WORKDIR="C:/estafette-work"
+
+USER ContainerAdministrator
+
+WORKDIR ${ESTAFETTE_WORKDIR}
+
+ENTRYPOINT ["C:/estafette-ci-builder.exe"]

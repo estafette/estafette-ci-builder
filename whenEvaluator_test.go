@@ -77,6 +77,18 @@ func TestWhenParameters(t *testing.T) {
 		assert.False(t, strings.Contains(parameters["branch"].(string), "\n"))
 	})
 
+	t.Run("ReturnsMapWithAction", func(t *testing.T) {
+
+		envvarHelper.unsetEstafetteEnvvars()
+		envvarHelper.setEstafetteGlobalEnvvars()
+		envvarHelper.setEstafetteEnv("ESTAFETTE_RELEASE_ACTION", "deploy-canary")
+
+		// act
+		parameters := whenEvaluator.getParameters()
+
+		assert.Equal(t, "deploy-canary", parameters["action"])
+	})
+
 	t.Run("ReturnsMapWithStatusSetToSucceededByDefault", func(t *testing.T) {
 
 		envvarHelper.unsetEstafetteEnvvars()

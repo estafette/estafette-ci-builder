@@ -1,35 +1,42 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"runtime"
 	"time"
 
 	contracts "github.com/estafette/estafette-ci-contracts"
 	manifest "github.com/estafette/estafette-ci-manifest"
+	"github.com/opentracing/opentracing-go"
 	"github.com/rs/zerolog/log"
 )
 
 // PipelineRunner is the interface for running the pipeline steps
 type PipelineRunner interface {
-	runStage(string, map[string]string, manifest.EstafetteStage) (estafetteStageRunResult, error)
-	runStages([]*manifest.EstafetteStage, string, map[string]string) (estafetteRunStagesResult, error)
+	runStage(context.Context, string, map[string]string, manifest.EstafetteStage) (estafetteStageRunResult, error)
+	runStages(context.Context, []*manifest.EstafetteStage, string, map[string]string) (estafetteRunStagesResult, error)
+	stopPipelineOnCancellation()
 }
 
 type pipelineRunnerImpl struct {
-	envvarHelper  EnvvarHelper
-	whenEvaluator WhenEvaluator
-	dockerRunner  DockerRunner
-	ciServer      string
+	envvarHelper        EnvvarHelper
+	whenEvaluator       WhenEvaluator
+	dockerRunner        DockerRunner
+	runAsJob            bool
+	cancellationChannel chan struct{}
+	canceled            bool
 }
 
 // NewPipelineRunner returns a new PipelineRunner
-func NewPipelineRunner(envvarHelper EnvvarHelper, whenEvaluator WhenEvaluator, dockerRunner DockerRunner) PipelineRunner {
+func NewPipelineRunner(envvarHelper EnvvarHelper, whenEvaluator WhenEvaluator, dockerRunner DockerRunner, runAsJob bool, cancellationChannel chan struct{}) PipelineRunner {
 	return &pipelineRunnerImpl{
-		envvarHelper:  envvarHelper,
-		whenEvaluator: whenEvaluator,
-		dockerRunner:  dockerRunner,
-		ciServer:      os.Getenv("ESTAFETTE_CI_SERVER"),
+		envvarHelper:        envvarHelper,
+		whenEvaluator:       whenEvaluator,
+		dockerRunner:        dockerRunner,
+		runAsJob:            runAsJob,
+		cancellationChannel: cancellationChannel,
 	}
 }
 
@@ -37,6 +44,7 @@ type estafetteStageRunResult struct {
 	Stage               manifest.EstafetteStage
 	RunIndex            int
 	IsDockerImagePulled bool
+	IsTrustedImage      bool
 	DockerImageSize     int64
 	DockerPullDuration  time.Duration
 	DockerPullError     error
@@ -46,6 +54,7 @@ type estafetteStageRunResult struct {
 	ExitCode            int64
 	Status              string
 	LogLines            []contracts.BuildLogLine
+	Canceled            bool
 }
 
 // Errors combines the different type of errors that occurred during this pipeline stage
@@ -74,7 +83,13 @@ func (result *estafetteStageRunResult) HasErrors() bool {
 	return len(errors) > 0
 }
 
-func (pr *pipelineRunnerImpl) runStage(dir string, envvars map[string]string, p manifest.EstafetteStage) (result estafetteStageRunResult, err error) {
+func (pr *pipelineRunnerImpl) runStage(ctx context.Context, dir string, envvars map[string]string, p manifest.EstafetteStage) (result estafetteStageRunResult, err error) {
+
+	span, ctx := opentracing.StartSpanFromContext(ctx, "RunStage")
+	defer span.Finish()
+	span.SetTag("stage", p.Name)
+
+	p.ContainerImage = os.Expand(p.ContainerImage, pr.envvarHelper.getEstafetteEnv)
 
 	result.Stage = p
 	result.LogLines = make([]contracts.BuildLogLine, 0)
@@ -82,27 +97,28 @@ func (pr *pipelineRunnerImpl) runStage(dir string, envvars map[string]string, p 
 	log.Info().Msgf("[%v] Starting pipeline '%v'", p.Name, p.Name)
 
 	result.IsDockerImagePulled = pr.dockerRunner.isDockerImagePulled(p)
+	result.IsTrustedImage = pr.dockerRunner.isTrustedImage(p)
 
-	if !result.IsDockerImagePulled {
+	if !result.IsDockerImagePulled || runtime.GOOS == "windows" {
 
 		// pull docker image
 		dockerPullStart := time.Now()
-		result.DockerPullError = pr.dockerRunner.runDockerPull(p)
+		result.DockerPullError = pr.dockerRunner.runDockerPull(ctx, p)
 		result.DockerPullDuration = time.Since(dockerPullStart)
 		if result.DockerPullError != nil {
 			return result, result.DockerPullError
 		}
-
-		// set docker image size
-		size, err := pr.dockerRunner.getDockerImageSize(p)
-		if err != nil {
-			return result, err
-		}
-		result.DockerImageSize = size
-
 	}
 
-	if pr.ciServer != "gocd" {
+	// set docker image size
+	size, err := pr.dockerRunner.getDockerImageSize(p)
+	if err != nil {
+		return result, err
+	}
+	result.DockerImageSize = size
+
+	// log tailing - start stage
+	if pr.runAsJob {
 		tailLogLine := contracts.TailLogLine{
 			Step:         p.Name,
 			Image:        getBuildLogStepDockerImage(result),
@@ -115,38 +131,56 @@ func (pr *pipelineRunnerImpl) runStage(dir string, envvars map[string]string, p 
 
 	// run commands in docker container
 	dockerRunStart := time.Now()
-	result.LogLines, result.ExitCode, result.DockerRunError = pr.dockerRunner.runDockerRun(dir, envvars, p)
+	result.LogLines, result.ExitCode, result.Canceled, result.DockerRunError = pr.dockerRunner.runDockerRun(ctx, dir, envvars, p)
 	result.DockerRunDuration = time.Since(dockerRunStart)
-	if result.DockerRunError != nil {
-		return result, result.DockerRunError
-	}
 
-	if pr.ciServer != "gocd" {
+	// log tailing - finalize stage
+	if pr.runAsJob {
+
+		status := "SUCCEEDED"
+		if result.DockerRunError != nil {
+			status = "FAILED"
+		}
+		if result.Canceled {
+			status = "CANCELED"
+		}
+
 		tailLogLine := contracts.TailLogLine{
 			Step:     p.Name,
 			Duration: &result.DockerRunDuration,
 			ExitCode: &result.ExitCode,
-			Status:   &result.Status,
+			Status:   &status,
 		}
 
 		// log as json, to be tailed when looking at live logs from gui
 		log.Info().Interface("tailLogLine", tailLogLine).Msg("")
 	}
 
-	log.Info().Msgf("[%v] Finished pipeline '%v' successfully", p.Name, p.Name)
+	if result.DockerRunError != nil {
+		err = result.DockerRunError
+	}
+
+	if result.Canceled {
+		log.Info().Msgf("[%v] Canceled pipeline '%v'", p.Name, p.Name)
+	} else if err != nil {
+		log.Warn().Err(err).Msgf("[%v] Pipeline '%v' container failed", p.Name, p.Name)
+	} else {
+		log.Info().Msgf("[%v] Finished pipeline '%v' successfully", p.Name, p.Name)
+	}
 
 	return
 }
 
 type estafetteRunStagesResult struct {
 	StageResults []estafetteStageRunResult
+	canceled     bool
 }
 
-// Errors combines the different type of errors that occurred during this pipeline stage
-func (result *estafetteRunStagesResult) Errors() (errors []error) {
+// AggregatedErrors combines the different type of errors that occurred during this pipeline stage
+func (result *estafetteRunStagesResult) AggregatedErrors() (errors []error) {
 
 	for _, pr := range result.StageResults {
-		if pr.HasErrors() {
+		if pr.RunIndex == pr.Stage.Retries && pr.HasErrors() {
 			errors = append(errors, pr.Errors()...)
 		}
 	}
@@ -154,15 +188,18 @@ func (result *estafetteRunStagesResult) Errors() (errors []error) {
 	return errors
 }
 
-// HasErrors indicates whether any errors happened in this pipeline stages
-func (result *estafetteRunStagesResult) HasErrors() bool {
+// HasAggregatedErrors indicates whether any errors happened in all pipeline stages excluding retried stages that succeeded eventually
+func (result *estafetteRunStagesResult) HasAggregatedErrors() bool {
 
-	errors := result.Errors()
+	errors := result.AggregatedErrors()
 
 	return len(errors) > 0
 }
 
-func (pr *pipelineRunnerImpl) runStages(stages []*manifest.EstafetteStage, dir string, envvars map[string]string) (result estafetteRunStagesResult, err error) {
+func (pr *pipelineRunnerImpl) runStages(ctx context.Context, stages []*manifest.EstafetteStage, dir string, envvars map[string]string) (result estafetteRunStagesResult, err error) {
+
+	span, ctx := opentracing.StartSpanFromContext(ctx, "RunStages")
+	defer span.Finish()
 
 	// set default build status if not set
 	err = pr.envvarHelper.initBuildStatus()
@@ -176,8 +213,15 @@ func (pr *pipelineRunnerImpl) runStages(stages []*manifest.EstafetteStage, dir s
 
 	for _, p := range stages {
 
+		// handle cancellation happening in between stages
+		if pr.canceled {
+			result.canceled = pr.canceled
+			return
+		}
+
 		whenEvaluationResult, err := pr.whenEvaluator.evaluate(p.Name, p.When, pr.whenEvaluator.getParameters())
 		if err != nil {
+			result.canceled = pr.canceled
 			return result, err
 		}
 
@@ -185,13 +229,22 @@ func (pr *pipelineRunnerImpl) runStages(stages []*manifest.EstafetteStage, dir s
 
 			runIndex := 0
 			for runIndex <= p.Retries {
+				r, err := pr.runStage(ctx, dir, envvars, *p)
+				r.RunIndex = runIndex
 
-				r, err := pr.runStage(dir, envvars, *p)
+				// if canceled during stage stop further execution
+				if r.Canceled || pr.canceled {
+					r.Status = "CANCELED"
+					result.StageResults = append(result.StageResults, r)
+					result.canceled = r.Canceled
+					return result, nil
+				}
+
 				if err != nil {
 
 					// add error to log lines
-					r.RunIndex = runIndex
 					r.LogLines = append(r.LogLines, contracts.BuildLogLine{
+						LineNumber: 1,
 						Timestamp:  time.Now().UTC(),
 						StreamType: "stderr",
 						Text:       err.Error(),
@@ -235,5 +288,13 @@ func (pr *pipelineRunnerImpl) runStages(stages []*manifest.EstafetteStage, dir s
 		}
 	}
 
+	result.canceled = pr.canceled
 	return
+}
+
+func (pr *pipelineRunnerImpl) stopPipelineOnCancellation() {
+	// wait for cancellation
+	<-pr.cancellationChannel
+
+	pr.canceled = true
 }

@@ -33,6 +33,9 @@ func (we *whenEvaluatorImpl) evaluate(pipelineName, input string, parameters map
 	log.Info().Msgf("[%v] Evaluating when expression \"%v\" with parameters \"%v\"", pipelineName, input, parameters)
 
 	expression, err := govaluate.NewEvaluableExpression(input)
+	if err != nil {
+		return
+	}
 
 	r, err := expression.Evaluate(parameters)
 
@@ -51,7 +54,8 @@ func (we *whenEvaluatorImpl) getParameters() map[string]interface{} {
 	parameters["branch"] = we.envvarHelper.getEstafetteEnv("ESTAFETTE_GIT_BRANCH")
 	parameters["trigger"] = we.envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER")
 	parameters["status"] = we.envvarHelper.getEstafetteEnv("ESTAFETTE_BUILD_STATUS")
-	parameters["server"] = we.envvarHelper.getEstafetteEnv("ESTAFETTE_CI_SERVER")
+	parameters["action"] = we.envvarHelper.getEstafetteEnv("ESTAFETTE_RELEASE_ACTION")
+	parameters["server"] = we.envvarHelper.getCiServer()
 
 	return parameters
 }

@@ -3,7 +3,7 @@ package main
 import (
 	"testing"
 
-	"github.com/estafette/estafette-ci-manifest"
+	manifest "github.com/estafette/estafette-ci-manifest"
 	"github.com/stretchr/testify/assert"
 )
 

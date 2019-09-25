@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"testing"
+	"time"
 
 	crypt "github.com/estafette/estafette-ci-crypt"
 	manifest "github.com/estafette/estafette-ci-manifest"
@@ -11,8 +12,8 @@ import (
 )
 
 var (
-	secretHelper = crypt.NewSecretHelper("SazbwMf3NZxVVbBqQHebPcXCqrVn3DDp")
-	envvarHelper = NewEnvvarHelper("TESTPREFIX_", secretHelper)
+	secretHelper = crypt.NewSecretHelper("SazbwMf3NZxVVbBqQHebPcXCqrVn3DDp", false)
+	envvarHelper = NewEnvvarHelper("TESTPREFIX_", secretHelper, obfuscator)
 )
 
 func TestOverrideEnvvars(t *testing.T) {
@@ -64,7 +65,7 @@ func TestGetEstafetteEnvvarName(t *testing.T) {
 	})
 }
 
-func TestCollectEstafetteEnvvars(t *testing.T) {
+func TestCollectEstafetteEnvvarsAndLabels(t *testing.T) {
 
 	t.Run("ReturnsEmptyMapIfManifestHasNoLabelsAndNoEnvvarsStartWithEstafette", func(t *testing.T) {
 
@@ -72,7 +73,7 @@ func TestCollectEstafetteEnvvars(t *testing.T) {
 		manifest := manifest.EstafetteManifest{}
 
 		// act
-		envvars := envvarHelper.collectEstafetteEnvvars(manifest)
+		envvars := envvarHelper.collectEstafetteEnvvarsAndLabels(manifest)
 
 		assert.Equal(t, 0, len(envvars))
 	})
@@ -83,9 +84,8 @@ func TestCollectEstafetteEnvvars(t *testing.T) {
 		manifest := manifest.EstafetteManifest{Labels: map[string]string{"app": "estafette-ci-builder"}}
 
 		// act
-		envvars := envvarHelper.collectEstafetteEnvvars(manifest)
+		envvars := envvarHelper.collectEstafetteEnvvarsAndLabels(manifest)
 
-		assert.Equal(t, 1, len(envvars))
 		_, exists := envvars["TESTPREFIX_LABEL_APP"]
 		assert.True(t, exists)
 		assert.Equal(t, "estafette-ci-builder", envvars["TESTPREFIX_LABEL_APP"])
@@ -97,10 +97,9 @@ func TestCollectEstafetteEnvvars(t *testing.T) {
 		manifest := manifest.EstafetteManifest{Labels: map[string]string{"owningTeam": "estafette-ci-team"}}
 
 		// act
-		envvars := envvarHelper.collectEstafetteEnvvars(manifest)
+		envvars := envvarHelper.collectEstafetteEnvvarsAndLabels(manifest)
 
 		log.Debug().Interface("envvars", envvars).Msg("")
-		assert.Equal(t, 1, len(envvars))
 		_, exists := envvars["TESTPREFIX_LABEL_OWNING_TEAM"]
 		assert.True(t, exists)
 		assert.Equal(t, "estafette-ci-team", envvars["TESTPREFIX_LABEL_OWNING_TEAM"])
@@ -112,9 +111,8 @@ func TestCollectEstafetteEnvvars(t *testing.T) {
 		manifest := manifest.EstafetteManifest{Labels: map[string]string{"app": "estafette-ci-builder", "team": "estafette-ci-team"}}
 
 		// act
-		envvars := envvarHelper.collectEstafetteEnvvars(manifest)
+		envvars := envvarHelper.collectEstafetteEnvvarsAndLabels(manifest)
 
-		assert.Equal(t, 2, len(envvars))
 		_, exists := envvars["TESTPREFIX_LABEL_APP"]
 		assert.True(t, exists)
 		assert.Equal(t, "estafette-ci-builder", envvars["TESTPREFIX_LABEL_APP"])
@@ -131,9 +129,8 @@ func TestCollectEstafetteEnvvars(t *testing.T) {
 		os.Setenv("TESTPREFIX_VERSION", "1.0.3")
 
 		// act
-		envvars := envvarHelper.collectEstafetteEnvvars(manifest)
+		envvars := envvarHelper.collectEstafetteEnvvarsAndLabels(manifest)
 
-		assert.Equal(t, 1, len(envvars))
 		_, exists := envvars["TESTPREFIX_VERSION"]
 		assert.True(t, exists)
 		assert.Equal(t, "1.0.3", envvars["TESTPREFIX_VERSION"])
@@ -146,9 +143,8 @@ func TestCollectEstafetteEnvvars(t *testing.T) {
 		os.Setenv("TESTPREFIX_VERSION", "b=c")
 
 		// act
-		envvars := envvarHelper.collectEstafetteEnvvars(manifest)
+		envvars := envvarHelper.collectEstafetteEnvvarsAndLabels(manifest)
 
-		assert.Equal(t, 1, len(envvars))
 		_, exists := envvars["TESTPREFIX_VERSION"]
 		assert.True(t, exists)
 		assert.Equal(t, "b=c", envvars["TESTPREFIX_VERSION"])
@@ -162,9 +158,8 @@ func TestCollectEstafetteEnvvars(t *testing.T) {
 		os.Setenv("TESTPREFIX_GIT_REPOSITORY", "git@github.com:estafette/estafette-ci-builder.git")
 
 		// act
-		envvars := envvarHelper.collectEstafetteEnvvars(manifest)
+		envvars := envvarHelper.collectEstafetteEnvvarsAndLabels(manifest)
 
-		assert.Equal(t, 2, len(envvars))
 		_, exists := envvars["TESTPREFIX_VERSION"]
 		assert.True(t, exists)
 		assert.Equal(t, "1.0.3", envvars["TESTPREFIX_VERSION"])
@@ -181,9 +176,8 @@ func TestCollectEstafetteEnvvars(t *testing.T) {
 		os.Setenv("TESTPREFIX_VERSION", "1.0.3")
 
 		// act
-		envvars := envvarHelper.collectEstafetteEnvvars(manifest)
+		envvars := envvarHelper.collectEstafetteEnvvarsAndLabels(manifest)
 
-		assert.Equal(t, 2, len(envvars))
 		_, exists := envvars["TESTPREFIX_VERSION"]
 		assert.True(t, exists)
 		assert.Equal(t, "1.0.3", envvars["TESTPREFIX_VERSION"])
@@ -304,5 +298,354 @@ func TestDecryptSecrets(t *testing.T) {
 
 		assert.Equal(t, 1, len(result))
 		assert.Equal(t, "this is my secret", result["SOME_SECRET"])
+	})
+}
+
+func TestToUpperSnake(t *testing.T) {
+
+	t.Run("ReturnsLowercaseAsUppercase", func(t *testing.T) {
+
+		// act
+		snake := envvarHelper.toUpperSnake("lowercase")
+
+		assert.Equal(t, "LOWERCASE", snake)
+	})
+
+	t.Run("ReturnsPascalCaseAsUppercaseWithUnderscoreBetweenWords", func(t *testing.T) {
+
+		// act
+		snake := envvarHelper.toUpperSnake("PascalCase")
+
+		assert.Equal(t, "PASCAL_CASE", snake)
+	})
+
+	t.Run("ReturnsCamelCaseAsUppercaseWithUnderscoreBetweenWords", func(t *testing.T) {
+
+		// act
+		snake := envvarHelper.toUpperSnake("camelCase")
+
+		assert.Equal(t, "CAMEL_CASE", snake)
+	})
+
+	t.Run("ReturnsHyphenSeparatedCaseAsUppercaseWithUnderscoreBetweenWords", func(t *testing.T) {
+
+		// act
+		snake := envvarHelper.toUpperSnake("kubernetes-engine")
+
+		assert.Equal(t, "KUBERNETES_ENGINE", snake)
+	})
+}
+
+func TestGetSourceFromOrigin(t *testing.T) {
+
+	t.Run("ReturnsHostFromHttpsUrl", func(t *testing.T) {
+
+		// act
+		source := envvarHelper.getSourceFromOrigin("https://github.com/estafette/estafette-gcloud-mig-scaler.git")
+
+		assert.Equal(t, "github.com", source)
+	})
+
+	t.Run("ReturnsHostFromGitUrl", func(t *testing.T) {
+
+		// act
+		source := envvarHelper.getSourceFromOrigin("git@github.com:estafette/estafette-ci-builder.git")
+
+		assert.Equal(t, "github.com", source)
+	})
+}
+
+func TestGetOwnerFromOrigin(t *testing.T) {
+
+	t.Run("ReturnsOwnerFromHttpsUrl", func(t *testing.T) {
+
+		// act
+		owner := envvarHelper.getOwnerFromOrigin("https://github.com/estafette/estafette-gcloud-mig-scaler.git")
+
+		assert.Equal(t, "estafette", owner)
+	})
+
+	t.Run("ReturnsOwnerFromGitUrl", func(t *testing.T) {
+
+		// act
+		owner := envvarHelper.getOwnerFromOrigin("git@github.com:estafette/estafette-ci-builder.git")
+
+		assert.Equal(t, "estafette", owner)
+	})
+}
+
+func TestGetNameFromOrigin(t *testing.T) {
+
+	t.Run("ReturnsNameFromHttpsUrl", func(t *testing.T) {
+
+		// act
+		name := envvarHelper.getNameFromOrigin("https://github.com/estafette/estafette-gcloud-mig-scaler.git")
+
+		assert.Equal(t, "estafette-gcloud-mig-scaler", name)
+	})
+
+	t.Run("ReturnsNameFromGitUrl", func(t *testing.T) {
+
+		// act
+		name := envvarHelper.getNameFromOrigin("git@github.com:estafette/estafette-ci-builder.git")
+
+		assert.Equal(t, "estafette-ci-builder", name)
+	})
+}
+
+func TestMakeDNSLabelSafe(t *testing.T) {
+
+	t.Run("ReturnsValueIfAlreadySafeForDNSLabel", func(t *testing.T) {
+
+		value := "dns-safe-value"
+
+		// act
+		safeValue := envvarHelper.makeDNSLabelSafe(value)
+
+		assert.Equal(t, "dns-safe-value", safeValue)
+	})
+
+	t.Run("ReturnsAllLowercaseIfHasUppercase", func(t *testing.T) {
+
+		value := "DNS-safe-value"
+
+		// act
+		safeValue := envvarHelper.makeDNSLabelSafe(value)
+
+		assert.Equal(t, "dns-safe-value", safeValue)
+	})
+
+	t.Run("ReturnsAllLowercaseIfHasUppercase", func(t *testing.T) {
+
+		value := "DNS-safe-value"
+
+		// act
+		safeValue := envvarHelper.makeDNSLabelSafe(value)
+
+		assert.Equal(t, "dns-safe-value", safeValue)
+	})
+
+	t.Run("ReturnsCharactersOtherThanLettersDigitsOrHyphensAsHyphens", func(t *testing.T) {
+
+		value := "dns-safe.value"
+
+		// act
+		safeValue := envvarHelper.makeDNSLabelSafe(value)
+
+		assert.Equal(t, "dns-safe-value", safeValue)
+	})
+
+	t.Run("ReturnsMultipleHyphensAsSingleHyphen", func(t *testing.T) {
+
+		value := "dns-safe--value"
+
+		// act
+		safeValue := envvarHelper.makeDNSLabelSafe(value)
+
+		assert.Equal(t, "dns-safe-value", safeValue)
+	})
+
+	t.Run("ReturnsStartingWithLetter", func(t *testing.T) {
+
+		value := "10-dns-safe-value"
+
+		// act
+		safeValue := envvarHelper.makeDNSLabelSafe(value)
+
+		assert.Equal(t, "dns-safe-value", safeValue)
+	})
+
+	t.Run("ReturnsWithHyphensTrimmed", func(t *testing.T) {
+
+		value := "-dns-safe-value-"
+
+		// act
+		safeValue := envvarHelper.makeDNSLabelSafe(value)
+
+		assert.Equal(t, "dns-safe-value", safeValue)
+	})
+
+	t.Run("ReturnsTruncatedTo63Characters", func(t *testing.T) {
+
+		value := "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijkl"
+
+		// act
+		safeValue := envvarHelper.makeDNSLabelSafe(value)
+
+		assert.Equal(t, "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijk", safeValue)
+	})
+
+	t.Run("ReturnsTruncatedTo63CharactersWithHyphensTrimmed", func(t *testing.T) {
+
+		value := "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghij-l"
+
+		// act
+		safeValue := envvarHelper.makeDNSLabelSafe(value)
+
+		assert.Equal(t, "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghij", safeValue)
+	})
+}
+
+func TestSetEstafetteEventEnvvars(t *testing.T) {
+
+	t.Run("ReturnsPipelineEventPropertiesAsEnvvars", func(t *testing.T) {
+
+		envvarHelper.unsetEstafetteEnvvars()
+		event := manifest.EstafetteEvent{
+			Pipeline: &manifest.EstafettePipelineEvent{
+				BuildVersion: "1.0.50-some-branch",
+				RepoSource:   "github.com",
+				RepoOwner:    "estafette",
+				RepoName:     "estafette-ci-api",
+				Branch:       "master",
+				Status:       "succeeded",
+				Event:        "finished",
+			},
+		}
+
+		// act
+		envvarHelper.setEstafetteEventEnvvars([]*manifest.EstafetteEvent{&event})
+
+		envvars := envvarHelper.collectEstafetteEnvvars()
+		assert.Equal(t, 14, len(envvars))
+		assert.Equal(t, "1.0.50-some-branch", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_PIPELINE_BUILD_VERSION"))
+		assert.Equal(t, "github.com", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_PIPELINE_REPO_SOURCE"))
+		assert.Equal(t, "estafette", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_PIPELINE_REPO_OWNER"))
+		assert.Equal(t, "estafette-ci-api", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_PIPELINE_REPO_NAME"))
+		assert.Equal(t, "master", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_PIPELINE_BRANCH"))
+		assert.Equal(t, "succeeded", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_PIPELINE_STATUS"))
+		assert.Equal(t, "finished", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_PIPELINE_EVENT"))
+	})
+
+	t.Run("ReturnsReleaseEventPropertiesAsEnvvars", func(t *testing.T) {
+
+		envvarHelper.unsetEstafetteEnvvars()
+		event := manifest.EstafetteEvent{
+			Release: &manifest.EstafetteReleaseEvent{
+				ReleaseVersion: "1.0.50-some-branch",
+				RepoSource:     "github.com",
+				RepoOwner:      "estafette",
+				RepoName:       "estafette-ci-api",
+				Target:         "development",
+				Status:         "succeeded",
+				Event:          "finished",
+			},
+		}
+
+		// act
+		envvarHelper.setEstafetteEventEnvvars([]*manifest.EstafetteEvent{&event})
+
+		envvars := envvarHelper.collectEstafetteEnvvars()
+		assert.Equal(t, 14, len(envvars))
+		assert.Equal(t, "1.0.50-some-branch", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_RELEASE_RELEASE_VERSION"))
+		assert.Equal(t, "github.com", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_RELEASE_REPO_SOURCE"))
+		assert.Equal(t, "estafette", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_RELEASE_REPO_OWNER"))
+		assert.Equal(t, "estafette-ci-api", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_RELEASE_REPO_NAME"))
+		assert.Equal(t, "development", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_RELEASE_TARGET"))
+		assert.Equal(t, "succeeded", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_RELEASE_STATUS"))
+		assert.Equal(t, "finished", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_RELEASE_EVENT"))
+	})
+
+	t.Run("ReturnsGitEventPropertiesAsEnvvars", func(t *testing.T) {
+
+		envvarHelper.unsetEstafetteEnvvars()
+		event := manifest.EstafetteEvent{
+			Git: &manifest.EstafetteGitEvent{
+				Event:      "push",
+				Repository: "github.com/estafette/estafette-ci-api",
+				Branch:     "master",
+			},
+		}
+
+		// act
+		envvarHelper.setEstafetteEventEnvvars([]*manifest.EstafetteEvent{&event})
+
+		envvars := envvarHelper.collectEstafetteEnvvars()
+		assert.Equal(t, 6, len(envvars))
+		assert.Equal(t, "push", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_GIT_EVENT"))
+		assert.Equal(t, "github.com/estafette/estafette-ci-api", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_GIT_REPOSITORY"))
+		assert.Equal(t, "master", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_GIT_BRANCH"))
+	})
+
+	t.Run("ReturnsCronEventPropertiesAsEnvvars", func(t *testing.T) {
+
+		envvarHelper.unsetEstafetteEnvvars()
+		event := manifest.EstafetteEvent{
+			Cron: &manifest.EstafetteCronEvent{
+				Time: time.Date(2009, 11, 17, 20, 34, 58, 651387237, time.UTC),
+			},
+		}
+
+		// act
+		envvarHelper.setEstafetteEventEnvvars([]*manifest.EstafetteEvent{&event})
+
+		envvars := envvarHelper.collectEstafetteEnvvars()
+		assert.Equal(t, 2, len(envvars))
+		assert.Equal(t, "2009-11-17T20:34:58.651387237Z", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_CRON_TIME"))
+	})
+
+	t.Run("ReturnsManualEventPropertiesAsEnvvars", func(t *testing.T) {
+
+		envvarHelper.unsetEstafetteEnvvars()
+		event := manifest.EstafetteEvent{
+			Manual: &manifest.EstafetteManualEvent{
+				UserID: "user@server.com",
+			},
+		}
+
+		// act
+		envvarHelper.setEstafetteEventEnvvars([]*manifest.EstafetteEvent{&event})
+
+		envvars := envvarHelper.collectEstafetteEnvvars()
+		assert.Equal(t, 2, len(envvars))
+		assert.Equal(t, "user@server.com", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_MANUAL_USER_ID"))
+	})
+}
+
+func TestSetEstafetteStagesEnvvar(t *testing.T) {
+
+	t.Run("ReturnsJsonSerializedStages", func(t *testing.T) {
+
+		stages := []*manifest.EstafetteStage{
+			&manifest.EstafetteStage{
+				ContainerImage: "extensions/git-clone:stable",
+			},
+			&manifest.EstafetteStage{
+				ContainerImage: "extensions/github-build-status:stable",
+			},
+			&manifest.EstafetteStage{
+				ContainerImage: "extensions/docker:stable",
+			},
+		}
+
+		// act
+		err := envvarHelper.setEstafetteStagesEnvvar(stages)
+
+		assert.Nil(t, err)
+		assert.Equal(t, "[{\"Name\":\"\",\"ContainerImage\":\"extensions/git-clone:stable\",\"Shell\":\"\",\"WorkingDirectory\":\"\",\"Commands\":null,\"When\":\"\",\"EnvVars\":null,\"AutoInjected\":false,\"Retries\":0,\"CustomProperties\":null},{\"Name\":\"\",\"ContainerImage\":\"extensions/github-build-status:stable\",\"Shell\":\"\",\"WorkingDirectory\":\"\",\"Commands\":null,\"When\":\"\",\"EnvVars\":null,\"AutoInjected\":false,\"Retries\":0,\"CustomProperties\":null},{\"Name\":\"\",\"ContainerImage\":\"extensions/docker:stable\",\"Shell\":\"\",\"WorkingDirectory\":\"\",\"Commands\":null,\"When\":\"\",\"EnvVars\":null,\"AutoInjected\":false,\"Retries\":0,\"CustomProperties\":null}]", envvarHelper.getEstafetteEnv("ESTAFETTE_STAGES"))
+	})
+
+	t.Run("ReturnsJsonSerializedStagesWithObfuscatedSecrets", func(t *testing.T) {
+
+		stages := []*manifest.EstafetteStage{
+			&manifest.EstafetteStage{
+				ContainerImage: "extensions/git-clone:stable",
+			},
+			&manifest.EstafetteStage{
+				ContainerImage: "extensions/github-build-status:stable",
+			},
+			&manifest.EstafetteStage{
+				ContainerImage: "extensions/docker:stable",
+				EnvVars: map[string]string{
+					"mysecret": "estafette.secret(deFTz5Bdjg6SUe29.oPIkXbze5G9PNEWS2-ZnArl8BCqHnx4MdTdxHg37th9u)",
+				},
+			},
+		}
+
+		// act
+		err := envvarHelper.setEstafetteStagesEnvvar(stages)
+
+		assert.Nil(t, err)
+		assert.Equal(t, "[{\"Name\":\"\",\"ContainerImage\":\"extensions/git-clone:stable\",\"Shell\":\"\",\"WorkingDirectory\":\"\",\"Commands\":null,\"When\":\"\",\"EnvVars\":null,\"AutoInjected\":false,\"Retries\":0,\"CustomProperties\":null},{\"Name\":\"\",\"ContainerImage\":\"extensions/github-build-status:stable\",\"Shell\":\"\",\"WorkingDirectory\":\"\",\"Commands\":null,\"When\":\"\",\"EnvVars\":null,\"AutoInjected\":false,\"Retries\":0,\"CustomProperties\":null},{\"Name\":\"\",\"ContainerImage\":\"extensions/docker:stable\",\"Shell\":\"\",\"WorkingDirectory\":\"\",\"Commands\":null,\"When\":\"\",\"EnvVars\":{\"mysecret\":\"***\"},\"AutoInjected\":false,\"Retries\":0,\"CustomProperties\":null}]", envvarHelper.getEstafetteEnv("ESTAFETTE_STAGES"))
 	})
 }

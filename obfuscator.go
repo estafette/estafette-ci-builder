@@ -5,14 +5,15 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/estafette/estafette-ci-crypt"
-	"github.com/estafette/estafette-ci-manifest"
+	crypt "github.com/estafette/estafette-ci-crypt"
+	manifest "github.com/estafette/estafette-ci-manifest"
 )
 
 // Obfuscator hides secret values and other sensitive stuff from the logs
 type Obfuscator interface {
 	CollectSecrets(manifest.EstafetteManifest) error
 	Obfuscate(string) string
+	ObfuscateSecrets(string) string
 }
 
 type obfuscatorImpl struct {
@@ -61,4 +62,14 @@ func (ob *obfuscatorImpl) CollectSecrets(manifest manifest.EstafetteManifest) (e
 
 func (ob *obfuscatorImpl) Obfuscate(input string) string {
 	return ob.replacer.Replace(input)
+}
+
+func (ob *obfuscatorImpl) ObfuscateSecrets(input string) string {
+
+	r, err := regexp.Compile(`estafette\.secret\(([a-zA-Z0-9.=_-]+)\)`)
+	if err != nil {
+		return input
+	}
+
+	return r.ReplaceAllString(input, "***")
 }

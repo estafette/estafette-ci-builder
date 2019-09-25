@@ -21,7 +21,7 @@ func contains(s []string, e string) bool {
 
 func handleExit(result estafetteRunStagesResult) {
 
-	if result.HasErrors() {
+	if result.HasAggregatedErrors() {
 		os.Exit(1)
 	}
 
@@ -36,6 +36,9 @@ func renderStats(result estafetteRunStagesResult) {
 	dockerRunDurationTotal := 0.0
 	dockerImageSizeTotal := int64(0)
 	statusTotal := "SUCCEEDED"
+	if result.HasAggregatedErrors() {
+		statusTotal = "FAILED"
+	}
 
 	for _, s := range result.StageResults {
 
@@ -52,10 +55,6 @@ func renderStats(result estafetteRunStagesResult) {
 			for _, err := range s.Errors() {
 				detail += err.Error()
 			}
-		}
-
-		if s.Status == "FAILED" {
-			statusTotal = "FAILED"
 		}
 
 		data = append(data, []string{
@@ -93,7 +92,7 @@ func pathExists(path string) (bool, error) {
 	return true, err
 }
 
-func transformPipelineRunResultToBuildLogSteps(result estafetteRunStagesResult) (buildLogSteps []contracts.BuildLogStep) {
+func transformPipelineRunResultToBuildLogSteps(estafetteEnvvars map[string]string, result estafetteRunStagesResult) (buildLogSteps []contracts.BuildLogStep) {
 
 	buildLogSteps = make([]contracts.BuildLogStep, 0)
 
@@ -137,5 +136,6 @@ func getBuildLogStepDockerImage(result estafetteStageRunResult) *contracts.Build
 		ImageSize:    result.DockerImageSize,
 		PullDuration: result.DockerPullDuration,
 		Error:        pullError,
+		IsTrusted:    result.IsTrustedImage,
 	}
 }
