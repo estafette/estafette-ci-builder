@@ -156,7 +156,7 @@ func (dr *dockerRunnerImpl) runDockerRun(ctx context.Context, dir string, envvar
 			mtu, err := strconv.Atoi(*dr.config.DockerDaemonMTU)
 			if err == nil {
 				mtu -= 50
-				cmdStopOnErrorFlag += fmt.Sprintf("Get-NetAdapter | Where-Object Name -like \"*Ethernet*\" | ForEach-Object { & netsh interface ipv4 set subinterface $_.InterfaceIndex mtu=%v store=persistent }; ", mtu)
+				cmdStopOnErrorFlag += fmt.Sprintf("Write-Host 'Updating MTU to %v...'; Get-NetAdapter | Where-Object Name -like \"*Ethernet*\" | ForEach-Object { & netsh interface ipv4 set subinterface $_.InterfaceIndex mtu=%v store=persistent }; ", mtu, mtu)
 			}
 		}
 		cmdSeparator = ";"
