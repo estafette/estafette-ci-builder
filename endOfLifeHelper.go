@@ -31,13 +31,15 @@ type EndOfLifeHelper interface {
 type endOfLifeHelperImpl struct {
 	runAsJob bool
 	config   contracts.BuilderConfig
+	podName  string
 }
 
 // NewEndOfLifeHelper returns a new EndOfLifeHelper
-func NewEndOfLifeHelper(runAsJob bool, config contracts.BuilderConfig) EndOfLifeHelper {
+func NewEndOfLifeHelper(runAsJob bool, config contracts.BuilderConfig, podName string) EndOfLifeHelper {
 	return &endOfLifeHelperImpl{
 		runAsJob: runAsJob,
 		config:   config,
+		podName:  podName,
 	}
 }
 
@@ -236,6 +238,7 @@ func (elh *endOfLifeHelperImpl) sendBuilderEvent(ctx context.Context, buildStatu
 
 		ciBuilderEvent := EstafetteCiBuilderEvent{
 			JobName:      jobName,
+			PodName:      elh.podName,
 			RepoSource:   elh.config.Git.RepoSource,
 			RepoOwner:    elh.config.Git.RepoOwner,
 			RepoName:     elh.config.Git.RepoName,

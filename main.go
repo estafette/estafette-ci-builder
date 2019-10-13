@@ -38,6 +38,7 @@ var (
 	secretDecryptionKey       = kingpin.Flag("secret-decryption-key", "The AES-256 key used to decrypt secrets that have been encrypted with it.").Envar("SECRET_DECRYPTION_KEY").String()
 	secretDecryptionKeyBase64 = kingpin.Flag("secret-decryption-key-base64", "The base64 encoded AES-256 key used to decrypt secrets that have been encrypted with it.").Envar("SECRET_DECRYPTION_KEY_BASE64").String()
 	runAsJob                  = kingpin.Flag("run-as-job", "To run the builder as a job and prevent build failures to fail the job.").Default("false").OverrideDefaultFromEnvar("RUN_AS_JOB").Bool()
+	podName                   = kingpin.Flag("pod-name", "The name of the pod.").Envar("POD_NAME").String()
 )
 
 func main() {
@@ -126,7 +127,7 @@ func main() {
 	whenEvaluator := NewWhenEvaluator(envvarHelper)
 	dockerRunner := NewDockerRunner(envvarHelper, obfuscator, *runAsJob, builderConfig, cancellationChannel)
 	pipelineRunner := NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner, *runAsJob, cancellationChannel)
-	endOfLifeHelper := NewEndOfLifeHelper(*runAsJob, builderConfig)
+	endOfLifeHelper := NewEndOfLifeHelper(*runAsJob, builderConfig, *podName)
 
 	// detect controlling server
 	ciServer := envvarHelper.getCiServer()
