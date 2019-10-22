@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"sync"
 	"time"
 
 	contracts "github.com/estafette/estafette-ci-contracts"
@@ -17,6 +18,7 @@ import (
 type PipelineRunner interface {
 	runStage(context.Context, string, map[string]string, manifest.EstafetteStage) (estafetteStageRunResult, error)
 	runStages(context.Context, []*manifest.EstafetteStage, string, map[string]string) (estafetteRunStagesResult, error)
+	runParallelStages(context.Context, []*manifest.EstafetteStage, string, map[string]string) (estafetteStageRunResult, error)
 	stopPipelineOnCancellation()
 }
 
@@ -41,20 +43,21 @@ func NewPipelineRunner(envvarHelper EnvvarHelper, whenEvaluator WhenEvaluator, d
 }
 
 type estafetteStageRunResult struct {
-	Stage               manifest.EstafetteStage
-	RunIndex            int
-	IsDockerImagePulled bool
-	IsTrustedImage      bool
-	DockerImageSize     int64
-	DockerPullDuration  time.Duration
-	DockerPullError     error
-	DockerRunDuration   time.Duration
-	DockerRunError      error
-	OtherError          error
-	ExitCode            int64
-	Status              string
-	LogLines            []contracts.BuildLogLine
-	Canceled            bool
+	Stage                 manifest.EstafetteStage
+	RunIndex              int
+	IsDockerImagePulled   bool
+	IsTrustedImage        bool
+	DockerImageSize       int64
+	DockerPullDuration    time.Duration
+	DockerPullError       error
+	DockerRunDuration     time.Duration
+	DockerRunError        error
+	OtherError            error
+	ExitCode              int64
+	Status                string
+	LogLines              []contracts.BuildLogLine
+	Canceled              bool
+	ParallelStagesResults []estafetteStageRunResult
 }
 
 // Errors combines the different type of errors that occurred during this pipeline stage
@@ -70,6 +73,12 @@ func (result *estafetteStageRunResult) Errors() (errors []error) {
 
 	if result.OtherError != nil {
 		errors = append(errors, result.OtherError)
+	}
+
+	for _, pr := range result.ParallelStagesResults {
+		if pr.RunIndex == pr.Stage.Retries && pr.HasErrors() {
+			errors = append(errors, pr.Errors()...)
+		}
 	}
 
 	return errors
@@ -229,7 +238,14 @@ func (pr *pipelineRunnerImpl) runStages(ctx context.Context, stages []*manifest.
 
 			runIndex := 0
 			for runIndex <= p.Retries {
-				r, err := pr.runStage(ctx, dir, envvars, *p)
+
+				var r estafetteStageRunResult
+				if len(p.ParallelStages) > 0 {
+					r, err = pr.runParallelStages(ctx, p.ParallelStages, dir, envvars)
+				} else {
+					r, err = pr.runStage(ctx, dir, envvars, *p)
+				}
+
 				r.RunIndex = runIndex
 
 				// if canceled during stage stop further execution
@@ -289,6 +305,141 @@ func (pr *pipelineRunnerImpl) runStages(ctx context.Context, stages []*manifest.
 	}
 
 	result.canceled = pr.canceled
+
+	return
+}
+
+func (pr *pipelineRunnerImpl) runParallelStages(ctx context.Context, stages []*manifest.EstafetteStage, dir string, envvars map[string]string) (result estafetteStageRunResult, err error) {
+
+	span, ctx := opentracing.StartSpanFromContext(ctx, "RunStages")
+	defer span.Finish()
+
+	// set default build status if not set
+	err = pr.envvarHelper.initBuildStatus()
+	if err != nil {
+		return
+	}
+
+	if len(stages) == 0 {
+		return result, fmt.Errorf("Manifest has no stages, failing the build")
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(len(stages))
+
+	results := make(chan estafetteStageRunResult, len(stages))
+	errors := make(chan error, len(stages))
+
+	for _, p := range stages {
+
+		go func(ctx context.Context, p *manifest.EstafetteStage, dir string, envvars map[string]string) {
+			defer wg.Done()
+
+			// handle cancellation happening in between stages
+			if pr.canceled {
+				return
+			}
+
+			whenEvaluationResult, err := pr.whenEvaluator.evaluate(p.Name, p.When, pr.whenEvaluator.getParameters())
+			if err != nil {
+				errors <- err
+				return
+			}
+
+			if whenEvaluationResult {
+
+				runIndex := 0
+				for runIndex <= p.Retries {
+
+					var r estafetteStageRunResult
+					if len(p.ParallelStages) > 0 {
+						r, err = pr.runParallelStages(ctx, p.ParallelStages, dir, envvars)
+					} else {
+						r, err = pr.runStage(ctx, dir, envvars, *p)
+					}
+
+					r.RunIndex = runIndex
+
+					// if canceled during stage stop further execution
+					if r.Canceled || pr.canceled {
+						r.Status = "CANCELED"
+
+						results <- r
+
+						return
+					}
+
+					if err != nil {
+
+						// add error to log lines
+						r.LogLines = append(r.LogLines, contracts.BuildLogLine{
+							LineNumber: 1,
+							Timestamp:  time.Now().UTC(),
+							StreamType: "stderr",
+							Text:       err.Error(),
+						})
+
+						// set 'failed' build status
+						if runIndex == p.Retries {
+							pr.envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "failed")
+							envvars[pr.envvarHelper.getEstafetteEnvvarName("ESTAFETTE_BUILD_STATUS")] = "failed"
+						}
+
+						r.Status = "FAILED"
+						r.OtherError = err
+
+						results <- r
+
+						runIndex++
+
+						continue
+					}
+
+					// set 'succeeded' build status
+					r.Status = "SUCCEEDED"
+
+					results <- r
+
+					break
+				}
+
+			} else {
+
+				// if an error has happened in one of the previous steps or the when expression evaluates to false we still want to render the following steps in the result table
+				r := estafetteStageRunResult{
+					Stage:  *p,
+					Status: "SKIPPED",
+				}
+
+				results <- r
+			}
+		}(ctx, p, dir, envvars)
+	}
+
+	wg.Wait()
+
+	close(results)
+	for r := range results {
+		result.ParallelStagesResults = append(result.ParallelStagesResults, r)
+
+		result.ParallelStagesResults = append(result.ParallelStagesResults, r)
+		result.Canceled = r.Canceled
+
+	}
+
+	close(results)
+	for r := range results {
+		result.ParallelStagesResults = append(result.ParallelStagesResults, r)
+	}
+
+	result.Canceled = pr.canceled
+
+	close(errors)
+	for e := range errors {
+		err = e
+		return
+	}
+
 	return
 }
 
