@@ -162,7 +162,7 @@ stages:
                   {
                     "Name":"buildB",
                     "ContainerImage":
-                    "golang:1.13.0-alpine3.10",
+                    "golang:1.13.2-alpine3.10",
                     "Shell":"/bin/sh",
                     "WorkingDirectory":"/estafette-work",
                     "Commands":[
@@ -172,7 +172,7 @@ stages:
                     "When":"status == ''succeeded''",
                     "EnvVars":{
                       "CGO_ENABLED":"0",
-                      "GOOS":"windows",
+                      "GOOS":"linux",
                       "GOARCH":"amd64"
                     },
                     "AutoInjected":false,
