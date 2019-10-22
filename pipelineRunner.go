@@ -418,21 +418,12 @@ func (pr *pipelineRunnerImpl) runParallelStages(ctx context.Context, stages []*m
 
 	wg.Wait()
 
-	close(results)
-	for r := range results {
-		result.ParallelStagesResults = append(result.ParallelStagesResults, r)
-
-		result.ParallelStagesResults = append(result.ParallelStagesResults, r)
-		result.Canceled = r.Canceled
-
-	}
-
-	close(results)
-	for r := range results {
-		result.ParallelStagesResults = append(result.ParallelStagesResults, r)
-	}
-
 	result.Canceled = pr.canceled
+
+	close(results)
+	for r := range results {
+		result.ParallelStagesResults = append(result.ParallelStagesResults, r)
+	}
 
 	close(errors)
 	for e := range errors {
