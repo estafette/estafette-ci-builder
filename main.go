@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	stdlog "log"
 	"net"
 	"os"
 	"os/signal"
@@ -48,6 +47,9 @@ func main() {
 	// parse command line parameters
 	kingpin.Parse()
 
+	// configure json logging
+	foundation.InitLogging(appgroup, app, version, branch, revision, buildDate)
+
 	// define channel to catch SIGTERM and send out cancellation to stop further execution of stages and send the final state and logs to the ci server
 	osSignals := make(chan os.Signal, 1)
 	signal.Notify(osSignals, os.Interrupt, syscall.SIGTERM)
@@ -67,6 +69,30 @@ func main() {
 	}
 
 	secretHelper := crypt.NewSecretHelper(decryptionKey, secretDecryptionKeyBase64Encoded)
+
+	// bootstrap
+	obfuscator := NewObfuscator(secretHelper)
+	envvarHelper := NewEnvvarHelper("ESTAFETTE_", secretHelper, obfuscator)
+	whenEvaluator := NewWhenEvaluator(envvarHelper)
+
+	// detect controlling server
+	ciServer := envvarHelper.getCiServer()
+
+	if ciServer != "estafette" {
+		// pretty print for go.cd integration or running locally
+		log.Logger = zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr}).With().
+			Timestamp().
+			Logger()
+	}
+
+	// log startup message
+	log.Info().
+		Str("branch", branch).
+		Str("revision", revision).
+		Str("buildDate", buildDate).
+		Str("goVersion", goVersion).
+		Str("os", runtime.GOOS).
+		Msgf("Starting %v version %v...", app, version)
 
 	// read builder config either from file or envvar
 	var builderConfigJSON []byte
@@ -123,42 +149,14 @@ func main() {
 	}
 	builderConfig.Credentials = decryptedCredentials
 
-	// bootstrap
-	obfuscator := NewObfuscator(secretHelper)
-	envvarHelper := NewEnvvarHelper("ESTAFETTE_", secretHelper, obfuscator)
-	whenEvaluator := NewWhenEvaluator(envvarHelper)
+	// bootstrap continued
 	dockerRunner := NewDockerRunner(envvarHelper, obfuscator, *runAsJob, builderConfig, cancellationChannel)
 	pipelineRunner := NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner, *runAsJob, cancellationChannel)
 	endOfLifeHelper := NewEndOfLifeHelper(*runAsJob, builderConfig, *podName)
 
-	// detect controlling server
-	ciServer := envvarHelper.getCiServer()
-
-	if ciServer == "estafette" {
-		// unset all ESTAFETTE_ envvars so they don't get abused by non-estafette components
-		envvarHelper.unsetEstafetteEnvvars()
-	}
-
 	if ciServer == "gocd" {
 
 		fatalHandler := NewGocdFatalHandler()
-
-		// pretty print for go.cd integration
-		log.Logger = zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr}).With().
-			Timestamp().
-			Logger()
-
-		stdlog.SetFlags(0)
-		stdlog.SetOutput(log.Logger)
-
-		// log startup message
-		log.Info().
-			Str("branch", branch).
-			Str("revision", revision).
-			Str("buildDate", buildDate).
-			Str("goVersion", goVersion).
-			Str("os", runtime.GOOS).
-			Msgf("Starting %v version %v...", app, version)
 
 		// create docker client
 		_, err := dockerRunner.createDockerClient()
@@ -214,11 +212,11 @@ func main() {
 
 	} else if ciServer == "estafette" {
 
-		// configure json logging
-		foundation.InitLogging(appgroup, app, version, branch, revision, buildDate)
-
 		closer := initJaeger(app)
 		defer closer.Close()
+
+		// unset all ESTAFETTE_ envvars so they don't get abused by non-estafette components
+		envvarHelper.unsetEstafetteEnvvars()
 
 		envvarHelper.setEstafetteBuilderConfigEnvvars(builderConfig)
 
@@ -232,24 +230,10 @@ func main() {
 		}
 
 		// set some default fields added to all logs
-		log.Logger = zerolog.New(os.Stdout).With().
-			Timestamp().
-			Str("app", app).
-			Str("version", version).
+		log.Logger = log.Logger.With().
 			Str("jobName", *builderConfig.JobName).
 			Interface("git", builderConfig.Git).
 			Logger()
-
-		stdlog.SetFlags(0)
-		stdlog.SetOutput(log.Logger)
-
-		// log startup message
-		log.Info().
-			Str("branch", branch).
-			Str("revision", revision).
-			Str("buildDate", buildDate).
-			Str("goVersion", goVersion).
-			Msgf("Starting %v version %v...", app, version)
 
 		if runtime.GOOS == "windows" {
 			if builderConfig.DockerDaemonMTU != nil && *builderConfig.DockerDaemonMTU != "" {
@@ -394,11 +378,6 @@ func main() {
 		}
 
 	} else {
-		// Set up a simple console logger
-		log.Logger = zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr}).With().
-			Timestamp().
-			Logger()
-
 		log.Warn().Msgf("The CI Server (\"%s\") is not recognized, exiting.", ciServer)
 	}
 }
