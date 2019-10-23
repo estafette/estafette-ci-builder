@@ -201,7 +201,7 @@ func main() {
 		envvars := envvarHelper.overrideEnvvars(estafetteEnvvars, globalEnvvars)
 
 		// run stages
-		result, err := pipelineRunner.runStages(context.Background(), manifest.Stages, dir, envvars)
+		result, err := pipelineRunner.runStages(context.Background(), 0, manifest.Stages, dir, envvars)
 		if err != nil {
 			fatalHandler.handleGocdFatal(err, "Executing stages from manifest failed")
 		}
@@ -347,14 +347,14 @@ func main() {
 		envvars := envvarHelper.overrideEnvvars(estafetteEnvvars, globalEnvvars)
 
 		// run stages
-		result, err := pipelineRunner.runStages(ctx, stages, dir, envvars)
+		result, err := pipelineRunner.runStages(ctx, 0, stages, dir, envvars)
 		if err != nil && !result.canceled {
 			endOfLifeHelper.handleFatal(ctx, buildLog, err, "Executing stages from manifest failed")
 		}
 
 		// send result to ci-api
 		log.Info().Interface("result", result).Msg("Finished running stages")
-		buildLog.Steps = transformPipelineRunResultToBuildLogSteps(estafetteEnvvars, result)
+		buildLog.Steps = transformRunStagesResultToBuildLogSteps(result)
 		buildStatus := "succeeded"
 		if result.HasAggregatedErrors() {
 			buildStatus = "failed"

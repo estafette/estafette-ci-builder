@@ -16,9 +16,9 @@ import (
 
 // PipelineRunner is the interface for running the pipeline steps
 type PipelineRunner interface {
-	runStage(context.Context, string, map[string]string, manifest.EstafetteStage) (estafetteStageRunResult, error)
-	runStages(context.Context, []*manifest.EstafetteStage, string, map[string]string) (estafetteRunStagesResult, error)
-	runParallelStages(context.Context, []*manifest.EstafetteStage, string, map[string]string) (estafetteStageRunResult, error)
+	runStage(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, p manifest.EstafetteStage) (result estafetteStageRunResult, err error)
+	runStages(ctx context.Context, depth int, stages []*manifest.EstafetteStage, dir string, envvars map[string]string) (result estafetteRunStagesResult, err error)
+	runParallelStages(ctx context.Context, depth int, stages []*manifest.EstafetteStage, dir string, envvars map[string]string) (result estafetteStageRunResult, err error)
 	stopPipelineOnCancellation()
 }
 
@@ -44,6 +44,7 @@ func NewPipelineRunner(envvarHelper EnvvarHelper, whenEvaluator WhenEvaluator, d
 
 type estafetteStageRunResult struct {
 	Stage                 manifest.EstafetteStage
+	Depth                 int
 	RunIndex              int
 	IsDockerImagePulled   bool
 	IsTrustedImage        bool
@@ -92,7 +93,7 @@ func (result *estafetteStageRunResult) HasErrors() bool {
 	return len(errors) > 0
 }
 
-func (pr *pipelineRunnerImpl) runStage(ctx context.Context, dir string, envvars map[string]string, p manifest.EstafetteStage) (result estafetteStageRunResult, err error) {
+func (pr *pipelineRunnerImpl) runStage(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, p manifest.EstafetteStage) (result estafetteStageRunResult, err error) {
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "RunStage")
 	defer span.Finish()
@@ -101,6 +102,8 @@ func (pr *pipelineRunnerImpl) runStage(ctx context.Context, dir string, envvars 
 	p.ContainerImage = os.Expand(p.ContainerImage, pr.envvarHelper.getEstafetteEnv)
 
 	result.Stage = p
+	result.Depth = depth
+	result.RunIndex = runIndex
 	result.LogLines = make([]contracts.BuildLogLine, 0)
 
 	log.Info().Msgf("[%v] Starting stage '%v'", p.Name, p.Name)
@@ -132,6 +135,8 @@ func (pr *pipelineRunnerImpl) runStage(ctx context.Context, dir string, envvars 
 	if pr.runAsJob {
 		tailLogLine := contracts.TailLogLine{
 			Step:         p.Name,
+			Depth:        depth,
+			RunIndex:     runIndex,
 			Image:        getBuildLogStepDockerImage(result),
 			AutoInjected: &result.Stage.AutoInjected,
 		}
@@ -144,13 +149,13 @@ func (pr *pipelineRunnerImpl) runStage(ctx context.Context, dir string, envvars 
 	dockerRunStart := time.Now()
 
 	if len(p.ParallelStages) > 0 {
-		innerResult, err := pr.runParallelStages(ctx, p.ParallelStages, dir, envvars)
+		innerResult, err := pr.runParallelStages(ctx, depth+1, p.ParallelStages, dir, envvars)
 
 		result.ParallelStagesResults = innerResult.ParallelStagesResults
 		result.Canceled = innerResult.Canceled
 		result.DockerRunError = err
 	} else {
-		result.LogLines, result.ExitCode, result.Canceled, result.DockerRunError = pr.dockerRunner.runDockerRun(ctx, dir, envvars, p)
+		result.LogLines, result.ExitCode, result.Canceled, result.DockerRunError = pr.dockerRunner.runDockerRun(ctx, depth, runIndex, dir, envvars, p)
 	}
 
 	result.DockerRunDuration = time.Since(dockerRunStart)
@@ -168,6 +173,8 @@ func (pr *pipelineRunnerImpl) runStage(ctx context.Context, dir string, envvars 
 
 		tailLogLine := contracts.TailLogLine{
 			Step:     p.Name,
+			Depth:    depth,
+			RunIndex: runIndex,
 			Duration: &result.DockerRunDuration,
 			ExitCode: &result.ExitCode,
 			Status:   &status,
@@ -217,7 +224,7 @@ func (result *estafetteRunStagesResult) HasAggregatedErrors() bool {
 	return len(errors) > 0
 }
 
-func (pr *pipelineRunnerImpl) runStages(ctx context.Context, stages []*manifest.EstafetteStage, dir string, envvars map[string]string) (result estafetteRunStagesResult, err error) {
+func (pr *pipelineRunnerImpl) runStages(ctx context.Context, depth int, stages []*manifest.EstafetteStage, dir string, envvars map[string]string) (result estafetteRunStagesResult, err error) {
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "RunStages")
 	defer span.Finish()
@@ -251,7 +258,7 @@ func (pr *pipelineRunnerImpl) runStages(ctx context.Context, stages []*manifest.
 			runIndex := 0
 			for runIndex <= p.Retries {
 
-				r, err := pr.runStage(ctx, dir, envvars, *p)
+				r, err := pr.runStage(ctx, depth, runIndex, dir, envvars, *p)
 				r.RunIndex = runIndex
 
 				// if canceled during stage stop further execution
@@ -301,6 +308,7 @@ func (pr *pipelineRunnerImpl) runStages(ctx context.Context, stages []*manifest.
 			// if an error has happened in one of the previous steps or the when expression evaluates to false we still want to render the following steps in the result table
 			r := estafetteStageRunResult{
 				Stage:  *p,
+				Depth:  depth,
 				Status: "SKIPPED",
 			}
 
@@ -315,7 +323,7 @@ func (pr *pipelineRunnerImpl) runStages(ctx context.Context, stages []*manifest.
 	return
 }
 
-func (pr *pipelineRunnerImpl) runParallelStages(ctx context.Context, stages []*manifest.EstafetteStage, dir string, envvars map[string]string) (result estafetteStageRunResult, err error) {
+func (pr *pipelineRunnerImpl) runParallelStages(ctx context.Context, depth int, stages []*manifest.EstafetteStage, dir string, envvars map[string]string) (result estafetteStageRunResult, err error) {
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "RunStages")
 	defer span.Finish()
@@ -357,7 +365,7 @@ func (pr *pipelineRunnerImpl) runParallelStages(ctx context.Context, stages []*m
 				runIndex := 0
 				for runIndex <= p.Retries {
 
-					r, err := pr.runStage(ctx, dir, envvars, *p)
+					r, err := pr.runStage(ctx, depth, runIndex, dir, envvars, *p)
 					r.RunIndex = runIndex
 
 					// if canceled during stage stop further execution

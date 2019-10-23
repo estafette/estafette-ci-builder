@@ -92,24 +92,33 @@ func pathExists(path string) (bool, error) {
 	return true, err
 }
 
-func transformPipelineRunResultToBuildLogSteps(estafetteEnvvars map[string]string, result estafetteRunStagesResult) (buildLogSteps []contracts.BuildLogStep) {
+func transformRunStagesResultToBuildLogSteps(result estafetteRunStagesResult) (buildLogSteps []contracts.BuildLogStep) {
 
 	buildLogSteps = make([]contracts.BuildLogStep, 0)
 
 	for _, r := range result.StageResults {
+		buildLogSteps = append(buildLogSteps, transformStageRunResultToBuildLogSteps(r))
+	}
 
-		bls := contracts.BuildLogStep{
-			Step:         r.Stage.Name,
-			Image:        getBuildLogStepDockerImage(r),
-			Duration:     r.DockerRunDuration,
-			LogLines:     r.LogLines,
-			ExitCode:     r.ExitCode,
-			Status:       r.Status,
-			AutoInjected: r.Stage.AutoInjected,
-			RunIndex:     r.RunIndex,
-		}
+	return
+}
 
-		buildLogSteps = append(buildLogSteps, bls)
+func transformStageRunResultToBuildLogSteps(result estafetteStageRunResult) (buildLogStep contracts.BuildLogStep) {
+
+	buildLogStep = contracts.BuildLogStep{
+		Step:         result.Stage.Name,
+		Image:        getBuildLogStepDockerImage(result),
+		Duration:     result.DockerRunDuration,
+		LogLines:     result.LogLines,
+		ExitCode:     result.ExitCode,
+		Status:       result.Status,
+		AutoInjected: result.Stage.AutoInjected,
+		RunIndex:     result.RunIndex,
+		Depth:        result.Depth,
+	}
+
+	for _, r := range result.ParallelStagesResults {
+		buildLogStep.NestedSteps = append(buildLogStep.NestedSteps, transformStageRunResultToBuildLogSteps(r))
 	}
 
 	return

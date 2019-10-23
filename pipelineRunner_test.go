@@ -24,7 +24,7 @@ func TestRunStages(t *testing.T) {
 		dir, _ := os.Getwd()
 
 		// act
-		_, err := pipelineRunner.runStages(context.Background(), manifest.Stages, dir, envvars)
+		_, err := pipelineRunner.runStages(context.Background(), 0, manifest.Stages, dir, envvars)
 
 		assert.NotNil(t, err)
 	})
@@ -39,7 +39,7 @@ func TestRunStages(t *testing.T) {
 		dir, _ := os.Getwd()
 
 		// act
-		result, err := pipelineRunner.runStages(context.Background(), manifest.Stages, dir, envvars)
+		result, err := pipelineRunner.runStages(context.Background(), 0, manifest.Stages, dir, envvars)
 
 		assert.Nil(t, err)
 		assert.Equal(t, 1, len(result.StageResults))
@@ -55,7 +55,7 @@ func TestRunStages(t *testing.T) {
 		dir, _ := os.Getwd()
 
 		// act
-		result, err := pipelineRunner.runStages(context.Background(), manifest.Stages, dir, envvars)
+		result, err := pipelineRunner.runStages(context.Background(), 0, manifest.Stages, dir, envvars)
 
 		assert.Nil(t, err)
 		assert.False(t, result.HasAggregatedErrors())
@@ -71,7 +71,7 @@ func TestRunStages(t *testing.T) {
 		dir, _ := os.Getwd()
 
 		// act
-		result, err := pipelineRunner.runStages(context.Background(), manifest.Stages, dir, envvars)
+		result, err := pipelineRunner.runStages(context.Background(), 0, manifest.Stages, dir, envvars)
 
 		assert.Nil(t, err)
 		assert.Equal(t, "SUCCEEDED", result.StageResults[0].Status)
@@ -87,7 +87,7 @@ func TestRunStages(t *testing.T) {
 		dir, _ := os.Getwd()
 
 		// act
-		result, err := pipelineRunner.runStages(context.Background(), manifest.Stages, dir, envvars)
+		result, err := pipelineRunner.runStages(context.Background(), 0, manifest.Stages, dir, envvars)
 
 		assert.Nil(t, err)
 		assert.True(t, result.HasAggregatedErrors())
@@ -103,7 +103,7 @@ func TestRunStages(t *testing.T) {
 		dir, _ := os.Getwd()
 
 		// act
-		result, err := pipelineRunner.runStages(context.Background(), manifest.Stages, dir, envvars)
+		result, err := pipelineRunner.runStages(context.Background(), 0, manifest.Stages, dir, envvars)
 
 		assert.Nil(t, err)
 		assert.Equal(t, "FAILED", result.StageResults[0].Status)
@@ -119,7 +119,7 @@ func TestRunStages(t *testing.T) {
 		dir, _ := os.Getwd()
 
 		// act
-		result, err := pipelineRunner.runStages(context.Background(), manifest.Stages, dir, envvars)
+		result, err := pipelineRunner.runStages(context.Background(), 0, manifest.Stages, dir, envvars)
 
 		assert.Nil(t, err)
 		assert.False(t, result.HasAggregatedErrors())
@@ -135,7 +135,7 @@ func TestRunStages(t *testing.T) {
 		dir, _ := os.Getwd()
 
 		// act
-		result, err := pipelineRunner.runStages(context.Background(), manifest.Stages, dir, envvars)
+		result, err := pipelineRunner.runStages(context.Background(), 0, manifest.Stages, dir, envvars)
 
 		assert.Nil(t, err)
 		assert.Equal(t, "SKIPPED", result.StageResults[0].Status)
@@ -153,7 +153,7 @@ func TestRunStages(t *testing.T) {
 		dir, _ := os.Getwd()
 
 		// act
-		result, err := pipelineRunner.runStages(context.Background(), manifest.Stages, dir, envvars)
+		result, err := pipelineRunner.runStages(context.Background(), 0, manifest.Stages, dir, envvars)
 
 		assert.Nil(t, err)
 		assert.Equal(t, "FAILED", result.StageResults[0].Status)
@@ -173,7 +173,7 @@ func TestRunStages(t *testing.T) {
 		dir, _ := os.Getwd()
 
 		// act
-		result, err := pipelineRunner.runStages(context.Background(), manifest.Stages, dir, envvars)
+		result, err := pipelineRunner.runStages(context.Background(), 0, manifest.Stages, dir, envvars)
 
 		assert.Nil(t, err)
 		assert.True(t, result.HasAggregatedErrors())
@@ -190,7 +190,7 @@ func TestRunStages(t *testing.T) {
 		dir, _ := os.Getwd()
 
 		// act
-		result, err := pipelineRunner.runStages(context.Background(), manifest.Stages, dir, envvars)
+		result, err := pipelineRunner.runStages(context.Background(), 0, manifest.Stages, dir, envvars)
 
 		assert.Nil(t, err)
 		assert.False(t, result.HasAggregatedErrors())
@@ -207,7 +207,7 @@ func TestRunStages(t *testing.T) {
 		dir, _ := os.Getwd()
 
 		// act
-		result, err := pipelineRunner.runStages(context.Background(), manifest.Stages, dir, envvars)
+		result, err := pipelineRunner.runStages(context.Background(), 0, manifest.Stages, dir, envvars)
 
 		assert.Nil(t, err)
 		assert.True(t, result.HasAggregatedErrors())
