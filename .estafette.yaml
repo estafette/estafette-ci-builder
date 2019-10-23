@@ -160,7 +160,7 @@ stages:
                     "CustomProperties":null
                   },
                   {
-                    "Name":"bake-estafette",
+                    "Name":"bakeB",
                     "ContainerImage":"extensions/docker:dev",
                     "Shell":"/bin/sh",
                     "WorkingDirectory":"/estafette-work",
