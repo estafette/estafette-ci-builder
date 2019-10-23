@@ -562,8 +562,6 @@ func (dr *dockerRunnerImpl) isTrustedImage(p manifest.EstafetteStage) bool {
 	// check if image is trusted image
 	trustedImage := dr.config.GetTrustedImage(p.ContainerImage)
 
-	log.Debug().Interface("trustedImage", trustedImage).Interface("trustedImages", dr.config.TrustedImages).Msgf("[%v] Docker image '%v' is trusted = %v...", p.Name, p.ContainerImage, trustedImage != nil)
-
 	return trustedImage != nil
 }
 
