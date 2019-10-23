@@ -19,7 +19,6 @@ import (
 	manifest "github.com/estafette/estafette-ci-manifest"
 	foundation "github.com/estafette/estafette-foundation"
 	"github.com/opentracing/opentracing-go"
-	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/uber/jaeger-client-go"
 	jaegercfg "github.com/uber/jaeger-client-go/config"
@@ -46,9 +45,6 @@ func main() {
 
 	// parse command line parameters
 	kingpin.Parse()
-
-	// configure json logging
-	foundation.InitLogging(appgroup, app, version, branch, revision, buildDate)
 
 	// define channel to catch SIGTERM and send out cancellation to stop further execution of stages and send the final state and logs to the ci server
 	osSignals := make(chan os.Signal, 1)
@@ -78,21 +74,8 @@ func main() {
 	// detect controlling server
 	ciServer := envvarHelper.getCiServer()
 
-	if ciServer != "estafette" {
-		// pretty print for go.cd integration or running locally
-		log.Logger = zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr}).With().
-			Timestamp().
-			Logger()
-	}
-
-	// log startup message
-	log.Info().
-		Str("branch", branch).
-		Str("revision", revision).
-		Str("buildDate", buildDate).
-		Str("goVersion", goVersion).
-		Str("os", runtime.GOOS).
-		Msgf("Starting %v version %v...", app, version)
+	// configure json logging
+	foundation.InitLogging(appgroup, app, version, branch, revision, buildDate, ciServer != "estafette")
 
 	// read builder config either from file or envvar
 	var builderConfigJSON []byte
