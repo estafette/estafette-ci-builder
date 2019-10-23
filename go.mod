@@ -17,7 +17,7 @@ require (
 	github.com/estafette/estafette-ci-contracts v0.0.139
 	github.com/estafette/estafette-ci-crypt v0.0.27
 	github.com/estafette/estafette-ci-manifest v0.1.120
-	github.com/estafette/estafette-foundation v0.0.19
+	github.com/estafette/estafette-foundation v0.0.20
 	github.com/gogo/protobuf v1.3.0 // indirect
 	github.com/google/go-cmp v0.3.1 // indirect
 	github.com/gorilla/mux v1.7.3 // indirect

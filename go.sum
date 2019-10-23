@@ -39,8 +39,8 @@ github.com/estafette/estafette-ci-crypt v0.0.27 h1:+5lB+TjhPZp/xtnhAzIoQNIIdReS/
 github.com/estafette/estafette-ci-crypt v0.0.27/go.mod h1:yODzGbzW7Jj0xEFjAv1Is+FHcYaugHUtrPdkJdHV8/c=
 github.com/estafette/estafette-ci-manifest v0.1.120 h1:B6zmPPiXE4gMS1brorCwtgnJwpuNWpbPXOuEhc30Tqs=
 github.com/estafette/estafette-ci-manifest v0.1.120/go.mod h1:jhTvn+nleUBAmhwc0kn1n0CfeUd1AJYHVYJjcfXMXEY=
-github.com/estafette/estafette-foundation v0.0.19 h1:BywmWi2aIZwu6jP5s5by1GTdNlrG3SGJmFPlfeqj4Tc=
-github.com/estafette/estafette-foundation v0.0.19/go.mod h1:CugZ5IABfGepKKoAri5ObS1R25esdTcuD8XNAD24+vA=
+github.com/estafette/estafette-foundation v0.0.20 h1:fnkqRWKl18YQ2w1bdWBVfHgdnZkLUgoIhRV7aR4SBZ8=
+github.com/estafette/estafette-foundation v0.0.20/go.mod h1:CugZ5IABfGepKKoAri5ObS1R25esdTcuD8XNAD24+vA=
 github.com/fsnotify/fsnotify v1.4.7 h1:IXs+QLmnXW2CcXuY+8Mzv/fWEsPGWxqefPtCP5CnV9I=
 github.com/fsnotify/fsnotify v1.4.7/go.mod h1:jwhsz4b93w/PPRr/qN1Yymfu8t87LnFCMoQvtojpjFo=
 github.com/go-kit/kit v0.8.0/go.mod h1:xBxKIO96dXMWWy0MnWVtmwkA9/13aqxPnvrjFYMA2as=
