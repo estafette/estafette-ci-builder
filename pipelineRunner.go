@@ -258,7 +258,7 @@ func (pr *pipelineRunnerImpl) runStages(ctx context.Context, stages []*manifest.
 				if r.Canceled || pr.canceled {
 					r.Status = "CANCELED"
 					result.StageResults = append(result.StageResults, r)
-					result.canceled = r.Canceled
+					result.canceled = true
 					return result, nil
 				}
 
@@ -379,12 +379,6 @@ func (pr *pipelineRunnerImpl) runParallelStages(ctx context.Context, stages []*m
 							Text:       err.Error(),
 						})
 
-						// set 'failed' build status
-						if runIndex == p.Retries {
-							pr.envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "failed")
-							envvars[pr.envvarHelper.getEstafetteEnvvarName("ESTAFETTE_BUILD_STATUS")] = "failed"
-						}
-
 						r.Status = "FAILED"
 						r.OtherError = err
 
@@ -421,13 +415,28 @@ func (pr *pipelineRunnerImpl) runParallelStages(ctx context.Context, stages []*m
 	result.Canceled = pr.canceled
 
 	close(results)
+	result.Status = "SUCCEEDED"
 	for r := range results {
 		result.ParallelStagesResults = append(result.ParallelStagesResults, r)
+
+		// if canceled during one of the stages stop further execution
+		if r.Canceled || pr.canceled {
+			result.Status = "CANCELED"
+			result.Canceled = true
+		}
+
+		// ensure outer stage gets correct status
+		if !result.Canceled && r.Status == "FAILED" {
+			result.Status = r.Status
+
+			pr.envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "failed")
+		}
 	}
 
 	close(errors)
 	for e := range errors {
 		err = e
+		result.OtherError = err
 		return
 	}
 
