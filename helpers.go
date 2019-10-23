@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/estafette/estafette-ci-contracts"
+	contracts "github.com/estafette/estafette-ci-contracts"
 
 	"github.com/olekukonko/tablewriter"
 )
@@ -74,7 +74,7 @@ func renderStats(result estafetteRunStagesResult) {
 	}
 
 	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"Pipeline", "Image", "Size (MB)", "Pull (s)", "Run (s)", "Total (s)", "Status", "Detail"})
+	table.SetHeader([]string{"Stage", "Image", "Size (MB)", "Pull (s)", "Run (s)", "Total (s)", "Status", "Detail"})
 	table.SetFooter([]string{"", "Total", fmt.Sprintf("%v", dockerImageSizeTotal/1024/1024), fmt.Sprintf("%.0f", dockerPullDurationTotal), fmt.Sprintf("%.0f", dockerRunDurationTotal), fmt.Sprintf("%.0f", dockerPullDurationTotal+dockerRunDurationTotal), statusTotal, ""})
 	table.SetBorder(false)
 	table.AppendBulk(data)
@@ -92,24 +92,33 @@ func pathExists(path string) (bool, error) {
 	return true, err
 }
 
-func transformPipelineRunResultToBuildLogSteps(estafetteEnvvars map[string]string, result estafetteRunStagesResult) (buildLogSteps []contracts.BuildLogStep) {
+func transformRunStagesResultToBuildLogSteps(result estafetteRunStagesResult) (buildLogSteps []contracts.BuildLogStep) {
 
 	buildLogSteps = make([]contracts.BuildLogStep, 0)
 
 	for _, r := range result.StageResults {
+		buildLogSteps = append(buildLogSteps, transformStageRunResultToBuildLogSteps(r))
+	}
 
-		bls := contracts.BuildLogStep{
-			Step:         r.Stage.Name,
-			Image:        getBuildLogStepDockerImage(r),
-			Duration:     r.DockerRunDuration,
-			LogLines:     r.LogLines,
-			ExitCode:     r.ExitCode,
-			Status:       r.Status,
-			AutoInjected: r.Stage.AutoInjected,
-			RunIndex:     r.RunIndex,
-		}
+	return
+}
 
-		buildLogSteps = append(buildLogSteps, bls)
+func transformStageRunResultToBuildLogSteps(result estafetteStageRunResult) (buildLogStep contracts.BuildLogStep) {
+
+	buildLogStep = contracts.BuildLogStep{
+		Step:         result.Stage.Name,
+		Image:        getBuildLogStepDockerImage(result),
+		Duration:     result.DockerRunDuration,
+		LogLines:     result.LogLines,
+		ExitCode:     result.ExitCode,
+		Status:       result.Status,
+		AutoInjected: result.Stage.AutoInjected,
+		RunIndex:     result.RunIndex,
+		Depth:        result.Depth,
+	}
+
+	for _, r := range result.ParallelStagesResults {
+		buildLogStep.NestedSteps = append(buildLogStep.NestedSteps, transformStageRunResultToBuildLogSteps(r))
 	}
 
 	return
@@ -117,16 +126,20 @@ func transformPipelineRunResultToBuildLogSteps(estafetteEnvvars map[string]strin
 
 func getBuildLogStepDockerImage(result estafetteStageRunResult) *contracts.BuildLogStepDockerImage {
 
-	containerImageArray := strings.Split(result.Stage.ContainerImage, ":")
-	containerImageName := containerImageArray[0]
-	containerImageTag := "latest"
-	if len(containerImageArray) > 1 {
-		containerImageTag = containerImageArray[1]
-	}
-
+	containerImageName := ""
+	containerImageTag := ""
 	pullError := ""
-	if result.DockerPullError != nil {
-		pullError = result.DockerPullError.Error()
+	if result.Stage.ContainerImage != "" {
+		containerImageArray := strings.Split(result.Stage.ContainerImage, ":")
+		containerImageName = containerImageArray[0]
+		containerImageTag = "latest"
+		if len(containerImageArray) > 1 {
+			containerImageTag = containerImageArray[1]
+		}
+
+		if result.DockerPullError != nil {
+			pullError = result.DockerPullError.Error()
+		}
 	}
 
 	return &contracts.BuildLogStepDockerImage{

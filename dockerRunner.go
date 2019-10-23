@@ -33,7 +33,7 @@ type DockerRunner interface {
 	isDockerImagePulled(manifest.EstafetteStage) bool
 	runDockerPull(context.Context, manifest.EstafetteStage) error
 	getDockerImageSize(manifest.EstafetteStage) (int64, error)
-	runDockerRun(context.Context, string, map[string]string, manifest.EstafetteStage) ([]contracts.BuildLogLine, int64, bool, error)
+	runDockerRun(context.Context, int, int, string, map[string]string, manifest.EstafetteStage) ([]contracts.BuildLogLine, int64, bool, error)
 
 	startDockerDaemon() error
 	waitForDockerDaemon()
@@ -120,7 +120,7 @@ func (dr *dockerRunnerImpl) getDockerImageSize(p manifest.EstafetteStage) (total
 	return totalSize, nil
 }
 
-func (dr *dockerRunnerImpl) runDockerRun(ctx context.Context, dir string, envvars map[string]string, p manifest.EstafetteStage) ([]contracts.BuildLogLine, int64, bool, error) {
+func (dr *dockerRunnerImpl) runDockerRun(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, p manifest.EstafetteStage) ([]contracts.BuildLogLine, int64, bool, error) {
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "DockerRun")
 	defer span.Finish()
@@ -421,8 +421,10 @@ func (dr *dockerRunnerImpl) runDockerRun(ctx context.Context, dir string, envvar
 		if dr.runAsJob {
 			// log as json, to be tailed when looking at live logs from gui
 			tailLogLine := contracts.TailLogLine{
-				Step:    p.Name,
-				LogLine: &logLineObject,
+				Step:     p.Name,
+				Depth:    depth,
+				RunIndex: runIndex,
+				LogLine:  &logLineObject,
 			}
 			log.Info().Interface("tailLogLine", tailLogLine).Msg("")
 		} else {
