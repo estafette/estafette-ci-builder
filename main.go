@@ -18,6 +18,7 @@ import (
 	contracts "github.com/estafette/estafette-ci-contracts"
 	crypt "github.com/estafette/estafette-ci-crypt"
 	manifest "github.com/estafette/estafette-ci-manifest"
+	foundation "github.com/estafette/estafette-foundation"
 	"github.com/opentracing/opentracing-go"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -26,6 +27,7 @@ import (
 )
 
 var (
+	appgroup  string
 	app       string
 	version   string
 	branch    string
@@ -212,8 +214,8 @@ func main() {
 
 	} else if ciServer == "estafette" {
 
-		// log as severity for stackdriver logging to recognize the level
-		zerolog.LevelFieldName = "severity"
+		// configure json logging
+		foundation.InitLogging(appgroup, app, version, branch, revision, buildDate)
 
 		closer := initJaeger(app)
 		defer closer.Close()
