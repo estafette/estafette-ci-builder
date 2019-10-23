@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/estafette/estafette-ci-contracts"
+	contracts "github.com/estafette/estafette-ci-contracts"
 
 	"github.com/olekukonko/tablewriter"
 )
@@ -74,7 +74,7 @@ func renderStats(result estafetteRunStagesResult) {
 	}
 
 	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"Pipeline", "Image", "Size (MB)", "Pull (s)", "Run (s)", "Total (s)", "Status", "Detail"})
+	table.SetHeader([]string{"Stage", "Image", "Size (MB)", "Pull (s)", "Run (s)", "Total (s)", "Status", "Detail"})
 	table.SetFooter([]string{"", "Total", fmt.Sprintf("%v", dockerImageSizeTotal/1024/1024), fmt.Sprintf("%.0f", dockerPullDurationTotal), fmt.Sprintf("%.0f", dockerRunDurationTotal), fmt.Sprintf("%.0f", dockerPullDurationTotal+dockerRunDurationTotal), statusTotal, ""})
 	table.SetBorder(false)
 	table.AppendBulk(data)
@@ -117,16 +117,20 @@ func transformPipelineRunResultToBuildLogSteps(estafetteEnvvars map[string]strin
 
 func getBuildLogStepDockerImage(result estafetteStageRunResult) *contracts.BuildLogStepDockerImage {
 
-	containerImageArray := strings.Split(result.Stage.ContainerImage, ":")
-	containerImageName := containerImageArray[0]
-	containerImageTag := "latest"
-	if len(containerImageArray) > 1 {
-		containerImageTag = containerImageArray[1]
-	}
-
+	containerImageName := ""
+	containerImageTag := ""
 	pullError := ""
-	if result.DockerPullError != nil {
-		pullError = result.DockerPullError.Error()
+	if result.Stage.ContainerImage != "" {
+		containerImageArray := strings.Split(result.Stage.ContainerImage, ":")
+		containerImageName = containerImageArray[0]
+		containerImageTag = "latest"
+		if len(containerImageArray) > 1 {
+			containerImageTag = containerImageArray[1]
+		}
+
+		if result.DockerPullError != nil {
+			pullError = result.DockerPullError.Error()
+		}
 	}
 
 	return &contracts.BuildLogStepDockerImage{

@@ -103,28 +103,30 @@ func (pr *pipelineRunnerImpl) runStage(ctx context.Context, dir string, envvars 
 	result.Stage = p
 	result.LogLines = make([]contracts.BuildLogLine, 0)
 
-	log.Info().Msgf("[%v] Starting pipeline '%v'", p.Name, p.Name)
+	log.Info().Msgf("[%v] Starting stage '%v'", p.Name, p.Name)
 
-	result.IsDockerImagePulled = pr.dockerRunner.isDockerImagePulled(p)
-	result.IsTrustedImage = pr.dockerRunner.isTrustedImage(p)
+	if p.ContainerImage != "" {
+		result.IsDockerImagePulled = pr.dockerRunner.isDockerImagePulled(p)
+		result.IsTrustedImage = pr.dockerRunner.isTrustedImage(p)
 
-	if !result.IsDockerImagePulled || runtime.GOOS == "windows" {
+		if !result.IsDockerImagePulled || runtime.GOOS == "windows" {
 
-		// pull docker image
-		dockerPullStart := time.Now()
-		result.DockerPullError = pr.dockerRunner.runDockerPull(ctx, p)
-		result.DockerPullDuration = time.Since(dockerPullStart)
-		if result.DockerPullError != nil {
-			return result, result.DockerPullError
+			// pull docker image
+			dockerPullStart := time.Now()
+			result.DockerPullError = pr.dockerRunner.runDockerPull(ctx, p)
+			result.DockerPullDuration = time.Since(dockerPullStart)
+			if result.DockerPullError != nil {
+				return result, result.DockerPullError
+			}
 		}
-	}
 
-	// set docker image size
-	size, err := pr.dockerRunner.getDockerImageSize(p)
-	if err != nil {
-		return result, err
+		// set docker image size
+		size, err := pr.dockerRunner.getDockerImageSize(p)
+		if err != nil {
+			return result, err
+		}
+		result.DockerImageSize = size
 	}
-	result.DockerImageSize = size
 
 	// log tailing - start stage
 	if pr.runAsJob {
@@ -140,7 +142,17 @@ func (pr *pipelineRunnerImpl) runStage(ctx context.Context, dir string, envvars 
 
 	// run commands in docker container
 	dockerRunStart := time.Now()
-	result.LogLines, result.ExitCode, result.Canceled, result.DockerRunError = pr.dockerRunner.runDockerRun(ctx, dir, envvars, p)
+
+	if len(p.ParallelStages) > 0 {
+		innerResult, err := pr.runParallelStages(ctx, p.ParallelStages, dir, envvars)
+
+		result.ParallelStagesResults = innerResult.ParallelStagesResults
+		result.Canceled = innerResult.Canceled
+		result.DockerRunError = err
+	} else {
+		result.LogLines, result.ExitCode, result.Canceled, result.DockerRunError = pr.dockerRunner.runDockerRun(ctx, dir, envvars, p)
+	}
+
 	result.DockerRunDuration = time.Since(dockerRunStart)
 
 	// log tailing - finalize stage
@@ -239,13 +251,7 @@ func (pr *pipelineRunnerImpl) runStages(ctx context.Context, stages []*manifest.
 			runIndex := 0
 			for runIndex <= p.Retries {
 
-				var r estafetteStageRunResult
-				if len(p.ParallelStages) > 0 {
-					r, err = pr.runParallelStages(ctx, p.ParallelStages, dir, envvars)
-				} else {
-					r, err = pr.runStage(ctx, dir, envvars, *p)
-				}
-
+				r, err := pr.runStage(ctx, dir, envvars, *p)
 				r.RunIndex = runIndex
 
 				// if canceled during stage stop further execution
@@ -351,13 +357,7 @@ func (pr *pipelineRunnerImpl) runParallelStages(ctx context.Context, stages []*m
 				runIndex := 0
 				for runIndex <= p.Retries {
 
-					var r estafetteStageRunResult
-					if len(p.ParallelStages) > 0 {
-						r, err = pr.runParallelStages(ctx, p.ParallelStages, dir, envvars)
-					} else {
-						r, err = pr.runStage(ctx, dir, envvars, *p)
-					}
-
+					r, err := pr.runStage(ctx, dir, envvars, *p)
 					r.RunIndex = runIndex
 
 					// if canceled during stage stop further execution
