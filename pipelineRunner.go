@@ -391,6 +391,7 @@ func (pr *pipelineRunnerImpl) runParallelStages(ctx context.Context, depth int, 
 						r.OtherError = err
 
 						results <- r
+						errors <- err
 
 						runIndex++
 
@@ -431,6 +432,8 @@ func (pr *pipelineRunnerImpl) runParallelStages(ctx context.Context, depth int, 
 		if r.Canceled || pr.canceled {
 			result.Status = "CANCELED"
 			result.Canceled = true
+
+			continue
 		}
 
 		// ensure outer stage gets correct status
