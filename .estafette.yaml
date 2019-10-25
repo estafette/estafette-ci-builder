@@ -22,24 +22,26 @@ stages:
     - go test ./...
     - go build -v -ldflags "-X main.appgroup=${ESTAFETTE_LABEL_APP_GROUP} -X main.app=${ESTAFETTE_GIT_NAME} -X main.version=${ESTAFETTE_BUILD_VERSION} -X main.revision=${ESTAFETTE_GIT_REVISION} -X main.branch=${ESTAFETTE_GIT_BRANCH} -X main.buildDate=${ESTAFETTE_BUILD_DATETIME}" -o ./publish/${ESTAFETTE_GIT_NAME}
 
-  bake:
-    image: extensions/docker:dev
-    action: build
-    no-cache: true
-    expand-variables: false
-    repositories:
-    - estafette
-    path: ./publish
+  bake-all:
+    parallelStages:
+      bake:
+        image: extensions/docker:dev
+        action: build
+        no-cache: true
+        expand-variables: false
+        repositories:
+        - estafette
+        path: ./publish
 
-  bake-gocd-agent:
-    image: extensions/docker:dev
-    action: build
-    no-cache: true
-    expand-variables: false
-    repositories:
-    - estafette.secret(ugcaPF_CdqMZsxsh.4ZumU_A0ufxsjV3MPInyc1VjATZgX9hcB2KQM1KDIOQs)
-    path: ./publish
-    dockerfile: Dockerfile.gocd
+      bake-gocd-agent:
+        image: extensions/docker:dev
+        action: build
+        no-cache: true
+        expand-variables: false
+        repositories:
+        - estafette.secret(ugcaPF_CdqMZsxsh.4ZumU_A0ufxsjV3MPInyc1VjATZgX9hcB2KQM1KDIOQs)
+        path: ./publish
+        dockerfile: Dockerfile.gocd
 
   clean-working-directory:
     image: golang:1.13.0-alpine3.10
