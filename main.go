@@ -19,6 +19,7 @@ import (
 	manifest "github.com/estafette/estafette-ci-manifest"
 	foundation "github.com/estafette/estafette-foundation"
 	"github.com/opentracing/opentracing-go"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/uber/jaeger-client-go"
 	jaegercfg "github.com/uber/jaeger-client-go/config"
@@ -75,7 +76,20 @@ func main() {
 	ciServer := envvarHelper.getCiServer()
 
 	// configure json logging
-	foundation.InitLogging(appgroup, app, version, branch, revision, buildDate, ciServer != "estafette")
+	foundation.InitLogging(appgroup, app, version, branch, revision, buildDate)
+
+	if ciServer != "estafette" {
+		// for pretty print use the consolewriter
+		output := zerolog.ConsoleWriter{Out: os.Stderr}
+		output.FormatLevel = func(i interface{}) string {
+			return ""
+		}
+		output.FormatTimestamp = func(i interface{}) string {
+			return ""
+		}
+		log.Logger = zerolog.New(output).With().
+			Logger()
+	}
 
 	// read builder config either from file or envvar
 	var builderConfigJSON []byte
