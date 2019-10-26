@@ -21,6 +21,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
+	"github.com/docker/go-connections/nat"
 	contracts "github.com/estafette/estafette-ci-contracts"
 	manifest "github.com/estafette/estafette-ci-manifest"
 	"github.com/opentracing/opentracing-go"
@@ -30,16 +31,17 @@ import (
 
 // DockerRunner pulls and runs docker containers
 type DockerRunner interface {
-	isDockerImagePulled(manifest.EstafetteStage) bool
-	runDockerPull(context.Context, manifest.EstafetteStage) error
-	getDockerImageSize(manifest.EstafetteStage) (int64, error)
-	runDockerRun(context.Context, int, int, string, map[string]string, manifest.EstafetteStage) ([]contracts.BuildLogLine, int64, bool, error)
+	isDockerImagePulled(stageName string, containerImage string) bool
+	runDockerPull(ctx context.Context, stageName string, containerImage string) error
+	getDockerImageSize(containerImage string) (int64, error)
+	runDockerRun(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, p manifest.EstafetteStage) ([]contracts.BuildLogLine, int64, bool, error)
+	runDockerRunService(ctx context.Context, envvars map[string]string, service manifest.EstafetteService) error
 
 	startDockerDaemon() error
 	waitForDockerDaemon()
 	createDockerClient() (*client.Client, error)
 	getImagePullOptions(containerImage string) types.ImagePullOptions
-	isTrustedImage(manifest.EstafetteStage) bool
+	isTrustedImage(stageName string, containerImage string) bool
 	stopContainerOnCancellation()
 }
 
@@ -65,9 +67,9 @@ func NewDockerRunner(envvarHelper EnvvarHelper, obfuscator Obfuscator, runAsJob 
 	}
 }
 
-func (dr *dockerRunnerImpl) isDockerImagePulled(p manifest.EstafetteStage) bool {
+func (dr *dockerRunnerImpl) isDockerImagePulled(stageName string, containerImage string) bool {
 
-	log.Info().Msgf("[%v] Checking if docker image '%v' exists locally...", p.Name, p.ContainerImage)
+	log.Info().Msgf("[%v] Checking if docker image '%v' exists locally...", stageName, containerImage)
 
 	imageSummaries, err := dr.dockerClient.ImageList(context.Background(), types.ImageListOptions{})
 	if err != nil {
@@ -75,7 +77,7 @@ func (dr *dockerRunnerImpl) isDockerImagePulled(p manifest.EstafetteStage) bool 
 	}
 
 	for _, summary := range imageSummaries {
-		if contains(summary.RepoTags, p.ContainerImage) {
+		if contains(summary.RepoTags, containerImage) {
 			return true
 		}
 	}
@@ -83,15 +85,15 @@ func (dr *dockerRunnerImpl) isDockerImagePulled(p manifest.EstafetteStage) bool 
 	return false
 }
 
-func (dr *dockerRunnerImpl) runDockerPull(ctx context.Context, p manifest.EstafetteStage) (err error) {
+func (dr *dockerRunnerImpl) runDockerPull(ctx context.Context, stageName string, containerImage string) (err error) {
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "DockerPull")
 	defer span.Finish()
-	span.SetTag("docker-image", p.ContainerImage)
+	span.SetTag("docker-image", containerImage)
 
-	log.Info().Msgf("[%v] Pulling docker image '%v'", p.Name, p.ContainerImage)
+	log.Info().Msgf("[%v] Pulling docker image '%v'", stageName, containerImage)
 
-	rc, err := dr.dockerClient.ImagePull(context.Background(), p.ContainerImage, dr.getImagePullOptions(p.ContainerImage))
+	rc, err := dr.dockerClient.ImagePull(context.Background(), containerImage, dr.getImagePullOptions(containerImage))
 	if err != nil {
 		return err
 	}
@@ -106,9 +108,9 @@ func (dr *dockerRunnerImpl) runDockerPull(ctx context.Context, p manifest.Estafe
 	return
 }
 
-func (dr *dockerRunnerImpl) getDockerImageSize(p manifest.EstafetteStage) (totalSize int64, err error) {
+func (dr *dockerRunnerImpl) getDockerImageSize(containerImage string) (totalSize int64, err error) {
 
-	items, err := dr.dockerClient.ImageHistory(context.Background(), p.ContainerImage)
+	items, err := dr.dockerClient.ImageHistory(context.Background(), containerImage)
 	if err != nil {
 		return totalSize, err
 	}
@@ -461,6 +463,117 @@ func (dr *dockerRunnerImpl) runDockerRun(ctx context.Context, depth int, runInde
 	return logLines, exitCode, dr.canceled, err
 }
 
+func (dr *dockerRunnerImpl) runDockerRunService(ctx context.Context, envvars map[string]string, service manifest.EstafetteService) error {
+
+	span, ctx := opentracing.StartSpanFromContext(ctx, "DockerRunService")
+	defer span.Finish()
+	span.SetTag("docker-image", service.ContainerImage)
+
+	// check if image is trusted image
+	trustedImage := dr.config.GetTrustedImage(service.ContainerImage)
+
+	// combine and override estafette and global envvars with pipeline envvars
+	combinedEnvVars := dr.envvarHelper.overrideEnvvars(envvars, service.EnvVars)
+
+	// decrypt secrets in all envvars
+	combinedEnvVars = dr.envvarHelper.decryptSecrets(combinedEnvVars)
+
+	// define docker envvars and expand ESTAFETTE_ variables
+	dockerEnvVars := make([]string, 0)
+	if combinedEnvVars != nil && len(combinedEnvVars) > 0 {
+		for k, v := range combinedEnvVars {
+			dockerEnvVars = append(dockerEnvVars, fmt.Sprintf("%v=%v", k, os.Expand(v, dr.envvarHelper.getEstafetteEnv)))
+		}
+	}
+
+	// check if this is a trusted image with RunDocker set to true
+	binds := make([]string, 0)
+	if trustedImage != nil && trustedImage.RunDocker {
+		if runtime.GOOS == "windows" {
+			if ok, _ := pathExists(`\\.\pipe\docker_engine`); ok {
+				binds = append(binds, `\\.\pipe\docker_engine:\\.\pipe\docker_engine`)
+			}
+			if ok, _ := pathExists("C:/Program Files/Docker"); ok {
+				binds = append(binds, "C:/Program Files/Docker:C:/dod")
+			}
+		} else {
+			if ok, _ := pathExists("/var/run/docker.sock"); ok {
+				binds = append(binds, "/var/run/docker.sock:/var/run/docker.sock")
+			}
+			if ok, _ := pathExists("/usr/local/bin/docker"); ok {
+				binds = append(binds, "/usr/local/bin/docker:/dod/docker")
+			}
+		}
+	}
+
+	// check if any ports are defined
+
+	// define config
+	config := container.Config{
+		AttachStdout: true,
+		AttachStderr: true,
+		Env:          dockerEnvVars,
+		Image:        service.ContainerImage,
+	}
+
+	portBindings := nat.PortMap{}
+	if len(service.Ports) > 0 {
+		config.ExposedPorts = nat.PortSet{}
+		for _, p := range service.Ports {
+			portAsString := fmt.Sprintf("%v", p.Port)
+			port, err := nat.NewPort("tcp", portAsString)
+			if err != nil {
+				continue
+			}
+			config.ExposedPorts[port] = struct{}{}
+
+			portBindings[port] = []nat.PortBinding{
+				{
+					HostIP:   "0.0.0.0",
+					HostPort: portAsString,
+				},
+			}
+		}
+	}
+
+	if trustedImage != nil && trustedImage.RunDocker {
+		if runtime.GOOS != "windows" {
+			currentUser, err := user.Current()
+			if err == nil && currentUser != nil {
+				config.User = fmt.Sprintf("%v:%v", currentUser.Uid, currentUser.Gid)
+				log.Debug().Msgf("Setting docker user to %v", config.User)
+			} else {
+				log.Debug().Err(err).Msg("Can't retrieve current user")
+			}
+		} else {
+			log.Debug().Msg("Not setting docker user for windows")
+		}
+	}
+
+	// check if this is a trusted image with RunPrivileged or RunDocker set to true
+	privileged := false
+	if trustedImage != nil && runtime.GOOS != "windows" {
+		privileged = trustedImage.RunDocker || trustedImage.RunPrivileged
+	}
+
+	// create container
+	resp, err := dr.dockerClient.ContainerCreate(ctx, &config, &container.HostConfig{
+		Binds:        binds,
+		Privileged:   privileged,
+		PortBindings: portBindings,
+	}, &network.NetworkingConfig{}, "")
+	if err != nil {
+		return err
+	}
+
+	// start container
+	if err := dr.dockerClient.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{}); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (dr *dockerRunnerImpl) startDockerDaemon() error {
 
 	mtu := "1500"
@@ -555,12 +668,12 @@ func (dr *dockerRunnerImpl) getImagePullOptions(containerImage string) types.Ima
 	return types.ImagePullOptions{}
 }
 
-func (dr *dockerRunnerImpl) isTrustedImage(p manifest.EstafetteStage) bool {
+func (dr *dockerRunnerImpl) isTrustedImage(stageName string, containerImage string) bool {
 
-	log.Info().Msgf("[%v] Checking if docker image '%v' is trusted...", p.Name, p.ContainerImage)
+	log.Info().Msgf("[%v] Checking if docker image '%v' is trusted...", stageName, containerImage)
 
 	// check if image is trusted image
-	trustedImage := dr.config.GetTrustedImage(p.ContainerImage)
+	trustedImage := dr.config.GetTrustedImage(containerImage)
 
 	return trustedImage != nil
 }

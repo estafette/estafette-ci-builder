@@ -113,6 +113,22 @@ stages:
               },
               {
                 "Name":"bake-estafette",
+                "Services": [
+                  {
+                    "ContainerImage": "mysql:latest",
+                    "EnvVars": {
+                      "MYSQL_ROOT_PASSWORD": "my-secret-pw"
+                    },
+                    "Ports": [
+                      {
+                        "Port": 3306
+                      },
+                      {
+                        "Port": 33060
+                      }
+                    ]
+                  }
+                ],
                 "ContainerImage":"extensions/docker:dev",
                 "Shell":"/bin/sh",
                 "WorkingDirectory":"/estafette-work",

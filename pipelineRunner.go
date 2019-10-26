@@ -17,8 +17,10 @@ import (
 // PipelineRunner is the interface for running the pipeline steps
 type PipelineRunner interface {
 	runStage(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, p manifest.EstafetteStage) (result estafetteStageRunResult, err error)
+	runService(ctx context.Context, envvars map[string]string, parentStage manifest.EstafetteStage, service manifest.EstafetteService) (err error)
 	runStages(ctx context.Context, depth int, stages []*manifest.EstafetteStage, dir string, envvars map[string]string) (result estafetteRunStagesResult, err error)
 	runParallelStages(ctx context.Context, depth int, stages []*manifest.EstafetteStage, dir string, envvars map[string]string) (result estafetteStageRunResult, err error)
+	runServices(ctx context.Context, parentStage manifest.EstafetteStage, services []*manifest.EstafetteService, envvars map[string]string) (err error)
 	stopPipelineOnCancellation()
 }
 
@@ -109,14 +111,14 @@ func (pr *pipelineRunnerImpl) runStage(ctx context.Context, depth int, runIndex 
 	log.Info().Msgf("[%v] Starting stage '%v'", p.Name, p.Name)
 
 	if p.ContainerImage != "" {
-		result.IsDockerImagePulled = pr.dockerRunner.isDockerImagePulled(p)
-		result.IsTrustedImage = pr.dockerRunner.isTrustedImage(p)
+		result.IsDockerImagePulled = pr.dockerRunner.isDockerImagePulled(p.Name, p.ContainerImage)
+		result.IsTrustedImage = pr.dockerRunner.isTrustedImage(p.Name, p.ContainerImage)
 
 		if !result.IsDockerImagePulled || runtime.GOOS == "windows" {
 
 			// pull docker image
 			dockerPullStart := time.Now()
-			result.DockerPullError = pr.dockerRunner.runDockerPull(ctx, p)
+			result.DockerPullError = pr.dockerRunner.runDockerPull(ctx, p.Name, p.ContainerImage)
 			result.DockerPullDuration = time.Since(dockerPullStart)
 			if result.DockerPullError != nil {
 				return result, result.DockerPullError
@@ -124,7 +126,7 @@ func (pr *pipelineRunnerImpl) runStage(ctx context.Context, depth int, runIndex 
 		}
 
 		// set docker image size
-		size, err := pr.dockerRunner.getDockerImageSize(p)
+		size, err := pr.dockerRunner.getDockerImageSize(p.ContainerImage)
 		if err != nil {
 			return result, err
 		}
@@ -147,6 +149,15 @@ func (pr *pipelineRunnerImpl) runStage(ctx context.Context, depth int, runIndex 
 
 	// run commands in docker container
 	dockerRunStart := time.Now()
+
+	if len(p.Services) > 0 {
+		// this stage has service containers, start them first
+		err = pr.runServices(ctx, p, p.Services, envvars)
+		if err != nil {
+			err = result.DockerRunError
+			return
+		}
+	}
 
 	if len(p.ParallelStages) > 0 {
 		innerResult, err := pr.runParallelStages(ctx, depth+1, p.ParallelStages, dir, envvars)
@@ -195,6 +206,40 @@ func (pr *pipelineRunnerImpl) runStage(ctx context.Context, depth int, runIndex 
 	} else {
 		log.Info().Msgf("[%v] Finished pipeline '%v' successfully", p.Name, p.Name)
 	}
+
+	return
+}
+
+func (pr *pipelineRunnerImpl) runService(ctx context.Context, envvars map[string]string, parentStage manifest.EstafetteStage, service manifest.EstafetteService) (err error) {
+
+	span, ctx := opentracing.StartSpanFromContext(ctx, "RunService")
+	defer span.Finish()
+	span.SetTag("service", service.ContainerImage)
+
+	service.ContainerImage = os.Expand(service.ContainerImage, pr.envvarHelper.getEstafetteEnv)
+
+	log.Info().Msgf("[%v] Starting service container '%v'", parentStage.Name, service.ContainerImage)
+
+	if service.ContainerImage != "" {
+		isDockerImagePulled := pr.dockerRunner.isDockerImagePulled(parentStage.Name, service.ContainerImage)
+		if !isDockerImagePulled || runtime.GOOS == "windows" {
+			// pull docker image
+			err = pr.dockerRunner.runDockerPull(ctx, parentStage.Name, service.ContainerImage)
+		}
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	go func(ctx context.Context, envvars map[string]string, service manifest.EstafetteService) {
+		defer wg.Done()
+		pr.dockerRunner.runDockerRunService(ctx, envvars, service)
+	}(ctx, envvars, service)
+
+	// wait until service container is running
+	wg.Wait()
+
+	// wait for service to be ready if readiness probe is defined
 
 	return
 }
@@ -454,6 +499,37 @@ func (pr *pipelineRunnerImpl) runParallelStages(ctx context.Context, depth int, 
 	return
 }
 
+func (pr *pipelineRunnerImpl) runServices(ctx context.Context, parentStage manifest.EstafetteStage, services []*manifest.EstafetteService, envvars map[string]string) (err error) {
+
+	span, ctx := opentracing.StartSpanFromContext(ctx, "RunServices")
+	defer span.Finish()
+
+	var wg sync.WaitGroup
+	wg.Add(len(services))
+
+	errors := make(chan error, len(services))
+
+	for _, s := range services {
+		go func(ctx context.Context, parentStage manifest.EstafetteStage, s *manifest.EstafetteService, envvars map[string]string) {
+			defer wg.Done()
+
+			err := pr.runService(ctx, envvars, parentStage, *s)
+			if err != nil {
+				errors <- err
+			}
+		}(ctx, parentStage, s, envvars)
+	}
+
+	wg.Wait()
+
+	close(errors)
+	for e := range errors {
+		err = e
+		return
+	}
+
+	return
+}
 func (pr *pipelineRunnerImpl) stopPipelineOnCancellation() {
 	// wait for cancellation
 	<-pr.cancellationChannel
