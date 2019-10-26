@@ -77,7 +77,7 @@ stages:
               "Custom":null
             },
             "GlobalEnvVars":null,
-            "Pipelines":[
+            "Stages":[
               {
                 "Name":"git-clone",
                 "ContainerImage":"extensions/git-clone:dev",

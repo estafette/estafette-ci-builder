@@ -33,12 +33,12 @@ github.com/docker/go-connections v0.4.0 h1:El9xVISelRB7BuFusrZozjnkIM5YnzCViNKoh
 github.com/docker/go-connections v0.4.0/go.mod h1:Gbd7IOopHjR8Iph03tsViu4nIes5XhDvyHbTtUxmeec=
 github.com/docker/go-units v0.4.0 h1:3uh0PgVws3nIA0Q+MwDC8yjEPf9zjRfZZWXZYDct3Tw=
 github.com/docker/go-units v0.4.0/go.mod h1:fgPhTUdO+D/Jk86RDLlptpiXQzgHJF7gydDDbaIK4Dk=
-github.com/estafette/estafette-ci-contracts v0.0.140 h1:PZgL9uPKmd0GE52+Nuv2u0711q6dQLrtIE8NqhGQt84=
-github.com/estafette/estafette-ci-contracts v0.0.140/go.mod h1:gdEH3ePACcFJ8Th6V9WKO4y5zMH2BOritEPY3h7Iui0=
+github.com/estafette/estafette-ci-contracts v0.0.141 h1:BBp8b/mV26ZDRF3gv8xRuEDqLpBtJJDoqxgCzK+YBpU=
+github.com/estafette/estafette-ci-contracts v0.0.141/go.mod h1:1iOYbgzCmdgCIwBXIh/7MBkAK3YsfcMldf5FMaFFVtk=
 github.com/estafette/estafette-ci-crypt v0.0.27 h1:+5lB+TjhPZp/xtnhAzIoQNIIdReS/BjN7KaI/aPoslM=
 github.com/estafette/estafette-ci-crypt v0.0.27/go.mod h1:yODzGbzW7Jj0xEFjAv1Is+FHcYaugHUtrPdkJdHV8/c=
-github.com/estafette/estafette-ci-manifest v0.1.121 h1:aoj5XBGj99566a8zHRPdSXs3O3uz6vkzgHOxmR74hXg=
-github.com/estafette/estafette-ci-manifest v0.1.121/go.mod h1:jhTvn+nleUBAmhwc0kn1n0CfeUd1AJYHVYJjcfXMXEY=
+github.com/estafette/estafette-ci-manifest v0.1.122 h1:wLv8Puy7OP68JujmLJ6EpOc4RZ7RUMqLhmZThL+QJkA=
+github.com/estafette/estafette-ci-manifest v0.1.122/go.mod h1:jhTvn+nleUBAmhwc0kn1n0CfeUd1AJYHVYJjcfXMXEY=
 github.com/estafette/estafette-foundation v0.0.21 h1:OCO9lqElDMlf0bAKX6rB+ced0DMZNKFOfhnhrRQmjv8=
 github.com/estafette/estafette-foundation v0.0.21/go.mod h1:CugZ5IABfGepKKoAri5ObS1R25esdTcuD8XNAD24+vA=
 github.com/fsnotify/fsnotify v1.4.7 h1:IXs+QLmnXW2CcXuY+8Mzv/fWEsPGWxqefPtCP5CnV9I=
