@@ -16,11 +16,11 @@ import (
 
 // PipelineRunner is the interface for running the pipeline steps
 type PipelineRunner interface {
-	runStage(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, p manifest.EstafetteStage) (result estafetteStageRunResult, err error)
-	runService(ctx context.Context, envvars map[string]string, parentStage manifest.EstafetteStage, service manifest.EstafetteService) (err error)
+	runStage(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, p manifest.EstafetteStage) (result estafetteStageRunResult, err error)
+	runService(ctx context.Context, envvars map[string]string, parentStage *manifest.EstafetteStage, service manifest.EstafetteService) (err error)
 	runStages(ctx context.Context, depth int, stages []*manifest.EstafetteStage, dir string, envvars map[string]string) (result estafetteRunStagesResult, err error)
-	runParallelStages(ctx context.Context, depth int, stages []*manifest.EstafetteStage, dir string, envvars map[string]string) (result estafetteStageRunResult, err error)
-	runServices(ctx context.Context, parentStage manifest.EstafetteStage, services []*manifest.EstafetteService, envvars map[string]string) (err error)
+	runParallelStages(ctx context.Context, depth int, parentStage *manifest.EstafetteStage, stages []*manifest.EstafetteStage, dir string, envvars map[string]string) (result estafetteStageRunResult, err error)
+	runServices(ctx context.Context, parentStage *manifest.EstafetteStage, services []*manifest.EstafetteService, envvars map[string]string) (err error)
 	stopPipelineOnCancellation()
 }
 
@@ -95,7 +95,7 @@ func (result *estafetteStageRunResult) HasErrors() bool {
 	return len(errors) > 0
 }
 
-func (pr *pipelineRunnerImpl) runStage(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, p manifest.EstafetteStage) (result estafetteStageRunResult, err error) {
+func (pr *pipelineRunnerImpl) runStage(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, p manifest.EstafetteStage) (result estafetteStageRunResult, err error) {
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "RunStage")
 	defer span.Finish()
@@ -152,7 +152,7 @@ func (pr *pipelineRunnerImpl) runStage(ctx context.Context, depth int, runIndex 
 
 	if len(p.Services) > 0 {
 		// this stage has service containers, start them first
-		err = pr.runServices(ctx, p, p.Services, envvars)
+		err = pr.runServices(ctx, &p, p.Services, envvars)
 		if err != nil {
 			err = result.DockerRunError
 			return
@@ -160,13 +160,17 @@ func (pr *pipelineRunnerImpl) runStage(ctx context.Context, depth int, runIndex 
 	}
 
 	if len(p.ParallelStages) > 0 {
-		innerResult, err := pr.runParallelStages(ctx, depth+1, p.ParallelStages, dir, envvars)
+		if depth > 0 {
+			innerResult, err := pr.runParallelStages(ctx, depth+1, &p, p.ParallelStages, dir, envvars)
 
-		result.ParallelStagesResults = innerResult.ParallelStagesResults
-		result.Canceled = innerResult.Canceled
-		result.DockerRunError = err
+			result.ParallelStagesResults = innerResult.ParallelStagesResults
+			result.Canceled = innerResult.Canceled
+			result.DockerRunError = err
+		} else {
+			log.Warn().Msgf("Can't run parallel stages nested inside nested stages")
+		}
 	} else {
-		result.LogLines, result.ExitCode, result.Canceled, result.DockerRunError = pr.dockerRunner.runDockerRun(ctx, depth, runIndex, dir, envvars, p)
+		result.LogLines, result.ExitCode, result.Canceled, result.DockerRunError = pr.dockerRunner.runDockerRun(ctx, depth, runIndex, dir, envvars, parentStage, p)
 	}
 
 	result.DockerRunDuration = time.Since(dockerRunStart)
@@ -207,10 +211,15 @@ func (pr *pipelineRunnerImpl) runStage(ctx context.Context, depth int, runIndex 
 		log.Info().Msgf("[%v] Finished pipeline '%v' successfully", p.Name, p.Name)
 	}
 
+	if len(p.Services) > 0 {
+		// this stage has service containers, start them first
+		go pr.dockerRunner.stopServices(ctx, &p, p.Services)
+	}
+
 	return
 }
 
-func (pr *pipelineRunnerImpl) runService(ctx context.Context, envvars map[string]string, parentStage manifest.EstafetteStage, service manifest.EstafetteService) (err error) {
+func (pr *pipelineRunnerImpl) runService(ctx context.Context, envvars map[string]string, parentStage *manifest.EstafetteStage, service manifest.EstafetteService) (err error) {
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "RunService")
 	defer span.Finish()
@@ -233,7 +242,7 @@ func (pr *pipelineRunnerImpl) runService(ctx context.Context, envvars map[string
 
 	go func(ctx context.Context, envvars map[string]string, service manifest.EstafetteService) {
 		defer wg.Done()
-		pr.dockerRunner.runDockerRunService(ctx, envvars, service)
+		pr.dockerRunner.runDockerRunService(ctx, envvars, parentStage, service)
 	}(ctx, envvars, service)
 
 	// wait until service container is running
@@ -303,7 +312,7 @@ func (pr *pipelineRunnerImpl) runStages(ctx context.Context, depth int, stages [
 			runIndex := 0
 			for runIndex <= p.Retries {
 
-				r, err := pr.runStage(ctx, depth, runIndex, dir, envvars, *p)
+				r, err := pr.runStage(ctx, depth, runIndex, dir, envvars, nil, *p)
 				r.RunIndex = runIndex
 
 				// if canceled during stage stop further execution
@@ -368,7 +377,7 @@ func (pr *pipelineRunnerImpl) runStages(ctx context.Context, depth int, stages [
 	return
 }
 
-func (pr *pipelineRunnerImpl) runParallelStages(ctx context.Context, depth int, stages []*manifest.EstafetteStage, dir string, envvars map[string]string) (result estafetteStageRunResult, err error) {
+func (pr *pipelineRunnerImpl) runParallelStages(ctx context.Context, depth int, parentStage *manifest.EstafetteStage, stages []*manifest.EstafetteStage, dir string, envvars map[string]string) (result estafetteStageRunResult, err error) {
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "RunStages")
 	defer span.Finish()
@@ -410,7 +419,7 @@ func (pr *pipelineRunnerImpl) runParallelStages(ctx context.Context, depth int, 
 				runIndex := 0
 				for runIndex <= p.Retries {
 
-					r, err := pr.runStage(ctx, depth, runIndex, dir, envvars, *p)
+					r, err := pr.runStage(ctx, depth, runIndex, dir, envvars, parentStage, *p)
 					r.RunIndex = runIndex
 
 					// if canceled during stage stop further execution
@@ -499,7 +508,7 @@ func (pr *pipelineRunnerImpl) runParallelStages(ctx context.Context, depth int, 
 	return
 }
 
-func (pr *pipelineRunnerImpl) runServices(ctx context.Context, parentStage manifest.EstafetteStage, services []*manifest.EstafetteService, envvars map[string]string) (err error) {
+func (pr *pipelineRunnerImpl) runServices(ctx context.Context, parentStage *manifest.EstafetteStage, services []*manifest.EstafetteService, envvars map[string]string) (err error) {
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "RunServices")
 	defer span.Finish()
@@ -510,7 +519,7 @@ func (pr *pipelineRunnerImpl) runServices(ctx context.Context, parentStage manif
 	errors := make(chan error, len(services))
 
 	for _, s := range services {
-		go func(ctx context.Context, parentStage manifest.EstafetteStage, s *manifest.EstafetteService, envvars map[string]string) {
+		go func(ctx context.Context, parentStage *manifest.EstafetteStage, s *manifest.EstafetteService, envvars map[string]string) {
 			defer wg.Done()
 
 			err := pr.runService(ctx, envvars, parentStage, *s)
