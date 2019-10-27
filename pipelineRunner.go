@@ -522,6 +522,10 @@ func (pr *pipelineRunnerImpl) runServices(ctx context.Context, parentStage *mani
 		go func(ctx context.Context, parentStage *manifest.EstafetteStage, s *manifest.EstafetteService, envvars map[string]string) {
 			defer wg.Done()
 
+			if parentStage != nil {
+				log.Info().Msgf("Starting services '%v' for stage '%v'...", s.ContainerImage, parentStage.Name)
+			}
+
 			err := pr.runService(ctx, envvars, parentStage, *s)
 			if err != nil {
 				errors <- err
