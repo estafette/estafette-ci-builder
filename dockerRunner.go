@@ -343,19 +343,20 @@ func (dr *dockerRunnerImpl) runDockerRun(ctx context.Context, depth int, runInde
 
 	// create container
 	resp, err := dr.dockerClient.ContainerCreate(ctx, &config, &container.HostConfig{
-		Binds:      binds,
-		Privileged: privileged,
+		Binds:       binds,
+		Privileged:  privileged,
+		NetworkMode: "host",
 	}, nil, "")
 	if err != nil {
 		return "", err
 	}
 
-	// connect to user-defined network
-	err = dr.dockerClient.NetworkConnect(ctx, dr.networkBridgeID, resp.ID, nil)
-	if err != nil {
-		log.Error().Err(err).Msgf("Failed connecting container %v to network %v", resp.ID, dr.networkBridgeID)
-		return
-	}
+	// // connect to user-defined network
+	// err = dr.dockerClient.NetworkConnect(ctx, dr.networkBridgeID, resp.ID, nil)
+	// if err != nil {
+	// 	log.Error().Err(err).Msgf("Failed connecting container %v to network %v", resp.ID, dr.networkBridgeID)
+	// 	return
+	// }
 
 	containerKey := ""
 	if parentStage != nil {
@@ -474,17 +475,18 @@ func (dr *dockerRunnerImpl) runDockerRunService(ctx context.Context, envvars map
 		Binds:        binds,
 		Privileged:   privileged,
 		PortBindings: portBindings,
+		NetworkMode:  "host",
 	}, nil, service.Name)
 	if err != nil {
 		return
 	}
 
-	// connect to user-defined network
-	err = dr.dockerClient.NetworkConnect(ctx, dr.networkBridgeID, resp.ID, nil)
-	if err != nil {
-		log.Error().Err(err).Msgf("Failed connecting container %v to network %v", resp.ID, dr.networkBridgeID)
-		return
-	}
+	// // connect to user-defined network
+	// err = dr.dockerClient.NetworkConnect(ctx, dr.networkBridgeID, resp.ID, nil)
+	// if err != nil {
+	// 	log.Error().Err(err).Msgf("Failed connecting container %v to network %v", resp.ID, dr.networkBridgeID)
+	// 	return
+	// }
 
 	containerKey := ""
 	if parentStage != nil {
