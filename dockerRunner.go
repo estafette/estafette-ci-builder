@@ -623,6 +623,12 @@ func (dr *dockerRunnerImpl) stopServices(ctx context.Context, parentStage *manif
 	for _, s := range services {
 		go func(parentStage *manifest.EstafetteStage, s *manifest.EstafetteService) {
 			defer wg.Done()
+
+			parentStageName := ""
+			if parentStage != nil {
+				parentStageName = parentStage.Name
+			}
+
 			if s.ContinueAfterStage {
 				if parentStage != nil {
 					log.Info().Msgf("Not stopping service '%v' for stage '%v', it has continueAfterStage = true...", s.ContainerImage, parentStage.Name)
@@ -641,7 +647,23 @@ func (dr *dockerRunnerImpl) stopServices(ctx context.Context, parentStage *manif
 
 			if id, ok := dr.containerIDs[containerKey]; ok {
 				//do something here
-				dr.stopContainer(id)
+				err := dr.stopContainer(id)
+
+				// log tailing - finalize stage
+				status := "SUCCEEDED"
+				if err != nil {
+					status = "FAILED"
+				}
+
+				tailLogLine := contracts.TailLogLine{
+					Step:        s.Name,
+					ParentStage: parentStageName,
+					Type:        "service",
+					Status:      &status,
+				}
+
+				// log as json, to be tailed when looking at live logs from gui
+				log.Info().Interface("tailLogLine", tailLogLine).Msg("")
 			}
 		}(parentStage, s)
 	}
@@ -756,14 +778,16 @@ func (dr *dockerRunnerImpl) isTrustedImage(stageName string, containerImage stri
 	return trustedImage != nil
 }
 
-func (dr *dockerRunnerImpl) stopContainer(id string) {
+func (dr *dockerRunnerImpl) stopContainer(id string) error {
 	timeout := 20 * time.Second
 	err := dr.dockerClient.ContainerStop(context.Background(), id, &timeout)
 	if err != nil {
 		log.Warn().Err(err).Msgf("Stopping container %v for cancellation failed", id)
-	} else {
-		log.Info().Msgf("Stopped container %v for cancellation", id)
+		return err
 	}
+
+	log.Info().Msgf("Stopped container %v for cancellation", id)
+	return nil
 }
 
 func (dr *dockerRunnerImpl) stopContainerOnCancellation() {

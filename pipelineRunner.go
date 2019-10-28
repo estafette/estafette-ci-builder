@@ -328,6 +328,21 @@ func (pr *pipelineRunnerImpl) runService(ctx context.Context, envvars map[string
 		result.IsDockerImagePulled = pr.dockerRunner.isDockerImagePulled(parentStageName, service.ContainerImage)
 		result.IsTrustedImage = pr.dockerRunner.isTrustedImage(parentStageName, service.ContainerImage)
 		if !result.IsDockerImagePulled || runtime.GOOS == "windows" {
+
+			// log tailing - start stage as pending
+			if pr.runAsJob {
+				status := "PENDING"
+				tailLogLine := contracts.TailLogLine{
+					Step:        service.Name,
+					ParentStage: parentStageName,
+					Type:        "service",
+					Image:       getBuildLogStepDockerImageForService(result),
+					Status:      &status,
+				}
+
+				// log as json, to be tailed when looking at live logs from gui
+				log.Info().Interface("tailLogLine", tailLogLine).Msg("")
+			}
 			// pull docker image
 			err = pr.dockerRunner.runDockerPull(ctx, parentStageName, service.ContainerImage)
 		}
@@ -340,6 +355,24 @@ func (pr *pipelineRunnerImpl) runService(ctx context.Context, envvars map[string
 		result.DockerImageSize = size
 	}
 
+	// log tailing - start stage
+	if pr.runAsJob {
+		status := "RUNNING"
+		tailLogLine := contracts.TailLogLine{
+			Step:        service.Name,
+			ParentStage: parentStageName,
+			Type:        "service",
+			Image:       getBuildLogStepDockerImageForService(result),
+			Status:      &status,
+		}
+
+		// log as json, to be tailed when looking at live logs from gui
+		log.Info().Interface("tailLogLine", tailLogLine).Msg("")
+	}
+
+	// run commands in docker container
+	dockerRunStart := time.Now()
+
 	containerID, dockerRunError := pr.dockerRunner.runDockerRunService(ctx, envvars, parentStage, service)
 	result.DockerRunError = dockerRunError
 
@@ -348,6 +381,44 @@ func (pr *pipelineRunnerImpl) runService(ctx context.Context, envvars map[string
 	}
 
 	// wait for service to be ready if readiness probe is defined
+
+	result.DockerRunDuration = time.Since(dockerRunStart)
+
+	// log tailing - finalize stage
+	if pr.runAsJob {
+
+		status := "RUNNING"
+		if result.DockerRunError != nil {
+			status = "FAILED"
+		}
+		if result.Canceled {
+			status = "CANCELED"
+		}
+
+		tailLogLine := contracts.TailLogLine{
+			Step:        service.Name,
+			ParentStage: parentStageName,
+			Type:        "service",
+			Duration:    &result.DockerRunDuration,
+			ExitCode:    &result.ExitCode,
+			Status:      &status,
+		}
+
+		// log as json, to be tailed when looking at live logs from gui
+		log.Info().Interface("tailLogLine", tailLogLine).Msg("")
+	}
+
+	if result.DockerRunError != nil {
+		err = result.DockerRunError
+	}
+
+	if result.Canceled {
+		log.Info().Msgf("[%v] Canceled service '%v'", parentStageName, service.Name)
+	} else if err != nil {
+		log.Warn().Err(err).Msgf("[%v] Service '%v' container failed", parentStageName, service.Name)
+	} else {
+		log.Info().Msgf("[%v] Started service '%v' successfully", parentStageName, service.Name)
+	}
 
 	return
 }
