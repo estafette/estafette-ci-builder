@@ -343,9 +343,8 @@ func (dr *dockerRunnerImpl) runDockerRun(ctx context.Context, depth int, runInde
 
 	// create container
 	resp, err := dr.dockerClient.ContainerCreate(ctx, &config, &container.HostConfig{
-		Binds:       binds,
-		Privileged:  privileged,
-		NetworkMode: "host",
+		Binds:      binds,
+		Privileged: privileged,
 	}, nil, "")
 	if err != nil {
 		return "", err
@@ -475,7 +474,6 @@ func (dr *dockerRunnerImpl) runDockerRunService(ctx context.Context, envvars map
 		Binds:        binds,
 		Privileged:   privileged,
 		PortBindings: portBindings,
-		NetworkMode:  "host",
 	}, nil, service.Name)
 	if err != nil {
 		return
