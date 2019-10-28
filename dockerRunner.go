@@ -488,6 +488,9 @@ func (dr *dockerRunnerImpl) runDockerRunService(ctx context.Context, envvars map
 	// 	return
 	// }
 
+	containerJSON, inspectErr := dr.dockerClient.ContainerInspect(ctx, resp.ID)
+	log.Debug().Err(inspectErr).Interface("containerJSON", containerJSON).Msgf("Inspecting container for service %v", service.Name)
+
 	containerKey := ""
 	if parentStage != nil {
 		containerKey += parentStage.Name + "-service-"
