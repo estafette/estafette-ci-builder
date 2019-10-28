@@ -649,21 +649,23 @@ func (dr *dockerRunnerImpl) stopServices(ctx context.Context, parentStage *manif
 				//do something here
 				err := dr.stopContainer(id)
 
-				// log tailing - finalize stage
-				status := "SUCCEEDED"
-				if err != nil {
-					status = "FAILED"
-				}
+				if dr.runAsJob {
+					// log tailing - finalize stage
+					status := "SUCCEEDED"
+					if err != nil {
+						status = "FAILED"
+					}
 
-				tailLogLine := contracts.TailLogLine{
-					Step:        s.Name,
-					ParentStage: parentStageName,
-					Type:        "service",
-					Status:      &status,
-				}
+					tailLogLine := contracts.TailLogLine{
+						Step:        s.Name,
+						ParentStage: parentStageName,
+						Type:        "service",
+						Status:      &status,
+					}
 
-				// log as json, to be tailed when looking at live logs from gui
-				log.Info().Interface("tailLogLine", tailLogLine).Msg("")
+					// log as json, to be tailed when looking at live logs from gui
+					log.Info().Interface("tailLogLine", tailLogLine).Msg("")
+				}
 			}
 		}(parentStage, s)
 	}

@@ -643,6 +643,8 @@ func (pr *pipelineRunnerImpl) runParallelStages(ctx context.Context, depth int, 
 		}(ctx, p, dir, envvars)
 	}
 
+	// TODO as soon as one parallel stage fails cancel the others
+
 	wg.Wait()
 
 	result.Canceled = pr.canceled
