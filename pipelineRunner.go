@@ -183,6 +183,11 @@ func (pr *pipelineRunnerImpl) runStage(ctx context.Context, depth int, runIndex 
 	// run commands in docker container
 	dockerRunStart := time.Now()
 
+	parentStageName = ""
+	if parentStage != nil {
+		parentStageName = parentStage.Name
+	}
+
 	if len(p.Services) > 0 {
 		// this stage has service containers, start them first
 		err = pr.runServices(ctx, &p, p.Services, envvars)
@@ -203,7 +208,12 @@ func (pr *pipelineRunnerImpl) runStage(ctx context.Context, depth int, runIndex 
 			log.Warn().Msgf("Can't run parallel stages nested inside nested stages")
 		}
 	} else {
-		result.LogLines, result.ExitCode, result.Canceled, result.DockerRunError = pr.dockerRunner.runDockerRun(ctx, depth, runIndex, dir, envvars, parentStage, p)
+		containerID, dockerRunError := pr.dockerRunner.runDockerRun(ctx, depth, runIndex, dir, envvars, parentStage, p)
+		if err != nil {
+			result.DockerRunError = dockerRunError
+		} else {
+			result.LogLines, result.ExitCode, result.Canceled, result.DockerRunError = pr.dockerRunner.tailDockerLogs(ctx, containerID, parentStageName, p.Name, "stage", depth, runIndex)
+		}
 	}
 
 	result.DockerRunDuration = time.Since(dockerRunStart)
@@ -258,27 +268,36 @@ func (pr *pipelineRunnerImpl) runService(ctx context.Context, envvars map[string
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "RunService")
 	defer span.Finish()
-	span.SetTag("service", service.ContainerImage)
+	span.SetTag("service", service.Name)
 
 	service.ContainerImage = os.Expand(service.ContainerImage, pr.envvarHelper.getEstafetteEnv)
 
-	log.Info().Msgf("[%v] Starting service container '%v'", parentStage.Name, service.ContainerImage)
+	parentStageName := ""
+	if parentStage != nil {
+		parentStageName = parentStage.Name
+	}
+
+	log.Info().Msgf("[%v] Starting service container '%v'", parentStageName, service.Name)
 
 	if service.ContainerImage != "" {
-		isDockerImagePulled := pr.dockerRunner.isDockerImagePulled(parentStage.Name, service.ContainerImage)
+		isDockerImagePulled := pr.dockerRunner.isDockerImagePulled(parentStageName, service.ContainerImage)
 		if !isDockerImagePulled || runtime.GOOS == "windows" {
 			// pull docker image
-			err = pr.dockerRunner.runDockerPull(ctx, parentStage.Name, service.ContainerImage)
+			err = pr.dockerRunner.runDockerPull(ctx, parentStageName, service.ContainerImage)
 		}
 	}
 
 	var wg sync.WaitGroup
 	wg.Add(1)
 
-	go func(ctx context.Context, envvars map[string]string, service manifest.EstafetteService) {
+	go func(ctx context.Context, envvars map[string]string, parentStageName string, service manifest.EstafetteService) {
 		defer wg.Done()
-		pr.dockerRunner.runDockerRunService(ctx, envvars, parentStage, service)
-	}(ctx, envvars, service)
+		containerID, err := pr.dockerRunner.runDockerRunService(ctx, envvars, parentStage, service)
+
+		if err == nil {
+			go pr.dockerRunner.tailDockerLogs(ctx, containerID, parentStageName, service.Name, "service", 1, 0)
+		}
+	}(ctx, envvars, parentStageName, service)
 
 	// wait until service container is running
 	wg.Wait()
