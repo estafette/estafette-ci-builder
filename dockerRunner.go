@@ -418,30 +418,20 @@ func (dr *dockerRunnerImpl) runDockerRunService(ctx context.Context, envvars map
 		config.Cmd = []string{service.Command}
 	}
 
-	portBindings := nat.PortMap{}
-	if len(service.Ports) > 0 {
-		config.ExposedPorts = nat.PortSet{}
-		for _, p := range service.Ports {
-			portAsString := fmt.Sprintf("%v", p.Port)
-			port, err := nat.NewPort("tcp", portAsString)
-			if err != nil {
-				continue
-			}
-			config.ExposedPorts[port] = struct{}{}
-
-			hostPortAsString := portAsString
-			if p.HostPort != nil {
-				hostPortAsString = fmt.Sprintf("%v", p.HostPort)
-			}
-
-			portBindings[port] = []nat.PortBinding{
-				{
-					HostIP:   "0.0.0.0",
-					HostPort: hostPortAsString,
-				},
-			}
+	// create exposed ports and portbindings
+	ports := []string{}
+	for _, p := range service.Ports {
+		hostPort := p.Port
+		if p.HostPort != nil {
+			hostPort = *p.HostPort
 		}
+		ports = append(ports, fmt.Sprintf("%v:%v", hostPort, p.Port))
 	}
+	exposedPorts, portBindings, err := nat.ParsePortSpecs(ports)
+	if err != nil {
+		return
+	}
+	config.ExposedPorts = exposedPorts
 
 	if trustedImage != nil && trustedImage.RunDocker {
 		if runtime.GOOS != "windows" {

@@ -113,21 +113,6 @@ stages:
               },
               {
                 "Name":"bake-estafette",
-                "Services": [
-                  {
-                    "Name": "database",
-                    "ContainerImage": "cockroachdb/cockroach:v19.1.5",
-                    "Command": "start --insecure --listen-addr=localhost",
-                    "Ports": [
-                      {
-                        "Port": 26257
-                      },
-                      {
-                        "Port": 8080
-                      }
-                    ]
-                  }
-                ],
                 "ContainerImage":"extensions/docker:dev",
                 "Shell":"/bin/sh",
                 "WorkingDirectory":"/estafette-work",
@@ -195,6 +180,39 @@ stages:
                     }
                   }
                 ]
+              },
+              {
+                "Name":"kubernetes-test",
+                "ContainerImage":"alpine/helm:2.14.0",
+                "Shell":"/bin/sh",
+                "WorkingDirectory":"/estafette-work",
+                "Commands": [
+                  "wget http://127.0.0.1:10080/config",
+                  "cp config ~/.kube/config",
+                  "helm init"
+                ],
+                "When":"status == ''succeeded''",
+                "EnvVars":null,
+                "AutoInjected":false,
+                "Retries":0,
+                "Services": [
+                  {
+                    "Name": "kubernetes-in-a-box",
+                    "ContainerImage": "bsycorp/kind:latest-1.15",
+                    "Ports": [
+                      {
+                        "Port": 8443
+                      },
+                      {
+                        "Port": 10080,
+                        "ReadinessProbe": {
+                          "Path": "/kubernetes-ready",
+                          "TimeoutSeconds": 60
+                        }
+                      }
+                    ]
+                  }
+                ]
               }
             ],
             "Releases":null
@@ -240,6 +258,10 @@ stages:
             },
             {
               "path":"extensions/git-clone"
+            },
+            {
+              "path":"bsycorp/kind",
+              "runPrivileged":true
             }
           ]
         }'

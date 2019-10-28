@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"runtime"
 	"sync"
@@ -381,6 +382,38 @@ func (pr *pipelineRunnerImpl) runService(ctx context.Context, envvars map[string
 	}
 
 	// wait for service to be ready if readiness probe is defined
+	for _, p := range service.Ports {
+		if p.Readiness != nil {
+			ready := make(chan bool, 1)
+			go func(p manifest.EstafetteServicePort) {
+				hostPort := p.Port
+				if p.HostPort != nil {
+					hostPort = *p.HostPort
+				}
+
+				readinessURL := fmt.Sprintf("http://localhost:%v%v", hostPort, p.Readiness.Path)
+
+				var httpClient = &http.Client{
+					Timeout: time.Second * 5,
+				}
+
+				resp, err := httpClient.Get(readinessURL)
+
+				for err != nil || resp.StatusCode != http.StatusOK {
+					time.Sleep(2 * time.Second)
+					resp, err = httpClient.Get(readinessURL)
+				}
+
+				ready <- true
+			}(*p)
+
+			select {
+			case <-ready:
+				continue
+			case <-time.After(time.Duration(p.Readiness.TimeoutSeconds) * time.Second):
+			}
+		}
+	}
 
 	result.DockerRunDuration = time.Since(dockerRunStart)
 
