@@ -494,12 +494,12 @@ func (pr *pipelineRunnerImpl) runStages(ctx context.Context, depth int, stages [
 	span, ctx := opentracing.StartSpanFromContext(ctx, "RunStages")
 	defer span.Finish()
 
-	err = dockerRunner.createBridgeNetwork(ctx)
+	err = pr.dockerRunner.createBridgeNetwork(ctx)
 	if err != nil {
 		return
 	}
 	defer func(ctx context.Context) {
-		_ = dockerRunner.deleteBridgeNetwork(ctx)
+		_ = pr.dockerRunner.deleteBridgeNetwork(ctx)
 	}(ctx)
 
 	// set default build status if not set
