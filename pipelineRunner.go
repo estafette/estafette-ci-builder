@@ -623,7 +623,7 @@ func (pr *pipelineRunnerImpl) runServices(ctx context.Context, parentStage *mani
 			defer wg.Done()
 
 			if parentStage != nil {
-				log.Info().Msgf("Starting services '%v' for stage '%v'...", s.ContainerImage, parentStage.Name)
+				log.Info().Msgf("Starting service '%v' for stage '%v'...", s.ContainerImage, parentStage.Name)
 			}
 
 			r, err := pr.runService(ctx, envvars, parentStage, *s)

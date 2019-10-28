@@ -126,19 +126,6 @@ stages:
                         "Port": 8080
                       }
                     ]
-                  },
-                  {
-                    "ContainerImage": "cockroachdb/cockroach:v19.1.5",
-                    "EnvVars": {},
-                    "Ports": [
-                      {
-                        "Port": 26257
-                      },
-                      {
-                        "Port": 8080
-                      }
-                    ],
-                    "Command": "start --insecure --listen-addr=localhost"
                   }
                 ],
                 "ContainerImage":"extensions/docker:dev",
