@@ -20,7 +20,6 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 	contracts "github.com/estafette/estafette-ci-contracts"
@@ -346,7 +345,7 @@ func (dr *dockerRunnerImpl) runDockerRun(ctx context.Context, depth int, runInde
 	resp, err := dr.dockerClient.ContainerCreate(ctx, &config, &container.HostConfig{
 		Binds:      binds,
 		Privileged: privileged,
-	}, &network.NetworkingConfig{}, "")
+	}, nil, "")
 	if err != nil {
 		return "", err
 	}
@@ -475,7 +474,7 @@ func (dr *dockerRunnerImpl) runDockerRunService(ctx context.Context, envvars map
 		Binds:        binds,
 		Privileged:   privileged,
 		PortBindings: portBindings,
-	}, &network.NetworkingConfig{}, service.Name)
+	}, nil, service.Name)
 	if err != nil {
 		return
 	}
