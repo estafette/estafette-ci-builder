@@ -20,6 +20,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 	contracts "github.com/estafette/estafette-ci-contracts"
@@ -344,9 +345,15 @@ func (dr *dockerRunnerImpl) runDockerRun(ctx context.Context, depth int, runInde
 	// create container
 	resp, err := dr.dockerClient.ContainerCreate(ctx, &config, &container.HostConfig{
 		Binds:       binds,
-		NetworkMode: container.NetworkMode(dr.networkBridgeID),
+		NetworkMode: container.NetworkMode(dr.networkBridge),
 		Privileged:  privileged,
-	}, nil, "")
+	}, &network.NetworkingConfig{
+		EndpointsConfig: map[string]*network.EndpointSettings{
+			dr.networkBridge: &network.EndpointSettings{
+				IPAMConfig: &network.EndpointIPAMConfig{},
+			},
+		},
+	}, "")
 	if err != nil {
 		return "", err
 	}
@@ -473,10 +480,16 @@ func (dr *dockerRunnerImpl) runDockerRunService(ctx context.Context, envvars map
 	// create container
 	resp, err := dr.dockerClient.ContainerCreate(ctx, &config, &container.HostConfig{
 		Binds:        binds,
-		NetworkMode:  container.NetworkMode(dr.networkBridgeID),
+		NetworkMode:  container.NetworkMode(dr.networkBridge),
 		Privileged:   privileged,
 		PortBindings: portBindings,
-	}, nil, service.Name)
+	}, &network.NetworkingConfig{
+		EndpointsConfig: map[string]*network.EndpointSettings{
+			dr.networkBridge: &network.EndpointSettings{
+				IPAMConfig: &network.EndpointIPAMConfig{},
+			},
+		},
+	}, service.Name)
 	if err != nil {
 		return
 	}
