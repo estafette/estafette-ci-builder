@@ -205,7 +205,7 @@ stages:
                       },
                       {
                         "Port": 10080,
-                        "ReadinessProbe": {
+                        "Readiness": {
                           "Path": "/kubernetes-ready",
                           "TimeoutSeconds": 60
                         }

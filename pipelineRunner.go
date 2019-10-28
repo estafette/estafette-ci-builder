@@ -391,6 +391,8 @@ func (pr *pipelineRunnerImpl) runService(ctx context.Context, envvars map[string
 				hostPort = *p.HostPort
 			}
 
+			log.Info().Msgf("[%v] Running readiness probe for service container '%v' against :%v%v", parentStageName, service.Name, hostPort, p.Readiness.Path)
+
 			go func(p manifest.EstafetteServicePort) {
 
 				readinessURL := fmt.Sprintf("http://localhost:%v%v", hostPort, p.Readiness.Path)
@@ -411,9 +413,11 @@ func (pr *pipelineRunnerImpl) runService(ctx context.Context, envvars map[string
 
 			select {
 			case <-ready:
+				log.Info().Msgf("[%v] Readiness probe for service container '%v' against :%v%v succeeded in time", parentStageName, service.Name, hostPort, p.Readiness.Path)
 				continue
 			case <-time.After(time.Duration(p.Readiness.TimeoutSeconds) * time.Second):
 				err = fmt.Errorf("Service %v is not ready after %v seconds on port %v and path %v", service.Name, p.Readiness.TimeoutSeconds, hostPort, p.Readiness.Path)
+				log.Error().Err(err).Msgf("[%v] Service container '%v' is not ready in time", parentStageName, service.Name)
 			}
 		}
 	}
