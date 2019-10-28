@@ -187,7 +187,8 @@ stages:
                 "Shell":"/bin/sh",
                 "WorkingDirectory":"/estafette-work",
                 "Commands": [
-                  "wget -O ~/.kube/config http://kubernetes-in-a-box:10080/config",
+                  "mkdir -p ~/.kube",
+                  "wget -O ~/.kube/config http://localhost:10080/config",
                   "helm init"
                 ],
                 "When":"status == ''succeeded''",
