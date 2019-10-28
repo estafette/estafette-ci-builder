@@ -368,6 +368,9 @@ func (dr *dockerRunnerImpl) runDockerRunService(ctx context.Context, envvars map
 	defer span.Finish()
 	span.SetTag("docker-image", service.ContainerImage)
 
+	networkResources, networkListError := dr.dockerClient.NetworkList(ctx, types.NetworkListOptions{})
+	log.Debug().Interface("networkResources", networkResources).Interface("networkListError", networkListError).Msg("Listing docker networks")
+
 	// check if image is trusted image
 	trustedImage := dr.config.GetTrustedImage(service.ContainerImage)
 
