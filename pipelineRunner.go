@@ -160,7 +160,7 @@ func (pr *pipelineRunnerImpl) runStage(ctx context.Context, depth int, runIndex 
 	}
 
 	if len(p.ParallelStages) > 0 {
-		if depth > 0 {
+		if depth == 0 {
 			innerResult, err := pr.runParallelStages(ctx, depth+1, &p, p.ParallelStages, dir, envvars)
 
 			result.ParallelStagesResults = innerResult.ParallelStagesResults
