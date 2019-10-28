@@ -21,7 +21,7 @@ func TestParsePortSpecs(t *testing.T) {
 	t.Run("ParsePortSpecs", func(t *testing.T) {
 
 		// act
-		exposedPorts, bindings, err := nat.ParsePortSpecs([]string{"8000:8080"})
+		exposedPorts, bindings, err := nat.ParsePortSpecs([]string{"127.0.0.1:8000:8080/tcp"})
 
 		if assert.Nil(t, err, "Error %v", err) {
 			assert.Equal(t, 1, len(exposedPorts))
@@ -29,7 +29,7 @@ func TestParsePortSpecs(t *testing.T) {
 			assert.Equal(t, 1, len(bindings))
 			assert.Equal(t, 1, len(bindings["8080/tcp"]))
 			assert.Equal(t, "8000", bindings["8080/tcp"][0].HostPort)
-			assert.Equal(t, "", bindings["8080/tcp"][0].HostIP)
+			assert.Equal(t, "127.0.0.1", bindings["8080/tcp"][0].HostIP)
 		}
 	})
 }
