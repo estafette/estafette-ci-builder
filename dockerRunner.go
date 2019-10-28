@@ -131,6 +131,11 @@ func (dr *dockerRunnerImpl) runDockerRun(ctx context.Context, depth int, runInde
 	defer span.Finish()
 	span.SetTag("docker-image", p.ContainerImage)
 
+	parentStageName := ""
+	if parentStage != nil {
+		parentStageName = parentStage.Name
+	}
+
 	logLines := make([]contracts.BuildLogLine, 0)
 	lineNumber := 1
 	exitCode := int64(-1)
@@ -433,10 +438,12 @@ func (dr *dockerRunnerImpl) runDockerRun(ctx context.Context, depth int, runInde
 		if dr.runAsJob {
 			// log as json, to be tailed when looking at live logs from gui
 			tailLogLine := contracts.TailLogLine{
-				Step:     p.Name,
-				Depth:    depth,
-				RunIndex: runIndex,
-				LogLine:  &logLineObject,
+				Step:        p.Name,
+				ParentStage: parentStageName,
+				Type:        "stage",
+				Depth:       depth,
+				RunIndex:    runIndex,
+				LogLine:     &logLineObject,
 			}
 			log.Info().Interface("tailLogLine", tailLogLine).Msg("")
 		} else {
@@ -478,6 +485,11 @@ func (dr *dockerRunnerImpl) runDockerRunService(ctx context.Context, envvars map
 	span, ctx := opentracing.StartSpanFromContext(ctx, "DockerRunService")
 	defer span.Finish()
 	span.SetTag("docker-image", service.ContainerImage)
+
+	parentStageName := ""
+	if parentStage != nil {
+		parentStageName = parentStage.Name
+	}
 
 	// check if image is trusted image
 	trustedImage := dr.config.GetTrustedImage(service.ContainerImage)
@@ -595,6 +607,122 @@ func (dr *dockerRunnerImpl) runDockerRunService(ctx context.Context, envvars map
 	// start container
 	if err := dr.dockerClient.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{}); err != nil {
 		return err
+	}
+
+	return nil
+
+	logLines := make([]contracts.BuildLogLine, 0)
+	lineNumber := 1
+	exitCode := int64(-1)
+
+	// follow logs
+	rc, err := dr.dockerClient.ContainerLogs(ctx, resp.ID, types.ContainerLogsOptions{
+		ShowStdout: true,
+		ShowStderr: true,
+		Timestamps: false,
+		Follow:     true,
+		Details:    false,
+	})
+	if err != nil {
+		return err
+	}
+	defer rc.Close()
+
+	// stream logs to stdout with buffering
+	in := bufio.NewReader(rc)
+	var readError error
+	for {
+
+		if dr.canceled {
+			log.Debug().Msgf("Cancelled tailing logs for container %v", dr.containerIDs[containerKey])
+			return err
+		}
+
+		// strip first 8 bytes, they contain docker control characters (https://github.com/docker/docker-ce/blob/v18.06.1-ce/components/engine/client/container_logs.go#L23-L32)
+		headers := make([]byte, 8)
+		n, readError := in.Read(headers)
+		if readError != nil {
+			break
+		}
+
+		if n < 8 {
+			// doesn't seem to be a valid header
+			continue
+		}
+
+		// inspect the docker log header for stream type
+
+		// first byte contains the streamType
+		// -   0: stdin (will be written on stdout)
+		// -   1: stdout
+		// -   2: stderr
+		// -   3: system error
+		streamType := ""
+		switch headers[0] {
+		case 1:
+			streamType = "stdout"
+		case 2:
+			streamType = "stderr"
+		default:
+			continue
+		}
+
+		// read the rest of the line until we hit end of line
+		logLine, readError := in.ReadBytes('\n')
+		if readError != nil {
+			break
+		}
+
+		// strip headers and obfuscate secret values
+		logLineString := dr.obfuscator.Obfuscate(string(logLine))
+
+		// create object for tailing logs and storing in the db when done
+		logLineObject := contracts.BuildLogLine{
+			LineNumber: lineNumber,
+			Timestamp:  time.Now().UTC(),
+			StreamType: streamType,
+			Text:       logLineString,
+		}
+		lineNumber++
+
+		if dr.runAsJob {
+			// log as json, to be tailed when looking at live logs from gui
+			tailLogLine := contracts.TailLogLine{
+				Step:        service.Name,
+				ParentStage: parentStageName,
+				Type:        "service",
+				LogLine:     &logLineObject,
+			}
+			log.Info().Interface("tailLogLine", tailLogLine).Msg("")
+		} else {
+			log.Info().Msgf("[%v] %v", service.Name, logLineString)
+		}
+
+		// add to log lines send when build/release job is finished
+		logLines = append(logLines, logLineObject)
+	}
+
+	if readError != nil && readError != io.EOF {
+		log.Error().Msgf("[%v] Error: %v", service.Name, readError)
+		return readError
+	}
+
+	// wait for container to stop running
+	resultC, errC := dr.dockerClient.ContainerWait(ctx, resp.ID, container.WaitConditionNotRunning)
+
+	select {
+	case result := <-resultC:
+		exitCode = result.StatusCode
+	case err = <-errC:
+		log.Warn().Err(err).Msgf("Container %v exited with error", dr.containerIDs[containerKey])
+		return err
+	}
+
+	// clear container id
+	delete(dr.containerIDs, containerKey)
+
+	if exitCode != 0 {
+		return fmt.Errorf("Failed with exit code: %v", exitCode)
 	}
 
 	return nil

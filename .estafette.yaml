@@ -115,16 +115,15 @@ stages:
                 "Name":"bake-estafette",
                 "Services": [
                   {
-                    "ContainerImage": "mysql:latest",
-                    "EnvVars": {
-                      "MYSQL_ROOT_PASSWORD": "my-secret-pw"
-                    },
+                    "Name": "database",
+                    "ContainerImage": "cockroachdb/cockroach:v19.1.5",
+                    "Command": "start --insecure --listen-addr=localhost",
                     "Ports": [
                       {
-                        "Port": 3306
+                        "Port": 26257
                       },
                       {
-                        "Port": 33060
+                        "Port": 8080
                       }
                     ]
                   },

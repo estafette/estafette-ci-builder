@@ -61,6 +61,7 @@ type estafetteStageRunResult struct {
 	LogLines              []contracts.BuildLogLine
 	Canceled              bool
 	ParallelStagesResults []estafetteStageRunResult
+	ServicesResults       []estafetteStageRunResult
 }
 
 // Errors combines the different type of errors that occurred during this pipeline stage
@@ -83,6 +84,11 @@ func (result *estafetteStageRunResult) Errors() (errors []error) {
 			errors = append(errors, pr.Errors()...)
 		}
 	}
+	for _, s := range result.ServicesResults {
+		if s.HasErrors() {
+			errors = append(errors, s.Errors()...)
+		}
+	}
 
 	return errors
 }
@@ -101,6 +107,11 @@ func (pr *pipelineRunnerImpl) runStage(ctx context.Context, depth int, runIndex 
 	defer span.Finish()
 	span.SetTag("stage", p.Name)
 
+	parentStageName := ""
+	if parentStage != nil {
+		parentStageName = parentStage.Name
+	}
+
 	p.ContainerImage = os.Expand(p.ContainerImage, pr.envvarHelper.getEstafetteEnv)
 
 	result.Stage = p
@@ -115,6 +126,24 @@ func (pr *pipelineRunnerImpl) runStage(ctx context.Context, depth int, runIndex 
 		result.IsTrustedImage = pr.dockerRunner.isTrustedImage(p.Name, p.ContainerImage)
 
 		if !result.IsDockerImagePulled || runtime.GOOS == "windows" {
+
+			// log tailing - start stage as pending
+			if pr.runAsJob {
+				status := "PENDING"
+				tailLogLine := contracts.TailLogLine{
+					Step:         p.Name,
+					ParentStage:  parentStageName,
+					Type:         "stage",
+					Depth:        depth,
+					RunIndex:     runIndex,
+					Image:        getBuildLogStepDockerImage(result),
+					AutoInjected: &result.Stage.AutoInjected,
+					Status:       &status,
+				}
+
+				// log as json, to be tailed when looking at live logs from gui
+				log.Info().Interface("tailLogLine", tailLogLine).Msg("")
+			}
 
 			// pull docker image
 			dockerPullStart := time.Now()
@@ -135,12 +164,16 @@ func (pr *pipelineRunnerImpl) runStage(ctx context.Context, depth int, runIndex 
 
 	// log tailing - start stage
 	if pr.runAsJob {
+		status := "RUNNING"
 		tailLogLine := contracts.TailLogLine{
 			Step:         p.Name,
+			ParentStage:  parentStageName,
+			Type:         "stage",
 			Depth:        depth,
 			RunIndex:     runIndex,
 			Image:        getBuildLogStepDockerImage(result),
 			AutoInjected: &result.Stage.AutoInjected,
+			Status:       &status,
 		}
 
 		// log as json, to be tailed when looking at live logs from gui
@@ -187,12 +220,14 @@ func (pr *pipelineRunnerImpl) runStage(ctx context.Context, depth int, runIndex 
 		}
 
 		tailLogLine := contracts.TailLogLine{
-			Step:     p.Name,
-			Depth:    depth,
-			RunIndex: runIndex,
-			Duration: &result.DockerRunDuration,
-			ExitCode: &result.ExitCode,
-			Status:   &status,
+			Step:        p.Name,
+			ParentStage: parentStageName,
+			Type:        "stage",
+			Depth:       depth,
+			RunIndex:    runIndex,
+			Duration:    &result.DockerRunDuration,
+			ExitCode:    &result.ExitCode,
+			Status:      &status,
 		}
 
 		// log as json, to be tailed when looking at live logs from gui
