@@ -256,11 +256,6 @@ func (pr *pipelineRunnerImpl) runStage(ctx context.Context, depth int, runIndex 
 			if dockerRunError == nil {
 				result.LogLines, result.ExitCode, result.Canceled, result.DockerRunError = pr.dockerRunner.tailDockerLogs(ctx, containerID, parentStageName, p.Name, "stage", depth, runIndex)
 			}
-
-			removeErr := pr.dockerRunner.removeContainer(containerID)
-			if removeErr != nil {
-				log.Warn().Err(removeErr).Msgf("Failed removing stage %v container with id %v", p.Name, containerID)
-			}
 		}
 	}
 
