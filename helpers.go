@@ -121,6 +121,24 @@ func transformStageRunResultToBuildLogSteps(result estafetteStageRunResult) (bui
 		buildLogStep.NestedSteps = append(buildLogStep.NestedSteps, transformStageRunResultToBuildLogSteps(r))
 	}
 
+	for _, s := range result.ServicesResults {
+		buildLogStep.Services = append(buildLogStep.Services, transformServiceRunResultToBuildLogSteps(s))
+	}
+
+	return
+}
+
+func transformServiceRunResultToBuildLogSteps(result estafetteServiceRunResult) (buildLogStep contracts.BuildLogStep) {
+
+	buildLogStep = contracts.BuildLogStep{
+		Step:     result.Service.Name,
+		Image:    getBuildLogStepDockerImageForService(result),
+		Duration: result.DockerRunDuration,
+		LogLines: result.LogLines,
+		ExitCode: result.ExitCode,
+		Status:   result.Status,
+	}
+
 	return
 }
 
@@ -131,6 +149,35 @@ func getBuildLogStepDockerImage(result estafetteStageRunResult) *contracts.Build
 	pullError := ""
 	if result.Stage.ContainerImage != "" {
 		containerImageArray := strings.Split(result.Stage.ContainerImage, ":")
+		containerImageName = containerImageArray[0]
+		containerImageTag = "latest"
+		if len(containerImageArray) > 1 {
+			containerImageTag = containerImageArray[1]
+		}
+
+		if result.DockerPullError != nil {
+			pullError = result.DockerPullError.Error()
+		}
+	}
+
+	return &contracts.BuildLogStepDockerImage{
+		Name:         containerImageName,
+		Tag:          containerImageTag,
+		IsPulled:     result.IsDockerImagePulled,
+		ImageSize:    result.DockerImageSize,
+		PullDuration: result.DockerPullDuration,
+		Error:        pullError,
+		IsTrusted:    result.IsTrustedImage,
+	}
+}
+
+func getBuildLogStepDockerImageForService(result estafetteServiceRunResult) *contracts.BuildLogStepDockerImage {
+
+	containerImageName := ""
+	containerImageTag := ""
+	pullError := ""
+	if result.Service.ContainerImage != "" {
+		containerImageArray := strings.Split(result.Service.ContainerImage, ":")
 		containerImageName = containerImageArray[0]
 		containerImageTag = "latest"
 		if len(containerImageArray) > 1 {
