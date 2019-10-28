@@ -26,7 +26,7 @@ func TestRunStages(t *testing.T) {
 		// act
 		_, err := pipelineRunner.runStages(context.Background(), 0, manifest.Stages, dir, envvars)
 
-		assert.NotNil(t, err)
+		assert.NotNil(t, err, "Error: %v", err)
 	})
 
 	t.Run("ReturnsResultWithInnerResultForEachStageInManifest", func(t *testing.T) {
@@ -202,7 +202,7 @@ func TestRunStages(t *testing.T) {
 		envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
 		cmd := "exit 1"
 		manifest := &mft.EstafetteManifest{}
-		manifest.Stages = append(manifest.Stages, &mft.EstafetteStage{Name: "TestRetryStep", ContainerImage: "busybox:latest", Shell: "/bin/sh", WorkingDirectory: "/estafette-work", Retries: 1, Commands: []string{cmd}, When: "status == 'succeeded'"})
+		manifest.Stages = append(manifest.Stages, &mft.EstafetteStage{Name: "TestRetryStep2", ContainerImage: "busybox:latest", Shell: "/bin/sh", WorkingDirectory: "/estafette-work", Retries: 1, Commands: []string{cmd}, When: "status == 'succeeded'"})
 		envvars := map[string]string{}
 		dir, _ := os.Getwd()
 

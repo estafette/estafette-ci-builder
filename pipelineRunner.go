@@ -256,6 +256,11 @@ func (pr *pipelineRunnerImpl) runStage(ctx context.Context, depth int, runIndex 
 			if dockerRunError == nil {
 				result.LogLines, result.ExitCode, result.Canceled, result.DockerRunError = pr.dockerRunner.tailDockerLogs(ctx, containerID, parentStageName, p.Name, "stage", depth, runIndex)
 			}
+
+			removeErr := pr.dockerRunner.removeContainer(containerID)
+			if removeErr != nil {
+				log.Warn().Err(removeErr).Msgf("Failed removing stage %v container with id %v", p.Name, containerID)
+			}
 		}
 	}
 
@@ -395,7 +400,7 @@ func (pr *pipelineRunnerImpl) runService(ctx context.Context, envvars map[string
 
 			go func(p manifest.EstafetteServicePort) {
 
-				readinessURL := fmt.Sprintf("http://localhost:%v%v", hostPort, p.Readiness.Path)
+				readinessURL := fmt.Sprintf("http://%v:%v%v", service.Name, hostPort, p.Readiness.Path)
 
 				var httpClient = &http.Client{
 					Timeout: time.Second * 5,
@@ -493,6 +498,14 @@ func (pr *pipelineRunnerImpl) runStages(ctx context.Context, depth int, stages [
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "RunStages")
 	defer span.Finish()
+
+	err = dockerRunner.createBridgeNetwork(ctx)
+	if err != nil {
+		return
+	}
+	defer func(ctx context.Context) {
+		_ = dockerRunner.deleteBridgeNetwork(ctx)
+	}(ctx)
 
 	// set default build status if not set
 	err = pr.envvarHelper.initBuildStatus()

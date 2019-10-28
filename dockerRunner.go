@@ -47,6 +47,9 @@ type DockerRunner interface {
 	isTrustedImage(stageName string, containerImage string) bool
 	stopContainerOnCancellation()
 	deleteContainerID(containerID string)
+	removeContainer(containerID string) error
+	createBridgeNetwork(ctx context.Context) error
+	deleteBridgeNetwork(ctx context.Context) error
 }
 
 type dockerRunnerImpl struct {
@@ -58,6 +61,8 @@ type dockerRunnerImpl struct {
 	cancellationChannel chan struct{}
 	containerIDs        map[string]string
 	canceled            bool
+	networkBridge       string
+	networkBridgeID     string
 }
 
 // NewDockerRunner returns a new DockerRunner
@@ -69,6 +74,7 @@ func NewDockerRunner(envvarHelper EnvvarHelper, obfuscator Obfuscator, runAsJob 
 		config:              config,
 		cancellationChannel: cancellationChannel,
 		containerIDs:        make(map[string]string, 0),
+		networkBridge:       "estafette",
 	}
 }
 
@@ -340,9 +346,16 @@ func (dr *dockerRunnerImpl) runDockerRun(ctx context.Context, depth int, runInde
 	resp, err := dr.dockerClient.ContainerCreate(ctx, &config, &container.HostConfig{
 		Binds:      binds,
 		Privileged: privileged,
-	}, &network.NetworkingConfig{}, "")
+	}, &network.NetworkingConfig{}, p.Name)
 	if err != nil {
 		return "", err
+	}
+
+	// connect to user-defined network
+	err = dr.dockerClient.NetworkConnect(ctx, dr.networkBridgeID, resp.ID, nil)
+	if err != nil {
+		log.Error().Err(err).Msgf("Failed connecting container %v to network %v", resp.ID, dr.networkBridgeID)
+		return
 	}
 
 	containerKey := ""
@@ -461,8 +474,15 @@ func (dr *dockerRunnerImpl) runDockerRunService(ctx context.Context, envvars map
 		Binds:        binds,
 		Privileged:   privileged,
 		PortBindings: portBindings,
-	}, &network.NetworkingConfig{}, "")
+	}, &network.NetworkingConfig{}, service.Name)
 	if err != nil {
+		return
+	}
+
+	// connect to user-defined network
+	err = dr.dockerClient.NetworkConnect(ctx, dr.networkBridgeID, resp.ID, nil)
+	if err != nil {
+		log.Error().Err(err).Msgf("Failed connecting container %v to network %v", resp.ID, dr.networkBridgeID)
 		return
 	}
 
@@ -470,7 +490,7 @@ func (dr *dockerRunnerImpl) runDockerRunService(ctx context.Context, envvars map
 	if parentStage != nil {
 		containerKey += parentStage.Name + "-service-"
 	}
-	containerKey += service.ContainerImage
+	containerKey += service.Name
 
 	containerID = resp.ID
 	dr.containerIDs[containerKey] = resp.ID
@@ -624,19 +644,19 @@ func (dr *dockerRunnerImpl) stopServices(ctx context.Context, parentStage *manif
 
 			if s.ContinueAfterStage {
 				if parentStage != nil {
-					log.Info().Msgf("Not stopping service '%v' for stage '%v', it has continueAfterStage = true...", s.ContainerImage, parentStage.Name)
+					log.Info().Msgf("Not stopping service '%v' for stage '%v', it has continueAfterStage = true...", s.Name, parentStage.Name)
 				}
 				return
 			}
 			if parentStage != nil {
-				log.Info().Msgf("Stopping service '%v' for stage '%v'...", s.ContainerImage, parentStage.Name)
+				log.Info().Msgf("Stopping service '%v' for stage '%v'...", s.Name, parentStage.Name)
 			}
 
 			containerKey := ""
 			if parentStage != nil {
 				containerKey += parentStage.Name + "-service-"
 			}
-			containerKey += s.ContainerImage
+			containerKey += s.Name
 
 			if id, ok := dr.containerIDs[containerKey]; ok {
 				//do something here
@@ -659,6 +679,12 @@ func (dr *dockerRunnerImpl) stopServices(ctx context.Context, parentStage *manif
 					// log as json, to be tailed when looking at live logs from gui
 					log.Info().Interface("tailLogLine", tailLogLine).Msg("")
 				}
+
+				removeErr := dr.removeContainer(id)
+				if removeErr != nil {
+					log.Warn().Err(removeErr).Msgf("Failed removing service %v container with id %v", s.Name, id)
+				}
+
 			}
 		}(parentStage, s)
 	}
@@ -818,4 +844,50 @@ func (dr *dockerRunnerImpl) deleteContainerID(containerID string) {
 			return
 		}
 	}
+}
+
+func (dr *dockerRunnerImpl) removeContainer(containerID string) error {
+
+	err := dr.dockerClient.ContainerRemove(context.Background(), containerID, types.ContainerRemoveOptions{
+		Force: true,
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (dr *dockerRunnerImpl) createBridgeNetwork(ctx context.Context) error {
+
+	log.Info().Msgf("Creating docker network %v...", dr.networkBridge)
+
+	resp, err := dr.dockerClient.NetworkCreate(ctx, dr.networkBridge, types.NetworkCreate{})
+
+	if err != nil {
+		log.Error().Err(err).Msgf("Failed creating docker network %v", dr.networkBridge)
+		return err
+	}
+
+	dr.networkBridgeID = resp.ID
+
+	log.Info().Msgf("Succesfully created docker network %v", dr.networkBridge)
+	return nil
+}
+
+func (dr *dockerRunnerImpl) deleteBridgeNetwork(ctx context.Context) error {
+
+	if dr.networkBridgeID != "" {
+		log.Info().Msgf("Deleting docker network %v with id %v...", dr.networkBridge, dr.networkBridgeID)
+
+		err := dr.dockerClient.NetworkRemove(ctx, dr.networkBridgeID)
+
+		if err != nil {
+			log.Error().Err(err).Msgf("Failed deleting docker network %v with id %v", dr.networkBridge, dr.networkBridgeID)
+			return err
+		}
+
+		log.Info().Msgf("Succesfully deleted docker network %v with id %v", dr.networkBridge, dr.networkBridgeID)
+	}
+
+	return nil
 }
