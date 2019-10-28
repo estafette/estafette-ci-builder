@@ -385,11 +385,13 @@ func (pr *pipelineRunnerImpl) runService(ctx context.Context, envvars map[string
 	for _, p := range service.Ports {
 		if p.Readiness != nil {
 			ready := make(chan bool, 1)
+
+			hostPort := p.Port
+			if p.HostPort != nil {
+				hostPort = *p.HostPort
+			}
+
 			go func(p manifest.EstafetteServicePort) {
-				hostPort := p.Port
-				if p.HostPort != nil {
-					hostPort = *p.HostPort
-				}
 
 				readinessURL := fmt.Sprintf("http://localhost:%v%v", hostPort, p.Readiness.Path)
 
@@ -411,6 +413,7 @@ func (pr *pipelineRunnerImpl) runService(ctx context.Context, envvars map[string
 			case <-ready:
 				continue
 			case <-time.After(time.Duration(p.Readiness.TimeoutSeconds) * time.Second):
+				err = fmt.Errorf("Service %v is not ready after %v seconds on port %v and path %v", service.Name, p.Readiness.TimeoutSeconds, hostPort, p.Readiness.Path)
 			}
 		}
 	}
