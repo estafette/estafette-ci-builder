@@ -404,6 +404,7 @@ func (pr *pipelineRunnerImpl) runService(ctx context.Context, envvars map[string
 				resp, err := httpClient.Get(readinessURL)
 
 				for err != nil || resp.StatusCode != http.StatusOK {
+					log.Warn().Err(err).Msgf("[%v][%v] Readiness probe failure", parentStageName, service.Name)
 					time.Sleep(2 * time.Second)
 					resp, err = httpClient.Get(readinessURL)
 				}
