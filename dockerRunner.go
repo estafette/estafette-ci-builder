@@ -447,6 +447,7 @@ func (dr *dockerRunnerImpl) runDockerRunService(ctx context.Context, envvars map
 	if err != nil {
 		return
 	}
+	log.Debug().Interface("exposedPorts", exposedPorts).Interface("portBindings", portBindings).Interface("ports", ports).Msgf("Exposing ports...")
 	config.ExposedPorts = exposedPorts
 
 	if trustedImage != nil && trustedImage.RunDocker {
