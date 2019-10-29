@@ -188,7 +188,7 @@ stages:
                 "WorkingDirectory":"/estafette-work",
                 "Commands": [
                   "mkdir -p ~/.kube",
-                  "wget -O ~/.kube/config http://localhost:10080/config",
+                  "wget -O ~/.kube/config http://kind:10080/config",
                   "helm init"
                 ],
                 "When":"status == ''succeeded''",
@@ -197,7 +197,7 @@ stages:
                 "Retries":0,
                 "Services": [
                   {
-                    "Name": "kubernetes-in-a-box",
+                    "Name": "kind",
                     "ContainerImage": "bsycorp/kind:latest-1.15",
                     "Ports": [
                       {

@@ -344,26 +344,19 @@ func (dr *dockerRunnerImpl) runDockerRun(ctx context.Context, depth int, runInde
 
 	// create container
 	resp, err := dr.dockerClient.ContainerCreate(ctx, &config, &container.HostConfig{
-		Binds:       binds,
-		NetworkMode: container.NetworkMode(dr.networkBridge),
-		Privileged:  privileged,
-	}, &network.NetworkingConfig{
-		EndpointsConfig: map[string]*network.EndpointSettings{
-			dr.networkBridge: &network.EndpointSettings{
-				IPAMConfig: &network.EndpointIPAMConfig{},
-			},
-		},
-	}, "")
+		Binds:      binds,
+		Privileged: privileged,
+	}, &network.NetworkingConfig{}, "")
 	if err != nil {
 		return "", err
 	}
 
-	// // connect to user-defined network
-	// err = dr.dockerClient.NetworkConnect(ctx, dr.networkBridgeID, resp.ID, nil)
-	// if err != nil {
-	// 	log.Error().Err(err).Msgf("Failed connecting container %v to network %v", resp.ID, dr.networkBridgeID)
-	// 	return
-	// }
+	// connect to user-defined network
+	err = dr.dockerClient.NetworkConnect(ctx, dr.networkBridgeID, resp.ID, nil)
+	if err != nil {
+		log.Error().Err(err).Msgf("Failed connecting container %v to network %v", resp.ID, dr.networkBridgeID)
+		return
+	}
 
 	containerKey := ""
 	if parentStage != nil {
@@ -378,6 +371,12 @@ func (dr *dockerRunnerImpl) runDockerRun(ctx context.Context, depth int, runInde
 	if err = dr.dockerClient.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{}); err != nil {
 		return
 	}
+
+	containerJSON, inspectErr := dr.dockerClient.ContainerInspect(ctx, resp.ID)
+	log.Debug().Err(inspectErr).Interface("containerJSON", containerJSON).Msgf("Inspecting container for stage %v", p.Name)
+
+	networkResource, inspectErr := dr.dockerClient.NetworkInspect(ctx, dr.networkBridgeID, types.NetworkInspectOptions{})
+	log.Debug().Err(inspectErr).Interface("networkResource", networkResource).Msgf("Inspecting network with id %v", dr.networkBridgeID)
 
 	return
 }
@@ -480,29 +479,19 @@ func (dr *dockerRunnerImpl) runDockerRunService(ctx context.Context, envvars map
 	// create container
 	resp, err := dr.dockerClient.ContainerCreate(ctx, &config, &container.HostConfig{
 		Binds:        binds,
-		NetworkMode:  container.NetworkMode(dr.networkBridge),
 		Privileged:   privileged,
 		PortBindings: portBindings,
-	}, &network.NetworkingConfig{
-		EndpointsConfig: map[string]*network.EndpointSettings{
-			dr.networkBridge: &network.EndpointSettings{
-				IPAMConfig: &network.EndpointIPAMConfig{},
-			},
-		},
-	}, service.Name)
+	}, &network.NetworkingConfig{}, service.Name)
 	if err != nil {
 		return
 	}
 
-	// // connect to user-defined network
-	// err = dr.dockerClient.NetworkConnect(ctx, dr.networkBridgeID, resp.ID, nil)
-	// if err != nil {
-	// 	log.Error().Err(err).Msgf("Failed connecting container %v to network %v", resp.ID, dr.networkBridgeID)
-	// 	return
-	// }
-
-	containerJSON, inspectErr := dr.dockerClient.ContainerInspect(ctx, resp.ID)
-	log.Debug().Err(inspectErr).Interface("containerJSON", containerJSON).Msgf("Inspecting container for service %v", service.Name)
+	// connect to user-defined network
+	err = dr.dockerClient.NetworkConnect(ctx, dr.networkBridgeID, resp.ID, nil)
+	if err != nil {
+		log.Error().Err(err).Msgf("Failed connecting container %v to network %v", resp.ID, dr.networkBridgeID)
+		return
+	}
 
 	containerKey := ""
 	if parentStage != nil {
@@ -517,6 +506,12 @@ func (dr *dockerRunnerImpl) runDockerRunService(ctx context.Context, envvars map
 	if err = dr.dockerClient.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{}); err != nil {
 		return
 	}
+
+	containerJSON, inspectErr := dr.dockerClient.ContainerInspect(ctx, resp.ID)
+	log.Debug().Err(inspectErr).Interface("containerJSON", containerJSON).Msgf("Inspecting container for service %v", service.Name)
+
+	networkResource, inspectErr := dr.dockerClient.NetworkInspect(ctx, dr.networkBridgeID, types.NetworkInspectOptions{})
+	log.Debug().Err(inspectErr).Interface("networkResource", networkResource).Msgf("Inspecting network with id %v", dr.networkBridgeID)
 
 	return
 }
