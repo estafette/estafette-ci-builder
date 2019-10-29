@@ -86,6 +86,9 @@ stages:
                 "Shell":"/bin/sh",
                 "WorkingDirectory":"/estafette-work",
                 "Commands": [
+                  "route",
+                  "ip addr show eth0",
+                  "cat /etc/hosts",
                   "apk add curl",
                   "curl -v --connect-timeout 2 --retry 10 --retry-delay 2 --retry-connrefused http://nginx:8080/"
                 ],
