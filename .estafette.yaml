@@ -87,7 +87,7 @@ stages:
                 "WorkingDirectory":"/estafette-work",
                 "Commands": [
                   "apk add curl",
-                  "curl -v --connect-timeout 2 --retry 10 --retry-connrefuse http://nginx:8080/"
+                  "curl -v --connect-timeout 2 --retry 10 --retry-delay 2 --retry-connrefused http://nginx:8080/"
                 ],
                 "When":"status == ''succeeded''",
                 "EnvVars":null,
