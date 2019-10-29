@@ -397,7 +397,7 @@ func (pr *pipelineRunnerImpl) runService(ctx context.Context, envvars map[string
 
 			go func(p manifest.EstafetteServicePort, ipAddress string) {
 
-				readinessURL := fmt.Sprintf("http://%v:%v%v", ipAddress, hostPort, p.Readiness.Path)
+				readinessURL := fmt.Sprintf("http://%v:%v%v", "localhost", hostPort, p.Readiness.Path)
 
 				var httpClient = &http.Client{
 					Timeout: time.Second * 5,
