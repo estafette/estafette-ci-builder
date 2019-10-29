@@ -55,6 +55,8 @@ stages:
         '{
           "action":"build",
           "track":"dev",
+          "dindMtu":"1460",
+          "dindBip":"192.168.1.1/24",
           "manifest":{
             "Builder":{
               "Track":"stable",

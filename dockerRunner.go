@@ -712,16 +712,21 @@ func (dr *dockerRunnerImpl) stopServices(ctx context.Context, parentStage *manif
 
 func (dr *dockerRunnerImpl) startDockerDaemon() error {
 
-	mtu := "1500"
-	if dr.config.DockerDaemonMTU != nil && *dr.config.DockerDaemonMTU != "" {
-		mtu = *dr.config.DockerDaemonMTU
-	}
-
 	// dockerd --host=unix:///var/run/docker.sock --host=tcp://0.0.0.0:2375 --mtu=1500 &
 	log.Debug().Msg("Starting docker daemon...")
-	args := []string{"--host=unix:///var/run/docker.sock", "--host=tcp://0.0.0.0:2375", "--bip=192.168.1.5/24", fmt.Sprintf("--mtu=%v", mtu)}
+	args := []string{"--host=unix:///var/run/docker.sock", "--host=tcp://0.0.0.0:2375"}
 
-	// if a registry mirror is set in config configured docker daemon to use it
+	// if an mtu is configured pass it to the docker daemon
+	if dr.config.DockerDaemonMTU != nil && *dr.config.DockerDaemonMTU != "" {
+		args = append(args, fmt.Sprintf("--mtu=%v", *dr.config.DockerDaemonMTU))
+	}
+
+	// if a bip is configured pass it to the docker daemon
+	if dr.config.DockerDaemonBIP != nil && *dr.config.DockerDaemonBIP != "" {
+		args = append(args, fmt.Sprintf("--bip=%v", *dr.config.DockerDaemonBIP))
+	}
+
+	// if a registry mirror is configured pass it to the docker daemon
 	if dr.config.RegistryMirror != nil && *dr.config.RegistryMirror != "" {
 		args = append(args, fmt.Sprintf("--registry-mirror=%v", *dr.config.RegistryMirror))
 	}
