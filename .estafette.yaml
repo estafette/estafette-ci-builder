@@ -81,14 +81,13 @@ stages:
             "GlobalEnvVars":null,
             "Stages":[
               {
-                "Name":"kubernetes-test",
-                "ContainerImage":"alpine/helm:2.14.0",
+                "Name":"services-test",
+                "ContainerImage":"alpine:latest",
                 "Shell":"/bin/sh",
                 "WorkingDirectory":"/estafette-work",
                 "Commands": [
-                  "mkdir -p ~/.kube",
-                  "wget -q -O - http://kubernetes:10080/config | sed -e \"s/localhost/kubernetes/\" > ~/.kube/config",
-                  "helm init"
+                  "apk add curl",
+                  "curl -v http://nginx:8080/"
                 ],
                 "When":"status == ''succeeded''",
                 "EnvVars":null,
@@ -96,17 +95,14 @@ stages:
                 "Retries":0,
                 "Services": [
                   {
-                    "Name": "kubernetes",
-                    "ContainerImage": "bsycorp/kind:latest-1.15",
+                    "Name": "nginx",
+                    "ContainerImage": "nginx:alpine",
                     "Ports": [
                       {
-                        "Port": 8443
-                      },
-                      {
-                        "Port": 10080,
+                        "Port": 8080,
                         "Readiness": {
-                          "Path": "/kubernetes-ready",
-                          "TimeoutSeconds": 120
+                          "Path": "/",
+                          "TimeoutSeconds": 30
                         }
                       }
                     ]
