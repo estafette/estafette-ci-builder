@@ -79,6 +79,39 @@ stages:
             "GlobalEnvVars":null,
             "Stages":[
               {
+                "Name":"kubernetes-test",
+                "ContainerImage":"alpine/helm:2.14.0",
+                "Shell":"/bin/sh",
+                "WorkingDirectory":"/estafette-work",
+                "Commands": [
+                  "mkdir -p ~/.kube",
+                  "wget -q -O - http://kubernetes:10080/config | sed -e \"s/localhost/kubernetes/\" > ~/.kube/config",
+                  "helm init"
+                ],
+                "When":"status == ''succeeded''",
+                "EnvVars":null,
+                "AutoInjected":false,
+                "Retries":0,
+                "Services": [
+                  {
+                    "Name": "kubernetes",
+                    "ContainerImage": "bsycorp/kind:latest-1.15",
+                    "Ports": [
+                      {
+                        "Port": 8443
+                      },
+                      {
+                        "Port": 10080,
+                        "Readiness": {
+                          "Path": "/kubernetes-ready",
+                          "TimeoutSeconds": 120
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
                 "Name":"git-clone",
                 "ContainerImage":"extensions/git-clone:dev",
                 "Shell":"/bin/sh",
@@ -178,39 +211,6 @@ stages:
                       "path":"./publish",
                       "repositories":["estafette"]
                     }
-                  }
-                ]
-              },
-              {
-                "Name":"kubernetes-test",
-                "ContainerImage":"alpine/helm:2.14.0",
-                "Shell":"/bin/sh",
-                "WorkingDirectory":"/estafette-work",
-                "Commands": [
-                  "mkdir -p ~/.kube",
-                  "wget -q -O - http://kubernetes:10080/config | sed -e \"s/localhost/kubernetes/\" > ~/.kube/config",
-                  "helm init"
-                ],
-                "When":"status == ''succeeded''",
-                "EnvVars":null,
-                "AutoInjected":false,
-                "Retries":0,
-                "Services": [
-                  {
-                    "Name": "kubernetes",
-                    "ContainerImage": "bsycorp/kind:latest-1.15",
-                    "Ports": [
-                      {
-                        "Port": 8443
-                      },
-                      {
-                        "Port": 10080,
-                        "Readiness": {
-                          "Path": "/kubernetes-ready",
-                          "TimeoutSeconds": 120
-                        }
-                      }
-                    ]
                   }
                 ]
               }
