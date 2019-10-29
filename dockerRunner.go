@@ -719,7 +719,7 @@ func (dr *dockerRunnerImpl) startDockerDaemon() error {
 
 	// dockerd --host=unix:///var/run/docker.sock --host=tcp://0.0.0.0:2375 --mtu=1500 &
 	log.Debug().Msg("Starting docker daemon...")
-	args := []string{"--host=unix:///var/run/docker.sock", "--host=tcp://0.0.0.0:2375", fmt.Sprintf("--mtu=%v", mtu)}
+	args := []string{"--host=unix:///var/run/docker.sock", "--host=tcp://0.0.0.0:2375", "--bip=192.168.1.5/24", fmt.Sprintf("--mtu=%v", mtu)}
 
 	// if a registry mirror is set in config configured docker daemon to use it
 	if dr.config.RegistryMirror != nil && *dr.config.RegistryMirror != "" {
