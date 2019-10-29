@@ -36,7 +36,7 @@ type DockerRunner interface {
 	runDockerPull(ctx context.Context, stageName string, containerImage string) error
 	getDockerImageSize(containerImage string) (int64, error)
 	runDockerRun(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, p manifest.EstafetteStage) (containerID string, err error)
-	runDockerRunService(ctx context.Context, envvars map[string]string, parentStage *manifest.EstafetteStage, service manifest.EstafetteService) (containerID string, err error)
+	runDockerRunService(ctx context.Context, envvars map[string]string, parentStage *manifest.EstafetteStage, service manifest.EstafetteService) (containerID string, ipAddress string, err error)
 	tailDockerLogs(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (logLines []contracts.BuildLogLine, exitCode int64, canceled bool, err error)
 	stopServices(ctx context.Context, parentStage *manifest.EstafetteStage, services []*manifest.EstafetteService)
 
@@ -381,7 +381,7 @@ func (dr *dockerRunnerImpl) runDockerRun(ctx context.Context, depth int, runInde
 	return
 }
 
-func (dr *dockerRunnerImpl) runDockerRunService(ctx context.Context, envvars map[string]string, parentStage *manifest.EstafetteStage, service manifest.EstafetteService) (containerID string, err error) {
+func (dr *dockerRunnerImpl) runDockerRunService(ctx context.Context, envvars map[string]string, parentStage *manifest.EstafetteStage, service manifest.EstafetteService) (containerID string, ipAddress string, err error) {
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "DockerRunService")
 	defer span.Finish()
@@ -512,6 +512,8 @@ func (dr *dockerRunnerImpl) runDockerRunService(ctx context.Context, envvars map
 
 	networkResource, inspectErr := dr.dockerClient.NetworkInspect(ctx, dr.networkBridgeID, types.NetworkInspectOptions{})
 	log.Debug().Err(inspectErr).Interface("networkResource", networkResource).Msgf("Inspecting network with id %v", dr.networkBridgeID)
+
+	ipAddress = containerJSON.NetworkSettings.IPAddress
 
 	return
 }

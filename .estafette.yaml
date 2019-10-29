@@ -188,7 +188,7 @@ stages:
                 "WorkingDirectory":"/estafette-work",
                 "Commands": [
                   "mkdir -p ~/.kube",
-                  "wget -O ~/.kube/config http://kind:10080/config",
+                  "wget -q -O - http://kubernetes:10080/config | sed -e \"s/localhost/kubernetes/\" > ~/.kube/config",
                   "helm init"
                 ],
                 "When":"status == ''succeeded''",
@@ -197,7 +197,7 @@ stages:
                 "Retries":0,
                 "Services": [
                   {
-                    "Name": "kind",
+                    "Name": "kubernetes",
                     "ContainerImage": "bsycorp/kind:latest-1.15",
                     "Ports": [
                       {

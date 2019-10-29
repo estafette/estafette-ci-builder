@@ -374,7 +374,7 @@ func (pr *pipelineRunnerImpl) runService(ctx context.Context, envvars map[string
 	// run commands in docker container
 	dockerRunStart := time.Now()
 
-	containerID, dockerRunError := pr.dockerRunner.runDockerRunService(ctx, envvars, parentStage, service)
+	containerID, ipAddress, dockerRunError := pr.dockerRunner.runDockerRunService(ctx, envvars, parentStage, service)
 	result.DockerRunError = dockerRunError
 
 	if dockerRunError == nil {
@@ -393,9 +393,11 @@ func (pr *pipelineRunnerImpl) runService(ctx context.Context, envvars map[string
 
 			log.Info().Msgf("[%v] Running readiness probe for service container '%v' against :%v%v", parentStageName, service.Name, hostPort, p.Readiness.Path)
 
-			go func(p manifest.EstafetteServicePort) {
+			quit := make(chan bool)
 
-				readinessURL := fmt.Sprintf("http://%v:%v%v", "localhost", hostPort, p.Readiness.Path)
+			go func(p manifest.EstafetteServicePort, ipAddress string) {
+
+				readinessURL := fmt.Sprintf("http://%v:%v%v", ipAddress, hostPort, p.Readiness.Path)
 
 				var httpClient = &http.Client{
 					Timeout: time.Second * 5,
@@ -406,11 +408,17 @@ func (pr *pipelineRunnerImpl) runService(ctx context.Context, envvars map[string
 				for err != nil || resp.StatusCode != http.StatusOK {
 					log.Warn().Err(err).Msgf("[%v][%v] Readiness probe failure", parentStageName, service.Name)
 					time.Sleep(2 * time.Second)
-					resp, err = httpClient.Get(readinessURL)
+
+					select {
+					case <-quit:
+						return
+					default:
+						resp, err = httpClient.Get(readinessURL)
+					}
 				}
 
 				ready <- true
-			}(*p)
+			}(*p, ipAddress)
 
 			select {
 			case <-ready:
@@ -419,6 +427,8 @@ func (pr *pipelineRunnerImpl) runService(ctx context.Context, envvars map[string
 			case <-time.After(time.Duration(p.Readiness.TimeoutSeconds) * time.Second):
 				err = fmt.Errorf("Service %v is not ready after %v seconds on port %v and path %v", service.Name, p.Readiness.TimeoutSeconds, hostPort, p.Readiness.Path)
 				log.Error().Err(err).Msgf("[%v] Service container '%v' is not ready in time", parentStageName, service.Name)
+				quit <- true
+				continue
 			}
 		}
 	}
