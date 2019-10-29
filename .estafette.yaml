@@ -103,7 +103,11 @@ stages:
                     "Ports": [
                       {
                         "Port": 80,
-                        "HostPort": 8080
+                        "HostPort": 8080,
+                        "Readiness": {
+                          "Path": "/",
+                          "TimeoutSeconds": 30
+                        }
                       }
                     ]
                   }
