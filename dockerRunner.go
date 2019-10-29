@@ -881,7 +881,22 @@ func (dr *dockerRunnerImpl) createBridgeNetwork(ctx context.Context) error {
 
 	log.Info().Msgf("Creating docker network %v...", dr.networkBridge)
 
-	resp, err := dr.dockerClient.NetworkCreate(ctx, dr.networkBridge, types.NetworkCreate{})
+	name := dr.networkBridge
+	options := types.NetworkCreate{}
+	if dr.config.DockerNetwork != nil {
+		name = dr.config.DockerNetwork.Name
+		options.IPAM = &network.IPAM{
+			Driver: "default",
+			Config: []network.IPAMConfig{
+				network.IPAMConfig{
+					Subnet:  dr.config.DockerNetwork.Subnet,
+					Gateway: dr.config.DockerNetwork.Gateway,
+				},
+			},
+		}
+	}
+
+	resp, err := dr.dockerClient.NetworkCreate(ctx, name, options)
 
 	if err != nil {
 		log.Error().Err(err).Msgf("Failed creating docker network %v", dr.networkBridge)
