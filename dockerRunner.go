@@ -447,7 +447,7 @@ func (dr *dockerRunnerImpl) runDockerRunService(ctx context.Context, envvars map
 		if p.HostPort != nil {
 			hostPort = *p.HostPort
 		}
-		ports = append(ports, fmt.Sprintf("127.0.0.1:%v:%v/tcp", hostPort, p.Port))
+		ports = append(ports, fmt.Sprintf("0.0.0.0:%v:%v/tcp", hostPort, p.Port))
 	}
 	exposedPorts, portBindings, err := nat.ParsePortSpecs(ports)
 	if err != nil {
