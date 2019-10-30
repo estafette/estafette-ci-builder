@@ -266,6 +266,9 @@ func (dr *dockerRunnerImpl) runDockerRun(ctx context.Context, depth int, runInde
 	}
 
 	// add stage name to envvars
+	if p.EnvVars == nil {
+		p.EnvVars = map[string]string{}
+	}
 	p.EnvVars["ESTAFETTE_STAGE_NAME"] = p.Name
 
 	// combine and override estafette and global envvars with pipeline envvars
