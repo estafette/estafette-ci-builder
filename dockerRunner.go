@@ -265,6 +265,9 @@ func (dr *dockerRunnerImpl) runDockerRun(ctx context.Context, depth int, runInde
 		}
 	}
 
+	// add stage name to envvars
+	p.EnvVars["ESTAFETTE_STAGE_NAME"] = p.Name
+
 	// combine and override estafette and global envvars with pipeline envvars
 	combinedEnvVars := dr.envvarHelper.overrideEnvvars(envvars, p.EnvVars, extensionEnvVars, credentialEnvVars)
 
@@ -372,12 +375,6 @@ func (dr *dockerRunnerImpl) runDockerRun(ctx context.Context, depth int, runInde
 		return
 	}
 
-	containerJSON, inspectErr := dr.dockerClient.ContainerInspect(ctx, resp.ID)
-	log.Debug().Err(inspectErr).Interface("containerJSON", containerJSON).Msgf("Inspecting container for stage %v", p.Name)
-
-	networkResource, inspectErr := dr.dockerClient.NetworkInspect(ctx, dr.networkBridgeID, types.NetworkInspectOptions{})
-	log.Debug().Err(inspectErr).Interface("networkResource", networkResource).Msgf("Inspecting network with id %v", dr.networkBridgeID)
-
 	return
 }
 
@@ -386,9 +383,6 @@ func (dr *dockerRunnerImpl) runDockerRunService(ctx context.Context, envvars map
 	span, ctx := opentracing.StartSpanFromContext(ctx, "DockerRunService")
 	defer span.Finish()
 	span.SetTag("docker-image", service.ContainerImage)
-
-	networkResources, networkListError := dr.dockerClient.NetworkList(ctx, types.NetworkListOptions{})
-	log.Debug().Interface("networkResources", networkResources).Interface("networkListError", networkListError).Msg("Listing docker networks")
 
 	// check if image is trusted image
 	trustedImage := dr.config.GetTrustedImage(service.ContainerImage)
@@ -453,7 +447,6 @@ func (dr *dockerRunnerImpl) runDockerRunService(ctx context.Context, envvars map
 	if err != nil {
 		return
 	}
-	log.Debug().Interface("exposedPorts", exposedPorts).Interface("portBindings", portBindings).Interface("ports", ports).Msgf("Exposing ports...")
 	config.ExposedPorts = exposedPorts
 
 	if trustedImage != nil && trustedImage.RunDocker {
@@ -507,12 +500,10 @@ func (dr *dockerRunnerImpl) runDockerRunService(ctx context.Context, envvars map
 		return
 	}
 
-	containerJSON, inspectErr := dr.dockerClient.ContainerInspect(ctx, resp.ID)
-	log.Debug().Err(inspectErr).Interface("containerJSON", containerJSON).Msgf("Inspecting container for service %v", service.Name)
-
-	networkResource, inspectErr := dr.dockerClient.NetworkInspect(ctx, dr.networkBridgeID, types.NetworkInspectOptions{})
-	log.Debug().Err(inspectErr).Interface("networkResource", networkResource).Msgf("Inspecting network with id %v", dr.networkBridgeID)
-
+	containerJSON, err := dr.dockerClient.ContainerInspect(ctx, resp.ID)
+	if err != nil {
+		return
+	}
 	ipAddress = containerJSON.NetworkSettings.IPAddress
 
 	return

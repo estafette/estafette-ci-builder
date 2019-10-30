@@ -300,7 +300,7 @@ func (pr *pipelineRunnerImpl) runStage(ctx context.Context, depth int, runIndex 
 	}
 
 	if len(p.Services) > 0 {
-		// this stage has service containers, start them first
+		// this stage has service containers, stop them now that the stage has finished
 		go pr.dockerRunner.stopServices(ctx, &p, p.Services)
 	}
 
