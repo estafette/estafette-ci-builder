@@ -390,8 +390,101 @@ func (dr *dockerRunnerImpl) runDockerRunService(ctx context.Context, envvars map
 	// check if image is trusted image
 	trustedImage := dr.config.GetTrustedImage(service.ContainerImage)
 
+	// add custom properties as ESTAFETTE_EXTENSION_... envvar
+	extensionEnvVars := map[string]string{}
+	if service.CustomProperties != nil && len(service.CustomProperties) > 0 {
+		for k, v := range service.CustomProperties {
+			extensionkey := dr.envvarHelper.getEstafetteEnvvarName(fmt.Sprintf("ESTAFETTE_EXTENSION_%v", dr.envvarHelper.toUpperSnake(k)))
+
+			if s, isString := v.(string); isString {
+				// if custom property is of type string add the envvar
+				extensionEnvVars[extensionkey] = s
+			} else if s, isBool := v.(bool); isBool {
+				// if custom property is of type bool add the envvar
+				extensionEnvVars[extensionkey] = strconv.FormatBool(s)
+			} else if s, isInt := v.(int); isInt {
+				// if custom property is of type bool add the envvar
+				extensionEnvVars[extensionkey] = strconv.FormatInt(int64(s), 10)
+			} else if s, isFloat := v.(float64); isFloat {
+				// if custom property is of type bool add the envvar
+				extensionEnvVars[extensionkey] = strconv.FormatFloat(float64(s), 'f', -1, 64)
+
+			} else if i, isInterfaceArray := v.([]interface{}); isInterfaceArray {
+				// check whether all array items are of type string
+				valid := true
+				stringValues := []string{}
+				for _, iv := range i {
+					if s, isString := iv.(string); isString {
+						stringValues = append(stringValues, s)
+					} else {
+						valid = false
+						break
+					}
+				}
+
+				if valid {
+					// if all array items are string, pass as comma-separated list to extension
+					extensionEnvVars[extensionkey] = strings.Join(stringValues, ",")
+				} else {
+					log.Warn().Interface("customProperty", v).Msgf("Cannot turn custom property %v into extension envvar", k)
+				}
+			} else {
+				log.Warn().Interface("customProperty", v).Msgf("Cannot turn custom property %v of type %v into extension envvar", k, reflect.TypeOf(v))
+			}
+		}
+
+		// add envvar to custom properties
+		customProperties := service.CustomProperties
+		customProperties["env"] = service.EnvVars
+
+		// also add add custom properties as json object in ESTAFETTE_EXTENSION_CUSTOM_PROPERTIES envvar
+		customPropertiesBytes, err := json.Marshal(customProperties)
+		if err == nil {
+			extensionEnvVars["ESTAFETTE_EXTENSION_CUSTOM_PROPERTIES"] = string(customPropertiesBytes)
+		} else {
+			log.Warn().Err(err).Interface("customProperty", customProperties).Msg("Cannot marshal custom properties for ESTAFETTE_EXTENSION_CUSTOM_PROPERTIES envvar")
+		}
+
+		// also add add custom properties as json object in ESTAFETTE_EXTENSION_CUSTOM_PROPERTIES_YAML envvar
+		customPropertiesYamlBytes, err := yaml.Marshal(customProperties)
+		if err == nil {
+			extensionEnvVars["ESTAFETTE_EXTENSION_CUSTOM_PROPERTIES_YAML"] = string(customPropertiesYamlBytes)
+		} else {
+			log.Warn().Err(err).Interface("customProperty", customProperties).Msg("Cannot marshal custom properties for ESTAFETTE_EXTENSION_CUSTOM_PROPERTIES_YAML envvar")
+		}
+	}
+
+	// add credentials if trusted image with injectedCredentialTypes
+	credentialEnvVars := map[string]string{}
+	if trustedImage != nil {
+		// add credentials as ESTAFETTE_CREDENTIALS_... envvar with snake cased credential type so they can be unmarshalled separately in the image
+
+		credentialMap := dr.config.GetCredentialsForTrustedImage(*trustedImage)
+		for credentialType, credentialsForType := range credentialMap {
+
+			credentialkey := dr.envvarHelper.getEstafetteEnvvarName(fmt.Sprintf("ESTAFETTE_CREDENTIALS_%v", dr.envvarHelper.toUpperSnake(credentialType)))
+
+			// convert credentialsForType to json string
+			credentialsForTypeBytes, err := json.Marshal(credentialsForType)
+			if err != nil {
+				log.Warn().Err(err).Msgf("Failed to marshal credentials of type %v for envvar %v", credentialType, credentialkey)
+			}
+
+			// set envvar
+			credentialEnvVars[credentialkey] = string(credentialsForTypeBytes)
+
+			log.Debug().Msgf("Set envvar %v to credentials of type %v", credentialkey, credentialType)
+		}
+	}
+
+	// add service name to envvars
+	if service.EnvVars == nil {
+		service.EnvVars = map[string]string{}
+	}
+	service.EnvVars["ESTAFETTE_SERVICE_NAME"] = service.Name
+
 	// combine and override estafette and global envvars with pipeline envvars
-	combinedEnvVars := dr.envvarHelper.overrideEnvvars(envvars, service.EnvVars)
+	combinedEnvVars := dr.envvarHelper.overrideEnvvars(envvars, service.EnvVars, extensionEnvVars, credentialEnvVars)
 
 	// decrypt secrets in all envvars
 	combinedEnvVars = dr.envvarHelper.decryptSecrets(combinedEnvVars)
