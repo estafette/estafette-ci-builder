@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	dockerRunner = NewDockerRunner(envvarHelper, NewObfuscator(secretHelper), true, contracts.BuilderConfig{}, make(chan struct{}))
+	dockerRunner = NewDockerRunner(envvarHelper, NewObfuscator(secretHelper), true, contracts.BuilderConfig{DockerNetwork: &contracts.DockerNetworkConfig{Name: "estafette-integration", Subnet: "192.168.4.1/24", Gateway: "192.168.4.1"}}, make(chan struct{}))
 )
 
 func init() {
