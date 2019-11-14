@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net/http"
 	"os"
@@ -407,8 +408,12 @@ func (pr *pipelineRunnerImpl) runService(ctx context.Context, envvars map[string
 
 				readinessURL := fmt.Sprintf("%v://%v:%v%v", protocol, "localhost", hostPort, p.Readiness.Path)
 
+				tr := &http.Transport{
+					TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+				}
 				var httpClient = &http.Client{
-					Timeout: time.Second * 5,
+					Timeout:   time.Second * 5,
+					Transport: tr,
 				}
 
 				req, err := http.NewRequest("GET", readinessURL, nil)
