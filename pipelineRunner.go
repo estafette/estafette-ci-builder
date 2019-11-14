@@ -397,13 +397,24 @@ func (pr *pipelineRunnerImpl) runService(ctx context.Context, envvars map[string
 
 			go func(p manifest.EstafetteServicePort, ipAddress string) {
 
-				readinessURL := fmt.Sprintf("http://%v:%v%v", "localhost", hostPort, p.Readiness.Path)
+				protocol := "http"
+				if p.Readiness.Protocol != "" {
+					protocol = p.Readiness.Protocol
+				}
+
+				readinessURL := fmt.Sprintf("%v://%v:%v%v", "localhost", protocol, hostPort, p.Readiness.Path)
 
 				var httpClient = &http.Client{
 					Timeout: time.Second * 5,
 				}
 
-				resp, err := httpClient.Get(readinessURL)
+				req, err := http.NewRequest("GET", readinessURL, nil)
+
+				if p.Readiness.Hostname != "" {
+					req.Header.Add("Host", p.Readiness.Hostname)
+				}
+
+				resp, err := httpClient.Do(req)
 
 				for err != nil || resp.StatusCode != http.StatusOK {
 					log.Warn().Err(err).Msgf("[%v][%v] Readiness probe failure", parentStageName, service.Name)
