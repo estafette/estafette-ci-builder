@@ -427,7 +427,7 @@ func (pr *pipelineRunnerImpl) runService(ctx context.Context, envvars map[string
 					case <-quit:
 						return
 					default:
-						resp, err = httpClient.Get(readinessURL)
+						resp, err = httpClient.Do(req)
 					}
 				}
 
