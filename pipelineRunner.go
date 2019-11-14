@@ -405,7 +405,7 @@ func (pr *pipelineRunnerImpl) runService(ctx context.Context, envvars map[string
 					protocol = p.Readiness.Protocol
 				}
 
-				readinessURL := fmt.Sprintf("%v://%v:%v%v", protocol, ipAddress, hostPort, p.Readiness.Path)
+				readinessURL := fmt.Sprintf("%v://%v:%v%v", protocol, "localhost", hostPort, p.Readiness.Path)
 
 				var httpClient = &http.Client{
 					Timeout: time.Second * 5,
