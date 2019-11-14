@@ -112,7 +112,10 @@ stages:
                         "HostPort": 8080,
                         "Readiness": {
                           "Path": "/",
-                          "TimeoutSeconds": 30
+                          "TimeoutSeconds": 30,
+                          "Hostname": "nginx",
+                          "Port": 8080,
+                          "Protocol": "http"
                         }
                       }
                     ]

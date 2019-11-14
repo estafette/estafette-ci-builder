@@ -390,6 +390,9 @@ func (pr *pipelineRunnerImpl) runService(ctx context.Context, envvars map[string
 			if p.HostPort != nil {
 				hostPort = *p.HostPort
 			}
+			if p.Readiness.Port > 0 {
+				hostPort = p.Readiness.Port
+			}
 
 			log.Info().Msgf("[%v] Running readiness probe for service container '%v' against :%v%v", parentStageName, service.Name, hostPort, p.Readiness.Path)
 
