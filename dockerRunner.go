@@ -59,6 +59,7 @@ type dockerRunnerImpl struct {
 	runAsJob            bool
 	config              contracts.BuilderConfig
 	cancellationChannel chan struct{}
+	tailLogsChannel     chan contracts.TailLogLine
 	containerIDs        map[string]string
 	canceled            bool
 	networkBridge       string
@@ -66,13 +67,14 @@ type dockerRunnerImpl struct {
 }
 
 // NewDockerRunner returns a new DockerRunner
-func NewDockerRunner(envvarHelper EnvvarHelper, obfuscator Obfuscator, runAsJob bool, config contracts.BuilderConfig, cancellationChannel chan struct{}) DockerRunner {
+func NewDockerRunner(envvarHelper EnvvarHelper, obfuscator Obfuscator, runAsJob bool, config contracts.BuilderConfig, cancellationChannel chan struct{}, tailLogsChannel chan contracts.TailLogLine) DockerRunner {
 	return &dockerRunnerImpl{
 		envvarHelper:        envvarHelper,
 		obfuscator:          obfuscator,
 		runAsJob:            runAsJob,
 		config:              config,
 		cancellationChannel: cancellationChannel,
+		tailLogsChannel:     tailLogsChannel,
 		containerIDs:        make(map[string]string, 0),
 		networkBridge:       "estafette",
 	}
@@ -806,19 +808,14 @@ func (dr *dockerRunnerImpl) tailDockerLogs(ctx context.Context, containerID, par
 		}
 		lineNumber++
 
-		if dr.runAsJob {
-			// log as json, to be tailed when looking at live logs from gui
-			tailLogLine := contracts.TailLogLine{
-				Step:        stageName,
-				ParentStage: parentStageName,
-				Type:        stageType,
-				Depth:       depth,
-				RunIndex:    runIndex,
-				LogLine:     &logLineObject,
-			}
-			log.Info().Interface("tailLogLine", tailLogLine).Msg("")
-		} else {
-			log.Info().Msgf("[%v] %v", stageName, logLineString)
+		// log as json, to be tailed when looking at live logs from gui
+		dr.tailLogsChannel <- contracts.TailLogLine{
+			Step:        stageName,
+			ParentStage: parentStageName,
+			Type:        stageType,
+			Depth:       depth,
+			RunIndex:    runIndex,
+			LogLine:     &logLineObject,
 		}
 
 		// add to log lines send when build/release job is finished
@@ -889,22 +886,17 @@ func (dr *dockerRunnerImpl) stopServices(ctx context.Context, parentStage *manif
 				//do something here
 				err := dr.stopContainer(id)
 
-				if dr.runAsJob {
-					// log tailing - finalize stage
-					status := "SUCCEEDED"
-					if err != nil {
-						status = "FAILED"
-					}
+				// log tailing - finalize stage
+				status := "SUCCEEDED"
+				if err != nil {
+					status = "FAILED"
+				}
 
-					tailLogLine := contracts.TailLogLine{
-						Step:        s.Name,
-						ParentStage: parentStageName,
-						Type:        "service",
-						Status:      &status,
-					}
-
-					// log as json, to be tailed when looking at live logs from gui
-					log.Info().Interface("tailLogLine", tailLogLine).Msg("")
+				dr.tailLogsChannel <- contracts.TailLogLine{
+					Step:        s.Name,
+					ParentStage: parentStageName,
+					Type:        "service",
+					Status:      &status,
 				}
 
 				removeErr := dr.removeContainer(id)

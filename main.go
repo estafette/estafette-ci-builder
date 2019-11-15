@@ -164,8 +164,9 @@ func main() {
 	builderConfig.Credentials = decryptedCredentials
 
 	// bootstrap continued
-	dockerRunner := NewDockerRunner(envvarHelper, obfuscator, *runAsJob, builderConfig, cancellationChannel)
-	pipelineRunner := NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner, *runAsJob, cancellationChannel)
+	tailLogsChannel := make(chan contracts.TailLogLine, 10000)
+	dockerRunner := NewDockerRunner(envvarHelper, obfuscator, *runAsJob, builderConfig, cancellationChannel, tailLogsChannel)
+	pipelineRunner := NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner, *runAsJob, cancellationChannel, tailLogsChannel)
 	endOfLifeHelper := NewEndOfLifeHelper(*runAsJob, builderConfig, *podName)
 
 	if ciServer == "gocd" {
@@ -215,6 +216,7 @@ func main() {
 		envvars := envvarHelper.overrideEnvvars(estafetteEnvvars, globalEnvvars)
 
 		// run stages
+		go pipelineRunner.tailLogs(context.Background())
 		result, err := pipelineRunner.runStages(context.Background(), 0, manifest.Stages, dir, envvars)
 		if err != nil {
 			fatalHandler.handleGocdFatal(err, "Executing stages from manifest failed")
@@ -361,6 +363,7 @@ func main() {
 		envvars := envvarHelper.overrideEnvvars(estafetteEnvvars, globalEnvvars)
 
 		// run stages
+		go pipelineRunner.tailLogs(context.Background())
 		result, err := pipelineRunner.runStages(ctx, 0, stages, dir, envvars)
 		if err != nil && !result.canceled {
 			endOfLifeHelper.handleFatal(ctx, buildLog, err, "Executing stages from manifest failed")

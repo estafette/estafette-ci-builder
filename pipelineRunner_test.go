@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	pipelineRunner = NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner, true, make(chan struct{}))
+	pipelineRunner = NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner, true, make(chan struct{}), tailLogsChannel)
 )
 
 func TestRunStages(t *testing.T) {

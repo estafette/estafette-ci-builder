@@ -22,6 +22,7 @@ type PipelineRunner interface {
 	runParallelStages(ctx context.Context, depth int, parentStage *manifest.EstafetteStage, stages []*manifest.EstafetteStage, dir string, envvars map[string]string) (result estafetteStageRunResult, err error)
 	runServices(ctx context.Context, parentStage *manifest.EstafetteStage, services []*manifest.EstafetteService, envvars map[string]string) (result estafetteStageRunResult, err error)
 	stopPipelineOnCancellation()
+	tailLogs(ctx context.Context)
 }
 
 type pipelineRunnerImpl struct {
@@ -30,17 +31,19 @@ type pipelineRunnerImpl struct {
 	dockerRunner        DockerRunner
 	runAsJob            bool
 	cancellationChannel chan struct{}
+	tailLogsChannel     chan contracts.TailLogLine
 	canceled            bool
 }
 
 // NewPipelineRunner returns a new PipelineRunner
-func NewPipelineRunner(envvarHelper EnvvarHelper, whenEvaluator WhenEvaluator, dockerRunner DockerRunner, runAsJob bool, cancellationChannel chan struct{}) PipelineRunner {
+func NewPipelineRunner(envvarHelper EnvvarHelper, whenEvaluator WhenEvaluator, dockerRunner DockerRunner, runAsJob bool, cancellationChannel chan struct{}, tailLogsChannel chan contracts.TailLogLine) PipelineRunner {
 	return &pipelineRunnerImpl{
 		envvarHelper:        envvarHelper,
 		whenEvaluator:       whenEvaluator,
 		dockerRunner:        dockerRunner,
 		runAsJob:            runAsJob,
 		cancellationChannel: cancellationChannel,
+		tailLogsChannel:     tailLogsChannel,
 	}
 }
 
@@ -169,21 +172,16 @@ func (pr *pipelineRunnerImpl) runStage(ctx context.Context, depth int, runIndex 
 		if !result.IsDockerImagePulled || runtime.GOOS == "windows" {
 
 			// log tailing - start stage as pending
-			if pr.runAsJob {
-				status := "PENDING"
-				tailLogLine := contracts.TailLogLine{
-					Step:         p.Name,
-					ParentStage:  parentStageName,
-					Type:         "stage",
-					Depth:        depth,
-					RunIndex:     runIndex,
-					Image:        getBuildLogStepDockerImage(result),
-					AutoInjected: &result.Stage.AutoInjected,
-					Status:       &status,
-				}
-
-				// log as json, to be tailed when looking at live logs from gui
-				log.Info().Interface("tailLogLine", tailLogLine).Msg("")
+			status := "PENDING"
+			pr.tailLogsChannel <- contracts.TailLogLine{
+				Step:         p.Name,
+				ParentStage:  parentStageName,
+				Type:         "stage",
+				Depth:        depth,
+				RunIndex:     runIndex,
+				Image:        getBuildLogStepDockerImage(result),
+				AutoInjected: &result.Stage.AutoInjected,
+				Status:       &status,
 			}
 
 			// pull docker image
@@ -204,21 +202,16 @@ func (pr *pipelineRunnerImpl) runStage(ctx context.Context, depth int, runIndex 
 	}
 
 	// log tailing - start stage
-	if pr.runAsJob {
-		status := "RUNNING"
-		tailLogLine := contracts.TailLogLine{
-			Step:         p.Name,
-			ParentStage:  parentStageName,
-			Type:         "stage",
-			Depth:        depth,
-			RunIndex:     runIndex,
-			Image:        getBuildLogStepDockerImage(result),
-			AutoInjected: &result.Stage.AutoInjected,
-			Status:       &status,
-		}
-
-		// log as json, to be tailed when looking at live logs from gui
-		log.Info().Interface("tailLogLine", tailLogLine).Msg("")
+	status := "RUNNING"
+	pr.tailLogsChannel <- contracts.TailLogLine{
+		Step:         p.Name,
+		ParentStage:  parentStageName,
+		Type:         "stage",
+		Depth:        depth,
+		RunIndex:     runIndex,
+		Image:        getBuildLogStepDockerImage(result),
+		AutoInjected: &result.Stage.AutoInjected,
+		Status:       &status,
 	}
 
 	// run commands in docker container
@@ -261,29 +254,22 @@ func (pr *pipelineRunnerImpl) runStage(ctx context.Context, depth int, runIndex 
 	result.DockerRunDuration = time.Since(dockerRunStart)
 
 	// log tailing - finalize stage
-	if pr.runAsJob {
+	if result.DockerRunError != nil {
+		status = "FAILED"
+	}
+	if result.Canceled {
+		status = "CANCELED"
+	}
 
-		status := "SUCCEEDED"
-		if result.DockerRunError != nil {
-			status = "FAILED"
-		}
-		if result.Canceled {
-			status = "CANCELED"
-		}
-
-		tailLogLine := contracts.TailLogLine{
-			Step:        p.Name,
-			ParentStage: parentStageName,
-			Type:        "stage",
-			Depth:       depth,
-			RunIndex:    runIndex,
-			Duration:    &result.DockerRunDuration,
-			ExitCode:    &result.ExitCode,
-			Status:      &status,
-		}
-
-		// log as json, to be tailed when looking at live logs from gui
-		log.Info().Interface("tailLogLine", tailLogLine).Msg("")
+	pr.tailLogsChannel <- contracts.TailLogLine{
+		Step:        p.Name,
+		ParentStage: parentStageName,
+		Type:        "stage",
+		Depth:       depth,
+		RunIndex:    runIndex,
+		Duration:    &result.DockerRunDuration,
+		ExitCode:    &result.ExitCode,
+		Status:      &status,
 	}
 
 	if result.DockerRunError != nil {
@@ -330,19 +316,15 @@ func (pr *pipelineRunnerImpl) runService(ctx context.Context, envvars map[string
 		if !result.IsDockerImagePulled || runtime.GOOS == "windows" {
 
 			// log tailing - start stage as pending
-			if pr.runAsJob {
-				status := "PENDING"
-				tailLogLine := contracts.TailLogLine{
-					Step:        service.Name,
-					ParentStage: parentStageName,
-					Type:        "service",
-					Image:       getBuildLogStepDockerImageForService(result),
-					Status:      &status,
-				}
-
-				// log as json, to be tailed when looking at live logs from gui
-				log.Info().Interface("tailLogLine", tailLogLine).Msg("")
+			status := "PENDING"
+			pr.tailLogsChannel <- contracts.TailLogLine{
+				Step:        service.Name,
+				ParentStage: parentStageName,
+				Type:        "service",
+				Image:       getBuildLogStepDockerImageForService(result),
+				Status:      &status,
 			}
+
 			// pull docker image
 			err = pr.dockerRunner.runDockerPull(ctx, parentStageName, service.ContainerImage)
 		}
@@ -356,18 +338,13 @@ func (pr *pipelineRunnerImpl) runService(ctx context.Context, envvars map[string
 	}
 
 	// log tailing - start stage
-	if pr.runAsJob {
-		status := "RUNNING"
-		tailLogLine := contracts.TailLogLine{
-			Step:        service.Name,
-			ParentStage: parentStageName,
-			Type:        "service",
-			Image:       getBuildLogStepDockerImageForService(result),
-			Status:      &status,
-		}
-
-		// log as json, to be tailed when looking at live logs from gui
-		log.Info().Interface("tailLogLine", tailLogLine).Msg("")
+	status := "RUNNING"
+	pr.tailLogsChannel <- contracts.TailLogLine{
+		Step:        service.Name,
+		ParentStage: parentStageName,
+		Type:        "service",
+		Image:       getBuildLogStepDockerImageForService(result),
+		Status:      &status,
 	}
 
 	// run commands in docker container
@@ -388,27 +365,20 @@ func (pr *pipelineRunnerImpl) runService(ctx context.Context, envvars map[string
 	result.DockerRunDuration = time.Since(dockerRunStart)
 
 	// log tailing - finalize stage
-	if pr.runAsJob {
+	if result.DockerRunError != nil {
+		status = "FAILED"
+	}
+	if result.Canceled {
+		status = "CANCELED"
+	}
 
-		status := "RUNNING"
-		if result.DockerRunError != nil {
-			status = "FAILED"
-		}
-		if result.Canceled {
-			status = "CANCELED"
-		}
-
-		tailLogLine := contracts.TailLogLine{
-			Step:        service.Name,
-			ParentStage: parentStageName,
-			Type:        "service",
-			Duration:    &result.DockerRunDuration,
-			ExitCode:    &result.ExitCode,
-			Status:      &status,
-		}
-
-		// log as json, to be tailed when looking at live logs from gui
-		log.Info().Interface("tailLogLine", tailLogLine).Msg("")
+	pr.tailLogsChannel <- contracts.TailLogLine{
+		Step:        service.Name,
+		ParentStage: parentStageName,
+		Type:        "service",
+		Duration:    &result.DockerRunDuration,
+		ExitCode:    &result.ExitCode,
+		Status:      &status,
 	}
 
 	if result.DockerRunError != nil {
@@ -749,9 +719,32 @@ func (pr *pipelineRunnerImpl) runServices(ctx context.Context, parentStage *mani
 
 	return
 }
+
 func (pr *pipelineRunnerImpl) stopPipelineOnCancellation() {
 	// wait for cancellation
 	<-pr.cancellationChannel
 
 	pr.canceled = true
+}
+
+func (pr *pipelineRunnerImpl) tailLogs(ctx context.Context) {
+	for {
+		tailLogLine, more := <-pr.tailLogsChannel
+		if more {
+			if pr.runAsJob {
+				// this provides log streaming capabilities in the web interface
+				log.Info().Interface("tailLogLine", tailLogLine).Msg("")
+			} else if tailLogLine.LogLine != nil {
+				// this is for go.cd
+				if tailLogLine.ParentStage != "" {
+					log.Info().Msgf("[%v][%v] %v", tailLogLine.ParentStage, tailLogLine.Step, tailLogLine.LogLine.Text)
+				} else {
+					log.Info().Msgf("[%v] %v", tailLogLine.Step, tailLogLine.LogLine.Text)
+				}
+			}
+		} else {
+			// channel is closed, we can return now
+			return
+		}
+	}
 }
