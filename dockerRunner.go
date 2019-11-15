@@ -614,6 +614,15 @@ func (dr *dockerRunnerImpl) runDockerRunReadinessProber(ctx context.Context, par
 		return fmt.Errorf("Service has no readiness, runDockerRunReadinessProber shouldn't be called")
 	}
 
+	readinessProberImage := "alpine:3.10"
+	isPulled := dr.isDockerImagePulled(service.Name, readinessProberImage)
+	if !isPulled {
+		err = dr.runDockerPull(ctx, service.Name, readinessProberImage)
+		if err != nil {
+			return err
+		}
+	}
+
 	envvars := map[string]string{
 		"RUN_AS_READINESS_PROBE":    "true",
 		"READINESS_PROTOCOL":        service.Readiness.Protocol,
@@ -643,7 +652,7 @@ func (dr *dockerRunnerImpl) runDockerRunReadinessProber(ctx context.Context, par
 		AttachStderr: true,
 		Entrypoint:   []string{"/estafette-ci-builder"},
 		Env:          dockerEnvVars,
-		Image:        "alpine:3.10",
+		Image:        readinessProberImage,
 	}
 
 	// create container
