@@ -254,6 +254,7 @@ func (pr *pipelineRunnerImpl) runStage(ctx context.Context, depth int, runIndex 
 	result.DockerRunDuration = time.Since(dockerRunStart)
 
 	// log tailing - finalize stage
+	status = "SUCCEEDED"
 	if result.DockerRunError != nil {
 		status = "FAILED"
 	}
@@ -365,6 +366,7 @@ func (pr *pipelineRunnerImpl) runService(ctx context.Context, envvars map[string
 	result.DockerRunDuration = time.Since(dockerRunStart)
 
 	// log tailing - finalize stage
+	status = "SUCCEEDED"
 	if result.DockerRunError != nil {
 		status = "FAILED"
 	}
