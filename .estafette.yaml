@@ -112,7 +112,7 @@ stages:
                       "Hostname": "nginx",
                       "Port": 80,
                       "Protocol": "http"
-                    }                    
+                    },
                     "Ports": [
                       {
                         "Port": 80,
