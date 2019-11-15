@@ -521,6 +521,17 @@ func (pr *pipelineRunnerImpl) runStages(ctx context.Context, depth int, stages [
 
 			result.StageResults = append(result.StageResults, r)
 
+			status := "SKIPPED"
+			pr.tailLogsChannel <- contracts.TailLogLine{
+				Step:         p.Name,
+				Type:         "stage",
+				Depth:        depth,
+				RunIndex:     0,
+				Image:        getBuildLogStepDockerImage(r),
+				AutoInjected: &r.Stage.AutoInjected,
+				Status:       &status,
+			}
+
 			continue
 		}
 	}
@@ -622,6 +633,18 @@ func (pr *pipelineRunnerImpl) runParallelStages(ctx context.Context, depth int, 
 				}
 
 				results <- r
+
+				status := "SKIPPED"
+				pr.tailLogsChannel <- contracts.TailLogLine{
+					Step:         p.Name,
+					ParentStage:  parentStage.Name,
+					Type:         "stage",
+					Depth:        depth,
+					RunIndex:     0,
+					Image:        getBuildLogStepDockerImage(r),
+					AutoInjected: &r.Stage.AutoInjected,
+					Status:       &status,
+				}
 			}
 		}(ctx, p, dir, envvars)
 	}
