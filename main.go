@@ -19,7 +19,6 @@ import (
 	manifest "github.com/estafette/estafette-ci-manifest"
 	foundation "github.com/estafette/estafette-foundation"
 	"github.com/opentracing/opentracing-go"
-	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/uber/jaeger-client-go"
 	jaegercfg "github.com/uber/jaeger-client-go/config"
@@ -40,12 +39,35 @@ var (
 	secretDecryptionKeyBase64 = kingpin.Flag("secret-decryption-key-base64", "The base64 encoded AES-256 key used to decrypt secrets that have been encrypted with it.").Envar("SECRET_DECRYPTION_KEY_BASE64").String()
 	runAsJob                  = kingpin.Flag("run-as-job", "To run the builder as a job and prevent build failures to fail the job.").Default("false").OverrideDefaultFromEnvar("RUN_AS_JOB").Bool()
 	podName                   = kingpin.Flag("pod-name", "The name of the pod.").Envar("POD_NAME").String()
+
+	runAsReadinessProbe     = kingpin.Flag("run-as-readiness-probe", "Indicates whether the builder should run as readiness probe.").Envar("RUN_AS_READINESS_PROBE").Bool()
+	readinessProtocol       = kingpin.Flag("readiness-protocol", "The protocol to use for the readiness probe.").Envar("READINESS_PROTOCOL").String()
+	readinessHost           = kingpin.Flag("readiness-host", "The host to use for the readiness probe.").Envar("READINESS_HOST").String()
+	readinessPort           = kingpin.Flag("readiness-port", "The port to use for the readiness probe.").Envar("READINESS_PORT").Int()
+	readinessPath           = kingpin.Flag("readiness-path", "The path to use for the readiness probe.").Envar("READINESS_PATH").String()
+	readinessHostname       = kingpin.Flag("readiness-hostname", "The hostname to set as host header for the readiness probe.").Envar("READINESS_HOSTNAME").String()
+	readinessTimeoutSeconds = kingpin.Flag("readiness-timeout-seconds", "The timeout to use for the readiness probe.").Envar("READINESS_TIMEOUT_SECONDS").Int()
 )
 
 func main() {
 
 	// parse command line parameters
 	kingpin.Parse()
+
+	// this builder binary is mounted inside a scratch container to run as a readiness probe against service containers
+	if *runAsReadinessProbe {
+
+		// configure plain text logging
+		foundation.InitConsoleLogging(appgroup, app, version, branch, revision, buildDate)
+
+		err := waitForReadiness(*readinessProtocol, *readinessHost, *readinessPort, *readinessPath, *readinessHostname, *readinessTimeoutSeconds)
+		if err != nil {
+			log.Fatal().Err(err).Msgf("Readiness probe failed")
+		}
+
+		// readiness probe succeeded, exiting cleanly
+		os.Exit(0)
+	}
 
 	// define channel to catch SIGTERM and send out cancellation to stop further execution of stages and send the final state and logs to the ci server
 	osSignals := make(chan os.Signal, 1)
@@ -75,20 +97,15 @@ func main() {
 	// detect controlling server
 	ciServer := envvarHelper.getCiServer()
 
-	// configure json logging
-	foundation.InitLogging(appgroup, app, version, branch, revision, buildDate)
-
 	if ciServer != "estafette" {
-		// for pretty print use the consolewriter
-		output := zerolog.ConsoleWriter{Out: os.Stderr}
-		output.FormatLevel = func(i interface{}) string {
-			return ""
-		}
-		output.FormatTimestamp = func(i interface{}) string {
-			return ""
-		}
-		log.Logger = zerolog.New(output).With().
-			Logger()
+
+		// configure plain text logging
+		foundation.InitConsoleLogging(appgroup, app, version, branch, revision, buildDate)
+
+	} else {
+
+		// configure json logging
+		foundation.InitV3Logging(appgroup, app, version, branch, revision, buildDate)
 	}
 
 	// read builder config either from file or envvar

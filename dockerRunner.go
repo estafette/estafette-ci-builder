@@ -37,6 +37,7 @@ type DockerRunner interface {
 	getDockerImageSize(containerImage string) (int64, error)
 	runDockerRun(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, p manifest.EstafetteStage) (containerID string, err error)
 	runDockerRunService(ctx context.Context, envvars map[string]string, parentStage *manifest.EstafetteStage, service manifest.EstafetteService) (containerID string, ipAddress string, err error)
+	runDockerRunReadinessProber(ctx context.Context, parentStage manifest.EstafetteStage, service manifest.EstafetteService) (err error)
 	tailDockerLogs(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (logLines []contracts.BuildLogLine, exitCode int64, canceled bool, err error)
 	stopServices(ctx context.Context, parentStage *manifest.EstafetteStage, services []*manifest.EstafetteService)
 
@@ -601,6 +602,139 @@ func (dr *dockerRunnerImpl) runDockerRunService(ctx context.Context, envvars map
 		return
 	}
 	ipAddress = containerJSON.NetworkSettings.IPAddress
+
+	return
+}
+
+func (dr *dockerRunnerImpl) runDockerRunReadinessProber(ctx context.Context, parentStage manifest.EstafetteStage, service manifest.EstafetteService) (err error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "DockerRunReadinessProber")
+	defer span.Finish()
+
+	if service.Readiness == nil {
+		return fmt.Errorf("Service has no readiness, runDockerRunReadinessProber shouldn't be called")
+	}
+
+	envvars := map[string]string{
+		"RUN_AS_READINESS_PROBE":    "true",
+		"READINESS_PROTOCOL":        service.Readiness.Protocol,
+		"READINESS_HOST":            service.Name,
+		"READINESS_PORT":            strconv.Itoa(service.Readiness.Port),
+		"READINESS_PATH":            service.Readiness.Path,
+		"READINESS_HOSTNAME":        service.Readiness.Hostname,
+		"READINESS_TIMEOUT_SECONDS": strconv.Itoa(service.Readiness.TimeoutSeconds),
+	}
+
+	// define docker envvars and expand ESTAFETTE_ variables
+	dockerEnvVars := make([]string, 0)
+	if envvars != nil && len(envvars) > 0 {
+		for k, v := range envvars {
+			dockerEnvVars = append(dockerEnvVars, fmt.Sprintf("%v=%v", k, os.Expand(v, dr.envvarHelper.getEstafetteEnv)))
+		}
+	}
+
+	// mount the builder binary and trusted certs into the image
+	binds := make([]string, 0)
+	binds = append(binds, "/estafette-ci-builder:/estafette-ci-builder")
+	binds = append(binds, "/etc/ssl/certs/ca-certificates.crt:/etc/ssl/certs/ca-certificates.crt")
+
+	// define config
+	config := container.Config{
+		AttachStdout: true,
+		AttachStderr: true,
+		Entrypoint:   []string{"/estafette-ci-builder"},
+		Env:          dockerEnvVars,
+		Image:        "scratch",
+	}
+
+	// create container
+	resp, err := dr.dockerClient.ContainerCreate(ctx, &config, &container.HostConfig{
+		Binds: binds,
+	}, &network.NetworkingConfig{}, service.Name+"-prober")
+	if err != nil {
+		return
+	}
+
+	// connect to user-defined network
+	err = dr.dockerClient.NetworkConnect(ctx, dr.networkBridgeID, resp.ID, nil)
+	if err != nil {
+		log.Error().Err(err).Msgf("Failed connecting container %v to network %v", resp.ID, dr.networkBridgeID)
+		return
+	}
+
+	containerKey := parentStage.Name + "-service-" + service.Name + "-prober"
+	containerID := resp.ID
+	dr.containerIDs[containerKey] = resp.ID
+
+	// start container
+	if err = dr.dockerClient.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{}); err != nil {
+		return
+	}
+
+	// follow logs
+	rc, err := dr.dockerClient.ContainerLogs(ctx, containerID, types.ContainerLogsOptions{
+		ShowStdout: true,
+		ShowStderr: true,
+		Timestamps: false,
+		Follow:     true,
+		Details:    false,
+	})
+	if err != nil {
+		return err
+	}
+	defer rc.Close()
+
+	// stream logs to stdout with buffering
+	in := bufio.NewReader(rc)
+	var readError error
+	for {
+
+		if dr.canceled {
+			log.Debug().Msgf("Cancelled tailing logs for container %v", containerID)
+			return
+		}
+
+		// strip first 8 bytes, they contain docker control characters (https://github.com/docker/docker-ce/blob/v18.06.1-ce/components/engine/client/container_logs.go#L23-L32)
+		headers := make([]byte, 8)
+		n, readError := in.Read(headers)
+		if readError != nil {
+			break
+		}
+
+		if n < 8 {
+			// doesn't seem to be a valid header
+			continue
+		}
+
+		// read the rest of the line until we hit end of line
+		logLine, readError := in.ReadBytes('\n')
+		if readError != nil {
+			break
+		}
+
+		log.Debug().Msgf("[%v][%v] %v", parentStage.Name, service.Name, string(logLine))
+	}
+
+	if readError != nil && readError != io.EOF {
+		return readError
+	}
+
+	// wait for container to stop running
+	resultC, errC := dr.dockerClient.ContainerWait(ctx, containerID, container.WaitConditionNotRunning)
+
+	var exitCode int64
+	select {
+	case result := <-resultC:
+		exitCode = result.StatusCode
+	case err = <-errC:
+		return err
+	}
+
+	// clear container id
+	dr.deleteContainerID(containerID)
+
+	if exitCode != 0 {
+		return fmt.Errorf("Failed with exit code: %v", exitCode)
+	}
 
 	return
 }

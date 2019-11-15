@@ -106,6 +106,13 @@ stages:
                   {
                     "Name": "nginx",
                     "ContainerImage": "nginx:alpine",
+                    "Readiness": {
+                      "Path": "/",
+                      "TimeoutSeconds": 30,
+                      "Hostname": "nginx",
+                      "Port": 80,
+                      "Protocol": "http"
+                    }                    
                     "Ports": [
                       {
                         "Port": 80,
