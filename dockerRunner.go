@@ -22,7 +22,6 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
-	"github.com/docker/go-connections/nat"
 	contracts "github.com/estafette/estafette-ci-contracts"
 	manifest "github.com/estafette/estafette-ci-manifest"
 	"github.com/opentracing/opentracing-go"
@@ -531,21 +530,6 @@ func (dr *dockerRunnerImpl) runDockerRunService(ctx context.Context, envvars map
 		config.Cmd = []string{service.Command}
 	}
 
-	// create exposed ports and portbindings
-	ports := []string{}
-	for _, p := range service.Ports {
-		hostPort := p.Port
-		if p.HostPort != nil {
-			hostPort = *p.HostPort
-		}
-		ports = append(ports, fmt.Sprintf("0.0.0.0:%v:%v/tcp", hostPort, p.Port))
-	}
-	exposedPorts, portBindings, err := nat.ParsePortSpecs(ports)
-	if err != nil {
-		return
-	}
-	config.ExposedPorts = exposedPorts
-
 	if trustedImage != nil && trustedImage.RunDocker {
 		if runtime.GOOS != "windows" {
 			currentUser, err := user.Current()
@@ -568,9 +552,8 @@ func (dr *dockerRunnerImpl) runDockerRunService(ctx context.Context, envvars map
 
 	// create container
 	resp, err := dr.dockerClient.ContainerCreate(ctx, &config, &container.HostConfig{
-		Binds:        binds,
-		Privileged:   privileged,
-		PortBindings: portBindings,
+		Binds:      binds,
+		Privileged: privileged,
 	}, &network.NetworkingConfig{}, service.Name)
 	if err != nil {
 		return

@@ -112,20 +112,7 @@ stages:
                       "Hostname": "nginx",
                       "Port": 80,
                       "Protocol": "http"
-                    },
-                    "Ports": [
-                      {
-                        "Port": 80,
-                        "HostPort": 8080,
-                        "Readiness": {
-                          "Path": "/",
-                          "TimeoutSeconds": 30,
-                          "Hostname": "nginx",
-                          "Port": 8080,
-                          "Protocol": "http"
-                        }
-                      }
-                    ]
+                    }
                   }
                 ]
               },

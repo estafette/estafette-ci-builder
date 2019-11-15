@@ -385,23 +385,6 @@ func (pr *pipelineRunnerImpl) runService(ctx context.Context, envvars map[string
 		log.Info().Msgf("[%v] Starting readiness probe...", parentStage.Name)
 		err = pr.dockerRunner.runDockerRunReadinessProber(ctx, *parentStage, service, *service.Readiness)
 	}
-
-	if err == nil {
-		for _, p := range service.Ports {
-			if p.Readiness != nil {
-
-				// override hostport default for now, change in the manifest later
-				p.Readiness.Port = p.Port
-
-				log.Info().Msgf("[%v] Starting readiness probe for port %v...", parentStage.Name, p.Readiness.Port)
-				err = pr.dockerRunner.runDockerRunReadinessProber(ctx, *parentStage, service, *p.Readiness)
-				if err != nil {
-					break
-				}
-			}
-		}
-	}
-
 	result.DockerRunDuration = time.Since(dockerRunStart)
 
 	// log tailing - finalize stage
