@@ -383,77 +383,24 @@ func (pr *pipelineRunnerImpl) runService(ctx context.Context, envvars map[string
 	// wait for service to be ready if readiness probe is defined
 	if service.Readiness != nil && parentStage != nil {
 		log.Info().Msgf("[%v] Starting readiness probe...", parentStage.Name)
-		err = pr.dockerRunner.runDockerRunReadinessProber(ctx, *parentStage, service)
+		err = pr.dockerRunner.runDockerRunReadinessProber(ctx, *parentStage, service, *service.Readiness)
 	}
 
-	// for _, p := range service.Ports {
-	// 	if p.Readiness != nil {
-	// 		ready := make(chan bool, 1)
+	if err == nil {
+		for _, p := range service.Ports {
+			if p.Readiness != nil {
 
-	// 		hostPort := p.Port
-	// 		if p.HostPort != nil {
-	// 			hostPort = *p.HostPort
-	// 		}
-	// 		if p.Readiness.Port > 0 {
-	// 			hostPort = p.Readiness.Port
-	// 		}
+				// override hostport default for now, change in the manifest later
+				p.Readiness.Port = p.Port
 
-	// 		log.Info().Msgf("[%v] Running readiness probe for service container '%v' against :%v%v", parentStageName, service.Name, hostPort, p.Readiness.Path)
-
-	// 		quit := make(chan bool)
-
-	// 		go func(p manifest.EstafetteServicePort, ipAddress string) {
-
-	// 			protocol := "http"
-	// 			if p.Readiness.Protocol != "" {
-	// 				protocol = p.Readiness.Protocol
-	// 			}
-
-	// 			readinessURL := fmt.Sprintf("%v://%v:%v%v", protocol, "localhost", hostPort, p.Readiness.Path)
-
-	// 			tr := &http.Transport{
-	// 				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	// 			}
-	// 			var httpClient = &http.Client{
-	// 				Timeout:   time.Second * 5,
-	// 				Transport: tr,
-	// 			}
-
-	// 			req, err := http.NewRequest("GET", readinessURL, nil)
-
-	// 			if p.Readiness.Hostname != "" {
-	// 				req.Header.Add("Host", p.Readiness.Hostname)
-	// 			}
-
-	// 			resp, err := httpClient.Do(req)
-
-	// 			for err != nil || resp.StatusCode != http.StatusOK {
-	// 				log.Warn().Err(err).Msgf("[%v][%v] Readiness probe failure", parentStageName, service.Name)
-	// 				time.Sleep(2 * time.Second)
-
-	// 				select {
-	// 				case <-quit:
-	// 					return
-	// 				default:
-	// 					resp, err = httpClient.Do(req)
-	// 				}
-	// 			}
-
-	// 			ready <- true
-	// 		}(*p, ipAddress)
-
-	// 		select {
-	// 		case <-ready:
-	// 			log.Info().Msgf("[%v] Readiness probe for service container '%v' against :%v%v succeeded in time", parentStageName, service.Name, hostPort, p.Readiness.Path)
-	// 			continue
-	// 		case <-time.After(time.Duration(p.Readiness.TimeoutSeconds) * time.Second):
-	// 			err = fmt.Errorf("Service %v is not ready after %v seconds on port %v and path %v", service.Name, p.Readiness.TimeoutSeconds, hostPort, p.Readiness.Path)
-	// 			log.Error().Err(err).Msgf("[%v] Service container '%v' is not ready in time", parentStageName, service.Name)
-	// 			quit <- true
-	// 			continue
-	// 		}
-	// 	}
-	// }
+				log.Info().Msgf("[%v] Starting readiness probe for port %v...", parentStage.Name, p.Readiness.Port)
+				err = pr.dockerRunner.runDockerRunReadinessProber(ctx, *parentStage, service, *p.Readiness)
+				if err != nil {
+					break
+				}
+			}
+		}
+	}
 
 	result.DockerRunDuration = time.Since(dockerRunStart)
 

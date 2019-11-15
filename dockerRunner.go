@@ -37,7 +37,7 @@ type DockerRunner interface {
 	getDockerImageSize(containerImage string) (int64, error)
 	runDockerRun(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, p manifest.EstafetteStage) (containerID string, err error)
 	runDockerRunService(ctx context.Context, envvars map[string]string, parentStage *manifest.EstafetteStage, service manifest.EstafetteService) (containerID string, ipAddress string, err error)
-	runDockerRunReadinessProber(ctx context.Context, parentStage manifest.EstafetteStage, service manifest.EstafetteService) (err error)
+	runDockerRunReadinessProber(ctx context.Context, parentStage manifest.EstafetteStage, service manifest.EstafetteService, readiness manifest.ReadinessProbe) (err error)
 	tailDockerLogs(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (logLines []contracts.BuildLogLine, exitCode int64, canceled bool, err error)
 	stopServices(ctx context.Context, parentStage *manifest.EstafetteStage, services []*manifest.EstafetteService)
 
@@ -606,18 +606,14 @@ func (dr *dockerRunnerImpl) runDockerRunService(ctx context.Context, envvars map
 	return
 }
 
-func (dr *dockerRunnerImpl) runDockerRunReadinessProber(ctx context.Context, parentStage manifest.EstafetteStage, service manifest.EstafetteService) (err error) {
+func (dr *dockerRunnerImpl) runDockerRunReadinessProber(ctx context.Context, parentStage manifest.EstafetteStage, service manifest.EstafetteService, readiness manifest.ReadinessProbe) (err error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "DockerRunReadinessProber")
 	defer span.Finish()
 
-	if service.Readiness == nil {
-		return fmt.Errorf("Service has no readiness, runDockerRunReadinessProber shouldn't be called")
-	}
-
 	readinessProberImage := "alpine:3.10"
-	isPulled := dr.isDockerImagePulled(service.Name, readinessProberImage)
+	isPulled := dr.isDockerImagePulled(service.Name+"-prober", readinessProberImage)
 	if !isPulled {
-		err = dr.runDockerPull(ctx, service.Name, readinessProberImage)
+		err = dr.runDockerPull(ctx, service.Name+"-prober", readinessProberImage)
 		if err != nil {
 			return err
 		}
@@ -625,13 +621,16 @@ func (dr *dockerRunnerImpl) runDockerRunReadinessProber(ctx context.Context, par
 
 	envvars := map[string]string{
 		"RUN_AS_READINESS_PROBE":    "true",
-		"READINESS_PROTOCOL":        service.Readiness.Protocol,
+		"READINESS_PROTOCOL":        readiness.Protocol,
 		"READINESS_HOST":            service.Name,
-		"READINESS_PORT":            strconv.Itoa(service.Readiness.Port),
-		"READINESS_PATH":            service.Readiness.Path,
-		"READINESS_HOSTNAME":        service.Readiness.Hostname,
-		"READINESS_TIMEOUT_SECONDS": strconv.Itoa(service.Readiness.TimeoutSeconds),
+		"READINESS_PORT":            strconv.Itoa(readiness.Port),
+		"READINESS_PATH":            readiness.Path,
+		"READINESS_HOSTNAME":        readiness.Hostname,
+		"READINESS_TIMEOUT_SECONDS": strconv.Itoa(readiness.TimeoutSeconds),
 	}
+
+	// decrypt secrets in all envvars
+	envvars = dr.envvarHelper.decryptSecrets(envvars)
 
 	// define docker envvars and expand ESTAFETTE_ variables
 	dockerEnvVars := make([]string, 0)
@@ -658,7 +657,7 @@ func (dr *dockerRunnerImpl) runDockerRunReadinessProber(ctx context.Context, par
 	// create container
 	resp, err := dr.dockerClient.ContainerCreate(ctx, &config, &container.HostConfig{
 		Binds: binds,
-	}, &network.NetworkingConfig{}, service.Name+"-prober")
+	}, &network.NetworkingConfig{}, "")
 	if err != nil {
 		return
 	}
