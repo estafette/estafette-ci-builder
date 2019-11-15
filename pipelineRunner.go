@@ -382,7 +382,7 @@ func (pr *pipelineRunnerImpl) runService(ctx context.Context, envvars map[string
 
 	// wait for service to be ready if readiness probe is defined
 	if service.Readiness != nil && parentStage != nil {
-		log.Info().Msgf("[%v] Starting readiness probe...", parentStage)
+		log.Info().Msgf("[%v] Starting readiness probe...", parentStage.Name)
 		err = pr.dockerRunner.runDockerRunReadinessProber(ctx, *parentStage, service)
 	}
 

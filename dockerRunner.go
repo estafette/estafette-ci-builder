@@ -635,7 +635,7 @@ func (dr *dockerRunnerImpl) runDockerRunReadinessProber(ctx context.Context, par
 	// mount the builder binary and trusted certs into the image
 	binds := make([]string, 0)
 	binds = append(binds, "/estafette-ci-builder:/estafette-ci-builder")
-	binds = append(binds, "/etc/ssl/certs/ca-certificates.crt:/etc/ssl/certs/ca-certificates.crt")
+	// binds = append(binds, "/etc/ssl/certs/ca-certificates.crt:/etc/ssl/certs/ca-certificates.crt")
 
 	// define config
 	config := container.Config{
@@ -643,7 +643,7 @@ func (dr *dockerRunnerImpl) runDockerRunReadinessProber(ctx context.Context, par
 		AttachStderr: true,
 		Entrypoint:   []string{"/estafette-ci-builder"},
 		Env:          dockerEnvVars,
-		Image:        "scratch",
+		Image:        "alpine:3.10",
 	}
 
 	// create container
