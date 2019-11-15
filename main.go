@@ -37,6 +37,7 @@ var (
 	builderConfigPath         = kingpin.Flag("builder-config-path", "The path to the builder config json stored in a mounted file, to parameterize the build, set trusted images and inject credentials.").Envar("BUILDER_CONFIG_PATH").String()
 	secretDecryptionKey       = kingpin.Flag("secret-decryption-key", "The AES-256 key used to decrypt secrets that have been encrypted with it.").Envar("SECRET_DECRYPTION_KEY").String()
 	secretDecryptionKeyBase64 = kingpin.Flag("secret-decryption-key-base64", "The base64 encoded AES-256 key used to decrypt secrets that have been encrypted with it.").Envar("SECRET_DECRYPTION_KEY_BASE64").String()
+	secretDecryptionKeyPath   = kingpin.Flag("secret-decryption-key-path", "The path to the AES-256 key used to decrypt secrets that have been encrypted with it.").Default("/secrets/secretDecryptionKey").OverrideDefaultFromEnvar("SECRET_DECRYPTION_KEY_PATH").String()
 	runAsJob                  = kingpin.Flag("run-as-job", "To run the builder as a job and prevent build failures to fail the job.").Default("false").OverrideDefaultFromEnvar("RUN_AS_JOB").Bool()
 	podName                   = kingpin.Flag("pod-name", "The name of the pod.").Envar("POD_NAME").String()
 
@@ -80,11 +81,23 @@ func main() {
 		close(cancellationChannel)
 	}(osSignals, cancellationChannel)
 
-	// support both base64 encoded decryption key and non-encoded
+	// support both base64 encoded decryption key and non-encoded or mounted as secret
+	decryptionKey := ""
 	secretDecryptionKeyBase64Encoded := *secretDecryptionKeyBase64 != ""
-	decryptionKey := *secretDecryptionKey
-	if secretDecryptionKeyBase64Encoded {
+	if *secretDecryptionKeyBase64 != "" {
 		decryptionKey = *secretDecryptionKeyBase64
+	}
+	if *secretDecryptionKey != "" {
+		decryptionKey = *secretDecryptionKey
+	}
+	if *secretDecryptionKeyPath != "" && foundation.FileExists(*secretDecryptionKeyPath) {
+		secretDecryptionKeyBytes, err := ioutil.ReadFile(*secretDecryptionKeyPath)
+		if err != nil {
+			log.Fatal().Err(err).Msgf("Failed reading secret decryption key from path %v", *secretDecryptionKeyPath)
+		}
+
+		decryptionKey = string(secretDecryptionKeyBytes)
+		secretDecryptionKeyBase64Encoded = false
 	}
 
 	secretHelper := crypt.NewSecretHelper(decryptionKey, secretDecryptionKeyBase64Encoded)
