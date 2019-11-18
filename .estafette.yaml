@@ -312,41 +312,45 @@ releases:
         name: self
         branch: .+
     stages:
-      tag-container-image:
-        image: extensions/docker:dev
-        action: tag
-        repositories:
-        - estafette
-        tags:
-        - dev
+      tag-all:
+        parallelStages:
+          tag-container-image:
+            image: extensions/docker:dev
+            action: tag
+            repositories:
+            - estafette
+            tags:
+            - dev
 
-      tag-gocd-agent-container-image:
-        image: extensions/docker:dev
-        action: tag
-        versionTagSuffix: gocd
-        repositories:
-        - estafette
-        tags:
-        - dev-gocd
+          tag-gocd-agent-container-image:
+            image: extensions/docker:dev
+            action: tag
+            versionTagSuffix: gocd
+            repositories:
+            - estafette
+            tags:
+            - dev-gocd
 
   beta:
     stages:
-      tag-container-image:
-        image: extensions/docker:dev
-        action: tag
-        repositories:
-        - estafette
-        tags:
-        - beta
+      tag-all:
+        parallelStages:
+          tag-container-image:
+            image: extensions/docker:dev
+            action: tag
+            repositories:
+            - estafette
+            tags:
+            - beta
 
-      tag-gocd-agent-container-image:
-        image: extensions/docker:dev
-        action: tag
-        versionTagSuffix: gocd
-        repositories:
-        - estafette
-        tags:
-        - beta-gocd
+          tag-gocd-agent-container-image:
+            image: extensions/docker:dev
+            action: tag
+            versionTagSuffix: gocd
+            repositories:
+            - estafette
+            tags:
+            - beta-gocd
 
       slack-notify:
         image: extensions/slack-build-status:dev
@@ -359,24 +363,26 @@ releases:
 
   stable:
     stages:
-      tag-container-image:
-        image: extensions/docker:dev
-        action: tag
-        repositories:
-        - estafette
-        tags:
-        - stable
-        - latest
+      tag-all:
+        parallelStages:
+          tag-container-image:
+            image: extensions/docker:dev
+            action: tag
+            repositories:
+            - estafette
+            tags:
+            - stable
+            - latest
 
-      tag-gocd-agent-container-image:
-        image: extensions/docker:dev
-        action: tag
-        versionTagSuffix: gocd
-        repositories:
-        - estafette
-        tags:
-        - stable-gocd
-        - latest-gocd
+          tag-gocd-agent-container-image:
+            image: extensions/docker:dev
+            action: tag
+            versionTagSuffix: gocd
+            repositories:
+            - estafette
+            tags:
+            - stable-gocd
+            - latest-gocd
 
       slack-notify:
         image: extensions/slack-build-status:dev
