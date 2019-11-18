@@ -165,22 +165,14 @@ stages:
                     "CustomProperties":null
                   },
                   {
-                    "Name":"bakeB",
-                    "ContainerImage":"extensions/docker:dev",
+                    "Name":"buildB",
+                    "ContainerImage":"alpine:3.10",
                     "Shell":"/bin/sh",
                     "WorkingDirectory":"/estafette-work",
-                    "Commands":null,
-                    "When":"status == ''succeeded''",
-                    "EnvVars":null,
-                    "AutoInjected":false,
-                    "Retries":0,
-                    "CustomProperties":{
-                      "action":"build",
-                      "no-cache":true,
-                      "expand-variables":false,
-                      "path":"./publish",
-                      "repositories":["estafette"]
-                    }
+                    "Commands":[
+                      "echo hi"
+                    ],
+                    "When":"status == ''succeeded''"
                   }
                 ]
               },
