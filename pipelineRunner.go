@@ -23,6 +23,7 @@ type PipelineRunner interface {
 	runServices(ctx context.Context, parentStage *manifest.EstafetteStage, services []*manifest.EstafetteService, envvars map[string]string) (result estafetteStageRunResult, err error)
 	stopPipelineOnCancellation()
 	tailLogs(ctx context.Context)
+	getLogs(ctx context.Context) []*contracts.BuildLogStep
 }
 
 type pipelineRunnerImpl struct {
@@ -32,6 +33,7 @@ type pipelineRunnerImpl struct {
 	runAsJob            bool
 	cancellationChannel chan struct{}
 	tailLogsChannel     chan contracts.TailLogLine
+	buildLogSteps       []*contracts.BuildLogStep
 	canceled            bool
 }
 
@@ -44,6 +46,7 @@ func NewPipelineRunner(envvarHelper EnvvarHelper, whenEvaluator WhenEvaluator, d
 		runAsJob:            runAsJob,
 		cancellationChannel: cancellationChannel,
 		tailLogsChannel:     tailLogsChannel,
+		buildLogSteps:       make([]*contracts.BuildLogStep, 0),
 	}
 }
 
@@ -705,10 +708,24 @@ func (pr *pipelineRunnerImpl) runServices(ctx context.Context, parentStage *mani
 				log.Info().Msgf("Starting service '%v' for stage '%v'...", s.ContainerImage, parentStage.Name)
 			}
 
-			r, err := pr.runService(ctx, envvars, parentStage, *s)
-			results <- r
+			whenEvaluationResult, err := pr.whenEvaluator.evaluate(s.Name, s.When, pr.whenEvaluator.getParameters())
 			if err != nil {
 				errors <- err
+				return
+			}
+
+			if whenEvaluationResult {
+				r, err := pr.runService(ctx, envvars, parentStage, *s)
+				results <- r
+				if err != nil {
+					errors <- err
+				}
+			} else {
+
+				results <- estafetteServiceRunResult{
+					Service: *s,
+					Status:  "SKIPPED",
+				}
 			}
 		}(ctx, parentStage, s, envvars)
 	}
@@ -733,6 +750,10 @@ func (pr *pipelineRunnerImpl) runServices(ctx context.Context, parentStage *mani
 			result.Status = r.Status
 
 			pr.envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "failed")
+		}
+
+		if !result.Canceled && r.Status == "SKIPPED" {
+			result.Status = r.Status
 		}
 	}
 
@@ -767,9 +788,190 @@ func (pr *pipelineRunnerImpl) tailLogs(ctx context.Context) {
 					log.Info().Msgf("[%v] %v", tailLogLine.Step, tailLogLine.LogLine.Text)
 				}
 			}
+
+			pr.upsertTailLogLine(tailLogLine)
+
 		} else {
 			// channel is closed, we can return now
 			return
 		}
 	}
+}
+
+func (pr *pipelineRunnerImpl) getLogs(ctx context.Context) []*contracts.BuildLogStep {
+
+	// close log channel
+	// close(pr.tailLogsChannel)
+
+	return pr.buildLogSteps
+}
+
+func (pr *pipelineRunnerImpl) upsertTailLogLine(tailLogLine contracts.TailLogLine) {
+
+	// check if tailLogLine.Step (in combination with parentstage and type if applicable) already exists in pr.buildLogSteps
+	mainStage := pr.getMainBuildLogStep(tailLogLine)
+	if mainStage == nil {
+		if tailLogLine.ParentStage != "" {
+			mainStage = &contracts.BuildLogStep{
+				Step: tailLogLine.ParentStage,
+			}
+			pr.buildLogSteps = append(pr.buildLogSteps, mainStage)
+		} else {
+			mainStage = &contracts.BuildLogStep{
+				Step:     tailLogLine.Step,
+				RunIndex: tailLogLine.RunIndex,
+			}
+			pr.buildLogSteps = append(pr.buildLogSteps, mainStage)
+		}
+	}
+
+	if tailLogLine.ParentStage != "" {
+		if tailLogLine.Type == "stage" {
+			nestedStage := pr.getNestedBuildLogStep(tailLogLine)
+			if nestedStage == nil {
+				nestedStage = &contracts.BuildLogStep{
+					Step: tailLogLine.Step,
+				}
+				mainStage.NestedSteps = append(mainStage.NestedSteps, nestedStage)
+			}
+
+			// set non-identifying properties
+			if tailLogLine.LogLine != nil {
+				nestedStage.LogLines = append(nestedStage.LogLines, *tailLogLine.LogLine)
+			}
+			if tailLogLine.Image != nil {
+				nestedStage.Image = tailLogLine.Image
+			}
+			if tailLogLine.Duration != nil {
+				nestedStage.Duration = *tailLogLine.Duration
+			}
+			if tailLogLine.ExitCode != nil {
+				nestedStage.ExitCode = *tailLogLine.ExitCode
+			}
+			if tailLogLine.Status != nil {
+				nestedStage.Status = *tailLogLine.Status
+			}
+			if tailLogLine.AutoInjected != nil {
+				nestedStage.AutoInjected = *tailLogLine.AutoInjected
+			}
+
+		} else if tailLogLine.Type == "service" {
+			nestedService := pr.getNestedBuildLogService(tailLogLine)
+			if nestedService == nil {
+				nestedService = &contracts.BuildLogStep{
+					Step: tailLogLine.Step,
+				}
+				mainStage.Services = append(mainStage.Services, nestedService)
+			}
+
+			// set non-identifying properties
+			if tailLogLine.LogLine != nil {
+				nestedService.LogLines = append(nestedService.LogLines, *tailLogLine.LogLine)
+			}
+			if tailLogLine.Image != nil {
+				nestedService.Image = tailLogLine.Image
+			}
+			if tailLogLine.Duration != nil {
+				nestedService.Duration = *tailLogLine.Duration
+			}
+			if tailLogLine.ExitCode != nil {
+				nestedService.ExitCode = *tailLogLine.ExitCode
+			}
+			if tailLogLine.Status != nil {
+				nestedService.Status = *tailLogLine.Status
+			}
+			if tailLogLine.AutoInjected != nil {
+				nestedService.AutoInjected = *tailLogLine.AutoInjected
+			}
+		}
+	} else {
+
+		// set non-identifying properties
+		if tailLogLine.LogLine != nil {
+			mainStage.LogLines = append(mainStage.LogLines, *tailLogLine.LogLine)
+		}
+		if tailLogLine.Image != nil {
+			mainStage.Image = tailLogLine.Image
+		}
+		if tailLogLine.Duration != nil {
+			mainStage.Duration = *tailLogLine.Duration
+		}
+		if tailLogLine.ExitCode != nil {
+			mainStage.ExitCode = *tailLogLine.ExitCode
+		}
+		if tailLogLine.Status != nil {
+			mainStage.Status = *tailLogLine.Status
+		}
+		if tailLogLine.AutoInjected != nil {
+			mainStage.AutoInjected = *tailLogLine.AutoInjected
+		}
+	}
+}
+
+func (pr *pipelineRunnerImpl) getMainBuildLogStep(tailLogLine contracts.TailLogLine) *contracts.BuildLogStep {
+
+	stepToFind := tailLogLine.Step
+	if tailLogLine.ParentStage != "" {
+		stepToFind = tailLogLine.ParentStage
+	}
+
+	for _, bls := range pr.buildLogSteps {
+		if bls.Step == stepToFind {
+			if bls.RunIndex == tailLogLine.RunIndex {
+				return bls
+			}
+		}
+	}
+
+	return nil
+}
+
+func (pr *pipelineRunnerImpl) getNestedBuildLogStep(tailLogLine contracts.TailLogLine) *contracts.BuildLogStep {
+
+	if tailLogLine.ParentStage == "" || tailLogLine.Type != "stage" {
+		return nil
+	}
+
+	for _, bls := range pr.buildLogSteps {
+		if bls.Step == tailLogLine.ParentStage {
+			if tailLogLine.ParentStage != "" {
+				// we have to look deeper
+				if tailLogLine.Type == "stage" {
+					// look inside the parallel stages
+					for _, ns := range bls.NestedSteps {
+						if ns.Step == tailLogLine.Step && ns.RunIndex == tailLogLine.RunIndex {
+							return ns
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func (pr *pipelineRunnerImpl) getNestedBuildLogService(tailLogLine contracts.TailLogLine) *contracts.BuildLogStep {
+
+	if tailLogLine.ParentStage == "" || tailLogLine.Type != "service" {
+		return nil
+	}
+
+	for _, bls := range pr.buildLogSteps {
+		if bls.Step == tailLogLine.ParentStage {
+			if tailLogLine.ParentStage != "" {
+				// we have to look deeper
+				if tailLogLine.Type == "service" {
+					// look inside the services
+					for _, s := range bls.Services {
+						if s.Step == tailLogLine.Step {
+							return s
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return nil
 }

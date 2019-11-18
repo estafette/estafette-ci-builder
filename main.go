@@ -246,7 +246,7 @@ func main() {
 			RepoName:     builderConfig.Git.RepoName,
 			RepoBranch:   builderConfig.Git.RepoBranch,
 			RepoRevision: builderConfig.Git.RepoRevision,
-			Steps:        make([]contracts.BuildLogStep, 0),
+			Steps:        make([]*contracts.BuildLogStep, 0),
 		}
 
 		// set some default fields added to all logs
@@ -375,7 +375,7 @@ func main() {
 
 		// send result to ci-api
 		log.Info().Interface("result", result).Msg("Finished running stages")
-		buildLog.Steps = transformRunStagesResultToBuildLogSteps(result)
+		buildLog.Steps = pipelineRunner.getLogs(ctx)
 		buildStatus := "succeeded"
 		if result.HasAggregatedErrors() {
 			buildStatus = "failed"

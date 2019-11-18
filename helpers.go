@@ -115,14 +115,18 @@ func transformStageRunResultToBuildLogSteps(result estafetteStageRunResult) (bui
 		AutoInjected: result.Stage.AutoInjected,
 		RunIndex:     result.RunIndex,
 		Depth:        result.Depth,
+		NestedSteps:  []*contracts.BuildLogStep{},
+		Services:     []*contracts.BuildLogStep{},
 	}
 
 	for _, r := range result.ParallelStagesResults {
-		buildLogStep.NestedSteps = append(buildLogStep.NestedSteps, transformStageRunResultToBuildLogSteps(r))
+		bls := transformStageRunResultToBuildLogSteps(r)
+		buildLogStep.NestedSteps = append(buildLogStep.NestedSteps, &bls)
 	}
 
 	for _, s := range result.ServicesResults {
-		buildLogStep.Services = append(buildLogStep.Services, transformServiceRunResultToBuildLogSteps(s))
+		bls := transformServiceRunResultToBuildLogSteps(s)
+		buildLogStep.Services = append(buildLogStep.Services, &bls)
 	}
 
 	return

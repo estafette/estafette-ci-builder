@@ -392,6 +392,42 @@ func (dr *dockerRunnerImpl) runDockerRunService(ctx context.Context, envvars map
 	// check if image is trusted image
 	trustedImage := dr.config.GetTrustedImage(service.ContainerImage)
 
+	// run docker with image and commands from yaml
+
+	// define entrypoint
+	entrypoint := make([]string, 0)
+	entrypoint = []string{service.Shell}
+	if runtime.GOOS == "windows" && service.Shell == "powershell" {
+		entrypoint = append(entrypoint, "-Command")
+	} else if runtime.GOOS == "windows" && service.Shell == "cmd" {
+		entrypoint = append(entrypoint, "/S", "/C")
+	} else {
+		entrypoint = append(entrypoint, "-c")
+	}
+
+	// define commands
+	cmds := make([]string, 0)
+	cmdStopOnErrorFlag := ""
+	cmdSeparator := ";"
+	if runtime.GOOS == "windows" && service.Shell == "powershell" {
+		cmdStopOnErrorFlag = "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue'; "
+		if dr.config.DockerDaemonMTU != nil && *dr.config.DockerDaemonMTU != "" {
+			mtu, err := strconv.Atoi(*dr.config.DockerDaemonMTU)
+			if err == nil {
+				mtu -= 50
+				cmdStopOnErrorFlag += fmt.Sprintf("Write-Host 'Updating MTU to %v...'; Get-NetAdapter | Where-Object Name -like \"*Ethernet*\" | ForEach-Object { & netsh interface ipv4 set subinterface $_.InterfaceIndex mtu=%v store=persistent }; ", mtu, mtu)
+			}
+		}
+		cmdSeparator = ";"
+	} else if runtime.GOOS == "windows" && service.Shell == "cmd" {
+		cmdStopOnErrorFlag = ""
+		cmdSeparator = " && "
+	} else {
+		cmdStopOnErrorFlag = "set -e; "
+		cmdSeparator = ";"
+	}
+	cmds = append(cmds, cmdStopOnErrorFlag+strings.Join(service.Commands, cmdSeparator))
+
 	// add custom properties as ESTAFETTE_EXTENSION_... envvar
 	extensionEnvVars := map[string]string{}
 	if service.CustomProperties != nil && len(service.CustomProperties) > 0 {
@@ -527,9 +563,17 @@ func (dr *dockerRunnerImpl) runDockerRunService(ctx context.Context, envvars map
 		Image:        service.ContainerImage,
 	}
 
-	// define commands
-	if service.Command != "" {
-		config.Cmd = []string{service.Command}
+	if len(service.Commands) > 0 {
+		if trustedImage != nil && !trustedImage.AllowCommands && len(trustedImage.InjectedCredentialTypes) > 0 {
+			// return stage as failed with error message indicating that this trusted image doesn't allow commands
+			err = fmt.Errorf("This trusted image does not allow for commands to be set as a protection against snooping injected credentials")
+			return
+		}
+
+		// only pass commands when they are set, so extensions can work without
+		config.Cmd = cmds
+		// only override entrypoint when commands are set, so extensions can work without commands
+		config.Entrypoint = entrypoint
 	}
 
 	if trustedImage != nil && trustedImage.RunDocker {

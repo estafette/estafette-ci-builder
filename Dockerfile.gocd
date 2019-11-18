@@ -6,4 +6,4 @@ ENV ESTAFETTE_CI_SERVER="gocd" \
     DOCKER_API_VERSION="1.38"
 
 # copy builder
-COPY estafette-ci-builder /usr/bin/
+COPY ${ESTAFETTE_GIT_NAME} /usr/bin/

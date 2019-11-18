@@ -28,7 +28,8 @@ stages:
         image: extensions/docker:dev
         action: build
         no-cache: true
-        expand-variables: false
+        dontExpand:
+        - ESTAFETTE_WORKDIR
         repositories:
         - estafette
         path: ./publish
@@ -37,7 +38,7 @@ stages:
         image: extensions/docker:dev
         action: build
         no-cache: true
-        expand-variables: false
+        versionTagSuffix: -gocd
         repositories:
         - estafette.secret(ugcaPF_CdqMZsxsh.4ZumU_A0ufxsjV3MPInyc1VjATZgX9hcB2KQM1KDIOQs)
         path: ./publish
@@ -280,11 +281,12 @@ stages:
         repositories:
         - estafette
 
-      push-to-gcr-io:
+      push-gocd-agent-to-docker-hub:
         image: extensions/docker:dev
         action: push
+        versionTagSuffix: -gocd
         repositories:
-        - estafette.secret(ugcaPF_CdqMZsxsh.4ZumU_A0ufxsjV3MPInyc1VjATZgX9hcB2KQM1KDIOQs)
+        - estafette
 
   slack-notify:
     image: extensions/slack-build-status:dev
@@ -343,13 +345,14 @@ releases:
         tags:
         - dev
 
-      tag-gcr-io-image:
+      tag-gocd-agent-container-image:
         image: extensions/docker:dev
         action: tag
+        versionTagSuffix: -gocd
         repositories:
-        - estafette.secret(ugcaPF_CdqMZsxsh.4ZumU_A0ufxsjV3MPInyc1VjATZgX9hcB2KQM1KDIOQs)
+        - estafette
         tags:
-        - dev
+        - dev-gocd
 
   beta:
     stages:
@@ -361,13 +364,14 @@ releases:
         tags:
         - beta
 
-      tag-gcr-io-image:
+      tag-gocd-agent-container-image:
         image: extensions/docker:dev
         action: tag
+        versionTagSuffix: -gocd
         repositories:
-        - estafette.secret(ugcaPF_CdqMZsxsh.4ZumU_A0ufxsjV3MPInyc1VjATZgX9hcB2KQM1KDIOQs)
+        - estafette
         tags:
-        - beta
+        - beta-gocd
 
       slack-notify:
         image: extensions/slack-build-status:dev
@@ -389,14 +393,15 @@ releases:
         - stable
         - latest
 
-      tag-gcr-io-image:
+      tag-gocd-agent-container-image:
         image: extensions/docker:dev
         action: tag
+        versionTagSuffix: -gocd
         repositories:
-        - estafette.secret(ugcaPF_CdqMZsxsh.4ZumU_A0ufxsjV3MPInyc1VjATZgX9hcB2KQM1KDIOQs)
+        - estafette
         tags:
-        - stable
-        - latest
+        - stable-gocd
+        - latest-gocd
 
       slack-notify:
         image: extensions/slack-build-status:dev

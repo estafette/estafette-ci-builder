@@ -73,7 +73,7 @@ func (elh *endOfLifeHelperImpl) handleFatal(ctx context.Context, buildLog contra
 		lineNumber++
 	}
 
-	buildLog.Steps = append(buildLog.Steps, fatalStep)
+	buildLog.Steps = append(buildLog.Steps, &fatalStep)
 
 	_ = elh.sendBuildFinishedEvent(ctx, "failed")
 	_ = elh.sendBuildJobLogEvent(ctx, buildLog)
@@ -97,7 +97,7 @@ func (elh *endOfLifeHelperImpl) sendBuildJobLogEvent(ctx context.Context, buildL
 
 	// strip log lines from successful steps to reduce size of the logs and still keep the useful information
 	slimBuildLog := buildLog
-	slimBuildLog.Steps = []contracts.BuildLogStep{}
+	slimBuildLog.Steps = []*contracts.BuildLogStep{}
 	for _, s := range buildLog.Steps {
 		slimBuildLogStep := s
 		if s.Status == "SUCCEEDED" {

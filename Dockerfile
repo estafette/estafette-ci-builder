@@ -1,16 +1,16 @@
-FROM docker:19.03.2-dind
+FROM docker:19.03.5-dind
 
 LABEL maintainer="estafette.io" \
-      description="The estafette-ci-builder is the component that runs builds as defined in the .estafette.yaml manifest"
+      description="The ${ESTAFETTE_GIT_NAME} is the component that runs builds as defined in the .estafette.yaml manifest"
 
 RUN addgroup docker
 
 # copy builder & startup script
-COPY estafette-ci-builder /
+COPY ${ESTAFETTE_GIT_NAME} /
 
 ENV ESTAFETTE_CI_SERVER="estafette" \
     ESTAFETTE_WORKDIR="/estafette-work"
 
 WORKDIR ${ESTAFETTE_WORKDIR}
 
-ENTRYPOINT ["/estafette-ci-builder"]
+ENTRYPOINT ["/${ESTAFETTE_GIT_NAME}"]
