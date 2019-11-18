@@ -18,7 +18,7 @@ import (
 type PipelineRunner interface {
 	runStage(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, p manifest.EstafetteStage) (result estafetteStageRunResult, err error)
 	runService(ctx context.Context, envvars map[string]string, parentStage *manifest.EstafetteStage, service manifest.EstafetteService) (result estafetteServiceRunResult, err error)
-	runStages(ctx context.Context, depth int, stages []*manifest.EstafetteStage, dir string, envvars map[string]string) (result estafetteRunStagesResult, err error)
+	runStages(ctx context.Context, depth int, stages []*manifest.EstafetteStage, dir string, envvars map[string]string) (err error)
 	runParallelStages(ctx context.Context, depth int, parentStage *manifest.EstafetteStage, stages []*manifest.EstafetteStage, dir string, envvars map[string]string) (result estafetteStageRunResult, err error)
 	runServices(ctx context.Context, parentStage *manifest.EstafetteStage, services []*manifest.EstafetteService, envvars map[string]string) (result estafetteStageRunResult, err error)
 	stopPipelineOnCancellation()
@@ -257,12 +257,12 @@ func (pr *pipelineRunnerImpl) runStage(ctx context.Context, depth int, runIndex 
 	result.DockerRunDuration = time.Since(dockerRunStart)
 
 	// log tailing - finalize stage
-	status = "SUCCEEDED"
+	status = contracts.StatusSucceeded
 	if result.DockerRunError != nil {
 		status = "FAILED"
 	}
 	if result.Canceled {
-		status = "CANCELED"
+		status = contracts.StatusCanceled
 	}
 
 	pr.tailLogsChannel <- contracts.TailLogLine{
@@ -369,12 +369,12 @@ func (pr *pipelineRunnerImpl) runService(ctx context.Context, envvars map[string
 	result.DockerRunDuration = time.Since(dockerRunStart)
 
 	// log tailing - finalize stage
-	status = "SUCCEEDED"
+	status = contracts.StatusSucceeded
 	if result.DockerRunError != nil {
 		status = "FAILED"
 	}
 	if result.Canceled {
-		status = "CANCELED"
+		status = contracts.StatusCanceled
 	}
 
 	pr.tailLogsChannel <- contracts.TailLogLine{
@@ -426,10 +426,14 @@ func (result *estafetteRunStagesResult) HasAggregatedErrors() bool {
 	return len(errors) > 0
 }
 
-func (pr *pipelineRunnerImpl) runStages(ctx context.Context, depth int, stages []*manifest.EstafetteStage, dir string, envvars map[string]string) (result estafetteRunStagesResult, err error) {
+func (pr *pipelineRunnerImpl) runStages(ctx context.Context, depth int, stages []*manifest.EstafetteStage, dir string, envvars map[string]string) (err error) {
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "RunStages")
 	defer span.Finish()
+
+	// start log tailing
+	pr.buildLogSteps = make([]*contracts.BuildLogStep, 0)
+	go pipelineRunner.tailLogs(ctx)
 
 	err = pr.dockerRunner.createBridgeNetwork(ctx)
 	if err != nil {
@@ -446,21 +450,19 @@ func (pr *pipelineRunnerImpl) runStages(ctx context.Context, depth int, stages [
 	}
 
 	if len(stages) == 0 {
-		return result, fmt.Errorf("Manifest has no stages, failing the build")
+		return fmt.Errorf("Manifest has no stages, failing the build")
 	}
 
 	for _, p := range stages {
 
 		// handle cancellation happening in between stages
 		if pr.canceled {
-			result.canceled = pr.canceled
 			return
 		}
 
 		whenEvaluationResult, err := pr.whenEvaluator.evaluate(p.Name, p.When, pr.whenEvaluator.getParameters())
 		if err != nil {
-			result.canceled = pr.canceled
-			return result, err
+			return err
 		}
 
 		if whenEvaluationResult {
@@ -472,11 +474,8 @@ func (pr *pipelineRunnerImpl) runStages(ctx context.Context, depth int, stages [
 				r.RunIndex = runIndex
 
 				// if canceled during stage stop further execution
-				if r.Canceled || pr.canceled {
-					r.Status = "CANCELED"
-					result.StageResults = append(result.StageResults, r)
-					result.canceled = true
-					return result, nil
+				if pr.canceled {
+					return nil
 				}
 
 				if err != nil {
@@ -498,17 +497,13 @@ func (pr *pipelineRunnerImpl) runStages(ctx context.Context, depth int, stages [
 					r.Status = "FAILED"
 					r.OtherError = err
 
-					result.StageResults = append(result.StageResults, r)
-
 					runIndex++
 
 					continue
 				}
 
 				// set 'succeeded' build status
-				r.Status = "SUCCEEDED"
-
-				result.StageResults = append(result.StageResults, r)
+				r.Status = contracts.StatusSucceeded
 
 				break
 			}
@@ -519,12 +514,10 @@ func (pr *pipelineRunnerImpl) runStages(ctx context.Context, depth int, stages [
 			r := estafetteStageRunResult{
 				Stage:  *p,
 				Depth:  depth,
-				Status: "SKIPPED",
+				Status: contracts.StatusSkipped,
 			}
 
-			result.StageResults = append(result.StageResults, r)
-
-			status := "SKIPPED"
+			status := contracts.StatusSkipped
 			pr.tailLogsChannel <- contracts.TailLogLine{
 				Step:         p.Name,
 				Type:         "stage",
@@ -538,8 +531,6 @@ func (pr *pipelineRunnerImpl) runStages(ctx context.Context, depth int, stages [
 			continue
 		}
 	}
-
-	result.canceled = pr.canceled
 
 	return
 }
@@ -591,7 +582,7 @@ func (pr *pipelineRunnerImpl) runParallelStages(ctx context.Context, depth int, 
 
 					// if canceled during stage stop further execution
 					if r.Canceled || pr.canceled {
-						r.Status = "CANCELED"
+						r.Status = contracts.StatusCanceled
 
 						results <- r
 
@@ -620,7 +611,7 @@ func (pr *pipelineRunnerImpl) runParallelStages(ctx context.Context, depth int, 
 					}
 
 					// set 'succeeded' build status
-					r.Status = "SUCCEEDED"
+					r.Status = contracts.StatusSucceeded
 
 					results <- r
 
@@ -632,12 +623,12 @@ func (pr *pipelineRunnerImpl) runParallelStages(ctx context.Context, depth int, 
 				// if an error has happened in one of the previous steps or the when expression evaluates to false we still want to render the following steps in the result table
 				r := estafetteStageRunResult{
 					Stage:  *p,
-					Status: "SKIPPED",
+					Status: contracts.StatusSkipped,
 				}
 
 				results <- r
 
-				status := "SKIPPED"
+				status := contracts.StatusSkipped
 				pr.tailLogsChannel <- contracts.TailLogLine{
 					Step:         p.Name,
 					ParentStage:  parentStage.Name,
@@ -659,13 +650,13 @@ func (pr *pipelineRunnerImpl) runParallelStages(ctx context.Context, depth int, 
 	result.Canceled = pr.canceled
 
 	close(results)
-	result.Status = "SUCCEEDED"
+	result.Status = contracts.StatusSucceeded
 	for r := range results {
 		result.ParallelStagesResults = append(result.ParallelStagesResults, r)
 
 		// if canceled during one of the stages stop further execution
 		if r.Canceled || pr.canceled {
-			result.Status = "CANCELED"
+			result.Status = contracts.StatusCanceled
 			result.Canceled = true
 
 			continue
@@ -732,7 +723,7 @@ func (pr *pipelineRunnerImpl) runServices(ctx context.Context, parentStage *mani
 
 				results <- estafetteServiceRunResult{
 					Service: *s,
-					Status:  "SKIPPED",
+					Status:  contracts.StatusSkipped,
 				}
 			}
 		}(ctx, parentStage, s, envvars)
@@ -741,13 +732,13 @@ func (pr *pipelineRunnerImpl) runServices(ctx context.Context, parentStage *mani
 	wg.Wait()
 
 	close(results)
-	result.Status = "SUCCEEDED"
+	result.Status = contracts.StatusSucceeded
 	for r := range results {
 		result.ServicesResults = append(result.ServicesResults, r)
 
 		// if canceled during one of the stages stop further execution
 		if r.Canceled || pr.canceled {
-			result.Status = "CANCELED"
+			result.Status = contracts.StatusCanceled
 			result.Canceled = true
 
 			continue
@@ -760,7 +751,7 @@ func (pr *pipelineRunnerImpl) runServices(ctx context.Context, parentStage *mani
 			pr.envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "failed")
 		}
 
-		if !result.Canceled && r.Status == "SKIPPED" {
+		if !result.Canceled && r.Status == contracts.StatusSkipped {
 			result.Status = r.Status
 		}
 	}

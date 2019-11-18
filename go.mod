@@ -14,7 +14,7 @@ require (
 	github.com/docker/docker v1.13.1
 	github.com/docker/go-connections v0.4.0
 	github.com/docker/go-units v0.4.0 // indirect
-	github.com/estafette/estafette-ci-contracts v0.0.163
+	github.com/estafette/estafette-ci-contracts v0.0.168
 	github.com/estafette/estafette-ci-crypt v0.0.27
 	github.com/estafette/estafette-ci-manifest v0.1.133
 	github.com/estafette/estafette-foundation v0.0.24

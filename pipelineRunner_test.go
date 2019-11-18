@@ -25,7 +25,7 @@ func TestRunStages(t *testing.T) {
 		dir, _ := os.Getwd()
 
 		// act
-		_, err := pipelineRunner.runStages(context.Background(), 0, manifest.Stages, dir, envvars)
+		err := pipelineRunner.runStages(context.Background(), 0, manifest.Stages, dir, envvars)
 
 		assert.NotNil(t, err, "Error: %v", err)
 	})
@@ -40,10 +40,11 @@ func TestRunStages(t *testing.T) {
 		dir, _ := os.Getwd()
 
 		// act
-		result, err := pipelineRunner.runStages(context.Background(), 0, manifest.Stages, dir, envvars)
+		err := pipelineRunner.runStages(context.Background(), 0, manifest.Stages, dir, envvars)
+		buildLogSteps := pipelineRunner.getLogs(context.Background())
 
 		assert.Nil(t, err)
-		assert.Equal(t, 1, len(result.StageResults))
+		assert.Equal(t, 1, len(buildLogSteps))
 	})
 
 	t.Run("ReturnsResultWithoutErrorsWhenStagesSucceeded", func(t *testing.T) {
@@ -56,10 +57,11 @@ func TestRunStages(t *testing.T) {
 		dir, _ := os.Getwd()
 
 		// act
-		result, err := pipelineRunner.runStages(context.Background(), 0, manifest.Stages, dir, envvars)
+		err := pipelineRunner.runStages(context.Background(), 0, manifest.Stages, dir, envvars)
+		buildLogSteps := pipelineRunner.getLogs(context.Background())
 
 		assert.Nil(t, err)
-		assert.False(t, result.HasAggregatedErrors())
+		assert.True(t, contracts.HasSucceededStatus(buildLogSteps))
 	})
 
 	t.Run("ReturnsResultWithSucceededPipelineResultWhenStagesSucceeded", func(t *testing.T) {
@@ -72,10 +74,11 @@ func TestRunStages(t *testing.T) {
 		dir, _ := os.Getwd()
 
 		// act
-		result, err := pipelineRunner.runStages(context.Background(), 0, manifest.Stages, dir, envvars)
+		err := pipelineRunner.runStages(context.Background(), 0, manifest.Stages, dir, envvars)
+		buildLogSteps := pipelineRunner.getLogs(context.Background())
 
 		assert.Nil(t, err)
-		assert.Equal(t, "SUCCEEDED", result.StageResults[0].Status)
+		assert.Equal(t, "SUCCEEDED", buildLogSteps[0].Status)
 	})
 
 	t.Run("ReturnsResultWithErrorsWhenStagesFailed", func(t *testing.T) {
@@ -88,10 +91,11 @@ func TestRunStages(t *testing.T) {
 		dir, _ := os.Getwd()
 
 		// act
-		result, err := pipelineRunner.runStages(context.Background(), 0, manifest.Stages, dir, envvars)
+		err := pipelineRunner.runStages(context.Background(), 0, manifest.Stages, dir, envvars)
+		buildLogSteps := pipelineRunner.getLogs(context.Background())
 
 		assert.Nil(t, err)
-		assert.True(t, result.HasAggregatedErrors())
+		assert.False(t, contracts.HasSucceededStatus(buildLogSteps))
 	})
 
 	t.Run("ReturnsResultWithFailedPipelineResultWhenStagesFailed", func(t *testing.T) {
@@ -104,10 +108,11 @@ func TestRunStages(t *testing.T) {
 		dir, _ := os.Getwd()
 
 		// act
-		result, err := pipelineRunner.runStages(context.Background(), 0, manifest.Stages, dir, envvars)
+		err := pipelineRunner.runStages(context.Background(), 0, manifest.Stages, dir, envvars)
+		buildLogSteps := pipelineRunner.getLogs(context.Background())
 
 		assert.Nil(t, err)
-		assert.Equal(t, "FAILED", result.StageResults[0].Status)
+		assert.Equal(t, "FAILED", buildLogSteps[0].Status)
 	})
 
 	t.Run("ReturnsResultWithoutErrorsWhenStagesSkipped", func(t *testing.T) {
@@ -120,10 +125,11 @@ func TestRunStages(t *testing.T) {
 		dir, _ := os.Getwd()
 
 		// act
-		result, err := pipelineRunner.runStages(context.Background(), 0, manifest.Stages, dir, envvars)
+		err := pipelineRunner.runStages(context.Background(), 0, manifest.Stages, dir, envvars)
+		buildLogSteps := pipelineRunner.getLogs(context.Background())
 
 		assert.Nil(t, err)
-		assert.False(t, result.HasAggregatedErrors())
+		assert.True(t, contracts.HasSucceededStatus(buildLogSteps))
 	})
 
 	t.Run("ReturnsResultWithSkippedStageResultWhenStagesSkipped", func(t *testing.T) {
@@ -136,10 +142,11 @@ func TestRunStages(t *testing.T) {
 		dir, _ := os.Getwd()
 
 		// act
-		result, err := pipelineRunner.runStages(context.Background(), 0, manifest.Stages, dir, envvars)
+		err := pipelineRunner.runStages(context.Background(), 0, manifest.Stages, dir, envvars)
+		buildLogSteps := pipelineRunner.getLogs(context.Background())
 
 		assert.Nil(t, err)
-		assert.Equal(t, "SKIPPED", result.StageResults[0].Status)
+		assert.Equal(t, "SKIPPED", buildLogSteps[0].Status)
 	})
 
 	t.Run("ReturnsResultForAllStagesWhenFirstStageFails", func(t *testing.T) {
@@ -154,12 +161,13 @@ func TestRunStages(t *testing.T) {
 		dir, _ := os.Getwd()
 
 		// act
-		result, err := pipelineRunner.runStages(context.Background(), 0, manifest.Stages, dir, envvars)
+		err := pipelineRunner.runStages(context.Background(), 0, manifest.Stages, dir, envvars)
+		buildLogSteps := pipelineRunner.getLogs(context.Background())
 
 		assert.Nil(t, err)
-		assert.Equal(t, "FAILED", result.StageResults[0].Status)
-		assert.Equal(t, "SKIPPED", result.StageResults[1].Status)
-		assert.Equal(t, "SUCCEEDED", result.StageResults[2].Status)
+		assert.Equal(t, "FAILED", buildLogSteps[0].Status)
+		assert.Equal(t, "SKIPPED", buildLogSteps[1].Status)
+		assert.Equal(t, "SUCCEEDED", buildLogSteps[2].Status)
 	})
 
 	t.Run("ReturnsResultWithErrorsWhenFirstStageFailsAndSecondSucceeds", func(t *testing.T) {
@@ -174,10 +182,11 @@ func TestRunStages(t *testing.T) {
 		dir, _ := os.Getwd()
 
 		// act
-		result, err := pipelineRunner.runStages(context.Background(), 0, manifest.Stages, dir, envvars)
+		err := pipelineRunner.runStages(context.Background(), 0, manifest.Stages, dir, envvars)
+		buildLogSteps := pipelineRunner.getLogs(context.Background())
 
 		assert.Nil(t, err)
-		assert.True(t, result.HasAggregatedErrors())
+		assert.False(t, contracts.HasSucceededStatus(buildLogSteps))
 	})
 
 	t.Run("ReturnsResultWithoutErrorsWhenStagesSucceededAfterRetrial", func(t *testing.T) {
@@ -191,10 +200,11 @@ func TestRunStages(t *testing.T) {
 		dir, _ := os.Getwd()
 
 		// act
-		result, err := pipelineRunner.runStages(context.Background(), 0, manifest.Stages, dir, envvars)
+		err := pipelineRunner.runStages(context.Background(), 0, manifest.Stages, dir, envvars)
+		buildLogSteps := pipelineRunner.getLogs(context.Background())
 
 		assert.Nil(t, err)
-		assert.False(t, result.HasAggregatedErrors())
+		assert.True(t, contracts.HasSucceededStatus(buildLogSteps))
 	})
 
 	t.Run("ReturnsResultWithErrorsWhenStagesFailedAfterRetrial", func(t *testing.T) {
@@ -208,10 +218,11 @@ func TestRunStages(t *testing.T) {
 		dir, _ := os.Getwd()
 
 		// act
-		result, err := pipelineRunner.runStages(context.Background(), 0, manifest.Stages, dir, envvars)
+		err := pipelineRunner.runStages(context.Background(), 0, manifest.Stages, dir, envvars)
+		buildLogSteps := pipelineRunner.getLogs(context.Background())
 
 		assert.Nil(t, err)
-		assert.True(t, result.HasAggregatedErrors())
+		assert.False(t, contracts.HasSucceededStatus(buildLogSteps))
 	})
 }
 

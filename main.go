@@ -11,6 +11,7 @@ import (
 	"os/signal"
 	"runtime"
 	"strconv"
+	"strings"
 	"syscall"
 
 	"github.com/alecthomas/kingpin"
@@ -220,15 +221,15 @@ func main() {
 		envvars := envvarHelper.overrideEnvvars(estafetteEnvvars, globalEnvvars)
 
 		// run stages
-		go pipelineRunner.tailLogs(context.Background())
-		result, err := pipelineRunner.runStages(context.Background(), 0, manifest.Stages, dir, envvars)
+		err = pipelineRunner.runStages(context.Background(), 0, manifest.Stages, dir, envvars)
 		if err != nil {
 			fatalHandler.handleGocdFatal(err, "Executing stages from manifest failed")
 		}
+		buildLogSteps := pipelineRunner.getLogs(context.Background())
 
-		renderStats(result)
+		renderStats(buildLogSteps)
 
-		handleExit(result)
+		handleExit(buildLogSteps)
 
 	} else if ciServer == "estafette" {
 
@@ -367,23 +368,13 @@ func main() {
 		envvars := envvarHelper.overrideEnvvars(estafetteEnvvars, globalEnvvars)
 
 		// run stages
-		go pipelineRunner.tailLogs(context.Background())
-		result, err := pipelineRunner.runStages(ctx, 0, stages, dir, envvars)
-		if err != nil && !result.canceled {
+		err := pipelineRunner.runStages(ctx, 0, stages, dir, envvars)
+		if err != nil && buildLog.HasCanceledStatus() {
 			endOfLifeHelper.handleFatal(ctx, buildLog, err, "Executing stages from manifest failed")
 		}
 
 		// send result to ci-api
-		log.Info().Interface("result", result).Msg("Finished running stages")
-		buildLog.Steps = pipelineRunner.getLogs(ctx)
-		buildStatus := "succeeded"
-		if result.HasAggregatedErrors() {
-			buildStatus = "failed"
-		}
-		if result.canceled {
-			buildStatus = "canceled"
-		}
-
+		buildStatus := strings.ToLower(contracts.GetAggregatedStatus(buildLog.Steps))
 		_ = endOfLifeHelper.sendBuildFinishedEvent(ctx, buildStatus)
 		_ = endOfLifeHelper.sendBuildJobLogEvent(ctx, buildLog)
 		_ = endOfLifeHelper.sendBuildCleanEvent(ctx, buildStatus)
@@ -395,7 +386,7 @@ func main() {
 		if *runAsJob {
 			os.Exit(0)
 		} else {
-			handleExit(result)
+			handleExit(buildLog.Steps)
 		}
 
 	} else {

@@ -931,7 +931,7 @@ func (dr *dockerRunnerImpl) stopServices(ctx context.Context, parentStage *manif
 				err := dr.stopContainer(id)
 
 				// log tailing - finalize stage
-				status := "SUCCEEDED"
+				status := contracts.StatusSucceeded
 				if err != nil {
 					status = "FAILED"
 				}

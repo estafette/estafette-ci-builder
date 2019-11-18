@@ -100,7 +100,7 @@ func (elh *endOfLifeHelperImpl) sendBuildJobLogEvent(ctx context.Context, buildL
 	slimBuildLog.Steps = []*contracts.BuildLogStep{}
 	for _, s := range buildLog.Steps {
 		slimBuildLogStep := s
-		if s.Status == "SUCCEEDED" {
+		if s.Status == contracts.StatusSucceeded {
 			if len(s.LogLines) > 0 {
 				slimBuildLogStep.LogLines = []contracts.BuildLogLine{
 					contracts.BuildLogLine{
