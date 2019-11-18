@@ -38,7 +38,7 @@ stages:
         image: extensions/docker:dev
         action: build
         no-cache: true
-        versionTagSuffix: -gocd
+        versionTagSuffix: gocd
         repositories:
         - estafette.secret(ugcaPF_CdqMZsxsh.4ZumU_A0ufxsjV3MPInyc1VjATZgX9hcB2KQM1KDIOQs)
         path: ./publish
@@ -284,7 +284,7 @@ stages:
       push-gocd-agent-to-docker-hub:
         image: extensions/docker:dev
         action: push
-        versionTagSuffix: -gocd
+        versionTagSuffix: gocd
         repositories:
         - estafette
 
@@ -348,7 +348,7 @@ releases:
       tag-gocd-agent-container-image:
         image: extensions/docker:dev
         action: tag
-        versionTagSuffix: -gocd
+        versionTagSuffix: gocd
         repositories:
         - estafette
         tags:
@@ -367,7 +367,7 @@ releases:
       tag-gocd-agent-container-image:
         image: extensions/docker:dev
         action: tag
-        versionTagSuffix: -gocd
+        versionTagSuffix: gocd
         repositories:
         - estafette
         tags:
@@ -396,7 +396,7 @@ releases:
       tag-gocd-agent-container-image:
         image: extensions/docker:dev
         action: tag
-        versionTagSuffix: -gocd
+        versionTagSuffix: gocd
         repositories:
         - estafette
         tags:
