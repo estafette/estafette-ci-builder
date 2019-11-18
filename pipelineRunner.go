@@ -433,7 +433,7 @@ func (pr *pipelineRunnerImpl) runStages(ctx context.Context, depth int, stages [
 
 	// start log tailing
 	pr.buildLogSteps = make([]*contracts.BuildLogStep, 0)
-	go pipelineRunner.tailLogs(ctx)
+	go pr.tailLogs(ctx)
 
 	err = pr.dockerRunner.createBridgeNetwork(ctx)
 	if err != nil {
