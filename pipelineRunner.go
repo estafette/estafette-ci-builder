@@ -708,6 +708,14 @@ func (pr *pipelineRunnerImpl) runServices(ctx context.Context, parentStage *mani
 				log.Info().Msgf("Starting service '%v' for stage '%v'...", s.ContainerImage, parentStage.Name)
 			}
 
+			// set some defaults here, until they get passed in from the api
+			if s.When == "" {
+				s.When = "status == 'succeeded'"
+			}
+			if s.Shell == "" {
+				s.Shell = "/bin/sh"
+			}
+
 			whenEvaluationResult, err := pr.whenEvaluator.evaluate(s.Name, s.When, pr.whenEvaluator.getParameters())
 			if err != nil {
 				errors <- err
