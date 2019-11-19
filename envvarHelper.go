@@ -393,10 +393,7 @@ func (h *envvarHelperImpl) initBuildDatetime() (err error) {
 }
 
 func (h *envvarHelperImpl) initBuildStatus() (err error) {
-	if h.getEstafetteEnv("ESTAFETTE_BUILD_STATUS") == "" {
-		return h.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
-	}
-	return
+	return h.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
 }
 
 func (h *envvarHelperImpl) initLabels(m manifest.EstafetteManifest) (err error) {

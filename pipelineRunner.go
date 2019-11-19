@@ -24,7 +24,8 @@ type PipelineRunner interface {
 	runServices(ctx context.Context, parentStage *manifest.EstafetteStage, services []*manifest.EstafetteService, envvars map[string]string) (err error)
 	stopPipelineOnCancellation()
 	resetCancellation()
-	tailLogs(ctx context.Context)
+	sendStatusMessage(stage manifest.EstafetteStage, parentStageName string, depth int, runIndex int, image *contracts.BuildLogStepDockerImage, runDuration *time.Duration, status string)
+	tailLogs(ctx context.Context, wg *sync.WaitGroup, stageExecutionDone *bool)
 	getLogs(ctx context.Context) []*contracts.BuildLogStep
 }
 
@@ -59,87 +60,60 @@ func (pr *pipelineRunnerImpl) runStage(ctx context.Context, depth int, runIndex 
 	span.SetTag("stage", stage.Name)
 
 	parentStageName := ""
+	stagePlaceholder := fmt.Sprintf("[%v]", stage.Name)
 	if parentStage != nil {
 		parentStageName = parentStage.Name
+		stagePlaceholder = fmt.Sprintf("[%v] [%v]", parentStageName, stage.Name)
 	}
 
-	stage.ContainerImage = os.Expand(stage.ContainerImage, pr.envvarHelper.getEstafetteEnv)
-
-	log.Info().Msgf("[%v] Starting stage '%v'", stage.Name, stage.Name)
+	log.Info().Msgf("%v Starting stage '%v'", stagePlaceholder, stage.Name)
 	var isPulledImage bool
 	var isTrustedImage bool
 	var imagePullDuration time.Duration
 	var imageSize int64
 
 	if stage.ContainerImage != "" {
+		stage.ContainerImage = os.Expand(stage.ContainerImage, pr.envvarHelper.getEstafetteEnv)
 		isPulledImage = pr.dockerRunner.isImagePulled(stage.Name, stage.ContainerImage)
 		isTrustedImage = pr.dockerRunner.isTrustedImage(stage.Name, stage.ContainerImage)
 
 		if !isPulledImage || runtime.GOOS == "windows" {
 
 			// start pulling stage
-			pendingStatus := contracts.StatusPending
-			pr.tailLogsChannel <- contracts.TailLogLine{
-				Step:        stage.Name,
-				ParentStage: parentStageName,
-				Type:        "stage",
-				Depth:       depth,
-				RunIndex:    runIndex,
-				Image: &contracts.BuildLogStepDockerImage{
-					Name:      getContainerImageName(stage.ContainerImage),
-					Tag:       getContainerImageTag(stage.ContainerImage),
-					IsTrusted: isTrustedImage,
-				},
-				AutoInjected: &stage.AutoInjected,
-				Status:       &pendingStatus,
-			}
+			pr.sendStatusMessage(stage, parentStageName, depth, runIndex, &contracts.BuildLogStepDockerImage{
+				Name:      getContainerImageName(stage.ContainerImage),
+				Tag:       getContainerImageTag(stage.ContainerImage),
+				IsTrusted: isTrustedImage,
+			}, nil, contracts.StatusPending)
 
 			// pull docker image
 			dockerPullStart := time.Now()
 			err = pr.dockerRunner.pullImage(ctx, stage.Name, stage.ContainerImage)
-			if err != nil {
-				return err
-			}
-
 			imagePullDuration = time.Since(dockerPullStart)
 		}
 
 		// set docker image size
-		imageSize, err = pr.dockerRunner.getImageSize(stage.ContainerImage)
-		if err != nil {
-			return err
+		if err == nil {
+			imageSize, err = pr.dockerRunner.getImageSize(stage.ContainerImage)
 		}
 	}
 
-	// start running stage
-	runningStatus := contracts.StatusRunning
-	pr.tailLogsChannel <- contracts.TailLogLine{
-		Step:        stage.Name,
-		ParentStage: parentStageName,
-		Type:        "stage",
-		Depth:       depth,
-		RunIndex:    runIndex,
-		Image: &contracts.BuildLogStepDockerImage{
+	if err == nil {
+		// start running stage
+		pr.sendStatusMessage(stage, parentStageName, depth, runIndex, &contracts.BuildLogStepDockerImage{
 			Name:         getContainerImageName(stage.ContainerImage),
 			Tag:          getContainerImageTag(stage.ContainerImage),
 			IsTrusted:    isTrustedImage,
 			IsPulled:     isPulledImage,
 			ImageSize:    imageSize,
 			PullDuration: imagePullDuration,
-		},
-		AutoInjected: &stage.AutoInjected,
-		Status:       &runningStatus,
+		}, nil, contracts.StatusRunning)
 	}
 
 	// run commands in docker container
 	dockerRunStart := time.Now()
 
-	parentStageName = ""
-	if parentStage != nil {
-		parentStageName = parentStage.Name
-	}
-
-	if len(stage.Services) > 0 {
+	if err == nil && len(stage.Services) > 0 {
 		// this stage has service containers, start them first
 		err = pr.runServices(ctx, &stage, stage.Services, envvars)
 	}
@@ -149,7 +123,7 @@ func (pr *pipelineRunnerImpl) runStage(ctx context.Context, depth int, runIndex 
 			if depth == 0 {
 				err = pr.runParallelStages(ctx, depth+1, &stage, stage.ParallelStages, dir, envvars)
 			} else {
-				log.Warn().Msgf("Can't run parallel stages nested inside nested stages")
+				log.Warn().Msgf("%v Can't run parallel stages nested inside nested stages", stagePlaceholder)
 			}
 		} else {
 			var containerID string
@@ -165,23 +139,16 @@ func (pr *pipelineRunnerImpl) runStage(ctx context.Context, depth int, runIndex 
 	// finalize stage
 	finalStatus := contracts.StatusSucceeded
 	if pr.canceled {
-		log.Info().Msgf("[%v] Canceled pipeline '%v'", stage.Name, stage.Name)
+		log.Info().Msgf("%v Canceled pipeline '%v'", stagePlaceholder, stage.Name)
 		finalStatus = contracts.StatusCanceled
 	} else if err != nil {
-		log.Warn().Err(err).Msgf("[%v] Pipeline '%v' container failed", stage.Name, stage.Name)
+		log.Warn().Err(err).Msgf("%v Pipeline '%v' container failed", stagePlaceholder, stage.Name)
 		finalStatus = contracts.StatusFailed
 	} else {
-		log.Info().Msgf("[%v] Finished pipeline '%v' successfully", stage.Name, stage.Name)
+		log.Info().Msgf("%v Finished pipeline '%v' successfully", stagePlaceholder, stage.Name)
 	}
-	pr.tailLogsChannel <- contracts.TailLogLine{
-		Step:        stage.Name,
-		ParentStage: parentStageName,
-		Type:        "stage",
-		Depth:       depth,
-		RunIndex:    runIndex,
-		Duration:    &runDuration,
-		Status:      &finalStatus,
-	}
+
+	pr.sendStatusMessage(stage, parentStageName, depth, runIndex, nil, &runDuration, finalStatus)
 
 	if len(stage.Services) > 0 {
 		// this stage has service containers, stop them now that the stage has finished
@@ -333,13 +300,13 @@ func (pr *pipelineRunnerImpl) runService(ctx context.Context, envvars map[string
 		go func(ctx context.Context, containerID, parentStageName string, service manifest.EstafetteService) {
 			err := pr.dockerRunner.tailContainerLogs(ctx, containerID, parentStageName, service.Name, "service", 1, 0)
 
-			finalStatus := contracts.StatusSucceeded
+			finalStatusAfterTailing := contracts.StatusSucceeded
 			if pr.canceled {
 				log.Info().Msgf("[%v] Canceled service '%v'", parentStageName, service.Name)
-				finalStatus = contracts.StatusCanceled
+				finalStatusAfterTailing = contracts.StatusCanceled
 			} else if err != nil {
 				log.Warn().Err(err).Msgf("[%v] Service '%v' container failed", parentStageName, service.Name)
-				finalStatus = contracts.StatusFailed
+				finalStatusAfterTailing = contracts.StatusFailed
 			} else {
 				log.Info().Msgf("[%v] Started service '%v' successfully", parentStageName, service.Name)
 			}
@@ -349,7 +316,7 @@ func (pr *pipelineRunnerImpl) runService(ctx context.Context, envvars map[string
 				ParentStage: parentStageName,
 				Type:        "service",
 				Depth:       1,
-				Status:      &finalStatus,
+				Status:      &finalStatusAfterTailing,
 			}
 		}(ctx, containerID, parentStageName, service)
 	}
@@ -387,12 +354,15 @@ func (pr *pipelineRunnerImpl) runService(ctx context.Context, envvars map[string
 
 func (pr *pipelineRunnerImpl) runStages(ctx context.Context, depth int, stages []*manifest.EstafetteStage, dir string, envvars map[string]string) (err error) {
 
-	span, ctx := opentracing.StartSpanFromContext(ctx, "RunStages")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "runStages")
 	defer span.Finish()
 
 	// start log tailing
 	pr.buildLogSteps = make([]*contracts.BuildLogStep, 0)
-	go pr.tailLogs(ctx)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	stageExecutionDone := false
+	go pr.tailLogs(ctx, &wg, &stageExecutionDone)
 
 	err = pr.dockerRunner.createBridgeNetwork(ctx)
 	if err != nil {
@@ -402,7 +372,7 @@ func (pr *pipelineRunnerImpl) runStages(ctx context.Context, depth int, stages [
 		_ = pr.dockerRunner.deleteBridgeNetwork(ctx)
 	}(ctx)
 
-	// set default build status if not set
+	// set default build status at the start
 	err = pr.envvarHelper.initBuildStatus()
 	if err != nil {
 		return
@@ -412,6 +382,7 @@ func (pr *pipelineRunnerImpl) runStages(ctx context.Context, depth int, stages [
 		return fmt.Errorf("Manifest has no stages, failing the build")
 	}
 
+	var finalErr error
 	for _, p := range stages {
 
 		// handle cancellation happening in between stages
@@ -419,7 +390,8 @@ func (pr *pipelineRunnerImpl) runStages(ctx context.Context, depth int, stages [
 			return
 		}
 
-		whenEvaluationResult, err := pr.whenEvaluator.evaluate(p.Name, p.When, pr.whenEvaluator.getParameters())
+		var whenEvaluationResult bool
+		whenEvaluationResult, err = pr.whenEvaluator.evaluate(p.Name, p.When, pr.whenEvaluator.getParameters())
 		if err != nil {
 			return err
 		}
@@ -432,8 +404,8 @@ func (pr *pipelineRunnerImpl) runStages(ctx context.Context, depth int, stages [
 				// set 'failed' build status
 				pr.envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "failed")
 				envvars[pr.envvarHelper.getEstafetteEnvvarName("ESTAFETTE_BUILD_STATUS")] = "failed"
+				finalErr = err
 			}
-
 		} else {
 
 			// if an error has happened in one of the previous steps or the when expression evaluates to false we still want to render the following steps in the result table
@@ -446,24 +418,22 @@ func (pr *pipelineRunnerImpl) runStages(ctx context.Context, depth int, stages [
 				AutoInjected: &p.AutoInjected,
 				Status:       &status,
 			}
-
-			continue
 		}
 	}
 
-	return
+	// signal that running stages has finished
+	stageExecutionDone = true
+
+	// wait for log tailing to finish
+	wg.Wait()
+
+	return finalErr
 }
 
 func (pr *pipelineRunnerImpl) runParallelStages(ctx context.Context, depth int, parentStage *manifest.EstafetteStage, stages []*manifest.EstafetteStage, dir string, envvars map[string]string) (err error) {
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "RunStages")
 	defer span.Finish()
-
-	// set default build status if not set
-	err = pr.envvarHelper.initBuildStatus()
-	if err != nil {
-		return
-	}
 
 	if len(stages) == 0 {
 		return fmt.Errorf("Manifest has no stages, failing the build")
@@ -564,6 +534,21 @@ func (pr *pipelineRunnerImpl) runServices(ctx context.Context, parentStage *mani
 			if whenEvaluationResult {
 				err := pr.runService(ctx, envvars, parentStage, *s)
 				if err != nil {
+
+					// create log line for error
+					logLineObject := contracts.BuildLogLine{
+						Timestamp:  time.Now().UTC(),
+						StreamType: "stderr",
+						Text:       err.Error(),
+					}
+					pr.tailLogsChannel <- contracts.TailLogLine{
+						Step:        s.Name,
+						ParentStage: parentStage.Name,
+						Type:        "service",
+						Depth:       1,
+						LogLine:     &logLineObject,
+					}
+
 					errors <- err
 				}
 			} else {
@@ -595,10 +580,33 @@ func (pr *pipelineRunnerImpl) resetCancellation() {
 	pr.canceled = false
 }
 
-func (pr *pipelineRunnerImpl) tailLogs(ctx context.Context) {
+func (pr *pipelineRunnerImpl) sendStatusMessage(stage manifest.EstafetteStage, parentStageName string, depth int, runIndex int, image *contracts.BuildLogStepDockerImage, runDuration *time.Duration, status string) {
+
+	tailLogLine := contracts.TailLogLine{
+		Step:         stage.Name,
+		ParentStage:  parentStageName,
+		Type:         "stage",
+		Depth:        depth,
+		RunIndex:     runIndex,
+		AutoInjected: &stage.AutoInjected,
+		Status:       &status,
+	}
+
+	if image != nil {
+		tailLogLine.Image = image
+	}
+	if runDuration != nil {
+		tailLogLine.Duration = runDuration
+	}
+
+	pr.tailLogsChannel <- tailLogLine
+}
+
+func (pr *pipelineRunnerImpl) tailLogs(ctx context.Context, wg *sync.WaitGroup, stageExecutionDone *bool) {
+	defer wg.Done()
 	for {
-		tailLogLine, more := <-pr.tailLogsChannel
-		if more {
+		select {
+		case tailLogLine := <-pr.tailLogsChannel:
 			if pr.runAsJob {
 				// this provides log streaming capabilities in the web interface
 				log.Info().Interface("tailLogLine", tailLogLine).Msg("")
@@ -613,18 +621,16 @@ func (pr *pipelineRunnerImpl) tailLogs(ctx context.Context) {
 
 			pr.upsertTailLogLine(tailLogLine)
 
-		} else {
-			// channel is closed, we can return now
-			return
+		case <-time.After(1 * time.Second):
+			log.Debug().Msg("Waiting for tail log message timed out")
+			if *stageExecutionDone {
+				return
+			}
 		}
 	}
 }
 
 func (pr *pipelineRunnerImpl) getLogs(ctx context.Context) []*contracts.BuildLogStep {
-
-	// close log channel
-	// close(pr.tailLogsChannel)
-
 	return pr.buildLogSteps
 }
 

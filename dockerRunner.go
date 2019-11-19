@@ -981,7 +981,7 @@ func (dr *dockerRunnerImpl) waitForDockerDaemon() {
 	for {
 		if _, err := os.Stat("/var/run/docker.sock"); os.IsNotExist(err) {
 			// does not exist
-			time.Sleep(1000 * time.Millisecond)
+			time.Sleep(1 * time.Second)
 		} else {
 			// file exists, break out of for loop
 			break

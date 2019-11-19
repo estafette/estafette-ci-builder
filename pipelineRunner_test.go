@@ -3,10 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
 	contracts "github.com/estafette/estafette-ci-contracts"
+	crypt "github.com/estafette/estafette-ci-crypt"
 	manifest "github.com/estafette/estafette-ci-manifest"
 	"github.com/stretchr/testify/assert"
 )
@@ -21,6 +23,8 @@ func TestRunStage(t *testing.T) {
 
 	t.Run("ReturnsErrorWhenPullImageFails", func(t *testing.T) {
 
+		dockerRunnerMock, _, _, pipelineRunner := resetState()
+
 		depth := 0
 		runIndex := 0
 		dir := "/estafette-work"
@@ -32,7 +36,6 @@ func TestRunStage(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerRunnerMock.reset()
 		dockerRunnerMock.isImagePulledFunc = func(stageName string, containerImage string) bool { return false }
 		dockerRunnerMock.pullImageFunc = func(ctx context.Context, stageName string, containerImage string) error {
 			return fmt.Errorf("Failed pulling image")
@@ -47,6 +50,8 @@ func TestRunStage(t *testing.T) {
 
 	t.Run("ReturnsErrorWhenGetImageSizeFails", func(t *testing.T) {
 
+		dockerRunnerMock, _, _, pipelineRunner := resetState()
+
 		depth := 0
 		runIndex := 0
 		dir := "/estafette-work"
@@ -58,7 +63,6 @@ func TestRunStage(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerRunnerMock.reset()
 		dockerRunnerMock.isImagePulledFunc = func(stageName string, containerImage string) bool { return false }
 		dockerRunnerMock.pullImageFunc = func(ctx context.Context, stageName string, containerImage string) error { return nil }
 		dockerRunnerMock.getImageSizeFunc = func(containerImage string) (int64, error) {
@@ -74,6 +78,8 @@ func TestRunStage(t *testing.T) {
 
 	t.Run("ReturnsErrorWhenStartStageContainerFails", func(t *testing.T) {
 
+		dockerRunnerMock, _, _, pipelineRunner := resetState()
+
 		depth := 0
 		runIndex := 0
 		dir := "/estafette-work"
@@ -85,7 +91,6 @@ func TestRunStage(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerRunnerMock.reset()
 		dockerRunnerMock.isImagePulledFunc = func(stageName string, containerImage string) bool { return true }
 		dockerRunnerMock.startStageContainerFunc = func(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, p manifest.EstafetteStage) (containerID string, err error) {
 			return "", fmt.Errorf("Failed starting container")
@@ -100,6 +105,8 @@ func TestRunStage(t *testing.T) {
 
 	t.Run("ReturnsErrorWhenTailContainerLogsFails", func(t *testing.T) {
 
+		dockerRunnerMock, _, _, pipelineRunner := resetState()
+
 		depth := 0
 		runIndex := 0
 		dir := "/estafette-work"
@@ -111,7 +118,6 @@ func TestRunStage(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerRunnerMock.reset()
 		dockerRunnerMock.isImagePulledFunc = func(stageName string, containerImage string) bool { return true }
 		dockerRunnerMock.startStageContainerFunc = func(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, p manifest.EstafetteStage) (containerID string, err error) {
 			return "abc", nil
@@ -129,6 +135,8 @@ func TestRunStage(t *testing.T) {
 
 	t.Run("ReturnsNoErrorWhenContainerPullsStartsAndLogs", func(t *testing.T) {
 
+		dockerRunnerMock, _, _, pipelineRunner := resetState()
+
 		depth := 0
 		runIndex := 0
 		dir := "/estafette-work"
@@ -145,7 +153,6 @@ func TestRunStage(t *testing.T) {
 		getImageSizeFuncCalled := false
 		startStageContainerFuncCalled := false
 		tailContainerLogsFuncCalled := false
-		dockerRunnerMock.reset()
 		dockerRunnerMock.isImagePulledFunc = func(stageName string, containerImage string) bool { isImagePulledFuncCalled = true; return false }
 		dockerRunnerMock.pullImageFunc = func(ctx context.Context, stageName string, containerImage string) error {
 			pullImageFuncCalled = true
@@ -177,6 +184,8 @@ func TestRunStage(t *testing.T) {
 
 	t.Run("SendsSequenceOfRunningAndSucceededMessageToChannelForSuccessfulRunWhenImageIsAlreadyPulled", func(t *testing.T) {
 
+		dockerRunnerMock, tailLogsChannel, _, pipelineRunner := resetState()
+
 		depth := 0
 		runIndex := 0
 		dir := "/estafette-work"
@@ -187,11 +196,7 @@ func TestRunStage(t *testing.T) {
 			ContainerImage: "alpine:latest",
 		}
 
-		// reset channel to start with no messages
-		resetChannel(tailLogsChannel)
-
 		// set mock responses
-		dockerRunnerMock.reset()
 		dockerRunnerMock.isImagePulledFunc = func(stageName string, containerImage string) bool { return true }
 		dockerRunnerMock.getImageSizeFunc = func(containerImage string) (int64, error) {
 			return 0, nil
@@ -217,6 +222,8 @@ func TestRunStage(t *testing.T) {
 
 	t.Run("SendsSequenceOfPendingRunningAndSucceededMessageToChannelForSuccessfulRun", func(t *testing.T) {
 
+		dockerRunnerMock, tailLogsChannel, _, pipelineRunner := resetState()
+
 		depth := 0
 		runIndex := 0
 		dir := "/estafette-work"
@@ -227,11 +234,7 @@ func TestRunStage(t *testing.T) {
 			ContainerImage: "alpine:latest",
 		}
 
-		// reset channel to start with no messages
-		resetChannel(tailLogsChannel)
-
 		// set mock responses
-		dockerRunnerMock.reset()
 		dockerRunnerMock.isImagePulledFunc = func(stageName string, containerImage string) bool { return false }
 		dockerRunnerMock.pullImageFunc = func(ctx context.Context, stageName string, containerImage string) error {
 			return nil
@@ -263,6 +266,8 @@ func TestRunStage(t *testing.T) {
 
 	t.Run("SendsSequenceOfPendingRunningAndFailedMessageToChannelForFailingRun", func(t *testing.T) {
 
+		dockerRunnerMock, tailLogsChannel, _, pipelineRunner := resetState()
+
 		depth := 0
 		runIndex := 0
 		dir := "/estafette-work"
@@ -273,11 +278,7 @@ func TestRunStage(t *testing.T) {
 			ContainerImage: "alpine:latest",
 		}
 
-		// reset channel to start with no messages
-		resetChannel(tailLogsChannel)
-
 		// set mock responses
-		dockerRunnerMock.reset()
 		dockerRunnerMock.isImagePulledFunc = func(stageName string, containerImage string) bool { return false }
 		dockerRunnerMock.pullImageFunc = func(ctx context.Context, stageName string, containerImage string) error {
 			return nil
@@ -309,6 +310,8 @@ func TestRunStage(t *testing.T) {
 
 	t.Run("SendsSequenceOfPendingRunningAndCanceledMessageToChannelForCanceledRun", func(t *testing.T) {
 
+		dockerRunnerMock, tailLogsChannel, cancellationChannel, pipelineRunner := resetState()
+
 		depth := 0
 		runIndex := 0
 		dir := "/estafette-work"
@@ -319,11 +322,7 @@ func TestRunStage(t *testing.T) {
 			ContainerImage: "alpine:latest",
 		}
 
-		// reset channel to start with no messages
-		resetChannel(tailLogsChannel)
-
 		// set mock responses
-		dockerRunnerMock.reset()
 		dockerRunnerMock.isImagePulledFunc = func(stageName string, containerImage string) bool { return false }
 		dockerRunnerMock.pullImageFunc = func(ctx context.Context, stageName string, containerImage string) error {
 			return nil
@@ -353,11 +352,11 @@ func TestRunStage(t *testing.T) {
 
 		canceledStatusMessage := <-tailLogsChannel
 		assert.Equal(t, contracts.StatusCanceled, *canceledStatusMessage.Status)
-
-		pipelineRunner.resetCancellation()
 	})
 
 	t.Run("SendsSequenceOfPendingRunningAndCanceledMessageToChannelForCanceledRunEvenWhenRunFails", func(t *testing.T) {
+
+		dockerRunnerMock, tailLogsChannel, cancellationChannel, pipelineRunner := resetState()
 
 		depth := 0
 		runIndex := 0
@@ -369,11 +368,7 @@ func TestRunStage(t *testing.T) {
 			ContainerImage: "alpine:latest",
 		}
 
-		// reset channel to start with no messages
-		resetChannel(tailLogsChannel)
-
 		// set mock responses
-		dockerRunnerMock.reset()
 		dockerRunnerMock.isImagePulledFunc = func(stageName string, containerImage string) bool { return false }
 		dockerRunnerMock.pullImageFunc = func(ctx context.Context, stageName string, containerImage string) error {
 			return nil
@@ -403,14 +398,14 @@ func TestRunStage(t *testing.T) {
 
 		canceledStatusMessage := <-tailLogsChannel
 		assert.Equal(t, contracts.StatusCanceled, *canceledStatusMessage.Status)
-
-		pipelineRunner.resetCancellation()
 	})
 }
 
 func TestRunStageWithRetry(t *testing.T) {
 
 	t.Run("ReturnsErrorWhenRunStageFailsWithZeroRetries", func(t *testing.T) {
+
+		dockerRunnerMock, _, _, pipelineRunner := resetState()
 
 		depth := 0
 		dir := "/estafette-work"
@@ -424,7 +419,6 @@ func TestRunStageWithRetry(t *testing.T) {
 
 		// set mock responses
 		callCount := 0
-		dockerRunnerMock.reset()
 		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error) {
 			callCount++
 			return fmt.Errorf("Failed tailing container logs")
@@ -440,6 +434,8 @@ func TestRunStageWithRetry(t *testing.T) {
 
 	t.Run("ReturnsErrorWhenRunStageFailsWithAllRetries", func(t *testing.T) {
 
+		dockerRunnerMock, _, _, pipelineRunner := resetState()
+
 		depth := 0
 		dir := "/estafette-work"
 		envvars := map[string]string{}
@@ -453,7 +449,6 @@ func TestRunStageWithRetry(t *testing.T) {
 		// set mock responses
 		iteration := 0
 		callCount := 0
-		dockerRunnerMock.reset()
 		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error) {
 
 			defer func() { iteration++ }()
@@ -481,6 +476,8 @@ func TestRunStageWithRetry(t *testing.T) {
 
 	t.Run("ReturnsErrorWhenRunStageFailsWithAllRetries", func(t *testing.T) {
 
+		dockerRunnerMock, _, _, pipelineRunner := resetState()
+
 		depth := 0
 		dir := "/estafette-work"
 		envvars := map[string]string{}
@@ -494,7 +491,6 @@ func TestRunStageWithRetry(t *testing.T) {
 		// set mock responses
 		iteration := 0
 		callCount := 0
-		dockerRunnerMock.reset()
 		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error) {
 
 			defer func() { iteration++ }()
@@ -518,11 +514,108 @@ func TestRunStageWithRetry(t *testing.T) {
 		assert.Nil(t, err)
 		assert.Equal(t, 3, callCount)
 	})
+
+	t.Run("SendsMessageWithErrorAsLogLineForFailingStage", func(t *testing.T) {
+
+		dockerRunnerMock, tailLogsChannel, _, pipelineRunner := resetState()
+
+		depth := 0
+		dir := "/estafette-work"
+		envvars := map[string]string{}
+		var parentStage *manifest.EstafetteStage = nil
+		stage := manifest.EstafetteStage{
+			Name:           "stage-a",
+			ContainerImage: "alpine:latest",
+			Retries:        0,
+		}
+
+		// set mock responses
+		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error) {
+			return fmt.Errorf("Failed tailing container logs")
+		}
+
+		// act
+		_ = pipelineRunner.runStageWithRetry(context.Background(), depth, dir, envvars, parentStage, stage)
+
+		_ = <-tailLogsChannel                // pending state
+		_ = <-tailLogsChannel                // running state
+		_ = <-tailLogsChannel                // failed state
+		errorLogMessage := <-tailLogsChannel // logged error message
+
+		if assert.NotNil(t, errorLogMessage.LogLine) {
+			assert.Equal(t, "Failed tailing container logs", errorLogMessage.LogLine.Text)
+		}
+	})
+
+	t.Run("SendsMessageWithErrorAsLogLineForEachFailingAttempt", func(t *testing.T) {
+
+		dockerRunnerMock, tailLogsChannel, _, pipelineRunner := resetState()
+
+		depth := 0
+		dir := "/estafette-work"
+		envvars := map[string]string{}
+		var parentStage *manifest.EstafetteStage = nil
+		stage := manifest.EstafetteStage{
+			Name:           "stage-a",
+			ContainerImage: "alpine:latest",
+			Retries:        2,
+		}
+
+		// set mock responses
+		iteration := 0
+		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error) {
+
+			defer func() { iteration++ }()
+
+			switch iteration {
+			case 0:
+				return fmt.Errorf("Failed tailing container logs attempt 1")
+			case 1:
+				return fmt.Errorf("Failed tailing container logs attempt 2")
+			case 2:
+				return fmt.Errorf("Failed tailing container logs attempt 3")
+			}
+
+			return fmt.Errorf("Shouldn't call it this often")
+		}
+
+		// act
+		_ = pipelineRunner.runStageWithRetry(context.Background(), depth, dir, envvars, parentStage, stage)
+
+		_ = <-tailLogsChannel                // pending state
+		_ = <-tailLogsChannel                // running state
+		_ = <-tailLogsChannel                // failed state
+		errorLogMessage := <-tailLogsChannel // logged error message
+
+		if assert.NotNil(t, errorLogMessage.LogLine) {
+			assert.Equal(t, "Failed tailing container logs attempt 1", errorLogMessage.LogLine.Text)
+		}
+
+		_ = <-tailLogsChannel               // pending state
+		_ = <-tailLogsChannel               // running state
+		_ = <-tailLogsChannel               // failed state
+		errorLogMessage = <-tailLogsChannel // logged error message
+
+		if assert.NotNil(t, errorLogMessage.LogLine) {
+			assert.Equal(t, "Failed tailing container logs attempt 2", errorLogMessage.LogLine.Text)
+		}
+
+		_ = <-tailLogsChannel               // pending state
+		_ = <-tailLogsChannel               // running state
+		_ = <-tailLogsChannel               // failed state
+		errorLogMessage = <-tailLogsChannel // logged error message
+
+		if assert.NotNil(t, errorLogMessage.LogLine) {
+			assert.Equal(t, "Failed tailing container logs attempt 3", errorLogMessage.LogLine.Text)
+		}
+	})
 }
 
 func TestRunService(t *testing.T) {
 
 	t.Run("ReturnsErrorWhenPullImageFails", func(t *testing.T) {
+
+		dockerRunnerMock, _, _, pipelineRunner := resetState()
 
 		envvars := map[string]string{}
 		var parentStage *manifest.EstafetteStage = &manifest.EstafetteStage{
@@ -534,7 +627,6 @@ func TestRunService(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerRunnerMock.reset()
 		dockerRunnerMock.isImagePulledFunc = func(stageName string, containerImage string) bool { return false }
 		dockerRunnerMock.pullImageFunc = func(ctx context.Context, stageName string, containerImage string) error {
 			return fmt.Errorf("Failed pulling image")
@@ -549,6 +641,8 @@ func TestRunService(t *testing.T) {
 
 	t.Run("ReturnsErrorWhenGetImageSizeFails", func(t *testing.T) {
 
+		dockerRunnerMock, _, _, pipelineRunner := resetState()
+
 		envvars := map[string]string{}
 		var parentStage *manifest.EstafetteStage = &manifest.EstafetteStage{
 			Name: "stage-a",
@@ -559,7 +653,6 @@ func TestRunService(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerRunnerMock.reset()
 		dockerRunnerMock.isImagePulledFunc = func(stageName string, containerImage string) bool { return false }
 		dockerRunnerMock.pullImageFunc = func(ctx context.Context, stageName string, containerImage string) error { return nil }
 		dockerRunnerMock.getImageSizeFunc = func(containerImage string) (int64, error) {
@@ -575,6 +668,8 @@ func TestRunService(t *testing.T) {
 
 	t.Run("ReturnsErrorWhenStartStageContainerFails", func(t *testing.T) {
 
+		dockerRunnerMock, _, _, pipelineRunner := resetState()
+
 		envvars := map[string]string{}
 		var parentStage *manifest.EstafetteStage = &manifest.EstafetteStage{
 			Name: "stage-a",
@@ -585,7 +680,6 @@ func TestRunService(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerRunnerMock.reset()
 		dockerRunnerMock.isImagePulledFunc = func(stageName string, containerImage string) bool { return true }
 		dockerRunnerMock.startServiceContainerFunc = func(ctx context.Context, envvars map[string]string, parentStage *manifest.EstafetteStage, service manifest.EstafetteService) (containerID string, err error) {
 			return "", fmt.Errorf("Failed starting container")
@@ -600,6 +694,8 @@ func TestRunService(t *testing.T) {
 
 	t.Run("ReturnsNoErrorWhenTailContainerLogsFailsSinceItRunsInTheBackground", func(t *testing.T) {
 
+		dockerRunnerMock, _, _, pipelineRunner := resetState()
+
 		envvars := map[string]string{}
 		var parentStage *manifest.EstafetteStage = &manifest.EstafetteStage{
 			Name: "stage-a",
@@ -610,23 +706,29 @@ func TestRunService(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerRunnerMock.reset()
 		dockerRunnerMock.isImagePulledFunc = func(stageName string, containerImage string) bool { return true }
 		dockerRunnerMock.startServiceContainerFunc = func(ctx context.Context, envvars map[string]string, parentStage *manifest.EstafetteStage, service manifest.EstafetteService) (containerID string, err error) {
 			return "abc", nil
 		}
+		var wg sync.WaitGroup
+		wg.Add(1)
 		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error) {
-			time.Sleep(1 * time.Second)
+			defer wg.Done()
 			return fmt.Errorf("Failed tailing container logs")
 		}
 
 		// act
 		err := pipelineRunner.runService(context.Background(), envvars, parentStage, service)
 
+		// wait for tailContainerLogsFunc to finish
+		wg.Wait()
+
 		assert.Nil(t, err)
 	})
 
 	t.Run("ReturnsErrorWhenRunReadinessProbeContainerFails", func(t *testing.T) {
+
+		dockerRunnerMock, _, _, pipelineRunner := resetState()
 
 		envvars := map[string]string{}
 		var parentStage *manifest.EstafetteStage = &manifest.EstafetteStage{
@@ -639,12 +741,14 @@ func TestRunService(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerRunnerMock.reset()
 		dockerRunnerMock.isImagePulledFunc = func(stageName string, containerImage string) bool { return true }
 		dockerRunnerMock.startServiceContainerFunc = func(ctx context.Context, envvars map[string]string, parentStage *manifest.EstafetteStage, service manifest.EstafetteService) (containerID string, err error) {
 			return "abc", nil
 		}
+		var wg sync.WaitGroup
+		wg.Add(1)
 		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error) {
+			defer wg.Done()
 			return nil
 		}
 		dockerRunnerMock.runReadinessProbeContainerFunc = func(ctx context.Context, parentStage manifest.EstafetteStage, service manifest.EstafetteService, readiness manifest.ReadinessProbe) (err error) {
@@ -654,11 +758,16 @@ func TestRunService(t *testing.T) {
 		// act
 		err := pipelineRunner.runService(context.Background(), envvars, parentStage, service)
 
+		// wait for tailContainerLogsFunc to finish
+		wg.Wait()
+
 		assert.NotNil(t, err)
 		assert.Equal(t, "Failed readiness probe", err.Error())
 	})
 
 	t.Run("ReturnsNoErrorWhenContainerPullsStartsAndLogs", func(t *testing.T) {
+
+		dockerRunnerMock, _, _, pipelineRunner := resetState()
 
 		envvars := map[string]string{}
 		var parentStage *manifest.EstafetteStage = &manifest.EstafetteStage{
@@ -677,7 +786,6 @@ func TestRunService(t *testing.T) {
 		startServiceContainerFuncCalled := false
 		tailContainerLogsFuncCalled := false
 		runReadinessProbeContainerFuncCalled := false
-		dockerRunnerMock.reset()
 		dockerRunnerMock.isImagePulledFunc = func(stageName string, containerImage string) bool { isImagePulledFuncCalled = true; return false }
 		dockerRunnerMock.pullImageFunc = func(ctx context.Context, stageName string, containerImage string) error {
 			pullImageFuncCalled = true
@@ -691,7 +799,10 @@ func TestRunService(t *testing.T) {
 			startServiceContainerFuncCalled = true
 			return "abc", nil
 		}
+		var wg sync.WaitGroup
+		wg.Add(1)
 		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error) {
+			defer wg.Done()
 			tailContainerLogsFuncCalled = true
 			return nil
 		}
@@ -703,11 +814,8 @@ func TestRunService(t *testing.T) {
 		// act
 		err := pipelineRunner.runService(context.Background(), envvars, parentStage, service)
 
-		// wait for 4 messages to be received, to ensure tailing is done as well
-		<-tailLogsChannel
-		<-tailLogsChannel
-		<-tailLogsChannel
-		<-tailLogsChannel
+		// wait for tailContainerLogsFunc to finish
+		wg.Wait()
 
 		assert.Nil(t, err)
 		assert.True(t, isImagePulledFuncCalled)
@@ -720,6 +828,8 @@ func TestRunService(t *testing.T) {
 
 	t.Run("SendsSequenceOfRunningAndRunningMessageToChannelForSuccessfulRunWhenImageIsAlreadyPulled", func(t *testing.T) {
 
+		dockerRunnerMock, tailLogsChannel, _, pipelineRunner := resetState()
+
 		envvars := map[string]string{}
 		var parentStage *manifest.EstafetteStage = &manifest.EstafetteStage{
 			Name: "stage-a",
@@ -729,11 +839,7 @@ func TestRunService(t *testing.T) {
 			ContainerImage: "alpine:latest",
 		}
 
-		// reset channel to start with no messages
-		resetChannel(tailLogsChannel)
-
 		// set mock responses
-		dockerRunnerMock.reset()
 		dockerRunnerMock.isImagePulledFunc = func(stageName string, containerImage string) bool { return true }
 		dockerRunnerMock.getImageSizeFunc = func(containerImage string) (int64, error) {
 			return 0, nil
@@ -741,13 +847,19 @@ func TestRunService(t *testing.T) {
 		dockerRunnerMock.startServiceContainerFunc = func(ctx context.Context, envvars map[string]string, parentStage *manifest.EstafetteStage, service manifest.EstafetteService) (containerID string, err error) {
 			return "abc", nil
 		}
+		var wg sync.WaitGroup
+		wg.Add(1)
 		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error) {
+			defer wg.Done()
 			time.Sleep(1 * time.Second)
 			return nil
 		}
 
 		// act
 		err := pipelineRunner.runService(context.Background(), envvars, parentStage, service)
+
+		// wait for tailContainerLogsFunc to finish
+		wg.Wait()
 
 		assert.Nil(t, err)
 
@@ -760,6 +872,8 @@ func TestRunService(t *testing.T) {
 
 	t.Run("SendsSequenceOfPendingRunningAndRunningMessageToChannelForSuccessfulStartAndReadiness", func(t *testing.T) {
 
+		dockerRunnerMock, tailLogsChannel, _, pipelineRunner := resetState()
+
 		envvars := map[string]string{}
 		var parentStage *manifest.EstafetteStage = &manifest.EstafetteStage{
 			Name: "stage-a",
@@ -770,11 +884,7 @@ func TestRunService(t *testing.T) {
 			Readiness:      &manifest.ReadinessProbe{},
 		}
 
-		// reset channel to start with no messages
-		resetChannel(tailLogsChannel)
-
 		// set mock responses
-		dockerRunnerMock.reset()
 		dockerRunnerMock.isImagePulledFunc = func(stageName string, containerImage string) bool { return false }
 		dockerRunnerMock.pullImageFunc = func(ctx context.Context, stageName string, containerImage string) error {
 			return nil
@@ -785,7 +895,10 @@ func TestRunService(t *testing.T) {
 		dockerRunnerMock.startServiceContainerFunc = func(ctx context.Context, envvars map[string]string, parentStage *manifest.EstafetteStage, service manifest.EstafetteService) (containerID string, err error) {
 			return "abc", nil
 		}
+		var wg sync.WaitGroup
+		wg.Add(1)
 		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error) {
+			defer wg.Done()
 			time.Sleep(1 * time.Second)
 			return nil
 		}
@@ -795,6 +908,9 @@ func TestRunService(t *testing.T) {
 
 		// act
 		err := pipelineRunner.runService(context.Background(), envvars, parentStage, service)
+
+		// wait for tailContainerLogsFunc to finish
+		wg.Wait()
 
 		assert.Nil(t, err)
 
@@ -810,6 +926,8 @@ func TestRunService(t *testing.T) {
 
 	t.Run("SendsSequenceOfPendingRunningAndFailedMessageToChannelForFailingReadiness", func(t *testing.T) {
 
+		dockerRunnerMock, tailLogsChannel, _, pipelineRunner := resetState()
+
 		envvars := map[string]string{}
 		var parentStage *manifest.EstafetteStage = &manifest.EstafetteStage{
 			Name: "stage-a",
@@ -820,11 +938,7 @@ func TestRunService(t *testing.T) {
 			Readiness:      &manifest.ReadinessProbe{},
 		}
 
-		// reset channel to start with no messages
-		resetChannel(tailLogsChannel)
-
 		// set mock responses
-		dockerRunnerMock.reset()
 		dockerRunnerMock.isImagePulledFunc = func(stageName string, containerImage string) bool { return false }
 		dockerRunnerMock.pullImageFunc = func(ctx context.Context, stageName string, containerImage string) error {
 			return nil
@@ -835,7 +949,10 @@ func TestRunService(t *testing.T) {
 		dockerRunnerMock.startServiceContainerFunc = func(ctx context.Context, envvars map[string]string, parentStage *manifest.EstafetteStage, service manifest.EstafetteService) (containerID string, err error) {
 			return "abc", nil
 		}
+		var wg sync.WaitGroup
+		wg.Add(1)
 		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error) {
+			defer wg.Done()
 			time.Sleep(1 * time.Second)
 			return nil
 		}
@@ -845,6 +962,9 @@ func TestRunService(t *testing.T) {
 
 		// act
 		err := pipelineRunner.runService(context.Background(), envvars, parentStage, service)
+
+		// wait for tailContainerLogsFunc to finish
+		wg.Wait()
 
 		assert.NotNil(t, err)
 
@@ -860,6 +980,8 @@ func TestRunService(t *testing.T) {
 
 	t.Run("SendsSequenceOfPendingRunningAndCanceledMessageToChannelForCanceledRun", func(t *testing.T) {
 
+		dockerRunnerMock, tailLogsChannel, cancellationChannel, pipelineRunner := resetState()
+
 		envvars := map[string]string{}
 		var parentStage *manifest.EstafetteStage = &manifest.EstafetteStage{
 			Name: "stage-a",
@@ -869,11 +991,7 @@ func TestRunService(t *testing.T) {
 			ContainerImage: "alpine:latest",
 		}
 
-		// reset channel to start with no messages
-		resetChannel(tailLogsChannel)
-
 		// set mock responses
-		dockerRunnerMock.reset()
 		dockerRunnerMock.isImagePulledFunc = func(stageName string, containerImage string) bool { return false }
 		dockerRunnerMock.pullImageFunc = func(ctx context.Context, stageName string, containerImage string) error {
 			return nil
@@ -884,8 +1002,10 @@ func TestRunService(t *testing.T) {
 		dockerRunnerMock.startServiceContainerFunc = func(ctx context.Context, envvars map[string]string, parentStage *manifest.EstafetteStage, service manifest.EstafetteService) (containerID string, err error) {
 			return "abc", nil
 		}
+		var wg sync.WaitGroup
+		wg.Add(1)
 		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error) {
-			time.Sleep(1 * time.Second)
+			defer wg.Done()
 			return nil
 		}
 
@@ -893,6 +1013,9 @@ func TestRunService(t *testing.T) {
 		go pipelineRunner.stopPipelineOnCancellation()
 		cancellationChannel <- struct{}{}
 		err := pipelineRunner.runService(context.Background(), envvars, parentStage, service)
+
+		// wait for tailContainerLogsFunc to finish
+		wg.Wait()
 
 		assert.Nil(t, err)
 
@@ -904,11 +1027,11 @@ func TestRunService(t *testing.T) {
 
 		canceledStatusMessage := <-tailLogsChannel
 		assert.Equal(t, contracts.StatusCanceled, *canceledStatusMessage.Status)
-
-		pipelineRunner.resetCancellation()
 	})
 
 	t.Run("SendsSequenceOfPendingRunningAndCanceledMessageToChannelForCanceledRunEvenWhenReadinessFails", func(t *testing.T) {
+
+		dockerRunnerMock, tailLogsChannel, cancellationChannel, pipelineRunner := resetState()
 
 		envvars := map[string]string{}
 		var parentStage *manifest.EstafetteStage = &manifest.EstafetteStage{
@@ -920,11 +1043,7 @@ func TestRunService(t *testing.T) {
 			Readiness:      &manifest.ReadinessProbe{},
 		}
 
-		// reset channel to start with no messages
-		resetChannel(tailLogsChannel)
-
 		// set mock responses
-		dockerRunnerMock.reset()
 		dockerRunnerMock.isImagePulledFunc = func(stageName string, containerImage string) bool { return false }
 		dockerRunnerMock.pullImageFunc = func(ctx context.Context, stageName string, containerImage string) error {
 			return nil
@@ -935,8 +1054,10 @@ func TestRunService(t *testing.T) {
 		dockerRunnerMock.startServiceContainerFunc = func(ctx context.Context, envvars map[string]string, parentStage *manifest.EstafetteStage, service manifest.EstafetteService) (containerID string, err error) {
 			return "abc", nil
 		}
+		var wg sync.WaitGroup
+		wg.Add(1)
 		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error) {
-			time.Sleep(1 * time.Second)
+			defer wg.Done()
 			return nil
 		}
 		dockerRunnerMock.runReadinessProbeContainerFunc = func(ctx context.Context, parentStage manifest.EstafetteStage, service manifest.EstafetteService, readiness manifest.ReadinessProbe) (err error) {
@@ -948,6 +1069,9 @@ func TestRunService(t *testing.T) {
 		cancellationChannel <- struct{}{}
 		err := pipelineRunner.runService(context.Background(), envvars, parentStage, service)
 
+		// wait for tailContainerLogsFunc to finish
+		wg.Wait()
+
 		assert.NotNil(t, err)
 
 		pendingStatusMessage := <-tailLogsChannel
@@ -958,496 +1082,246 @@ func TestRunService(t *testing.T) {
 
 		canceledStatusMessage := <-tailLogsChannel
 		assert.Equal(t, contracts.StatusCanceled, *canceledStatusMessage.Status)
-
-		pipelineRunner.resetCancellation()
 	})
 }
 
 func TestRunStages(t *testing.T) {
 
-	// 	t.Run("ReturnsErrorWhenManifestHasNoStages", func(t *testing.T) {
-
-	// 		envvarHelper.unsetEstafetteEnvvars()
-	// 		envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
-	// 		manifest := &mft.EstafetteManifest{}
-	// 		envvars := map[string]string{}
-	// 		dir, _ := os.Getwd()
-
-	// 		// act
-	// 		err := pipelineRunner.runStages(context.Background(), 0, manifest.Stages, dir, envvars)
-
-	// 		assert.NotNil(t, err, "Error: %v", err)
-	// 	})
-
-	// 	t.Run("ReturnsResultWithInnerResultForEachStageInManifest", func(t *testing.T) {
-
-	// 		envvarHelper.unsetEstafetteEnvvars()
-	// 		envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
-	// 		manifest := &mft.EstafetteManifest{}
-	// 		manifest.Stages = append(manifest.Stages, &mft.EstafetteStage{Name: "TestStep", ContainerImage: "busybox:latest", Shell: "/bin/sh", WorkingDirectory: "/estafette-work", Commands: []string{"exit 0"}, When: "status == 'succeeded'"})
-	// 		envvars := map[string]string{}
-	// 		dir, _ := os.Getwd()
-
-	// 		// act
-	// 		err := pipelineRunner.runStages(context.Background(), 0, manifest.Stages, dir, envvars)
-	// 		buildLogSteps := pipelineRunner.getLogs(context.Background())
-
-	// 		assert.Nil(t, err)
-	// 		assert.Equal(t, 1, len(buildLogSteps))
-	// 	})
-
-	// 	t.Run("ReturnsResultWithoutErrorsWhenStagesSucceeded", func(t *testing.T) {
-
-	// 		envvarHelper.unsetEstafetteEnvvars()
-	// 		envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
-	// 		manifest := &mft.EstafetteManifest{}
-	// 		manifest.Stages = append(manifest.Stages, &mft.EstafetteStage{Name: "TestStep", ContainerImage: "busybox:latest", Shell: "/bin/sh", WorkingDirectory: "/estafette-work", Commands: []string{"exit 0"}, When: "status == 'succeeded'"})
-	// 		envvars := map[string]string{}
-	// 		dir, _ := os.Getwd()
-
-	// 		// act
-	// 		err := pipelineRunner.runStages(context.Background(), 0, manifest.Stages, dir, envvars)
-	// 		buildLogSteps := pipelineRunner.getLogs(context.Background())
-
-	// 		assert.Nil(t, err)
-	// 		assert.True(t, contracts.HasSucceededStatus(buildLogSteps))
-	// 	})
-
-	// 	t.Run("ReturnsResultWithSucceededPipelineResultWhenStagesSucceeded", func(t *testing.T) {
-
-	// 		envvarHelper.unsetEstafetteEnvvars()
-	// 		envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
-	// 		manifest := &mft.EstafetteManifest{}
-	// 		manifest.Stages = append(manifest.Stages, &mft.EstafetteStage{Name: "TestStep", ContainerImage: "busybox:latest", Shell: "/bin/sh", WorkingDirectory: "/estafette-work", Commands: []string{"exit 0"}, When: "status == 'succeeded'"})
-	// 		envvars := map[string]string{}
-	// 		dir, _ := os.Getwd()
-
-	// 		// act
-	// 		err := pipelineRunner.runStages(context.Background(), 0, manifest.Stages, dir, envvars)
-	// 		buildLogSteps := pipelineRunner.getLogs(context.Background())
-
-	// 		assert.Nil(t, err)
-	// 		assert.Equal(t, "SUCCEEDED", buildLogSteps[0].Status)
-	// 	})
-
-	// 	t.Run("ReturnsResultWithErrorsWhenStagesFailed", func(t *testing.T) {
-
-	// 		envvarHelper.unsetEstafetteEnvvars()
-	// 		envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
-	// 		manifest := &mft.EstafetteManifest{}
-	// 		manifest.Stages = append(manifest.Stages, &mft.EstafetteStage{Name: "TestStep", ContainerImage: "busybox:latest", Shell: "/bin/sh", WorkingDirectory: "/estafette-work", Commands: []string{"exit 1"}, When: "status == 'succeeded'"})
-	// 		envvars := map[string]string{}
-	// 		dir, _ := os.Getwd()
-
-	// 		// act
-	// 		err := pipelineRunner.runStages(context.Background(), 0, manifest.Stages, dir, envvars)
-	// 		buildLogSteps := pipelineRunner.getLogs(context.Background())
-
-	// 		assert.Nil(t, err)
-	// 		assert.False(t, contracts.HasSucceededStatus(buildLogSteps))
-	// 	})
-
-	// 	t.Run("ReturnsResultWithFailedPipelineResultWhenStagesFailed", func(t *testing.T) {
-
-	// 		envvarHelper.unsetEstafetteEnvvars()
-	// 		envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
-	// 		manifest := &mft.EstafetteManifest{}
-	// 		manifest.Stages = append(manifest.Stages, &mft.EstafetteStage{Name: "TestStep", ContainerImage: "busybox:latest", Shell: "/bin/sh", WorkingDirectory: "/estafette-work", Commands: []string{"exit 1"}, When: "status == 'succeeded'"})
-	// 		envvars := map[string]string{}
-	// 		dir, _ := os.Getwd()
-
-	// 		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error) {
-	// 			return fmt.Errorf("Failed excution")
-	// 		}
-
-	// 		// act
-	// 		err := pipelineRunner.runStages(context.Background(), 0, manifest.Stages, dir, envvars)
-	// 		buildLogSteps := pipelineRunner.getLogs(context.Background())
-
-	// 		assert.Nil(t, err)
-	// 		assert.Equal(t, "FAILED", buildLogSteps[0].Status)
-	// 	})
-
-	// 	t.Run("ReturnsResultWithoutErrorsWhenStagesSkipped", func(t *testing.T) {
-
-	// 		envvarHelper.unsetEstafetteEnvvars()
-	// 		envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
-	// 		manifest := &mft.EstafetteManifest{}
-	// 		manifest.Stages = append(manifest.Stages, &mft.EstafetteStage{Name: "TestStep", ContainerImage: "busybox:latest", Shell: "/bin/sh", WorkingDirectory: "/estafette-work", Commands: []string{"exit 0"}, When: "status == 'failed'"})
-	// 		envvars := map[string]string{}
-	// 		dir, _ := os.Getwd()
-
-	// 		// act
-	// 		err := pipelineRunner.runStages(context.Background(), 0, manifest.Stages, dir, envvars)
-	// 		buildLogSteps := pipelineRunner.getLogs(context.Background())
-
-	// 		assert.Nil(t, err)
-	// 		assert.True(t, contracts.HasSucceededStatus(buildLogSteps))
-	// 	})
-
-	// 	t.Run("ReturnsResultWithSkippedStageResultWhenStagesSkipped", func(t *testing.T) {
-
-	// 		envvarHelper.unsetEstafetteEnvvars()
-	// 		envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
-	// 		manifest := &mft.EstafetteManifest{}
-	// 		manifest.Stages = append(manifest.Stages, &mft.EstafetteStage{Name: "TestStep", ContainerImage: "busybox:latest", Shell: "/bin/sh", WorkingDirectory: "/estafette-work", Commands: []string{"exit 0"}, When: "status == 'failed'"})
-	// 		envvars := map[string]string{}
-	// 		dir, _ := os.Getwd()
-
-	// 		// act
-	// 		err := pipelineRunner.runStages(context.Background(), 0, manifest.Stages, dir, envvars)
-	// 		buildLogSteps := pipelineRunner.getLogs(context.Background())
-
-	// 		assert.Nil(t, err)
-	// 		assert.Equal(t, "SKIPPED", buildLogSteps[0].Status)
-	// 	})
-
-	// 	t.Run("ReturnsResultForAllStagesWhenFirstStageFails", func(t *testing.T) {
-
-	// 		envvarHelper.unsetEstafetteEnvvars()
-	// 		envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
-	// 		manifest := &mft.EstafetteManifest{}
-	// 		manifest.Stages = append(manifest.Stages, &mft.EstafetteStage{Name: "TestStep", ContainerImage: "busybox:latest", Shell: "/bin/sh", WorkingDirectory: "/estafette-work", Commands: []string{"exit 1"}, When: "status == 'succeeded'"})
-	// 		manifest.Stages = append(manifest.Stages, &mft.EstafetteStage{Name: "TestStep2", ContainerImage: "busybox:latest", Shell: "/bin/sh", WorkingDirectory: "/estafette-work", Commands: []string{"exit 0"}, When: "status == 'succeeded'"})
-	// 		manifest.Stages = append(manifest.Stages, &mft.EstafetteStage{Name: "TestStep3", ContainerImage: "busybox:latest", Shell: "/bin/sh", WorkingDirectory: "/estafette-work", Commands: []string{"exit 0"}, When: "status == 'failed'"})
-	// 		envvars := map[string]string{}
-	// 		dir, _ := os.Getwd()
-
-	// 		// act
-	// 		err := pipelineRunner.runStages(context.Background(), 0, manifest.Stages, dir, envvars)
-	// 		buildLogSteps := pipelineRunner.getLogs(context.Background())
-
-	// 		assert.Nil(t, err)
-	// 		assert.Equal(t, "FAILED", buildLogSteps[0].Status)
-	// 		assert.Equal(t, "SKIPPED", buildLogSteps[1].Status)
-	// 		assert.Equal(t, "SUCCEEDED", buildLogSteps[2].Status)
-	// 	})
-
-	// 	t.Run("ReturnsResultWithErrorsWhenFirstStageFailsAndSecondSucceeds", func(t *testing.T) {
-
-	// 		envvarHelper.unsetEstafetteEnvvars()
-	// 		envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
-	// 		manifest := &mft.EstafetteManifest{}
-	// 		manifest.Stages = append(manifest.Stages, &mft.EstafetteStage{Name: "TestStep", ContainerImage: "busybox:latest", Shell: "/bin/sh", WorkingDirectory: "/estafette-work", Commands: []string{"exit 1"}, When: "status == 'succeeded'"})
-	// 		manifest.Stages = append(manifest.Stages, &mft.EstafetteStage{Name: "TestStep2", ContainerImage: "busybox:latest", Shell: "/bin/sh", WorkingDirectory: "/estafette-work", Commands: []string{"exit 0"}, When: "status == 'succeeded'"})
-	// 		manifest.Stages = append(manifest.Stages, &mft.EstafetteStage{Name: "TestStep3", ContainerImage: "busybox:latest", Shell: "/bin/sh", WorkingDirectory: "/estafette-work", Commands: []string{"exit 0"}, When: "status == 'failed'"})
-	// 		envvars := map[string]string{}
-	// 		dir, _ := os.Getwd()
-
-	// 		// act
-	// 		err := pipelineRunner.runStages(context.Background(), 0, manifest.Stages, dir, envvars)
-	// 		buildLogSteps := pipelineRunner.getLogs(context.Background())
-
-	// 		assert.Nil(t, err)
-	// 		assert.False(t, contracts.HasSucceededStatus(buildLogSteps))
-	// 	})
-
-	// 	t.Run("ReturnsResultWithoutErrorsWhenStagesSucceededAfterRetrial", func(t *testing.T) {
-
-	// 		envvarHelper.unsetEstafetteEnvvars()
-	// 		envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
-	// 		cmd := "if [ -f retried ]; then rm retried && exit 0; else touch retried && exit 1; fi;"
-	// 		manifest := &mft.EstafetteManifest{}
-	// 		manifest.Stages = append(manifest.Stages, &mft.EstafetteStage{Name: "TestRetryStep", ContainerImage: "busybox:latest", Shell: "/bin/sh", WorkingDirectory: "/estafette-work", Retries: 1, Commands: []string{cmd}, When: "status == 'succeeded'"})
-	// 		envvars := map[string]string{}
-	// 		dir, _ := os.Getwd()
-
-	// 		// act
-	// 		err := pipelineRunner.runStages(context.Background(), 0, manifest.Stages, dir, envvars)
-	// 		buildLogSteps := pipelineRunner.getLogs(context.Background())
-
-	// 		assert.Nil(t, err)
-	// 		assert.True(t, contracts.HasSucceededStatus(buildLogSteps))
-	// 	})
-
-	// 	t.Run("ReturnsResultWithErrorsWhenStagesFailedAfterRetrial", func(t *testing.T) {
-
-	// 		envvarHelper.unsetEstafetteEnvvars()
-	// 		envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
-	// 		cmd := "exit 1"
-	// 		manifest := &mft.EstafetteManifest{}
-	// 		manifest.Stages = append(manifest.Stages, &mft.EstafetteStage{Name: "TestRetryStep2", ContainerImage: "busybox:latest", Shell: "/bin/sh", WorkingDirectory: "/estafette-work", Retries: 1, Commands: []string{cmd}, When: "status == 'succeeded'"})
-	// 		envvars := map[string]string{}
-	// 		dir, _ := os.Getwd()
-
-	// 		// act
-	// 		err := pipelineRunner.runStages(context.Background(), 0, manifest.Stages, dir, envvars)
-	// 		buildLogSteps := pipelineRunner.getLogs(context.Background())
-
-	// 		assert.Nil(t, err)
-	// 		assert.False(t, contracts.HasSucceededStatus(buildLogSteps))
-	// 	})
-	// }
-
-	// func TestGetMainBuildLogStep(t *testing.T) {
-
-	// 	t.Run("ReturnsNilIfBuildLogsStepsIsEmpty", func(t *testing.T) {
-
-	// 		pipelineRunner := pipelineRunnerImpl{
-	// 			buildLogSteps: make([]*contracts.BuildLogStep, 0),
-	// 		}
-	// 		tailLogLine := contracts.TailLogLine{
-	// 			Step: "stage-a",
-	// 		}
-
-	// 		// act
-	// 		buildLogStep := pipelineRunner.getMainBuildLogStep(tailLogLine)
-
-	// 		assert.Nil(t, buildLogStep)
-	// 	})
-
-	// 	t.Run("ReturnsNilIfStageDoesNotExistInBuildLogsSteps", func(t *testing.T) {
-
-	// 		pipelineRunner := pipelineRunnerImpl{
-	// 			buildLogSteps: []*contracts.BuildLogStep{
-	// 				&contracts.BuildLogStep{
-	// 					Step: "stage-b",
-	// 				},
-	// 			},
-	// 		}
-	// 		tailLogLine := contracts.TailLogLine{
-	// 			Step: "stage-a",
-	// 		}
-
-	// 		// act
-	// 		buildLogStep := pipelineRunner.getMainBuildLogStep(tailLogLine)
-
-	// 		assert.Nil(t, buildLogStep)
-	// 	})
-
-	// 	t.Run("ReturnsBuildLogsStepForStageIfExistsInBuildLogsSteps", func(t *testing.T) {
-
-	// 		pipelineRunner := pipelineRunnerImpl{
-	// 			buildLogSteps: []*contracts.BuildLogStep{
-	// 				&contracts.BuildLogStep{
-	// 					Step: "stage-a",
-	// 				},
-	// 			},
-	// 		}
-	// 		tailLogLine := contracts.TailLogLine{
-	// 			Step: "stage-a",
-	// 		}
-
-	// 		// act
-	// 		buildLogStep := pipelineRunner.getMainBuildLogStep(tailLogLine)
-
-	// 		assert.NotNil(t, buildLogStep)
-	// 		assert.Equal(t, "stage-a", buildLogStep.Step)
-	// 	})
-
-	// 	t.Run("ReturnsNilIfStageDoesNotExistInBuildLogsStepsWithRunIndex", func(t *testing.T) {
-
-	// 		pipelineRunner := pipelineRunnerImpl{
-	// 			buildLogSteps: []*contracts.BuildLogStep{
-	// 				&contracts.BuildLogStep{
-	// 					Step:     "stage-a",
-	// 					RunIndex: 0,
-	// 				},
-	// 			},
-	// 		}
-	// 		tailLogLine := contracts.TailLogLine{
-	// 			Step:     "stage-a",
-	// 			RunIndex: 1,
-	// 		}
-
-	// 		// act
-	// 		buildLogStep := pipelineRunner.getMainBuildLogStep(tailLogLine)
-
-	// 		assert.Nil(t, buildLogStep)
-	// 	})
-
-	// 	t.Run("ReturnsBuildLogsStepForStageIfExistsInBuildLogsStepsWithRunIndex", func(t *testing.T) {
-
-	// 		pipelineRunner := pipelineRunnerImpl{
-	// 			buildLogSteps: []*contracts.BuildLogStep{
-	// 				&contracts.BuildLogStep{
-	// 					Step:     "stage-a",
-	// 					RunIndex: 1,
-	// 				},
-	// 			},
-	// 		}
-	// 		tailLogLine := contracts.TailLogLine{
-	// 			Step:     "stage-a",
-	// 			RunIndex: 1,
-	// 		}
-
-	// 		// act
-	// 		buildLogStep := pipelineRunner.getMainBuildLogStep(tailLogLine)
-
-	// 		assert.NotNil(t, buildLogStep)
-	// 		assert.Equal(t, "stage-a", buildLogStep.Step)
-	// 	})
-
-	// 	t.Run("ReturnsNilIfParentStageDoesNotExistInBuildLogsSteps", func(t *testing.T) {
-
-	// 		pipelineRunner := pipelineRunnerImpl{
-	// 			buildLogSteps: []*contracts.BuildLogStep{
-	// 				&contracts.BuildLogStep{
-	// 					Step: "stage-a",
-	// 				},
-	// 			},
-	// 		}
-	// 		tailLogLine := contracts.TailLogLine{
-	// 			Step:        "nested-stage-0",
-	// 			ParentStage: "stage-b",
-	// 		}
-
-	// 		// act
-	// 		buildLogStep := pipelineRunner.getMainBuildLogStep(tailLogLine)
-
-	// 		assert.Nil(t, buildLogStep)
-	// 	})
-
-	// 	t.Run("ReturnsBuildLogsStepForStageIfParentStageExistsInBuildLogsSteps", func(t *testing.T) {
-
-	// 		pipelineRunner := pipelineRunnerImpl{
-	// 			buildLogSteps: []*contracts.BuildLogStep{
-	// 				&contracts.BuildLogStep{
-	// 					Step: "stage-a",
-	// 				},
-	// 			},
-	// 		}
-	// 		tailLogLine := contracts.TailLogLine{
-	// 			Step:        "nested-stage-0",
-	// 			ParentStage: "stage-a",
-	// 		}
-
-	// 		// act
-	// 		buildLogStep := pipelineRunner.getMainBuildLogStep(tailLogLine)
-
-	// 		assert.NotNil(t, buildLogStep)
-	// 		assert.Equal(t, "stage-a", buildLogStep.Step)
-	// 	})
-	// }
-
-	// func TestGetNestedBuildLogStep(t *testing.T) {
-
-	// 	t.Run("ReturnsNilIfBuildLogsStepsIsEmpty", func(t *testing.T) {
-
-	// 		pipelineRunner := pipelineRunnerImpl{
-	// 			buildLogSteps: make([]*contracts.BuildLogStep, 0),
-	// 		}
-	// 		tailLogLine := contracts.TailLogLine{
-	// 			Step:        "nested-stage-0",
-	// 			ParentStage: "stage-a",
-	// 			Depth:       1,
-	// 			Type:        "stage",
-	// 		}
-
-	// 		// act
-	// 		buildLogStep := pipelineRunner.getNestedBuildLogStep(tailLogLine)
-
-	// 		assert.Nil(t, buildLogStep)
-	// 	})
-
-	// 	t.Run("ReturnsNilIfDepthIsZero", func(t *testing.T) {
-
-	// 		pipelineRunner := pipelineRunnerImpl{
-	// 			buildLogSteps: []*contracts.BuildLogStep{
-	// 				&contracts.BuildLogStep{
-	// 					Step: "stage-a",
-	// 				},
-	// 			},
-	// 		}
-	// 		tailLogLine := contracts.TailLogLine{
-	// 			Step:        "nested-stage-0",
-	// 			ParentStage: "stage-a",
-	// 			Depth:       0,
-	// 			Type:        "stage",
-	// 		}
-
-	// 		// act
-	// 		buildLogStep := pipelineRunner.getNestedBuildLogStep(tailLogLine)
-
-	// 		assert.Nil(t, buildLogStep)
-	// 	})
-
-	// 	t.Run("ReturnsNilIfParentStageExistsButNestedStageDoesNot", func(t *testing.T) {
-
-	// 		pipelineRunner := pipelineRunnerImpl{
-	// 			buildLogSteps: []*contracts.BuildLogStep{
-	// 				&contracts.BuildLogStep{
-	// 					Step: "stage-a",
-	// 					NestedSteps: []*contracts.BuildLogStep{
-	// 						&contracts.BuildLogStep{
-	// 							Step: "nested-stage-1",
-	// 						},
-	// 					},
-	// 				},
-	// 			},
-	// 		}
-	// 		tailLogLine := contracts.TailLogLine{
-	// 			Step:        "nested-stage-0",
-	// 			ParentStage: "stage-a",
-	// 			Depth:       1,
-	// 			Type:        "stage",
-	// 		}
-
-	// 		// act
-	// 		buildLogStep := pipelineRunner.getNestedBuildLogStep(tailLogLine)
-
-	// 		assert.Nil(t, buildLogStep)
-	// 	})
-
-	// 	t.Run("ReturnsNilIfParentStageExistsButNestedStageDoesNotAndServiceWithSameNameExists", func(t *testing.T) {
-
-	// 		pipelineRunner := pipelineRunnerImpl{
-	// 			buildLogSteps: []*contracts.BuildLogStep{
-	// 				&contracts.BuildLogStep{
-	// 					Step: "stage-a",
-	// 					NestedSteps: []*contracts.BuildLogStep{
-	// 						&contracts.BuildLogStep{
-	// 							Step: "nested-stage-1",
-	// 						},
-	// 					},
-	// 					Services: []*contracts.BuildLogStep{
-	// 						&contracts.BuildLogStep{
-	// 							Step: "nested-stage-0",
-	// 						},
-	// 					},
-	// 				},
-	// 			},
-	// 		}
-	// 		tailLogLine := contracts.TailLogLine{
-	// 			Step:        "nested-stage-0",
-	// 			ParentStage: "stage-a",
-	// 			Depth:       1,
-	// 			Type:        "stage",
-	// 		}
-
-	// 		// act
-	// 		buildLogStep := pipelineRunner.getNestedBuildLogStep(tailLogLine)
-
-	// 		assert.Nil(t, buildLogStep)
-	// 	})
-
-	// 	t.Run("ReturnsNestedStepIfParentStageAndNestedStageExist", func(t *testing.T) {
-
-	// 		pipelineRunner := pipelineRunnerImpl{
-	// 			buildLogSteps: []*contracts.BuildLogStep{
-	// 				&contracts.BuildLogStep{
-	// 					Step: "stage-a",
-	// 					NestedSteps: []*contracts.BuildLogStep{
-	// 						&contracts.BuildLogStep{
-	// 							Step: "nested-stage-0",
-	// 						},
-	// 					},
-	// 				},
-	// 			},
-	// 		}
-	// 		tailLogLine := contracts.TailLogLine{
-	// 			Step:        "nested-stage-0",
-	// 			ParentStage: "stage-a",
-	// 			Depth:       1,
-	// 			Type:        "stage",
-	// 		}
-
-	// 		// act
-	// 		buildLogStep := pipelineRunner.getNestedBuildLogStep(tailLogLine)
-
-	// 		assert.NotNil(t, buildLogStep)
-	// 		assert.Equal(t, "nested-stage-0", buildLogStep.Step)
-	// 	})
+	t.Run("ReturnsErrorWhenFirstStageFails", func(t *testing.T) {
+
+		dockerRunnerMock, _, _, pipelineRunner := resetState()
+
+		depth := 0
+		dir := "/estafette-work"
+		envvars := map[string]string{}
+		stages := []*manifest.EstafetteStage{
+			&manifest.EstafetteStage{
+				Name:           "stage-a",
+				ContainerImage: "alpine:latest",
+				When:           "status == 'succeeded'",
+			},
+		}
+
+		// set mock responses
+		dockerRunnerMock.pullImageFunc = func(ctx context.Context, stageName string, containerImage string) error {
+			return fmt.Errorf("Failed pulling image")
+		}
+
+		// act
+		err := pipelineRunner.runStages(context.Background(), depth, stages, dir, envvars)
+
+		if assert.NotNil(t, err) {
+			assert.Equal(t, "Failed pulling image", err.Error())
+		}
+	})
+
+	t.Run("ReturnsErrorWhenFirstStageFailsButSecondRunsSuccessfully", func(t *testing.T) {
+
+		dockerRunnerMock, _, _, pipelineRunner := resetState()
+
+		depth := 0
+		dir := "/estafette-work"
+		envvars := map[string]string{}
+		stages := []*manifest.EstafetteStage{
+			&manifest.EstafetteStage{
+				Name:           "stage-a",
+				ContainerImage: "alpine:latest",
+				When:           "status == 'succeeded'",
+			},
+			&manifest.EstafetteStage{
+				Name:           "stage-b",
+				ContainerImage: "alpine:latest",
+				When:           "status == 'succeeded' || status == 'failed'",
+			},
+		}
+
+		// set mock responses
+		iteration := 0
+		callCount := 0
+		dockerRunnerMock.pullImageFunc = func(ctx context.Context, stageName string, containerImage string) error {
+			defer func() { iteration++ }()
+			callCount++
+
+			switch iteration {
+			case 0:
+				return fmt.Errorf("Failed pulling image")
+			case 1:
+				return nil
+			}
+
+			return fmt.Errorf("Shouldn't call it this often")
+		}
+
+		// act
+		err := pipelineRunner.runStages(context.Background(), depth, stages, dir, envvars)
+
+		if assert.NotNil(t, err) {
+			assert.Equal(t, "Failed pulling image", err.Error())
+		}
+		assert.Equal(t, 2, callCount)
+	})
+
+	t.Run("SkipsStagesWhichWhenClauseEvaluatesToFalse", func(t *testing.T) {
+
+		dockerRunnerMock, _, _, pipelineRunner := resetState()
+
+		depth := 0
+		dir := "/estafette-work"
+		envvars := map[string]string{}
+		stages := []*manifest.EstafetteStage{
+			&manifest.EstafetteStage{
+				Name:           "stage-a",
+				ContainerImage: "alpine:latest",
+				When:           "status == 'succeeded'",
+			},
+			&manifest.EstafetteStage{
+				Name:           "stage-b",
+				ContainerImage: "alpine:latest",
+				When:           "status == 'succeeded'",
+			},
+			&manifest.EstafetteStage{
+				Name:           "stage-c",
+				ContainerImage: "alpine:latest",
+				When:           "status == 'succeeded' || status == 'failed'",
+			},
+		}
+
+		// set mock responses
+		iteration := 0
+		callCount := 0
+		dockerRunnerMock.pullImageFunc = func(ctx context.Context, stageName string, containerImage string) error {
+			defer func() { iteration++ }()
+			callCount++
+
+			switch iteration {
+			case 0:
+				return fmt.Errorf("Failed pulling image")
+			case 1:
+				return nil
+			}
+
+			return fmt.Errorf("Shouldn't call it this often")
+		}
+
+		// act
+		_ = pipelineRunner.runStages(context.Background(), depth, stages, dir, envvars)
+
+		assert.Equal(t, 2, callCount)
+	})
+
+	t.Run("SendsSkippedStatusMessageForSkippedStage", func(t *testing.T) {
+
+		dockerRunnerMock, _, _, pipelineRunner := resetState()
+
+		depth := 0
+		dir := "/estafette-work"
+		envvars := map[string]string{}
+		stages := []*manifest.EstafetteStage{
+			&manifest.EstafetteStage{
+				Name:           "stage-a",
+				ContainerImage: "alpine:latest",
+				When:           "status == 'succeeded'",
+			},
+			&manifest.EstafetteStage{
+				Name:           "stage-b",
+				ContainerImage: "alpine:latest",
+				When:           "status == 'succeeded'",
+			},
+			&manifest.EstafetteStage{
+				Name:           "stage-c",
+				ContainerImage: "alpine:latest",
+				When:           "status == 'succeeded' || status == 'failed'",
+			},
+		}
+
+		// set mock responses
+		iteration := 0
+		callCount := 0
+		dockerRunnerMock.pullImageFunc = func(ctx context.Context, stageName string, containerImage string) error {
+			defer func() { iteration++ }()
+			callCount++
+
+			switch iteration {
+			case 0:
+				return fmt.Errorf("Failed pulling image")
+			case 1:
+				return nil
+			}
+
+			return fmt.Errorf("Shouldn't call it this often")
+		}
+
+		// act
+		_ = pipelineRunner.runStages(context.Background(), depth, stages, dir, envvars)
+
+		assert.Equal(t, 2, callCount)
+
+		buildLogSteps := pipelineRunner.getLogs(context.Background())
+
+		if assert.Equal(t, 3, len(buildLogSteps)) {
+			assert.Equal(t, contracts.StatusFailed, buildLogSteps[0].Status)
+			assert.Equal(t, contracts.StatusSkipped, buildLogSteps[1].Status)
+			assert.Equal(t, contracts.StatusSucceeded, buildLogSteps[2].Status)
+		}
+
+		assert.Equal(t, contracts.StatusFailed, contracts.GetAggregatedStatus(buildLogSteps))
+	})
+
+	t.Run("CallsCreateBridgeNetwork", func(t *testing.T) {
+
+		dockerRunnerMock, _, _, pipelineRunner := resetState()
+
+		depth := 0
+		dir := "/estafette-work"
+		envvars := map[string]string{}
+		stages := []*manifest.EstafetteStage{
+			&manifest.EstafetteStage{
+				Name:           "stage-a",
+				ContainerImage: "alpine:latest",
+				When:           "status == 'succeeded'",
+			},
+		}
+
+		// set mock responses
+		createBridgeNetworkFuncCalled := false
+		dockerRunnerMock.createBridgeNetworkFunc = func(ctx context.Context) error {
+			createBridgeNetworkFuncCalled = true
+			return nil
+		}
+
+		// act
+		_ = pipelineRunner.runStages(context.Background(), depth, stages, dir, envvars)
+
+		assert.True(t, createBridgeNetworkFuncCalled)
+	})
+
+	t.Run("CallsDeleteBridgeNetwork", func(t *testing.T) {
+
+		dockerRunnerMock, _, _, pipelineRunner := resetState()
+
+		depth := 0
+		dir := "/estafette-work"
+		envvars := map[string]string{}
+		stages := []*manifest.EstafetteStage{
+			&manifest.EstafetteStage{
+				Name:           "stage-a",
+				ContainerImage: "alpine:latest",
+				When:           "status == 'succeeded'",
+			},
+		}
+
+		// set mock responses
+		deleteBridgeNetworkFuncCalled := false
+		dockerRunnerMock.deleteBridgeNetworkFunc = func(ctx context.Context) error {
+			deleteBridgeNetworkFuncCalled = true
+			return nil
+		}
+
+		// act
+		_ = pipelineRunner.runStages(context.Background(), depth, stages, dir, envvars)
+
+		assert.True(t, deleteBridgeNetworkFuncCalled)
+	})
 }
 
 func TestGetNestedBuildLogService(t *testing.T) {
@@ -1963,4 +1837,21 @@ func TestUpsertTailLogLine(t *testing.T) {
 
 		assert.Equal(t, "RUNNING", pipelineRunner.buildLogSteps[0].Services[0].Status)
 	})
+}
+
+func resetState() (*dockerRunnerMockImpl, chan contracts.TailLogLine, chan struct{}, PipelineRunner) {
+
+	// resetChannel(tailLogsChannel)
+	// dockerRunnerMock.reset()
+	// pipelineRunner.resetCancellation()
+
+	secretHelper := crypt.NewSecretHelper("SazbwMf3NZxVVbBqQHebPcXCqrVn3DDp", false)
+	envvarHelper := NewEnvvarHelper("TESTPREFIX_", secretHelper, obfuscator)
+	whenEvaluator := NewWhenEvaluator(envvarHelper)
+	dockerRunnerMock := &dockerRunnerMockImpl{}
+	tailLogsChannel := make(chan contracts.TailLogLine, 10000)
+	cancellationChannel = make(chan struct{})
+	pipelineRunner = NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunnerMock, true, cancellationChannel, tailLogsChannel)
+
+	return dockerRunnerMock, tailLogsChannel, cancellationChannel, pipelineRunner
 }
