@@ -97,114 +97,27 @@ func pathExists(path string) (bool, error) {
 	return true, err
 }
 
-func transformRunStagesResultToBuildLogSteps(result estafetteRunStagesResult) (buildLogSteps []contracts.BuildLogStep) {
-
-	buildLogSteps = make([]contracts.BuildLogStep, 0)
-
-	for _, r := range result.StageResults {
-		buildLogSteps = append(buildLogSteps, transformStageRunResultToBuildLogSteps(r))
-	}
-
-	return
-}
-
-func transformStageRunResultToBuildLogSteps(result estafetteStageRunResult) (buildLogStep contracts.BuildLogStep) {
-
-	buildLogStep = contracts.BuildLogStep{
-		Step:         result.Stage.Name,
-		Image:        getBuildLogStepDockerImage(result),
-		Duration:     result.DockerRunDuration,
-		LogLines:     result.LogLines,
-		ExitCode:     result.ExitCode,
-		Status:       result.Status,
-		AutoInjected: result.Stage.AutoInjected,
-		RunIndex:     result.RunIndex,
-		Depth:        result.Depth,
-		NestedSteps:  []*contracts.BuildLogStep{},
-		Services:     []*contracts.BuildLogStep{},
-	}
-
-	for _, r := range result.ParallelStagesResults {
-		bls := transformStageRunResultToBuildLogSteps(r)
-		buildLogStep.NestedSteps = append(buildLogStep.NestedSteps, &bls)
-	}
-
-	for _, s := range result.ServicesResults {
-		bls := transformServiceRunResultToBuildLogSteps(s)
-		buildLogStep.Services = append(buildLogStep.Services, &bls)
-	}
-
-	return
-}
-
-func transformServiceRunResultToBuildLogSteps(result estafetteServiceRunResult) (buildLogStep contracts.BuildLogStep) {
-
-	buildLogStep = contracts.BuildLogStep{
-		Step:     result.Service.Name,
-		Image:    getBuildLogStepDockerImageForService(result),
-		Duration: result.DockerRunDuration,
-		LogLines: result.LogLines,
-		ExitCode: result.ExitCode,
-		Status:   result.Status,
-	}
-
-	return
-}
-
-func getBuildLogStepDockerImage(result estafetteStageRunResult) *contracts.BuildLogStepDockerImage {
+func getContainerImageName(containerImage string) string {
 
 	containerImageName := ""
-	containerImageTag := ""
-	pullError := ""
-	if result.Stage.ContainerImage != "" {
-		containerImageArray := strings.Split(result.Stage.ContainerImage, ":")
+	if containerImage != "" {
+		containerImageArray := strings.Split(containerImage, ":")
 		containerImageName = containerImageArray[0]
+	}
+
+	return containerImageName
+}
+
+func getContainerImageTag(containerImage string) string {
+
+	containerImageTag := ""
+	if containerImage != "" {
+		containerImageArray := strings.Split(containerImage, ":")
 		containerImageTag = "latest"
 		if len(containerImageArray) > 1 {
 			containerImageTag = containerImageArray[1]
 		}
-
-		if result.DockerPullError != nil {
-			pullError = result.DockerPullError.Error()
-		}
 	}
 
-	return &contracts.BuildLogStepDockerImage{
-		Name:         containerImageName,
-		Tag:          containerImageTag,
-		IsPulled:     result.IsDockerImagePulled,
-		ImageSize:    result.DockerImageSize,
-		PullDuration: result.DockerPullDuration,
-		Error:        pullError,
-		IsTrusted:    result.IsTrustedImage,
-	}
-}
-
-func getBuildLogStepDockerImageForService(result estafetteServiceRunResult) *contracts.BuildLogStepDockerImage {
-
-	containerImageName := ""
-	containerImageTag := ""
-	pullError := ""
-	if result.Service.ContainerImage != "" {
-		containerImageArray := strings.Split(result.Service.ContainerImage, ":")
-		containerImageName = containerImageArray[0]
-		containerImageTag = "latest"
-		if len(containerImageArray) > 1 {
-			containerImageTag = containerImageArray[1]
-		}
-
-		if result.DockerPullError != nil {
-			pullError = result.DockerPullError.Error()
-		}
-	}
-
-	return &contracts.BuildLogStepDockerImage{
-		Name:         containerImageName,
-		Tag:          containerImageTag,
-		IsPulled:     result.IsDockerImagePulled,
-		ImageSize:    result.DockerImageSize,
-		PullDuration: result.DockerPullDuration,
-		Error:        pullError,
-		IsTrusted:    result.IsTrustedImage,
-	}
+	return containerImageTag
 }

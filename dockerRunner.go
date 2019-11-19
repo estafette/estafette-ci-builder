@@ -31,14 +31,14 @@ import (
 
 // DockerRunner pulls and runs docker containers
 type DockerRunner interface {
-	isDockerImagePulled(stageName string, containerImage string) bool
-	runDockerPull(ctx context.Context, stageName string, containerImage string) error
-	getDockerImageSize(containerImage string) (int64, error)
-	runDockerRun(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, p manifest.EstafetteStage) (containerID string, err error)
-	runDockerRunService(ctx context.Context, envvars map[string]string, parentStage *manifest.EstafetteStage, service manifest.EstafetteService) (containerID string, ipAddress string, err error)
-	runDockerRunReadinessProber(ctx context.Context, parentStage manifest.EstafetteStage, service manifest.EstafetteService, readiness manifest.ReadinessProbe) (err error)
-	tailDockerLogs(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (logLines []contracts.BuildLogLine, exitCode int64, canceled bool, err error)
-	stopServices(ctx context.Context, parentStage *manifest.EstafetteStage, services []*manifest.EstafetteService)
+	isImagePulled(stageName string, containerImage string) bool
+	pullImage(ctx context.Context, stageName string, containerImage string) error
+	getImageSize(containerImage string) (int64, error)
+	startStageContainer(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, p manifest.EstafetteStage) (containerID string, err error)
+	startServiceContainer(ctx context.Context, envvars map[string]string, parentStage *manifest.EstafetteStage, service manifest.EstafetteService) (containerID string, err error)
+	runReadinessProbeContainer(ctx context.Context, parentStage manifest.EstafetteStage, service manifest.EstafetteService, readiness manifest.ReadinessProbe) (err error)
+	tailContainerLogs(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error)
+	stopServiceContainers(ctx context.Context, parentStage *manifest.EstafetteStage, services []*manifest.EstafetteService)
 
 	startDockerDaemon() error
 	waitForDockerDaemon()
@@ -80,7 +80,7 @@ func NewDockerRunner(envvarHelper EnvvarHelper, obfuscator Obfuscator, runAsJob 
 	}
 }
 
-func (dr *dockerRunnerImpl) isDockerImagePulled(stageName string, containerImage string) bool {
+func (dr *dockerRunnerImpl) isImagePulled(stageName string, containerImage string) bool {
 
 	log.Info().Msgf("[%v] Checking if docker image '%v' exists locally...", stageName, containerImage)
 
@@ -98,7 +98,7 @@ func (dr *dockerRunnerImpl) isDockerImagePulled(stageName string, containerImage
 	return false
 }
 
-func (dr *dockerRunnerImpl) runDockerPull(ctx context.Context, stageName string, containerImage string) (err error) {
+func (dr *dockerRunnerImpl) pullImage(ctx context.Context, stageName string, containerImage string) (err error) {
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "DockerPull")
 	defer span.Finish()
@@ -121,7 +121,7 @@ func (dr *dockerRunnerImpl) runDockerPull(ctx context.Context, stageName string,
 	return
 }
 
-func (dr *dockerRunnerImpl) getDockerImageSize(containerImage string) (totalSize int64, err error) {
+func (dr *dockerRunnerImpl) getImageSize(containerImage string) (totalSize int64, err error) {
 
 	items, err := dr.dockerClient.ImageHistory(context.Background(), containerImage)
 	if err != nil {
@@ -135,7 +135,7 @@ func (dr *dockerRunnerImpl) getDockerImageSize(containerImage string) (totalSize
 	return totalSize, nil
 }
 
-func (dr *dockerRunnerImpl) runDockerRun(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, p manifest.EstafetteStage) (containerID string, err error) {
+func (dr *dockerRunnerImpl) startStageContainer(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, p manifest.EstafetteStage) (containerID string, err error) {
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "DockerRun")
 	defer span.Finish()
@@ -383,7 +383,7 @@ func (dr *dockerRunnerImpl) runDockerRun(ctx context.Context, depth int, runInde
 	return
 }
 
-func (dr *dockerRunnerImpl) runDockerRunService(ctx context.Context, envvars map[string]string, parentStage *manifest.EstafetteStage, service manifest.EstafetteService) (containerID string, ipAddress string, err error) {
+func (dr *dockerRunnerImpl) startServiceContainer(ctx context.Context, envvars map[string]string, parentStage *manifest.EstafetteStage, service manifest.EstafetteService) (containerID string, err error) {
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "DockerRunService")
 	defer span.Finish()
@@ -626,23 +626,17 @@ func (dr *dockerRunnerImpl) runDockerRunService(ctx context.Context, envvars map
 		return
 	}
 
-	containerJSON, err := dr.dockerClient.ContainerInspect(ctx, resp.ID)
-	if err != nil {
-		return
-	}
-	ipAddress = containerJSON.NetworkSettings.IPAddress
-
 	return
 }
 
-func (dr *dockerRunnerImpl) runDockerRunReadinessProber(ctx context.Context, parentStage manifest.EstafetteStage, service manifest.EstafetteService, readiness manifest.ReadinessProbe) (err error) {
+func (dr *dockerRunnerImpl) runReadinessProbeContainer(ctx context.Context, parentStage manifest.EstafetteStage, service manifest.EstafetteService, readiness manifest.ReadinessProbe) (err error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "DockerRunReadinessProber")
 	defer span.Finish()
 
 	readinessProberImage := "alpine:3.10"
-	isPulled := dr.isDockerImagePulled(service.Name+"-prober", readinessProberImage)
+	isPulled := dr.isImagePulled(service.Name+"-prober", readinessProberImage)
 	if !isPulled {
-		err = dr.runDockerPull(ctx, service.Name+"-prober", readinessProberImage)
+		err = dr.pullImage(ctx, service.Name+"-prober", readinessProberImage)
 		if err != nil {
 			return err
 		}
@@ -776,10 +770,8 @@ func (dr *dockerRunnerImpl) runDockerRunReadinessProber(ctx context.Context, par
 	return
 }
 
-func (dr *dockerRunnerImpl) tailDockerLogs(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (logLines []contracts.BuildLogLine, exitCode int64, canceled bool, err error) {
+func (dr *dockerRunnerImpl) tailContainerLogs(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error) {
 
-	logLines = make([]contracts.BuildLogLine, 0)
-	exitCode = int64(-1)
 	lineNumber := 1
 
 	// follow logs
@@ -791,7 +783,7 @@ func (dr *dockerRunnerImpl) tailDockerLogs(ctx context.Context, containerID, par
 		Details:    false,
 	})
 	if err != nil {
-		return logLines, exitCode, dr.canceled, err
+		return err
 	}
 	defer rc.Close()
 
@@ -802,7 +794,7 @@ func (dr *dockerRunnerImpl) tailDockerLogs(ctx context.Context, containerID, par
 
 		if dr.canceled {
 			log.Debug().Msgf("Cancelled tailing logs for container %v", containerID)
-			return logLines, exitCode, dr.canceled, err
+			return
 		}
 
 		// strip first 8 bytes, they contain docker control characters (https://github.com/docker/docker-ce/blob/v18.06.1-ce/components/engine/client/container_logs.go#L23-L32)
@@ -861,38 +853,36 @@ func (dr *dockerRunnerImpl) tailDockerLogs(ctx context.Context, containerID, par
 			RunIndex:    runIndex,
 			LogLine:     &logLineObject,
 		}
-
-		// add to log lines send when build/release job is finished
-		logLines = append(logLines, logLineObject)
 	}
 
 	if readError != nil && readError != io.EOF {
 		log.Error().Msgf("[%v] Error: %v", stageName, readError)
-		return logLines, exitCode, dr.canceled, readError
+		return readError
 	}
 
 	// wait for container to stop running
 	resultC, errC := dr.dockerClient.ContainerWait(ctx, containerID, container.WaitConditionNotRunning)
 
+	var exitCode int64
 	select {
 	case result := <-resultC:
 		exitCode = result.StatusCode
 	case err = <-errC:
 		log.Warn().Err(err).Msgf("Container %v exited with error", containerID)
-		return logLines, exitCode, dr.canceled, err
+		return err
 	}
 
 	// clear container id
 	dr.deleteContainerID(containerID)
 
 	if exitCode != 0 {
-		return logLines, exitCode, dr.canceled, fmt.Errorf("Failed with exit code: %v", exitCode)
+		return fmt.Errorf("Failed with exit code: %v", exitCode)
 	}
 
-	return logLines, exitCode, dr.canceled, err
+	return err
 }
 
-func (dr *dockerRunnerImpl) stopServices(ctx context.Context, parentStage *manifest.EstafetteStage, services []*manifest.EstafetteService) {
+func (dr *dockerRunnerImpl) stopServiceContainers(ctx context.Context, parentStage *manifest.EstafetteStage, services []*manifest.EstafetteService) {
 
 	if parentStage != nil {
 		log.Info().Msgf("Stopping services for stage '%v'...", parentStage.Name)
@@ -910,12 +900,6 @@ func (dr *dockerRunnerImpl) stopServices(ctx context.Context, parentStage *manif
 				parentStageName = parentStage.Name
 			}
 
-			if s.ContinueAfterStage {
-				if parentStage != nil {
-					log.Info().Msgf("Not stopping service '%v' for stage '%v', it has continueAfterStage = true...", s.Name, parentStage.Name)
-				}
-				return
-			}
 			if parentStage != nil {
 				log.Info().Msgf("Stopping service '%v' for stage '%v'...", s.Name, parentStage.Name)
 			}
