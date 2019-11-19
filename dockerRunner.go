@@ -639,7 +639,7 @@ func (dr *dockerRunnerImpl) runDockerRunReadinessProber(ctx context.Context, par
 	span, ctx := opentracing.StartSpanFromContext(ctx, "DockerRunReadinessProber")
 	defer span.Finish()
 
-	readinessProberImage := "alpine:3.10"
+	readinessProberImage := "estafette/scratch:latest"
 	isPulled := dr.isDockerImagePulled(service.Name+"-prober", readinessProberImage)
 	if !isPulled {
 		err = dr.runDockerPull(ctx, service.Name+"-prober", readinessProberImage)
@@ -672,7 +672,7 @@ func (dr *dockerRunnerImpl) runDockerRunReadinessProber(ctx context.Context, par
 	// mount the builder binary and trusted certs into the image
 	binds := make([]string, 0)
 	binds = append(binds, "/estafette-ci-builder:/estafette-ci-builder")
-	// binds = append(binds, "/etc/ssl/certs/ca-certificates.crt:/etc/ssl/certs/ca-certificates.crt")
+	binds = append(binds, "/etc/ssl/certs/ca-certificates.crt:/etc/ssl/certs/ca-certificates.crt")
 
 	// define config
 	config := container.Config{
