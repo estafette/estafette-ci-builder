@@ -53,9 +53,6 @@ func NewPipelineRunner(envvarHelper EnvvarHelper, whenEvaluator WhenEvaluator, d
 
 func (pr *pipelineRunnerImpl) RunStage(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, stage manifest.EstafetteStage) (err error) {
 
-	var dockerRunStart *time.Time
-	defer pr.handleStageFinish(ctx, depth, runIndex, dir, envvars, parentStage, stage, dockerRunStart, &err)
-
 	span, ctx := opentracing.StartSpanFromContext(ctx, "RunStage")
 	defer span.Finish()
 	span.SetTag("stage", stage.Name)
@@ -67,13 +64,10 @@ func (pr *pipelineRunnerImpl) RunStage(ctx context.Context, depth int, runIndex 
 
 	// pull image, get size and send pending/running status messages
 	err = pr.pullImageIfNeeded(ctx, stage.Name, parentStageName, stage.ContainerImage, contracts.TypeStage, depth, runIndex, autoInjected)
+	defer pr.handleStageFinish(ctx, depth, runIndex, dir, envvars, parentStage, stage, time.Now(), &err)
 	if err != nil {
 		return
 	}
-
-	// run commands in docker container
-	dockerRunStartValue := time.Now()
-	dockerRunStart = &dockerRunStartValue
 
 	if len(stage.Services) > 0 {
 		// this stage has service containers, start them first
@@ -122,7 +116,7 @@ func (pr *pipelineRunnerImpl) initStageVariables(ctx context.Context, depth int,
 	return
 }
 
-func (pr *pipelineRunnerImpl) handleStageFinish(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, stage manifest.EstafetteStage, dockerRunStart *time.Time, errPointer *error) {
+func (pr *pipelineRunnerImpl) handleStageFinish(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, stage manifest.EstafetteStage, dockerRunStart time.Time, errPointer *error) {
 
 	err := *errPointer
 
@@ -146,11 +140,8 @@ func (pr *pipelineRunnerImpl) handleStageFinish(ctx context.Context, depth int, 
 		pr.dockerRunner.StopServiceContainers(ctx, stage)
 	}
 
-	var runDuration *time.Duration
-	if dockerRunStart != nil {
-		runDurationValue := time.Since(*dockerRunStart)
-		runDuration = &runDurationValue
-	}
+	runDurationValue := time.Since(dockerRunStart)
+	runDuration := &runDurationValue
 
 	pr.sendStatusMessage(stage.Name, parentStageName, contracts.TypeStage, depth, runIndex, autoInjected, nil, runDuration, finalStatus)
 }
@@ -215,9 +206,6 @@ func (pr *pipelineRunnerImpl) RunStageWithRetry(ctx context.Context, depth int, 
 
 func (pr *pipelineRunnerImpl) RunService(ctx context.Context, envvars map[string]string, parentStage manifest.EstafetteStage, service manifest.EstafetteService) (err error) {
 
-	var dockerRunStart *time.Time
-	defer pr.handleServiceFinish(ctx, envvars, parentStage, service, true, dockerRunStart, &err)
-
 	span, ctx := opentracing.StartSpanFromContext(ctx, "RunService")
 	defer span.Finish()
 	span.SetTag("service", service.Name)
@@ -226,13 +214,11 @@ func (pr *pipelineRunnerImpl) RunService(ctx context.Context, envvars map[string
 
 	// pull image, get size and send pending/running status messages
 	err = pr.pullImageIfNeeded(ctx, service.Name, parentStage.Name, service.ContainerImage, contracts.TypeService, 1, 0, nil)
+	dockerRunStart := time.Now()
+	defer pr.handleServiceFinish(ctx, envvars, parentStage, service, true, dockerRunStart, &err)
 	if err != nil {
 		return
 	}
-
-	// run commands in docker container
-	dockerRunStartValue := time.Now()
-	dockerRunStart = &dockerRunStartValue
 
 	var containerID string
 	containerID, err = pr.dockerRunner.StartServiceContainer(ctx, envvars, &parentStage, service)
@@ -259,7 +245,7 @@ func (pr *pipelineRunnerImpl) RunService(ctx context.Context, envvars map[string
 	return
 }
 
-func (pr *pipelineRunnerImpl) handleServiceFinish(ctx context.Context, envvars map[string]string, parentStage manifest.EstafetteStage, service manifest.EstafetteService, skipSucceeded bool, dockerRunStart *time.Time, errPointer *error) {
+func (pr *pipelineRunnerImpl) handleServiceFinish(ctx context.Context, envvars map[string]string, parentStage manifest.EstafetteStage, service manifest.EstafetteService, skipSucceeded bool, dockerRunStart time.Time, errPointer *error) {
 
 	err := *errPointer
 
@@ -280,11 +266,8 @@ func (pr *pipelineRunnerImpl) handleServiceFinish(ctx context.Context, envvars m
 		log.Info().Msgf("[%v] [%v] Service succeeded", parentStage.Name, service.Name)
 	}
 
-	var runDuration *time.Duration
-	if dockerRunStart != nil {
-		runDurationValue := time.Since(*dockerRunStart)
-		runDuration = &runDurationValue
-	}
+	runDurationValue := time.Since(dockerRunStart)
+	runDuration := &runDurationValue
 
 	pr.sendStatusMessage(service.Name, parentStage.Name, contracts.TypeService, 1, 0, nil, nil, runDuration, finalStatus)
 }

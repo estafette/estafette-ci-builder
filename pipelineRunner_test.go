@@ -1340,8 +1340,8 @@ func TestRunStages(t *testing.T) {
 		buildLogSteps, _ := pipelineRunner.RunStages(context.Background(), depth, stages, dir, envvars)
 
 		if assert.Equal(t, 1, len(buildLogSteps)) {
-			assert.GreaterOrEqual(t, int64(50), buildLogSteps[0].Duration.Milliseconds())
-			assert.GreaterOrEqual(t, int64(100), buildLogSteps[0].Image.PullDuration.Milliseconds())
+			assert.GreaterOrEqual(t, int64(50), buildLogSteps[0].Image.PullDuration.Milliseconds())
+			assert.GreaterOrEqual(t, int64(100), buildLogSteps[0].Duration.Milliseconds())
 		}
 	})
 
