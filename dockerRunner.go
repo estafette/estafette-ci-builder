@@ -31,25 +31,21 @@ import (
 
 // DockerRunner pulls and runs docker containers
 type DockerRunner interface {
-	isImagePulled(stageName string, containerImage string) bool
-	pullImage(ctx context.Context, stageName string, containerImage string) error
-	getImageSize(containerImage string) (int64, error)
-	startStageContainer(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, p manifest.EstafetteStage) (containerID string, err error)
-	startServiceContainer(ctx context.Context, envvars map[string]string, parentStage *manifest.EstafetteStage, service manifest.EstafetteService) (containerID string, err error)
-	runReadinessProbeContainer(ctx context.Context, parentStage manifest.EstafetteStage, service manifest.EstafetteService, readiness manifest.ReadinessProbe) (err error)
-	tailContainerLogs(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error)
-	stopServiceContainers(ctx context.Context, parentStage *manifest.EstafetteStage, services []*manifest.EstafetteService)
-
-	startDockerDaemon() error
-	waitForDockerDaemon()
-	createDockerClient() (*client.Client, error)
-	getImagePullOptions(containerImage string) types.ImagePullOptions
-	isTrustedImage(stageName string, containerImage string) bool
-	stopContainerOnCancellation()
-	deleteContainerID(containerID string)
-	removeContainer(containerID string) error
-	createBridgeNetwork(ctx context.Context) error
-	deleteBridgeNetwork(ctx context.Context) error
+	IsImagePulled(stageName string, containerImage string) bool
+	IsTrustedImage(stageName string, containerImage string) bool
+	PullImage(ctx context.Context, stageName string, containerImage string) error
+	GetImageSize(containerImage string) (int64, error)
+	StartStageContainer(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, p manifest.EstafetteStage) (containerID string, err error)
+	StartServiceContainer(ctx context.Context, envvars map[string]string, parentStage *manifest.EstafetteStage, service manifest.EstafetteService) (containerID string, err error)
+	RunReadinessProbeContainer(ctx context.Context, parentStage manifest.EstafetteStage, service manifest.EstafetteService, readiness manifest.ReadinessProbe) (err error)
+	TailContainerLogs(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error)
+	StopServiceContainers(ctx context.Context, parentStage *manifest.EstafetteStage, services []*manifest.EstafetteService)
+	StartDockerDaemon() error
+	WaitForDockerDaemon()
+	CreateDockerClient() (*client.Client, error)
+	CreateBridgeNetwork(ctx context.Context) error
+	DeleteBridgeNetwork(ctx context.Context) error
+	StopContainersOnCancellation()
 }
 
 type dockerRunnerImpl struct {
@@ -80,7 +76,7 @@ func NewDockerRunner(envvarHelper EnvvarHelper, obfuscator Obfuscator, runAsJob 
 	}
 }
 
-func (dr *dockerRunnerImpl) isImagePulled(stageName string, containerImage string) bool {
+func (dr *dockerRunnerImpl) IsImagePulled(stageName string, containerImage string) bool {
 
 	log.Info().Msgf("[%v] Checking if docker image '%v' exists locally...", stageName, containerImage)
 
@@ -98,7 +94,7 @@ func (dr *dockerRunnerImpl) isImagePulled(stageName string, containerImage strin
 	return false
 }
 
-func (dr *dockerRunnerImpl) pullImage(ctx context.Context, stageName string, containerImage string) (err error) {
+func (dr *dockerRunnerImpl) PullImage(ctx context.Context, stageName string, containerImage string) (err error) {
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "DockerPull")
 	defer span.Finish()
@@ -121,7 +117,7 @@ func (dr *dockerRunnerImpl) pullImage(ctx context.Context, stageName string, con
 	return
 }
 
-func (dr *dockerRunnerImpl) getImageSize(containerImage string) (totalSize int64, err error) {
+func (dr *dockerRunnerImpl) GetImageSize(containerImage string) (totalSize int64, err error) {
 
 	items, err := dr.dockerClient.ImageHistory(context.Background(), containerImage)
 	if err != nil {
@@ -135,7 +131,7 @@ func (dr *dockerRunnerImpl) getImageSize(containerImage string) (totalSize int64
 	return totalSize, nil
 }
 
-func (dr *dockerRunnerImpl) startStageContainer(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, p manifest.EstafetteStage) (containerID string, err error) {
+func (dr *dockerRunnerImpl) StartStageContainer(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, p manifest.EstafetteStage) (containerID string, err error) {
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "DockerRun")
 	defer span.Finish()
@@ -383,7 +379,7 @@ func (dr *dockerRunnerImpl) startStageContainer(ctx context.Context, depth int, 
 	return
 }
 
-func (dr *dockerRunnerImpl) startServiceContainer(ctx context.Context, envvars map[string]string, parentStage *manifest.EstafetteStage, service manifest.EstafetteService) (containerID string, err error) {
+func (dr *dockerRunnerImpl) StartServiceContainer(ctx context.Context, envvars map[string]string, parentStage *manifest.EstafetteStage, service manifest.EstafetteService) (containerID string, err error) {
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "DockerRunService")
 	defer span.Finish()
@@ -629,14 +625,14 @@ func (dr *dockerRunnerImpl) startServiceContainer(ctx context.Context, envvars m
 	return
 }
 
-func (dr *dockerRunnerImpl) runReadinessProbeContainer(ctx context.Context, parentStage manifest.EstafetteStage, service manifest.EstafetteService, readiness manifest.ReadinessProbe) (err error) {
+func (dr *dockerRunnerImpl) RunReadinessProbeContainer(ctx context.Context, parentStage manifest.EstafetteStage, service manifest.EstafetteService, readiness manifest.ReadinessProbe) (err error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "DockerRunReadinessProber")
 	defer span.Finish()
 
 	readinessProberImage := "alpine:3.10"
-	isPulled := dr.isImagePulled(service.Name+"-prober", readinessProberImage)
+	isPulled := dr.IsImagePulled(service.Name+"-prober", readinessProberImage)
 	if !isPulled {
-		err = dr.pullImage(ctx, service.Name+"-prober", readinessProberImage)
+		err = dr.PullImage(ctx, service.Name+"-prober", readinessProberImage)
 		if err != nil {
 			return err
 		}
@@ -770,7 +766,7 @@ func (dr *dockerRunnerImpl) runReadinessProbeContainer(ctx context.Context, pare
 	return
 }
 
-func (dr *dockerRunnerImpl) tailContainerLogs(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error) {
+func (dr *dockerRunnerImpl) TailContainerLogs(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error) {
 
 	lineNumber := 1
 
@@ -882,7 +878,7 @@ func (dr *dockerRunnerImpl) tailContainerLogs(ctx context.Context, containerID, 
 	return err
 }
 
-func (dr *dockerRunnerImpl) stopServiceContainers(ctx context.Context, parentStage *manifest.EstafetteStage, services []*manifest.EstafetteService) {
+func (dr *dockerRunnerImpl) StopServiceContainers(ctx context.Context, parentStage *manifest.EstafetteStage, services []*manifest.EstafetteService) {
 
 	if parentStage != nil {
 		log.Info().Msgf("Stopping services for stage '%v'...", parentStage.Name)
@@ -942,7 +938,7 @@ func (dr *dockerRunnerImpl) stopServiceContainers(ctx context.Context, parentSta
 	}
 }
 
-func (dr *dockerRunnerImpl) startDockerDaemon() error {
+func (dr *dockerRunnerImpl) StartDockerDaemon() error {
 
 	// dockerd --host=unix:///var/run/docker.sock --host=tcp://0.0.0.0:2375 --mtu=1500 &
 	log.Debug().Msg("Starting docker daemon...")
@@ -974,7 +970,7 @@ func (dr *dockerRunnerImpl) startDockerDaemon() error {
 	return nil
 }
 
-func (dr *dockerRunnerImpl) waitForDockerDaemon() {
+func (dr *dockerRunnerImpl) WaitForDockerDaemon() {
 
 	// wait until /var/run/docker.sock exists
 	log.Debug().Msg("Waiting for docker daemon to be ready for use...")
@@ -990,7 +986,7 @@ func (dr *dockerRunnerImpl) waitForDockerDaemon() {
 	log.Debug().Msg("Docker daemon is ready for use")
 }
 
-func (dr *dockerRunnerImpl) createDockerClient() (*client.Client, error) {
+func (dr *dockerRunnerImpl) CreateDockerClient() (*client.Client, error) {
 
 	dockerClient, err := client.NewEnvClient()
 	if err != nil {
@@ -1041,7 +1037,7 @@ func (dr *dockerRunnerImpl) getImagePullOptions(containerImage string) types.Ima
 	return types.ImagePullOptions{}
 }
 
-func (dr *dockerRunnerImpl) isTrustedImage(stageName string, containerImage string) bool {
+func (dr *dockerRunnerImpl) IsTrustedImage(stageName string, containerImage string) bool {
 
 	log.Info().Msgf("[%v] Checking if docker image '%v' is trusted...", stageName, containerImage)
 
@@ -1063,7 +1059,7 @@ func (dr *dockerRunnerImpl) stopContainer(id string) error {
 	return nil
 }
 
-func (dr *dockerRunnerImpl) stopContainerOnCancellation() {
+func (dr *dockerRunnerImpl) StopContainersOnCancellation() {
 	// wait for cancellation
 
 	<-dr.cancellationChannel
@@ -1109,7 +1105,7 @@ func (dr *dockerRunnerImpl) removeContainer(containerID string) error {
 	return nil
 }
 
-func (dr *dockerRunnerImpl) createBridgeNetwork(ctx context.Context) error {
+func (dr *dockerRunnerImpl) CreateBridgeNetwork(ctx context.Context) error {
 
 	if dr.networkBridgeID == "" {
 		log.Info().Msgf("Creating docker network %v...", dr.networkBridge)
@@ -1146,7 +1142,7 @@ func (dr *dockerRunnerImpl) createBridgeNetwork(ctx context.Context) error {
 	return nil
 }
 
-func (dr *dockerRunnerImpl) deleteBridgeNetwork(ctx context.Context) error {
+func (dr *dockerRunnerImpl) DeleteBridgeNetwork(ctx context.Context) error {
 
 	if dr.networkBridgeID != "" {
 		log.Info().Msgf("Deleting docker network %v with id %v...", dr.networkBridge, dr.networkBridgeID)

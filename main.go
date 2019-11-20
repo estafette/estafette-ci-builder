@@ -179,7 +179,7 @@ func main() {
 		fatalHandler := NewGocdFatalHandler()
 
 		// create docker client
-		_, err := dockerRunner.createDockerClient()
+		_, err := dockerRunner.CreateDockerClient()
 		if err != nil {
 			fatalHandler.handleGocdFatal(err, "Failed creating a docker client")
 		}
@@ -221,11 +221,10 @@ func main() {
 		envvars := envvarHelper.overrideEnvvars(estafetteEnvvars, globalEnvvars)
 
 		// run stages
-		err = pipelineRunner.runStages(context.Background(), 0, manifest.Stages, dir, envvars)
+		buildLogSteps, err := pipelineRunner.RunStages(context.Background(), 0, manifest.Stages, dir, envvars)
 		if err != nil {
 			fatalHandler.handleGocdFatal(err, "Executing stages from manifest failed")
 		}
-		buildLogSteps := pipelineRunner.getLogs(context.Background())
 
 		renderStats(buildLogSteps)
 
@@ -299,19 +298,19 @@ func main() {
 		// start docker daemon
 		if runtime.GOOS != "windows" {
 			dockerDaemonStartSpan, _ := opentracing.StartSpanFromContext(ctx, "StartDockerDaemon")
-			err = dockerRunner.startDockerDaemon()
+			err = dockerRunner.StartDockerDaemon()
 			if err != nil {
 				endOfLifeHelper.handleFatal(ctx, buildLog, err, "Error starting docker daemon")
 			}
 
 			// wait for docker daemon to be ready for usage
-			dockerRunner.waitForDockerDaemon()
+			dockerRunner.WaitForDockerDaemon()
 			dockerDaemonStartSpan.Finish()
 		}
 
 		// listen to cancellation in order to stop any running pipeline or container
-		go pipelineRunner.stopPipelineOnCancellation()
-		go dockerRunner.stopContainerOnCancellation()
+		go pipelineRunner.StopPipelineOnCancellation()
+		go dockerRunner.StopContainersOnCancellation()
 
 		// get current working directory
 		dir := envvarHelper.getWorkDir()
@@ -356,7 +355,7 @@ func main() {
 		}
 
 		// create docker client
-		_, err = dockerRunner.createDockerClient()
+		_, err = dockerRunner.CreateDockerClient()
 		if err != nil {
 			endOfLifeHelper.handleFatal(ctx, buildLog, err, "Failed creating a docker client")
 		}
@@ -368,7 +367,7 @@ func main() {
 		envvars := envvarHelper.overrideEnvvars(estafetteEnvvars, globalEnvvars)
 
 		// run stages
-		err := pipelineRunner.runStages(ctx, 0, stages, dir, envvars)
+		buildLog.Steps, err = pipelineRunner.RunStages(ctx, 0, stages, dir, envvars)
 		if err != nil && buildLog.HasCanceledStatus() {
 			endOfLifeHelper.handleFatal(ctx, buildLog, err, "Executing stages from manifest failed")
 		}

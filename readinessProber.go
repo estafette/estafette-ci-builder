@@ -57,7 +57,7 @@ func waitForReadiness(protocol, host string, port int, path, hostname string, ti
 		// keep sending request until it succeeds or the total timeout has send a quit signal
 		for err != nil || resp.StatusCode != http.StatusOK {
 			log.Warn().Err(err).Msgf("Readiness probe against %v failed", request.URL)
-			time.Sleep(2 * time.Second)
+			time.Sleep(1 * time.Second)
 
 			select {
 			case <-quit:
