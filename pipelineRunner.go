@@ -129,12 +129,6 @@ func (pr *pipelineRunnerImpl) handleStageFinish(ctx context.Context, depth int, 
 	// init some variables
 	parentStageName, stagePlaceholder, autoInjected := pr.initStageVariables(ctx, depth, runIndex, dir, envvars, parentStage, stage)
 
-	var runDuration *time.Duration
-	if dockerRunStart != nil {
-		runDurationValue := time.Since(*dockerRunStart)
-		runDuration = &runDurationValue
-	}
-
 	// finalize stage
 	finalStatus := contracts.StatusSucceeded
 	if pr.canceled {
@@ -147,12 +141,18 @@ func (pr *pipelineRunnerImpl) handleStageFinish(ctx context.Context, depth int, 
 		log.Info().Msgf("%v Stage succeeded", stagePlaceholder)
 	}
 
-	pr.sendStatusMessage(stage.Name, parentStageName, contracts.TypeStage, depth, runIndex, autoInjected, nil, runDuration, finalStatus)
-
 	if len(stage.Services) > 0 {
 		// this stage has service containers, stop them now that the stage has finished
 		pr.dockerRunner.StopServiceContainers(ctx, stage)
 	}
+
+	var runDuration *time.Duration
+	if dockerRunStart != nil {
+		runDurationValue := time.Since(*dockerRunStart)
+		runDuration = &runDurationValue
+	}
+
+	pr.sendStatusMessage(stage.Name, parentStageName, contracts.TypeStage, depth, runIndex, autoInjected, nil, runDuration, finalStatus)
 }
 
 func (pr *pipelineRunnerImpl) RunStageWithRetry(ctx context.Context, depth int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, stage manifest.EstafetteStage) (err error) {
@@ -263,12 +263,6 @@ func (pr *pipelineRunnerImpl) handleServiceFinish(ctx context.Context, envvars m
 
 	err := *errPointer
 
-	var runDuration *time.Duration
-	if dockerRunStart != nil {
-		runDurationValue := time.Since(*dockerRunStart)
-		runDuration = &runDurationValue
-	}
-
 	// finalize stage
 	finalStatus := contracts.StatusSucceeded
 	if pr.canceled {
@@ -284,6 +278,12 @@ func (pr *pipelineRunnerImpl) handleServiceFinish(ctx context.Context, envvars m
 			return
 		}
 		log.Info().Msgf("[%v] [%v] Service succeeded", parentStage.Name, service.Name)
+	}
+
+	var runDuration *time.Duration
+	if dockerRunStart != nil {
+		runDurationValue := time.Since(*dockerRunStart)
+		runDuration = &runDurationValue
 	}
 
 	pr.sendStatusMessage(service.Name, parentStage.Name, contracts.TypeService, 1, 0, nil, nil, runDuration, finalStatus)
@@ -587,15 +587,10 @@ func (pr *pipelineRunnerImpl) sendStatusMessage(step, parentStageName, container
 		Type:         containerType,
 		Depth:        depth,
 		RunIndex:     runIndex,
-		AutoInjected: autoInjected,
+		Image:        image,
+		Duration:     runDuration,
 		Status:       &status,
-	}
-
-	if image != nil {
-		tailLogLine.Image = image
-	}
-	if runDuration != nil {
-		tailLogLine.Duration = runDuration
+		AutoInjected: autoInjected,
 	}
 
 	pr.tailLogsChannel <- tailLogLine

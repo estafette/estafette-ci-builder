@@ -994,6 +994,7 @@ func TestRunService(t *testing.T) {
 		wg.Add(1)
 		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error) {
 			defer wg.Done()
+			// ensure tailing doesn't set status before the main routine does
 			time.Sleep(100 * time.Millisecond)
 			return nil
 		}
@@ -1047,6 +1048,7 @@ func TestRunService(t *testing.T) {
 		wg.Add(1)
 		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error) {
 			defer wg.Done()
+			// ensure tailing doesn't set status before the main routine does
 			time.Sleep(100 * time.Millisecond)
 			return nil
 		}
@@ -1100,6 +1102,7 @@ func TestRunService(t *testing.T) {
 		wg.Add(1)
 		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error) {
 			defer wg.Done()
+			// ensure tailing doesn't set status before the main routine does
 			time.Sleep(100 * time.Millisecond)
 			return nil
 		}
@@ -1306,6 +1309,40 @@ func TestRunStages(t *testing.T) {
 		}
 
 		assert.Equal(t, contracts.StatusFailed, contracts.GetAggregatedStatus(buildLogSteps))
+	})
+
+	t.Run("SetsPullDurationAndRunDurationForStage", func(t *testing.T) {
+
+		dockerRunnerMock, _, _, pipelineRunner := resetState()
+
+		depth := 0
+		dir := "/estafette-work"
+		envvars := map[string]string{}
+		stages := []*manifest.EstafetteStage{
+			&manifest.EstafetteStage{
+				Name:           "stage-a",
+				ContainerImage: "alpine:latest",
+				When:           "status == 'succeeded'",
+			},
+		}
+
+		// set mock responses
+		dockerRunnerMock.pullImageFunc = func(ctx context.Context, stageName string, containerImage string) error {
+			time.Sleep(50 * time.Millisecond)
+			return nil
+		}
+		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error) {
+			time.Sleep(100 * time.Millisecond)
+			return nil
+		}
+
+		// act
+		buildLogSteps, _ := pipelineRunner.RunStages(context.Background(), depth, stages, dir, envvars)
+
+		if assert.Equal(t, 1, len(buildLogSteps)) {
+			assert.GreaterOrEqual(t, int64(50), buildLogSteps[0].Duration.Milliseconds())
+			assert.GreaterOrEqual(t, int64(100), buildLogSteps[0].Image.PullDuration.Milliseconds())
+		}
 	})
 
 	t.Run("InjectsBuilderInfoStageWhenEnableBuilderInfoStageInjectionIsCalledBeforeRunStages", func(t *testing.T) {
