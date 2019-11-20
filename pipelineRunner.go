@@ -23,17 +23,19 @@ type PipelineRunner interface {
 	RunParallelStages(ctx context.Context, depth int, dir string, envvars map[string]string, parentStage manifest.EstafetteStage, parallelStages []*manifest.EstafetteStage) (err error)
 	RunServices(ctx context.Context, envvars map[string]string, parentStage manifest.EstafetteStage, services []*manifest.EstafetteService) (err error)
 	StopPipelineOnCancellation()
+	EnableBuilderInfoStageInjection()
 }
 
 type pipelineRunnerImpl struct {
-	envvarHelper        EnvvarHelper
-	whenEvaluator       WhenEvaluator
-	dockerRunner        DockerRunner
-	runAsJob            bool
-	cancellationChannel chan struct{}
-	tailLogsChannel     chan contracts.TailLogLine
-	buildLogSteps       []*contracts.BuildLogStep
-	canceled            bool
+	envvarHelper           EnvvarHelper
+	whenEvaluator          WhenEvaluator
+	dockerRunner           DockerRunner
+	runAsJob               bool
+	cancellationChannel    chan struct{}
+	tailLogsChannel        chan contracts.TailLogLine
+	buildLogSteps          []*contracts.BuildLogStep
+	canceled               bool
+	injectBuilderInfoStage bool
 }
 
 // NewPipelineRunner returns a new PipelineRunner
@@ -317,6 +319,11 @@ func (pr *pipelineRunnerImpl) RunStages(ctx context.Context, depth int, stages [
 		return buildLogSteps, fmt.Errorf("Manifest has no stages, failing the build")
 	}
 
+	// creates first injected stage with builder info
+	if pr.injectBuilderInfoStage {
+		pr.logBuilderInfo()
+	}
+
 	log.Info().Msgf("Running %v stages", len(stages))
 
 	var finalErr error
@@ -514,6 +521,10 @@ func (pr *pipelineRunnerImpl) StopPipelineOnCancellation() {
 	pr.canceled = true
 }
 
+func (pr *pipelineRunnerImpl) EnableBuilderInfoStageInjection() {
+	pr.injectBuilderInfoStage = true
+}
+
 func (pr *pipelineRunnerImpl) resetCancellation() {
 	pr.canceled = false
 }
@@ -618,6 +629,27 @@ func (pr *pipelineRunnerImpl) tailLogs(ctx context.Context, wg *sync.WaitGroup, 
 				return
 			}
 		}
+	}
+}
+
+func (pr *pipelineRunnerImpl) logBuilderInfo() {
+
+	builderVersionMessage := fmt.Sprintf("Estafette-ci-builder version %v (branch=%v revision=%v buildDate=%v goVersion=%v os=%v)", version, branch, revision, buildDate, goVersion, runtime.GOOS)
+
+	logLineObject := contracts.BuildLogLine{
+		Timestamp:  time.Now().UTC(),
+		StreamType: "stdout",
+		Text:       builderVersionMessage,
+	}
+
+	status := contracts.StatusSucceeded
+	trueValue := true
+	pr.tailLogsChannel <- contracts.TailLogLine{
+		Step:         "builder-info",
+		Type:         contracts.TypeStage,
+		LogLine:      &logLineObject,
+		Status:       &status,
+		AutoInjected: &trueValue,
 	}
 }
 

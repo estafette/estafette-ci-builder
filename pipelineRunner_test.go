@@ -1308,6 +1308,33 @@ func TestRunStages(t *testing.T) {
 		assert.Equal(t, contracts.StatusFailed, contracts.GetAggregatedStatus(buildLogSteps))
 	})
 
+	t.Run("InjectsBuilderInfoStageWhenEnableBuilderInfoStageInjectionIsCalledBeforeRunStages", func(t *testing.T) {
+
+		_, _, _, pipelineRunner := resetState()
+
+		depth := 0
+		dir := "/estafette-work"
+		envvars := map[string]string{}
+		stages := []*manifest.EstafetteStage{
+			&manifest.EstafetteStage{
+				Name:           "stage-a",
+				ContainerImage: "alpine:latest",
+				When:           "status == 'succeeded'",
+			},
+		}
+
+		// act
+		pipelineRunner.EnableBuilderInfoStageInjection()
+		buildLogSteps, _ := pipelineRunner.RunStages(context.Background(), depth, stages, dir, envvars)
+
+		if assert.Equal(t, 2, len(buildLogSteps)) {
+			assert.Equal(t, "builder-info", buildLogSteps[0].Step)
+			assert.Equal(t, contracts.StatusSucceeded, buildLogSteps[0].Status)
+			assert.True(t, buildLogSteps[0].AutoInjected)
+			assert.Equal(t, 1, len(buildLogSteps[0].LogLines))
+		}
+	})
+
 	t.Run("CallsCreateBridgeNetwork", func(t *testing.T) {
 
 		dockerRunnerMock, _, _, pipelineRunner := resetState()

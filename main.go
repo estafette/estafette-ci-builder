@@ -367,6 +367,7 @@ func main() {
 		envvars := envvarHelper.overrideEnvvars(estafetteEnvvars, globalEnvvars)
 
 		// run stages
+		pipelineRunner.EnableBuilderInfoStageInjection()
 		buildLog.Steps, err = pipelineRunner.RunStages(ctx, 0, stages, dir, envvars)
 		if err != nil && buildLog.HasCanceledStatus() {
 			endOfLifeHelper.handleFatal(ctx, buildLog, err, "Executing stages from manifest failed")
