@@ -8,21 +8,22 @@ import (
 )
 
 type dockerRunnerMockImpl struct {
-	isImagePulledFunc               func(stageName string, containerImage string) bool
-	pullImageFunc                   func(ctx context.Context, stageName string, containerImage string) error
-	getImageSizeFunc                func(containerImage string) (int64, error)
-	startStageContainerFunc         func(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, p manifest.EstafetteStage) (containerID string, err error)
-	startServiceContainerFunc       func(ctx context.Context, envvars map[string]string, parentStage *manifest.EstafetteStage, service manifest.EstafetteService) (containerID string, err error)
-	runReadinessProbeContainerFunc  func(ctx context.Context, parentStage manifest.EstafetteStage, service manifest.EstafetteService, readiness manifest.ReadinessProbe) (err error)
-	tailContainerLogsFunc           func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error)
-	stopServiceContainersFunc       func(ctx context.Context, parentStage *manifest.EstafetteStage, services []*manifest.EstafetteService)
-	startDockerDaemonFunc           func() error
-	waitForDockerDaemonFunc         func()
-	createDockerClientFunc          func() (*client.Client, error)
-	isTrustedImageFunc              func(stageName string, containerImage string) bool
-	stopContainerOnCancellationFunc func()
-	createBridgeNetworkFunc         func(ctx context.Context) error
-	deleteBridgeNetworkFunc         func(ctx context.Context) error
+	isImagePulledFunc                func(stageName string, containerImage string) bool
+	pullImageFunc                    func(ctx context.Context, stageName string, containerImage string) error
+	getImageSizeFunc                 func(containerImage string) (int64, error)
+	startStageContainerFunc          func(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, p manifest.EstafetteStage) (containerID string, err error)
+	startServiceContainerFunc        func(ctx context.Context, envvars map[string]string, parentStage *manifest.EstafetteStage, service manifest.EstafetteService) (containerID string, err error)
+	runReadinessProbeContainerFunc   func(ctx context.Context, parentStage manifest.EstafetteStage, service manifest.EstafetteService, readiness manifest.ReadinessProbe) (err error)
+	tailContainerLogsFunc            func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error)
+	stopServiceContainersFunc        func(ctx context.Context, parentStage manifest.EstafetteStage)
+	startDockerDaemonFunc            func() error
+	waitForDockerDaemonFunc          func()
+	createDockerClientFunc           func() (*client.Client, error)
+	isTrustedImageFunc               func(stageName string, containerImage string) bool
+	stopContainersOnCancellationFunc func()
+	stopContainersFunc               func()
+	createBridgeNetworkFunc          func(ctx context.Context) error
+	deleteBridgeNetworkFunc          func(ctx context.Context) error
 }
 
 func (d *dockerRunnerMockImpl) IsImagePulled(stageName string, containerImage string) bool {
@@ -74,9 +75,9 @@ func (d *dockerRunnerMockImpl) TailContainerLogs(ctx context.Context, containerI
 	return d.tailContainerLogsFunc(ctx, containerID, parentStageName, stageName, stageType, depth, runIndex)
 }
 
-func (d *dockerRunnerMockImpl) StopServiceContainers(ctx context.Context, parentStage *manifest.EstafetteStage, services []*manifest.EstafetteService) {
+func (d *dockerRunnerMockImpl) StopServiceContainers(ctx context.Context, parentStage manifest.EstafetteStage) {
 	if d.stopServiceContainersFunc != nil {
-		d.stopServiceContainersFunc(ctx, parentStage, services)
+		d.stopServiceContainersFunc(ctx, parentStage)
 	}
 }
 
@@ -108,8 +109,14 @@ func (d *dockerRunnerMockImpl) IsTrustedImage(stageName string, containerImage s
 }
 
 func (d *dockerRunnerMockImpl) StopContainersOnCancellation() {
-	if d.stopContainerOnCancellationFunc != nil {
-		d.stopContainerOnCancellationFunc()
+	if d.stopContainersOnCancellationFunc != nil {
+		d.stopContainersOnCancellationFunc()
+	}
+}
+
+func (d *dockerRunnerMockImpl) StopContainers() {
+	if d.stopContainersFunc != nil {
+		d.stopContainersFunc()
 	}
 }
 

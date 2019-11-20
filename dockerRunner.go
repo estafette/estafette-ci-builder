@@ -39,13 +39,14 @@ type DockerRunner interface {
 	StartServiceContainer(ctx context.Context, envvars map[string]string, parentStage *manifest.EstafetteStage, service manifest.EstafetteService) (containerID string, err error)
 	RunReadinessProbeContainer(ctx context.Context, parentStage manifest.EstafetteStage, service manifest.EstafetteService, readiness manifest.ReadinessProbe) (err error)
 	TailContainerLogs(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error)
-	StopServiceContainers(ctx context.Context, parentStage *manifest.EstafetteStage, services []*manifest.EstafetteService)
+	StopServiceContainers(ctx context.Context, parentStage manifest.EstafetteStage)
 	StartDockerDaemon() error
 	WaitForDockerDaemon()
 	CreateDockerClient() (*client.Client, error)
 	CreateBridgeNetwork(ctx context.Context) error
 	DeleteBridgeNetwork(ctx context.Context) error
 	StopContainersOnCancellation()
+	StopContainers()
 }
 
 type dockerRunnerImpl struct {
@@ -56,7 +57,7 @@ type dockerRunnerImpl struct {
 	config              contracts.BuilderConfig
 	cancellationChannel chan struct{}
 	tailLogsChannel     chan contracts.TailLogLine
-	containerIDs        map[string]string
+	runningContainerIDs []string
 	canceled            bool
 	networkBridge       string
 	networkBridgeID     string
@@ -71,7 +72,7 @@ func NewDockerRunner(envvarHelper EnvvarHelper, obfuscator Obfuscator, runAsJob 
 		config:              config,
 		cancellationChannel: cancellationChannel,
 		tailLogsChannel:     tailLogsChannel,
-		containerIDs:        make(map[string]string, 0),
+		runningContainerIDs: make([]string, 0),
 		networkBridge:       "estafette",
 	}
 }
@@ -362,14 +363,8 @@ func (dr *dockerRunnerImpl) StartStageContainer(ctx context.Context, depth int, 
 		return
 	}
 
-	containerKey := ""
-	if parentStage != nil {
-		containerKey += parentStage.Name + "-nested-"
-	}
-	containerKey += p.Name
-
 	containerID = resp.ID
-	dr.containerIDs[containerKey] = resp.ID
+	dr.addRunningContainerID(containerID)
 
 	// start container
 	if err = dr.dockerClient.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{}); err != nil {
@@ -608,14 +603,8 @@ func (dr *dockerRunnerImpl) StartServiceContainer(ctx context.Context, envvars m
 		return
 	}
 
-	containerKey := ""
-	if parentStage != nil {
-		containerKey += parentStage.Name + "-service-"
-	}
-	containerKey += service.Name
-
 	containerID = resp.ID
-	dr.containerIDs[containerKey] = resp.ID
+	dr.addRunningContainerID(containerID)
 
 	// start container
 	if err = dr.dockerClient.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{}); err != nil {
@@ -688,9 +677,8 @@ func (dr *dockerRunnerImpl) RunReadinessProbeContainer(ctx context.Context, pare
 		return
 	}
 
-	containerKey := parentStage.Name + "-service-" + service.Name + "-prober"
 	containerID := resp.ID
-	dr.containerIDs[containerKey] = resp.ID
+	dr.addRunningContainerID(containerID)
 
 	// start container
 	if err = dr.dockerClient.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{}); err != nil {
@@ -757,7 +745,7 @@ func (dr *dockerRunnerImpl) RunReadinessProbeContainer(ctx context.Context, pare
 	}
 
 	// clear container id
-	dr.deleteContainerID(containerID)
+	dr.removeRunningContainerID(containerID)
 
 	if exitCode != 0 {
 		return fmt.Errorf("Failed with exit code: %v", exitCode)
@@ -869,7 +857,7 @@ func (dr *dockerRunnerImpl) TailContainerLogs(ctx context.Context, containerID, 
 	}
 
 	// clear container id
-	dr.deleteContainerID(containerID)
+	dr.removeRunningContainerID(containerID)
 
 	if exitCode != 0 {
 		return fmt.Errorf("Failed with exit code: %v", exitCode)
@@ -878,64 +866,14 @@ func (dr *dockerRunnerImpl) TailContainerLogs(ctx context.Context, containerID, 
 	return err
 }
 
-func (dr *dockerRunnerImpl) StopServiceContainers(ctx context.Context, parentStage *manifest.EstafetteStage, services []*manifest.EstafetteService) {
+func (dr *dockerRunnerImpl) StopServiceContainers(ctx context.Context, parentStage manifest.EstafetteStage) {
 
-	if parentStage != nil {
-		log.Info().Msgf("Stopping services for stage '%v'...", parentStage.Name)
-	}
+	log.Info().Msgf("[%v] Stopping service containers...", parentStage.Name)
 
-	var wg sync.WaitGroup
-	wg.Add(len(services))
+	// the service containers should be the only ones running, so just stop all containers
+	dr.StopContainers()
 
-	for _, s := range services {
-		go func(parentStage *manifest.EstafetteStage, s *manifest.EstafetteService) {
-			defer wg.Done()
-
-			parentStageName := ""
-			if parentStage != nil {
-				parentStageName = parentStage.Name
-			}
-
-			if parentStage != nil {
-				log.Info().Msgf("Stopping service '%v' for stage '%v'...", s.Name, parentStage.Name)
-			}
-
-			containerKey := ""
-			if parentStage != nil {
-				containerKey += parentStage.Name + "-service-"
-			}
-			containerKey += s.Name
-
-			if id, ok := dr.containerIDs[containerKey]; ok {
-				//do something here
-				err := dr.stopContainer(id)
-
-				// log tailing - finalize stage
-				status := contracts.StatusSucceeded
-				if err != nil {
-					status = "FAILED"
-				}
-
-				dr.tailLogsChannel <- contracts.TailLogLine{
-					Step:        s.Name,
-					ParentStage: parentStageName,
-					Type:        "service",
-					Status:      &status,
-				}
-
-				removeErr := dr.removeContainer(id)
-				if removeErr != nil {
-					log.Warn().Err(removeErr).Msgf("Failed removing service %v container with id %v", s.Name, id)
-				}
-
-			}
-		}(parentStage, s)
-	}
-	wg.Wait()
-
-	if parentStage != nil {
-		log.Info().Msgf("Stopped services for stage '%v'", parentStage.Name)
-	}
+	log.Info().Msgf("[%v] Stopped service containers...", parentStage.Name)
 }
 
 func (dr *dockerRunnerImpl) StartDockerDaemon() error {
@@ -1051,27 +989,32 @@ func (dr *dockerRunnerImpl) stopContainer(id string) error {
 	timeout := 20 * time.Second
 	err := dr.dockerClient.ContainerStop(context.Background(), id, &timeout)
 	if err != nil {
-		log.Warn().Err(err).Msgf("Stopping container %v for cancellation failed", id)
+		log.Warn().Err(err).Msgf("Stopping container %v", id)
 		return err
 	}
 
-	log.Info().Msgf("Stopped container %v for cancellation", id)
+	log.Info().Msgf("Stopped container %v", id)
 	return nil
 }
 
 func (dr *dockerRunnerImpl) StopContainersOnCancellation() {
+
 	// wait for cancellation
-
 	<-dr.cancellationChannel
-
 	dr.canceled = true
 
-	if len(dr.containerIDs) > 0 {
+	dr.StopContainers()
+}
+
+func (dr *dockerRunnerImpl) StopContainers() {
+
+	if len(dr.runningContainerIDs) > 0 {
+		log.Info().Msgf("Stopping %v containers", len(dr.runningContainerIDs))
 
 		var wg sync.WaitGroup
-		wg.Add(len(dr.containerIDs))
+		wg.Add(len(dr.runningContainerIDs))
 
-		for _, id := range dr.containerIDs {
+		for _, id := range dr.runningContainerIDs {
 			go func(id string) {
 				defer wg.Done()
 				dr.stopContainer(id)
@@ -1079,19 +1022,28 @@ func (dr *dockerRunnerImpl) StopContainersOnCancellation() {
 		}
 
 		wg.Wait()
+
+		log.Info().Msgf("Stopped %v containers", len(dr.runningContainerIDs))
 	} else {
-		log.Info().Msg("No container to stop for cancellation")
+		log.Info().Msg("No containers to stop")
 	}
 }
 
-func (dr *dockerRunnerImpl) deleteContainerID(containerID string) {
+func (dr *dockerRunnerImpl) addRunningContainerID(containerID string) {
+	dr.runningContainerIDs = append(dr.runningContainerIDs, containerID)
+}
 
-	for k, v := range dr.containerIDs {
-		if v == containerID {
-			delete(dr.containerIDs, k)
-			return
+func (dr *dockerRunnerImpl) removeRunningContainerID(containerID string) {
+
+	cleansedRunningContainerIDs := []string{}
+
+	for _, id := range dr.runningContainerIDs {
+		if id != containerID {
+			cleansedRunningContainerIDs = append(cleansedRunningContainerIDs, id)
 		}
 	}
+
+	dr.runningContainerIDs = cleansedRunningContainerIDs
 }
 
 func (dr *dockerRunnerImpl) removeContainer(containerID string) error {

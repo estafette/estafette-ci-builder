@@ -156,7 +156,7 @@ func (pr *pipelineRunnerImpl) RunStage(ctx context.Context, depth int, runIndex 
 
 	if len(stage.Services) > 0 {
 		// this stage has service containers, stop them now that the stage has finished
-		go pr.dockerRunner.StopServiceContainers(ctx, &stage, stage.Services)
+		pr.dockerRunner.StopServiceContainers(ctx, stage)
 	}
 
 	return
