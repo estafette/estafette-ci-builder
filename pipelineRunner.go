@@ -624,7 +624,7 @@ func (pr *pipelineRunnerImpl) tailLogs(ctx context.Context, wg *sync.WaitGroup, 
 
 			pr.upsertTailLogLine(tailLogLine)
 
-		case <-time.After(1 * time.Second):
+		case <-time.After(2 * time.Second):
 			if *stageExecutionDone {
 				return
 			}
