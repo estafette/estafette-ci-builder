@@ -296,10 +296,8 @@ func (pr *pipelineRunnerImpl) RunStages(ctx context.Context, depth int, stages [
 
 	// start log tailing
 	pr.buildLogSteps = make([]*contracts.BuildLogStep, 0)
-	var wg sync.WaitGroup
-	wg.Add(1)
-	stageExecutionDone := false
-	go pr.tailLogs(ctx, &wg, &stageExecutionDone)
+	stageExecutionDone := make(chan struct{}, 1)
+	go pr.tailLogs(ctx, stageExecutionDone)
 
 	err = pr.dockerRunner.CreateBridgeNetwork(ctx)
 	if err != nil {
@@ -365,15 +363,13 @@ func (pr *pipelineRunnerImpl) RunStages(ctx context.Context, depth int, stages [
 		}
 	}
 
-	// signal that running stages has finished
-	stageExecutionDone = true
-
 	// wait for log tailing to finish
-	wg.Wait()
+	pr.waitForFinalStageToBeComplete(stages)
 
-	buildLogSteps = pr.getLogs(ctx)
+	// signal that running stages have finished so taillogs can stop
+	stageExecutionDone <- struct{}{}
 
-	return buildLogSteps, finalErr
+	return pr.getLogs(ctx), finalErr
 }
 
 func (pr *pipelineRunnerImpl) RunParallelStages(ctx context.Context, depth int, dir string, envvars map[string]string, parentStage manifest.EstafetteStage, parallelStages []*manifest.EstafetteStage) (err error) {
@@ -605,8 +601,7 @@ func (pr *pipelineRunnerImpl) sendStatusMessage(step, parentStageName, container
 	pr.tailLogsChannel <- tailLogLine
 }
 
-func (pr *pipelineRunnerImpl) tailLogs(ctx context.Context, wg *sync.WaitGroup, stageExecutionDone *bool) {
-	defer wg.Done()
+func (pr *pipelineRunnerImpl) tailLogs(ctx context.Context, stageExecutionDone chan struct{}) {
 	for {
 		select {
 		case tailLogLine := <-pr.tailLogsChannel:
@@ -624,10 +619,8 @@ func (pr *pipelineRunnerImpl) tailLogs(ctx context.Context, wg *sync.WaitGroup, 
 
 			pr.upsertTailLogLine(tailLogLine)
 
-		case <-time.After(2 * time.Second):
-			if *stageExecutionDone {
-				return
-			}
+		case <-stageExecutionDone:
+			return
 		}
 	}
 }
@@ -832,4 +825,77 @@ func (pr *pipelineRunnerImpl) getNestedBuildLogService(tailLogLine contracts.Tai
 	}
 
 	return nil
+}
+
+func (pr *pipelineRunnerImpl) waitForFinalStageToBeComplete(stages []*manifest.EstafetteStage) {
+	for {
+		if pr.isFinalStageComplete(stages) {
+			return
+		}
+		time.Sleep(1 * time.Second)
+	}
+}
+
+func (pr *pipelineRunnerImpl) isFinalStageComplete(stages []*manifest.EstafetteStage) bool {
+
+	// pr.buildLogSteps
+	if len(pr.buildLogSteps) > 0 && len(stages) > 0 {
+
+		lastBuildLogsStep := pr.buildLogSteps[len(pr.buildLogSteps)-1]
+		lastStage := stages[len(stages)-1]
+
+		// check if the last tracked step is actually the last stage
+		if lastBuildLogsStep.Step != lastStage.Name {
+			return false
+		}
+		if len(lastBuildLogsStep.NestedSteps) != len(lastStage.ParallelStages) {
+			return false
+		}
+		if len(lastBuildLogsStep.Services) != len(lastStage.Services) {
+			return false
+		}
+
+		allNestedStepsAreDone := true
+		for _, ns := range lastBuildLogsStep.NestedSteps {
+			switch ns.Status {
+			case contracts.StatusSucceeded,
+				contracts.StatusFailed,
+				contracts.StatusSkipped,
+				contracts.StatusCanceled:
+
+			default:
+				allNestedStepsAreDone = false
+			}
+		}
+		if !allNestedStepsAreDone {
+			return false
+		}
+
+		allNestedServicesAreDone := true
+		for _, s := range lastBuildLogsStep.Services {
+			switch s.Status {
+			case contracts.StatusSucceeded,
+				contracts.StatusFailed,
+				contracts.StatusSkipped,
+				contracts.StatusCanceled:
+
+			default:
+				allNestedServicesAreDone = false
+			}
+		}
+		if !allNestedServicesAreDone {
+			return false
+		}
+
+		switch lastBuildLogsStep.Status {
+		case contracts.StatusSucceeded,
+			contracts.StatusFailed,
+			contracts.StatusSkipped,
+			contracts.StatusCanceled:
+
+			return true
+		}
+	}
+
+	return false
 }
