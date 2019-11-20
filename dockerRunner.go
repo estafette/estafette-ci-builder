@@ -985,15 +985,18 @@ func (dr *dockerRunnerImpl) IsTrustedImage(stageName string, containerImage stri
 	return trustedImage != nil
 }
 
-func (dr *dockerRunnerImpl) stopContainer(id string) error {
+func (dr *dockerRunnerImpl) stopContainer(containerID string) error {
+
+	log.Debug().Msgf("Stopping container with id %v", containerID)
+
 	timeout := 20 * time.Second
-	err := dr.dockerClient.ContainerStop(context.Background(), id, &timeout)
+	err := dr.dockerClient.ContainerStop(context.Background(), containerID, &timeout)
 	if err != nil {
-		log.Warn().Err(err).Msgf("Stopping container %v", id)
+		log.Warn().Err(err).Msgf("Failed stopping container with id %v", containerID)
 		return err
 	}
 
-	log.Info().Msgf("Stopped container %v", id)
+	log.Info().Msgf("Stopped container with id %v", containerID)
 	return nil
 }
 
@@ -1030,10 +1033,15 @@ func (dr *dockerRunnerImpl) StopContainers() {
 }
 
 func (dr *dockerRunnerImpl) addRunningContainerID(containerID string) {
+
+	log.Debug().Msgf("Adding container id %v to runningContainerIDs", containerID)
+
 	dr.runningContainerIDs = append(dr.runningContainerIDs, containerID)
 }
 
 func (dr *dockerRunnerImpl) removeRunningContainerID(containerID string) {
+
+	log.Debug().Msgf("Removing container id %v from runningContainerIDs", containerID)
 
 	cleansedRunningContainerIDs := []string{}
 
@@ -1044,17 +1052,6 @@ func (dr *dockerRunnerImpl) removeRunningContainerID(containerID string) {
 	}
 
 	dr.runningContainerIDs = cleansedRunningContainerIDs
-}
-
-func (dr *dockerRunnerImpl) removeContainer(containerID string) error {
-
-	err := dr.dockerClient.ContainerRemove(context.Background(), containerID, types.ContainerRemoveOptions{
-		Force: true,
-	})
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func (dr *dockerRunnerImpl) CreateBridgeNetwork(ctx context.Context) error {

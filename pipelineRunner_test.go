@@ -1406,10 +1406,10 @@ func TestRunStagesWithParallelStages(t *testing.T) {
 			assert.Equal(t, contracts.StatusSucceeded, buildLogSteps[0].Status)
 			assert.Equal(t, 0, buildLogSteps[0].Depth)
 			if assert.Equal(t, 2, len(buildLogSteps[0].NestedSteps)) {
-				assert.Equal(t, "nested-stage-1", buildLogSteps[0].NestedSteps[0].Step)
+				assert.Contains(t, []string{"nested-stage-0", "nested-stage-1"}, buildLogSteps[0].NestedSteps[0].Step)
 				assert.Equal(t, contracts.StatusSucceeded, buildLogSteps[0].NestedSteps[0].Status)
 				assert.Equal(t, 1, buildLogSteps[0].NestedSteps[0].Depth)
-				assert.Equal(t, "nested-stage-0", buildLogSteps[0].NestedSteps[1].Step)
+				assert.Contains(t, []string{"nested-stage-0", "nested-stage-1"}, buildLogSteps[0].NestedSteps[1].Step)
 				assert.Equal(t, contracts.StatusSucceeded, buildLogSteps[0].NestedSteps[1].Status)
 				assert.Equal(t, 1, buildLogSteps[0].NestedSteps[1].Depth)
 			}
@@ -1476,10 +1476,10 @@ func TestRunStagesWithServices(t *testing.T) {
 			assert.Equal(t, contracts.StatusSucceeded, buildLogSteps[0].Status)
 			assert.Equal(t, 0, buildLogSteps[0].Depth)
 			if assert.Equal(t, 2, len(buildLogSteps[0].Services)) {
-				assert.Equal(t, "nested-service-1", buildLogSteps[0].Services[0].Step)
+				assert.Contains(t, []string{"nested-service-0", "nested-service-1"}, buildLogSteps[0].Services[0].Step)
 				assert.Equal(t, contracts.StatusSucceeded, buildLogSteps[0].Services[0].Status)
 				assert.Equal(t, 1, buildLogSteps[0].Services[0].Depth)
-				assert.Equal(t, "nested-service-0", buildLogSteps[0].Services[1].Step)
+				assert.Contains(t, []string{"nested-service-0", "nested-service-1"}, buildLogSteps[0].Services[1].Step)
 				assert.Equal(t, contracts.StatusSucceeded, buildLogSteps[0].Services[1].Status)
 				assert.Equal(t, 1, buildLogSteps[0].Services[1].Depth)
 			}
@@ -2098,16 +2098,6 @@ func TestUpsertTailLogLine(t *testing.T) {
 			assert.Equal(t, contracts.StatusSucceeded, pipelineRunner.buildLogSteps[0].NestedSteps[1].Status)
 		}
 	})
-
-	// {"step":"stage-a","type":"stage","status":"RUNNING","autoInjected":false}
-	// {"step":"nested-stage-1","parentStage":"stage-a","type":"stage","depth":1,"image":{"name":"alpine","tag":"latest","isPulled":false,"imageSize":0,"pullDuration":166},"status":"PENDING","autoInjected":false}
-	// {"step":"nested-stage-1","parentStage":"stage-a","type":"stage","depth":1,"image":{"name":"alpine","tag":"latest","isPulled":false,"imageSize":0,"pullDuration":166},"status":"RUNNING","autoInjected":false}
-	// {"step":"nested-stage-1","parentStage":"stage-a","type":"stage","depth":1,"duration":253,"status":"SUCCEEDED","autoInjected":false}
-	// {"step":"nested-stage-0","parentStage":"stage-a","type":"stage","depth":1,"image":{"name":"alpine","tag":"latest","isPulled":false,"imageSize":0,"pullDuration":129},"status":"PENDING","autoInjected":false}
-	// {"step":"nested-stage-0","parentStage":"stage-a","type":"stage","depth":1,"image":{"name":"alpine","tag":"latest","isPulled":false,"imageSize":0,"pullDuration":129},"status":"RUNNING","autoInjected":false}
-	// {"step":"nested-stage-0","parentStage":"stage-a","type":"stage","depth":1,"duration":287,"status":"SUCCEEDED","autoInjected":false}
-	// {"step":"stage-a","type":"stage","duration":556159,"status":"SUCCEEDED","autoInjected":false}
-
 }
 
 func resetState() (*dockerRunnerMockImpl, chan contracts.TailLogLine, chan struct{}, PipelineRunner) {
