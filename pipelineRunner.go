@@ -51,7 +51,7 @@ func NewPipelineRunner(envvarHelper EnvvarHelper, whenEvaluator WhenEvaluator, d
 
 func (pr *pipelineRunnerImpl) RunStage(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, stage manifest.EstafetteStage) (err error) {
 
-	span, ctx := opentracing.StartSpanFromContext(ctx, "runStage")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "RunStage")
 	defer span.Finish()
 	span.SetTag("stage", stage.Name)
 
@@ -133,7 +133,7 @@ func (pr *pipelineRunnerImpl) RunStage(ctx context.Context, depth int, runIndex 
 			var containerID string
 			containerID, err = pr.dockerRunner.StartStageContainer(ctx, depth, runIndex, dir, envvars, parentStage, stage)
 			if err == nil {
-				err = pr.dockerRunner.TailContainerLogs(ctx, containerID, parentStageName, stage.Name, "stage", depth, runIndex)
+				err = pr.dockerRunner.TailContainerLogs(ctx, containerID, parentStageName, stage.Name, contracts.TypeStage, depth, runIndex)
 			}
 		}
 	}
@@ -164,7 +164,7 @@ func (pr *pipelineRunnerImpl) RunStage(ctx context.Context, depth int, runIndex 
 
 func (pr *pipelineRunnerImpl) RunStageWithRetry(ctx context.Context, depth int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, stage manifest.EstafetteStage) (err error) {
 
-	span, ctx := opentracing.StartSpanFromContext(ctx, "runStageWithRetry")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "RunStageWithRetry")
 	defer span.Finish()
 	span.SetTag("stage", stage.Name)
 
@@ -204,7 +204,7 @@ func (pr *pipelineRunnerImpl) RunStageWithRetry(ctx context.Context, depth int, 
 		pr.tailLogsChannel <- contracts.TailLogLine{
 			Step:        stage.Name,
 			ParentStage: parentStageName,
-			Type:        "stage",
+			Type:        contracts.TypeStage,
 			Depth:       depth,
 			RunIndex:    runIndex,
 			LogLine:     &logLineObject,
@@ -222,7 +222,7 @@ func (pr *pipelineRunnerImpl) RunStageWithRetry(ctx context.Context, depth int, 
 
 func (pr *pipelineRunnerImpl) RunService(ctx context.Context, envvars map[string]string, parentStage manifest.EstafetteStage, service manifest.EstafetteService) (err error) {
 
-	span, ctx := opentracing.StartSpanFromContext(ctx, "runService")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "RunService")
 	defer span.Finish()
 	span.SetTag("service", service.Name)
 
@@ -253,7 +253,7 @@ func (pr *pipelineRunnerImpl) RunService(ctx context.Context, envvars map[string
 			pr.tailLogsChannel <- contracts.TailLogLine{
 				Step:        service.Name,
 				ParentStage: parentStage.Name,
-				Type:        "service",
+				Type:        contracts.TypeService,
 				Depth:       1,
 				Image:       buildLogStepDockerImage,
 				Status:      &pendingStatus,
@@ -288,7 +288,7 @@ func (pr *pipelineRunnerImpl) RunService(ctx context.Context, envvars map[string
 		pr.tailLogsChannel <- contracts.TailLogLine{
 			Step:        service.Name,
 			ParentStage: parentStage.Name,
-			Type:        "service",
+			Type:        contracts.TypeService,
 			Depth:       1,
 			Image:       buildLogStepDockerImage,
 			Status:      &runningStatus,
@@ -304,7 +304,7 @@ func (pr *pipelineRunnerImpl) RunService(ctx context.Context, envvars map[string
 
 		if err == nil {
 			go func(ctx context.Context, envvars map[string]string, parentStage manifest.EstafetteStage, service manifest.EstafetteService, containerID string) {
-				err := pr.dockerRunner.TailContainerLogs(ctx, containerID, parentStage.Name, service.Name, "service", 1, 0)
+				err := pr.dockerRunner.TailContainerLogs(ctx, containerID, parentStage.Name, service.Name, contracts.TypeService, 1, 0)
 
 				finalStatusAfterTailing := contracts.StatusSucceeded
 				if pr.canceled {
@@ -320,7 +320,7 @@ func (pr *pipelineRunnerImpl) RunService(ctx context.Context, envvars map[string
 				pr.tailLogsChannel <- contracts.TailLogLine{
 					Step:        service.Name,
 					ParentStage: parentStage.Name,
-					Type:        "service",
+					Type:        contracts.TypeService,
 					Depth:       1,
 					Status:      &finalStatusAfterTailing,
 				}
@@ -350,7 +350,7 @@ func (pr *pipelineRunnerImpl) RunService(ctx context.Context, envvars map[string
 	pr.tailLogsChannel <- contracts.TailLogLine{
 		Step:        service.Name,
 		ParentStage: parentStage.Name,
-		Type:        "service",
+		Type:        contracts.TypeService,
 		Depth:       1,
 		Duration:    &runDuration,
 		Status:      &finalStatus,
@@ -361,7 +361,7 @@ func (pr *pipelineRunnerImpl) RunService(ctx context.Context, envvars map[string
 
 func (pr *pipelineRunnerImpl) RunStages(ctx context.Context, depth int, stages []*manifest.EstafetteStage, dir string, envvars map[string]string) (buildLogSteps []*contracts.BuildLogStep, err error) {
 
-	span, ctx := opentracing.StartSpanFromContext(ctx, "runStages")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "RunStages")
 	defer span.Finish()
 
 	// start log tailing
@@ -421,7 +421,7 @@ func (pr *pipelineRunnerImpl) RunStages(ctx context.Context, depth int, stages [
 			status := contracts.StatusSkipped
 			pr.tailLogsChannel <- contracts.TailLogLine{
 				Step:         p.Name,
-				Type:         "stage",
+				Type:         contracts.TypeStage,
 				Depth:        depth,
 				RunIndex:     0,
 				AutoInjected: &p.AutoInjected,
@@ -443,7 +443,7 @@ func (pr *pipelineRunnerImpl) RunStages(ctx context.Context, depth int, stages [
 
 func (pr *pipelineRunnerImpl) RunParallelStages(ctx context.Context, depth int, dir string, envvars map[string]string, parentStage manifest.EstafetteStage, parallelStages []*manifest.EstafetteStage) (err error) {
 
-	span, ctx := opentracing.StartSpanFromContext(ctx, "RunStages")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "RunParallelStages")
 	defer span.Finish()
 
 	if len(parallelStages) == 0 {
@@ -488,7 +488,7 @@ func (pr *pipelineRunnerImpl) RunParallelStages(ctx context.Context, depth int, 
 				pr.tailLogsChannel <- contracts.TailLogLine{
 					Step:         stage.Name,
 					ParentStage:  parentStage.Name,
-					Type:         "stage",
+					Type:         contracts.TypeStage,
 					Depth:        depth,
 					RunIndex:     0,
 					AutoInjected: &stage.AutoInjected,
@@ -554,7 +554,7 @@ func (pr *pipelineRunnerImpl) RunServices(ctx context.Context, envvars map[strin
 					pr.tailLogsChannel <- contracts.TailLogLine{
 						Step:        service.Name,
 						ParentStage: parentStage.Name,
-						Type:        "service",
+						Type:        contracts.TypeService,
 						Depth:       1,
 						LogLine:     &logLineObject,
 					}
@@ -595,7 +595,7 @@ func (pr *pipelineRunnerImpl) sendStatusMessage(stage manifest.EstafetteStage, p
 	tailLogLine := contracts.TailLogLine{
 		Step:         stage.Name,
 		ParentStage:  parentStageName,
-		Type:         "stage",
+		Type:         contracts.TypeStage,
 		Depth:        depth,
 		RunIndex:     runIndex,
 		AutoInjected: &stage.AutoInjected,
@@ -666,7 +666,7 @@ func (pr *pipelineRunnerImpl) upsertTailLogLine(tailLogLine contracts.TailLogLin
 	}
 
 	if tailLogLine.ParentStage != "" {
-		if tailLogLine.Type == "stage" {
+		if tailLogLine.Type == contracts.TypeStage {
 			nestedStage := pr.getNestedBuildLogStep(tailLogLine)
 			if nestedStage == nil {
 				nestedStage = &contracts.BuildLogStep{
@@ -697,7 +697,7 @@ func (pr *pipelineRunnerImpl) upsertTailLogLine(tailLogLine contracts.TailLogLin
 				nestedStage.AutoInjected = *tailLogLine.AutoInjected
 			}
 
-		} else if tailLogLine.Type == "service" {
+		} else if tailLogLine.Type == contracts.TypeService {
 			nestedService := pr.getNestedBuildLogService(tailLogLine)
 			if nestedService == nil {
 				nestedService = &contracts.BuildLogStep{
@@ -772,7 +772,7 @@ func (pr *pipelineRunnerImpl) getMainBuildLogStep(tailLogLine contracts.TailLogL
 
 func (pr *pipelineRunnerImpl) getNestedBuildLogStep(tailLogLine contracts.TailLogLine) *contracts.BuildLogStep {
 
-	if tailLogLine.ParentStage == "" || tailLogLine.Type != "stage" {
+	if tailLogLine.ParentStage == "" || tailLogLine.Type != contracts.TypeStage {
 		return nil
 	}
 
@@ -780,7 +780,7 @@ func (pr *pipelineRunnerImpl) getNestedBuildLogStep(tailLogLine contracts.TailLo
 		if bls.Step == tailLogLine.ParentStage {
 			if tailLogLine.ParentStage != "" {
 				// we have to look deeper
-				if tailLogLine.Type == "stage" {
+				if tailLogLine.Type == contracts.TypeStage {
 					// look inside the parallel stages
 					for _, ns := range bls.NestedSteps {
 						if ns.Step == tailLogLine.Step && ns.RunIndex == tailLogLine.RunIndex {
@@ -797,7 +797,7 @@ func (pr *pipelineRunnerImpl) getNestedBuildLogStep(tailLogLine contracts.TailLo
 
 func (pr *pipelineRunnerImpl) getNestedBuildLogService(tailLogLine contracts.TailLogLine) *contracts.BuildLogStep {
 
-	if tailLogLine.ParentStage == "" || tailLogLine.Type != "service" {
+	if tailLogLine.ParentStage == "" || tailLogLine.Type != contracts.TypeService {
 		return nil
 	}
 
@@ -805,7 +805,7 @@ func (pr *pipelineRunnerImpl) getNestedBuildLogService(tailLogLine contracts.Tai
 		if bls.Step == tailLogLine.ParentStage {
 			if tailLogLine.ParentStage != "" {
 				// we have to look deeper
-				if tailLogLine.Type == "service" {
+				if tailLogLine.Type == contracts.TypeService {
 					// look inside the services
 					for _, s := range bls.Services {
 						if s.Step == tailLogLine.Step {

@@ -97,7 +97,7 @@ func (dr *dockerRunnerImpl) IsImagePulled(stageName string, containerImage strin
 
 func (dr *dockerRunnerImpl) PullImage(ctx context.Context, stageName string, containerImage string) (err error) {
 
-	span, ctx := opentracing.StartSpanFromContext(ctx, "DockerPull")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "PullImage")
 	defer span.Finish()
 	span.SetTag("docker-image", containerImage)
 
@@ -134,7 +134,7 @@ func (dr *dockerRunnerImpl) GetImageSize(containerImage string) (totalSize int64
 
 func (dr *dockerRunnerImpl) StartStageContainer(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, p manifest.EstafetteStage) (containerID string, err error) {
 
-	span, ctx := opentracing.StartSpanFromContext(ctx, "DockerRun")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "StartStageContainer")
 	defer span.Finish()
 	span.SetTag("docker-image", p.ContainerImage)
 
@@ -376,7 +376,7 @@ func (dr *dockerRunnerImpl) StartStageContainer(ctx context.Context, depth int, 
 
 func (dr *dockerRunnerImpl) StartServiceContainer(ctx context.Context, envvars map[string]string, parentStage *manifest.EstafetteStage, service manifest.EstafetteService) (containerID string, err error) {
 
-	span, ctx := opentracing.StartSpanFromContext(ctx, "DockerRunService")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "StartServiceContainer")
 	defer span.Finish()
 	span.SetTag("docker-image", service.ContainerImage)
 
@@ -615,7 +615,7 @@ func (dr *dockerRunnerImpl) StartServiceContainer(ctx context.Context, envvars m
 }
 
 func (dr *dockerRunnerImpl) RunReadinessProbeContainer(ctx context.Context, parentStage manifest.EstafetteStage, service manifest.EstafetteService, readiness manifest.ReadinessProbe) (err error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "DockerRunReadinessProber")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "RunReadinessProbeContainer")
 	defer span.Finish()
 
 	readinessProberImage := "estafette/scratch:latest"

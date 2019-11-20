@@ -13,13 +13,13 @@ version:
 
 stages:
   build:
-    image: golang:1.13.0-alpine3.10
+    image: golang:1.13.4-alpine3.10
     env:
       CGO_ENABLED: 0
       GOOS: linux
       GOARCH: amd64
     commands:
-    - go test -v ./...
+    - go test ./...
     - go build -v -ldflags "-X main.appgroup=${ESTAFETTE_LABEL_APP_GROUP} -X main.app=${ESTAFETTE_GIT_NAME} -X main.version=${ESTAFETTE_BUILD_VERSION} -X main.revision=${ESTAFETTE_GIT_REVISION} -X main.branch=${ESTAFETTE_GIT_BRANCH} -X main.buildDate=${ESTAFETTE_BUILD_DATETIME}" -o ./publish/${ESTAFETTE_GIT_NAME}
 
   bake-all:
@@ -45,7 +45,7 @@ stages:
         dockerfile: Dockerfile.gocd
 
   clean-working-directory:
-    image: golang:1.13.0-alpine3.10
+    image: golang:1.13.4-alpine3.10
     commands:
     - rm -rf ..?* .[!.]* *
 
@@ -147,7 +147,7 @@ stages:
                   {
                     "Name":"buildA",
                     "ContainerImage":
-                    "golang:1.13.0-alpine3.10",
+                    "golang:1.13.4-alpine3.10",
                     "Shell":"/bin/sh",
                     "WorkingDirectory":"/estafette-work",
                     "Commands":[

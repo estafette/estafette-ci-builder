@@ -1461,7 +1461,7 @@ func TestRunStagesWithServices(t *testing.T) {
 		var wg sync.WaitGroup
 		wg.Add(1)
 		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error) {
-			if stageType == "service" {
+			if stageType == contracts.TypeService {
 				wg.Wait()
 			}
 			return nil
@@ -1504,7 +1504,7 @@ func TestGetNestedBuildLogService(t *testing.T) {
 			Step:        "nested-service-0",
 			ParentStage: "stage-a",
 			Depth:       1,
-			Type:        "service",
+			Type:        contracts.TypeService,
 		}
 
 		// act
@@ -1526,7 +1526,7 @@ func TestGetNestedBuildLogService(t *testing.T) {
 			Step:        "nested-service-0",
 			ParentStage: "stage-a",
 			Depth:       0,
-			Type:        "service",
+			Type:        contracts.TypeService,
 		}
 
 		// act
@@ -1553,7 +1553,7 @@ func TestGetNestedBuildLogService(t *testing.T) {
 			Step:        "nested-service-0",
 			ParentStage: "stage-a",
 			Depth:       1,
-			Type:        "service",
+			Type:        contracts.TypeService,
 		}
 
 		// act
@@ -1585,7 +1585,7 @@ func TestGetNestedBuildLogService(t *testing.T) {
 			Step:        "nested-service-0",
 			ParentStage: "stage-a",
 			Depth:       1,
-			Type:        "service",
+			Type:        contracts.TypeService,
 		}
 
 		// act
@@ -1612,7 +1612,7 @@ func TestGetNestedBuildLogService(t *testing.T) {
 			Step:        "nested-service-0",
 			ParentStage: "stage-a",
 			Depth:       1,
-			Type:        "service",
+			Type:        contracts.TypeService,
 		}
 
 		// act
@@ -1694,7 +1694,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 		tailLogLine := contracts.TailLogLine{
 			Step:        "nested-stage-0",
 			ParentStage: "stage-a",
-			Type:        "stage",
+			Type:        contracts.TypeStage,
 		}
 
 		// act
@@ -1712,7 +1712,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 		tailLogLine := contracts.TailLogLine{
 			Step:        "nested-stage-0",
 			ParentStage: "stage-a",
-			Type:        "service",
+			Type:        contracts.TypeService,
 		}
 
 		// act
@@ -1730,7 +1730,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 		tailLogLine := contracts.TailLogLine{
 			Step:        "nested-stage-0",
 			ParentStage: "stage-a",
-			Type:        "stage",
+			Type:        contracts.TypeStage,
 		}
 
 		// act
@@ -1759,7 +1759,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 		tailLogLine := contracts.TailLogLine{
 			Step:        "nested-stage-0",
 			ParentStage: "stage-a",
-			Type:        "stage",
+			Type:        contracts.TypeStage,
 		}
 
 		// act
@@ -1779,7 +1779,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 		tailLogLine := contracts.TailLogLine{
 			Step:        "nested-service-0",
 			ParentStage: "stage-a",
-			Type:        "service",
+			Type:        contracts.TypeService,
 		}
 
 		// act
@@ -1808,7 +1808,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 		tailLogLine := contracts.TailLogLine{
 			Step:        "nested-service-0",
 			ParentStage: "stage-a",
-			Type:        "service",
+			Type:        contracts.TypeService,
 		}
 
 		// act
@@ -1874,7 +1874,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 		tailLogLine := contracts.TailLogLine{
 			Step:        "nested-stage-0",
 			ParentStage: "stage-a",
-			Type:        "stage",
+			Type:        contracts.TypeStage,
 			LogLine: &contracts.BuildLogLine{
 				LineNumber: 2,
 				Text:       "Hey I'd like to add a second line",
@@ -1912,7 +1912,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 		tailLogLine := contracts.TailLogLine{
 			Step:        "nested-service-0",
 			ParentStage: "stage-a",
-			Type:        "service",
+			Type:        contracts.TypeService,
 			LogLine: &contracts.BuildLogLine{
 				LineNumber: 2,
 				Text:       "Hey I'd like to add a second line",
@@ -1968,7 +1968,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 		tailLogLine := contracts.TailLogLine{
 			Step:        "nested-stage-0",
 			ParentStage: "stage-a",
-			Type:        "stage",
+			Type:        contracts.TypeStage,
 			Status:      &status,
 		}
 
@@ -1997,7 +1997,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 		tailLogLine := contracts.TailLogLine{
 			Step:        "nested-service-0",
 			ParentStage: "stage-a",
-			Type:        "service",
+			Type:        contracts.TypeService,
 			Status:      &status,
 		}
 
@@ -2020,7 +2020,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 		// stage-a start
 		tailLogLine := contracts.TailLogLine{
 			Step:   "stage-a",
-			Type:   "stage",
+			Type:   contracts.TypeStage,
 			Status: &statusRunning,
 		}
 		pipelineRunner.upsertTailLogLine(tailLogLine)
@@ -2030,7 +2030,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 			Step:        "nested-stage-1",
 			ParentStage: "stage-a",
 			Depth:       1,
-			Type:        "stage",
+			Type:        contracts.TypeStage,
 			Status:      &statusPending,
 		}
 		pipelineRunner.upsertTailLogLine(tailLogLine)
@@ -2039,7 +2039,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 			Step:        "nested-stage-1",
 			ParentStage: "stage-a",
 			Depth:       1,
-			Type:        "stage",
+			Type:        contracts.TypeStage,
 			Status:      &statusRunning,
 		}
 		pipelineRunner.upsertTailLogLine(tailLogLine)
@@ -2048,7 +2048,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 			Step:        "nested-stage-1",
 			ParentStage: "stage-a",
 			Depth:       1,
-			Type:        "stage",
+			Type:        contracts.TypeStage,
 			Status:      &statusSucceeded,
 		}
 		pipelineRunner.upsertTailLogLine(tailLogLine)
@@ -2058,7 +2058,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 			Step:        "nested-stage-0",
 			ParentStage: "stage-a",
 			Depth:       1,
-			Type:        "stage",
+			Type:        contracts.TypeStage,
 			Status:      &statusPending,
 		}
 		pipelineRunner.upsertTailLogLine(tailLogLine)
@@ -2067,7 +2067,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 			Step:        "nested-stage-0",
 			ParentStage: "stage-a",
 			Depth:       1,
-			Type:        "stage",
+			Type:        contracts.TypeStage,
 			Status:      &statusRunning,
 		}
 		pipelineRunner.upsertTailLogLine(tailLogLine)
@@ -2076,7 +2076,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 			Step:        "nested-stage-0",
 			ParentStage: "stage-a",
 			Depth:       1,
-			Type:        "stage",
+			Type:        contracts.TypeStage,
 			Status:      &statusSucceeded,
 		}
 		pipelineRunner.upsertTailLogLine(tailLogLine)
@@ -2084,7 +2084,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 		// stage-a finish
 		tailLogLine = contracts.TailLogLine{
 			Step:   "stage-a",
-			Type:   "stage",
+			Type:   contracts.TypeStage,
 			Status: &statusSucceeded,
 		}
 		pipelineRunner.upsertTailLogLine(tailLogLine)
