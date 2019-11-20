@@ -225,7 +225,7 @@ func (pr *pipelineRunnerImpl) RunService(ctx context.Context, envvars map[string
 	log.Info().Msgf("[%v] [%v] Starting service", parentStage.Name, service.Name)
 
 	// pull image, get size and send pending/running status messages
-	err = pr.pullImageIfNeeded(ctx, service.Name, parentStage.Name, os.Expand(service.ContainerImage, pr.envvarHelper.getEstafetteEnv), contracts.TypeService, 1, 0, nil)
+	err = pr.pullImageIfNeeded(ctx, service.Name, parentStage.Name, service.ContainerImage, contracts.TypeService, 1, 0, nil)
 	if err != nil {
 		return
 	}
@@ -534,6 +534,9 @@ func (pr *pipelineRunnerImpl) pullImageIfNeeded(ctx context.Context, stageName, 
 	var buildLogStepDockerImage *contracts.BuildLogStepDockerImage
 
 	if containerImage != "" {
+
+		containerImage = os.Expand(containerImage, pr.envvarHelper.getEstafetteEnv)
+
 		isPulledImage = pr.dockerRunner.IsImagePulled(stageName, containerImage)
 		isTrustedImage = pr.dockerRunner.IsTrustedImage(stageName, containerImage)
 
