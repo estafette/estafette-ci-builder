@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sync"
 	"testing"
+	"time"
 
 	contracts "github.com/estafette/estafette-ci-contracts"
 	crypt "github.com/estafette/estafette-ci-crypt"
@@ -993,6 +994,7 @@ func TestRunService(t *testing.T) {
 		wg.Add(1)
 		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error) {
 			defer wg.Done()
+			time.Sleep(100 * time.Millisecond)
 			return nil
 		}
 		dockerRunnerMock.runReadinessProbeContainerFunc = func(ctx context.Context, parentStage manifest.EstafetteStage, service manifest.EstafetteService, readiness manifest.ReadinessProbe) (err error) {
@@ -1045,6 +1047,7 @@ func TestRunService(t *testing.T) {
 		wg.Add(1)
 		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error) {
 			defer wg.Done()
+			time.Sleep(100 * time.Millisecond)
 			return nil
 		}
 
@@ -1097,6 +1100,7 @@ func TestRunService(t *testing.T) {
 		wg.Add(1)
 		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error) {
 			defer wg.Done()
+			time.Sleep(100 * time.Millisecond)
 			return nil
 		}
 		dockerRunnerMock.runReadinessProbeContainerFunc = func(ctx context.Context, parentStage manifest.EstafetteStage, service manifest.EstafetteService, readiness manifest.ReadinessProbe) (err error) {
