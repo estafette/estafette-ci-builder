@@ -874,7 +874,7 @@ func TestRunService(t *testing.T) {
 		assert.True(t, runReadinessProbeContainerFuncCalled)
 	})
 
-	t.Run("SendsSequenceOfRunningAndRunningMessageToChannelForSuccessfulRunWhenImageIsAlreadyPulled", func(t *testing.T) {
+	t.Run("SendsRunningMessageToChannelForSuccessfulRunWhenImageIsAlreadyPulled", func(t *testing.T) {
 
 		dockerRunnerMock, tailLogsChannel, _, pipelineRunner := resetState()
 
@@ -912,12 +912,9 @@ func TestRunService(t *testing.T) {
 
 		runningStatusMessage := <-tailLogsChannel
 		assert.Equal(t, contracts.StatusRunning, *runningStatusMessage.Status)
-
-		stillRunningStatusMessage := <-tailLogsChannel
-		assert.Equal(t, contracts.StatusRunning, *stillRunningStatusMessage.Status)
 	})
 
-	t.Run("SendsSequenceOfPendingRunningAndRunningMessageToChannelForSuccessfulStartAndReadiness", func(t *testing.T) {
+	t.Run("SendsSequenceOfPendingAndRunningMessageToChannelForSuccessfulStartAndReadiness", func(t *testing.T) {
 
 		dockerRunnerMock, tailLogsChannel, _, pipelineRunner := resetState()
 
@@ -965,9 +962,6 @@ func TestRunService(t *testing.T) {
 
 		runningStatusMessage := <-tailLogsChannel
 		assert.Equal(t, contracts.StatusRunning, *runningStatusMessage.Status)
-
-		stillRunningStatusMessage := <-tailLogsChannel
-		assert.Equal(t, contracts.StatusRunning, *stillRunningStatusMessage.Status)
 	})
 
 	t.Run("SendsSequenceOfPendingRunningAndFailedMessageToChannelForFailingReadiness", func(t *testing.T) {
@@ -1310,117 +1304,6 @@ func TestRunStages(t *testing.T) {
 		assert.Equal(t, contracts.StatusFailed, contracts.GetAggregatedStatus(buildLogSteps))
 	})
 
-	t.Run("RunsParallelStagesReturnsBuildLogStepsWithNestedSteps", func(t *testing.T) {
-
-		dockerRunnerMock, _, _, pipelineRunner := resetState()
-
-		depth := 0
-		dir := "/estafette-work"
-		envvars := map[string]string{}
-		stages := []*manifest.EstafetteStage{
-			&manifest.EstafetteStage{
-				Name: "stage-a",
-				When: "status == 'succeeded'",
-				ParallelStages: []*manifest.EstafetteStage{
-					&manifest.EstafetteStage{
-						Name:           "nested-stage-0",
-						ContainerImage: "alpine:latest",
-						When:           "status == 'succeeded'",
-					},
-					&manifest.EstafetteStage{
-						Name:           "nested-stage-1",
-						ContainerImage: "alpine:latest",
-						When:           "status == 'succeeded'",
-					},
-				},
-			},
-		}
-
-		// set mock responses
-		callCount := 0
-		dockerRunnerMock.pullImageFunc = func(ctx context.Context, stageName string, containerImage string) error {
-			callCount++
-			return nil
-		}
-
-		// act
-		buildLogSteps, _ := pipelineRunner.RunStages(context.Background(), depth, stages, dir, envvars)
-
-		assert.Equal(t, 2, callCount)
-
-		if assert.Equal(t, 1, len(buildLogSteps)) {
-			assert.Equal(t, "stage-a", buildLogSteps[0].Step)
-			assert.Equal(t, contracts.StatusSucceeded, buildLogSteps[0].Status)
-			assert.Equal(t, 0, buildLogSteps[0].Depth)
-			if assert.Equal(t, 2, len(buildLogSteps[0].NestedSteps)) {
-				assert.Equal(t, "nested-stage-1", buildLogSteps[0].NestedSteps[0].Step)
-				assert.Equal(t, contracts.StatusSucceeded, buildLogSteps[0].NestedSteps[0].Status)
-				assert.Equal(t, 1, buildLogSteps[0].NestedSteps[0].Depth)
-				assert.Equal(t, "nested-stage-0", buildLogSteps[0].NestedSteps[1].Step)
-				assert.Equal(t, contracts.StatusSucceeded, buildLogSteps[0].NestedSteps[1].Status)
-				assert.Equal(t, 1, buildLogSteps[0].NestedSteps[1].Depth)
-			}
-		}
-
-		assert.Equal(t, contracts.StatusSucceeded, contracts.GetAggregatedStatus(buildLogSteps))
-	})
-
-	t.Run("RunsServicesReturnsBuildLogStepsWithServices", func(t *testing.T) {
-
-		dockerRunnerMock, _, _, pipelineRunner := resetState()
-
-		depth := 0
-		dir := "/estafette-work"
-		envvars := map[string]string{}
-		stages := []*manifest.EstafetteStage{
-			&manifest.EstafetteStage{
-				Name:           "stage-a",
-				ContainerImage: "alpine:latest",
-				When:           "status == 'succeeded'",
-				Services: []*manifest.EstafetteService{
-					&manifest.EstafetteService{
-						Name:           "nested-service-0",
-						ContainerImage: "alpine:latest",
-						When:           "status == 'succeeded'",
-					},
-					&manifest.EstafetteService{
-						Name:           "nested-service-1",
-						ContainerImage: "alpine:latest",
-						When:           "status == 'succeeded'",
-					},
-				},
-			},
-		}
-
-		// set mock responses
-		callCount := 0
-		dockerRunnerMock.pullImageFunc = func(ctx context.Context, stageName string, containerImage string) error {
-			callCount++
-			return nil
-		}
-
-		// act
-		buildLogSteps, _ := pipelineRunner.RunStages(context.Background(), depth, stages, dir, envvars)
-
-		assert.Equal(t, 3, callCount)
-
-		if assert.Equal(t, 1, len(buildLogSteps)) {
-			assert.Equal(t, "stage-a", buildLogSteps[0].Step)
-			assert.Equal(t, contracts.StatusSucceeded, buildLogSteps[0].Status)
-			assert.Equal(t, 0, buildLogSteps[0].Depth)
-			if assert.Equal(t, 2, len(buildLogSteps[0].Services)) {
-				assert.Equal(t, "nested-service-1", buildLogSteps[0].Services[0].Step)
-				assert.Equal(t, contracts.StatusSucceeded, buildLogSteps[0].Services[0].Status)
-				assert.Equal(t, 1, buildLogSteps[0].Services[0].Depth)
-				assert.Equal(t, "nested-service-0", buildLogSteps[0].Services[1].Step)
-				assert.Equal(t, contracts.StatusSucceeded, buildLogSteps[0].Services[1].Status)
-				assert.Equal(t, 1, buildLogSteps[0].Services[1].Depth)
-			}
-		}
-
-		assert.Equal(t, contracts.StatusSucceeded, contracts.GetAggregatedStatus(buildLogSteps))
-	})
-
 	t.Run("CallsCreateBridgeNetwork", func(t *testing.T) {
 
 		dockerRunnerMock, _, _, pipelineRunner := resetState()
@@ -1475,6 +1358,134 @@ func TestRunStages(t *testing.T) {
 		_, _ = pipelineRunner.RunStages(context.Background(), depth, stages, dir, envvars)
 
 		assert.True(t, deleteBridgeNetworkFuncCalled)
+	})
+}
+
+func TestRunStagesWithParallelStages(t *testing.T) {
+
+	t.Run("RunsParallelStagesReturnsBuildLogStepsWithNestedSteps", func(t *testing.T) {
+
+		dockerRunnerMock, _, _, pipelineRunner := resetState()
+
+		depth := 0
+		dir := "/estafette-work"
+		envvars := map[string]string{}
+		stages := []*manifest.EstafetteStage{
+			&manifest.EstafetteStage{
+				Name: "stage-a",
+				When: "status == 'succeeded'",
+				ParallelStages: []*manifest.EstafetteStage{
+					&manifest.EstafetteStage{
+						Name:           "nested-stage-0",
+						ContainerImage: "alpine:latest",
+						When:           "status == 'succeeded'",
+					},
+					&manifest.EstafetteStage{
+						Name:           "nested-stage-1",
+						ContainerImage: "alpine:latest",
+						When:           "status == 'succeeded'",
+					},
+				},
+			},
+		}
+
+		// set mock responses
+		callCount := 0
+		dockerRunnerMock.pullImageFunc = func(ctx context.Context, stageName string, containerImage string) error {
+			callCount++
+			return nil
+		}
+
+		// act
+		buildLogSteps, _ := pipelineRunner.RunStages(context.Background(), depth, stages, dir, envvars)
+
+		assert.Equal(t, 2, callCount)
+
+		if assert.Equal(t, 1, len(buildLogSteps)) {
+			assert.Equal(t, "stage-a", buildLogSteps[0].Step)
+			assert.Equal(t, contracts.StatusSucceeded, buildLogSteps[0].Status)
+			assert.Equal(t, 0, buildLogSteps[0].Depth)
+			if assert.Equal(t, 2, len(buildLogSteps[0].NestedSteps)) {
+				assert.Equal(t, "nested-stage-1", buildLogSteps[0].NestedSteps[0].Step)
+				assert.Equal(t, contracts.StatusSucceeded, buildLogSteps[0].NestedSteps[0].Status)
+				assert.Equal(t, 1, buildLogSteps[0].NestedSteps[0].Depth)
+				assert.Equal(t, "nested-stage-0", buildLogSteps[0].NestedSteps[1].Step)
+				assert.Equal(t, contracts.StatusSucceeded, buildLogSteps[0].NestedSteps[1].Status)
+				assert.Equal(t, 1, buildLogSteps[0].NestedSteps[1].Depth)
+			}
+		}
+
+		assert.Equal(t, contracts.StatusSucceeded, contracts.GetAggregatedStatus(buildLogSteps))
+	})
+}
+
+func TestRunStagesWithServices(t *testing.T) {
+
+	t.Run("RunsServicesReturnsBuildLogStepsWithServices", func(t *testing.T) {
+
+		dockerRunnerMock, _, _, pipelineRunner := resetState()
+
+		depth := 0
+		dir := "/estafette-work"
+		envvars := map[string]string{}
+		stages := []*manifest.EstafetteStage{
+			&manifest.EstafetteStage{
+				Name:           "stage-a",
+				ContainerImage: "alpine:latest",
+				When:           "status == 'succeeded'",
+				Services: []*manifest.EstafetteService{
+					&manifest.EstafetteService{
+						Name:           "nested-service-0",
+						ContainerImage: "alpine:latest",
+						When:           "status == 'succeeded'",
+					},
+					&manifest.EstafetteService{
+						Name:           "nested-service-1",
+						ContainerImage: "alpine:latest",
+						When:           "status == 'succeeded'",
+					},
+				},
+			},
+		}
+
+		// set mock responses
+		callCount := 0
+		dockerRunnerMock.pullImageFunc = func(ctx context.Context, stageName string, containerImage string) error {
+			callCount++
+			return nil
+		}
+		var wg sync.WaitGroup
+		wg.Add(1)
+		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error) {
+			if stageType == "service" {
+				wg.Wait()
+			}
+			return nil
+		}
+		dockerRunnerMock.stopServiceContainersFunc = func(ctx context.Context, parentStage manifest.EstafetteStage) {
+			wg.Done()
+		}
+
+		// act
+		buildLogSteps, _ := pipelineRunner.RunStages(context.Background(), depth, stages, dir, envvars)
+
+		assert.Equal(t, 3, callCount)
+
+		if assert.Equal(t, 1, len(buildLogSteps)) {
+			assert.Equal(t, "stage-a", buildLogSteps[0].Step)
+			assert.Equal(t, contracts.StatusSucceeded, buildLogSteps[0].Status)
+			assert.Equal(t, 0, buildLogSteps[0].Depth)
+			if assert.Equal(t, 2, len(buildLogSteps[0].Services)) {
+				assert.Equal(t, "nested-service-1", buildLogSteps[0].Services[0].Step)
+				assert.Equal(t, contracts.StatusSucceeded, buildLogSteps[0].Services[0].Status)
+				assert.Equal(t, 1, buildLogSteps[0].Services[0].Depth)
+				assert.Equal(t, "nested-service-0", buildLogSteps[0].Services[1].Step)
+				assert.Equal(t, contracts.StatusSucceeded, buildLogSteps[0].Services[1].Status)
+				assert.Equal(t, 1, buildLogSteps[0].Services[1].Depth)
+			}
+		}
+
+		assert.Equal(t, contracts.StatusSucceeded, contracts.GetAggregatedStatus(buildLogSteps))
 	})
 }
 

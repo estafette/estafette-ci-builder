@@ -228,14 +228,13 @@ func (pr *pipelineRunnerImpl) RunService(ctx context.Context, envvars map[string
 
 	service.ContainerImage = os.Expand(service.ContainerImage, pr.envvarHelper.getEstafetteEnv)
 
-	parentStageName := parentStage.Name
-
-	log.Info().Msgf("[%v] Starting service container '%v'", parentStageName, service.Name)
+	log.Info().Msgf("[%v] [%v] Starting service container", parentStage.Name, service.Name)
 
 	var isPulledImage bool
 	var isTrustedImage bool
 	var imagePullDuration time.Duration
 	var imageSize int64
+	var buildLogStepDockerImage *contracts.BuildLogStepDockerImage
 
 	if service.ContainerImage != "" {
 		isPulledImage = pr.dockerRunner.IsImagePulled(service.Name, service.ContainerImage)
@@ -243,87 +242,94 @@ func (pr *pipelineRunnerImpl) RunService(ctx context.Context, envvars map[string
 
 		if !isPulledImage || runtime.GOOS == "windows" {
 
+			buildLogStepDockerImage = &contracts.BuildLogStepDockerImage{
+				Name:      getContainerImageName(service.ContainerImage),
+				Tag:       getContainerImageTag(service.ContainerImage),
+				IsTrusted: isTrustedImage,
+			}
+
 			// log tailing - start stage as pending
 			pendingStatus := contracts.StatusPending
 			pr.tailLogsChannel <- contracts.TailLogLine{
 				Step:        service.Name,
-				ParentStage: parentStageName,
+				ParentStage: parentStage.Name,
 				Type:        "service",
 				Depth:       1,
-				Image: &contracts.BuildLogStepDockerImage{
-					Name:      getContainerImageName(service.ContainerImage),
-					Tag:       getContainerImageTag(service.ContainerImage),
-					IsTrusted: isTrustedImage,
-				},
-				Status: &pendingStatus,
+				Image:       buildLogStepDockerImage,
+				Status:      &pendingStatus,
 			}
 
 			// pull docker image
 			dockerPullStart := time.Now()
 			err = pr.dockerRunner.PullImage(ctx, service.Name, service.ContainerImage)
-			if err != nil {
-				return err
-			}
-
 			imagePullDuration = time.Since(dockerPullStart)
 		}
 
 		// set docker image size
-		imageSize, err = pr.dockerRunner.GetImageSize(service.ContainerImage)
-		if err != nil {
-			return err
+		if err == nil {
+			imageSize, err = pr.dockerRunner.GetImageSize(service.ContainerImage)
+		}
+
+		if err == nil {
+			buildLogStepDockerImage = &contracts.BuildLogStepDockerImage{
+				Name:         getContainerImageName(service.ContainerImage),
+				Tag:          getContainerImageTag(service.ContainerImage),
+				IsTrusted:    isTrustedImage,
+				IsPulled:     isPulledImage,
+				ImageSize:    imageSize,
+				PullDuration: imagePullDuration,
+			}
 		}
 	}
 
-	// log tailing - start stage
-	runningStatus := contracts.StatusRunning
-	pr.tailLogsChannel <- contracts.TailLogLine{
-		Step:        service.Name,
-		ParentStage: parentStageName,
-		Type:        "service",
-		Depth:       1,
-		Image: &contracts.BuildLogStepDockerImage{
-			Name:         getContainerImageName(service.ContainerImage),
-			Tag:          getContainerImageTag(service.ContainerImage),
-			IsTrusted:    isTrustedImage,
-			IsPulled:     isPulledImage,
-			ImageSize:    imageSize,
-			PullDuration: imagePullDuration,
-		},
-		Status: &runningStatus,
+	if err == nil {
+		// start running service
+		runningStatus := contracts.StatusRunning
+		pr.tailLogsChannel <- contracts.TailLogLine{
+			Step:        service.Name,
+			ParentStage: parentStage.Name,
+			Type:        "service",
+			Depth:       1,
+			Image:       buildLogStepDockerImage,
+			Status:      &runningStatus,
+		}
 	}
 
 	// run commands in docker container
 	dockerRunStart := time.Now()
 
-	containerID, err := pr.dockerRunner.StartServiceContainer(ctx, envvars, &parentStage, service)
 	if err == nil {
-		go func(ctx context.Context, containerID, parentStageName string, service manifest.EstafetteService) {
-			err := pr.dockerRunner.TailContainerLogs(ctx, containerID, parentStageName, service.Name, "service", 1, 0)
+		var containerID string
+		containerID, err = pr.dockerRunner.StartServiceContainer(ctx, envvars, &parentStage, service)
 
-			finalStatusAfterTailing := contracts.StatusSucceeded
-			if pr.canceled {
-				log.Info().Msgf("[%v] Canceled service '%v'", parentStageName, service.Name)
-				finalStatusAfterTailing = contracts.StatusCanceled
-			} else if err != nil {
-				log.Warn().Err(err).Msgf("[%v] Service '%v' container failed", parentStageName, service.Name)
-				finalStatusAfterTailing = contracts.StatusFailed
-			} else {
-				log.Info().Msgf("[%v] Started service '%v' successfully", parentStageName, service.Name)
-			}
+		if err == nil {
+			go func(ctx context.Context, envvars map[string]string, parentStage manifest.EstafetteStage, service manifest.EstafetteService, containerID string) {
+				err := pr.dockerRunner.TailContainerLogs(ctx, containerID, parentStage.Name, service.Name, "service", 1, 0)
 
-			pr.tailLogsChannel <- contracts.TailLogLine{
-				Step:        service.Name,
-				ParentStage: parentStageName,
-				Type:        "service",
-				Depth:       1,
-				Status:      &finalStatusAfterTailing,
-			}
-		}(ctx, containerID, parentStageName, service)
+				finalStatusAfterTailing := contracts.StatusSucceeded
+				if pr.canceled {
+					log.Info().Msgf("[%v] [%v] Canceled service after log tailing", parentStage.Name, service.Name)
+					finalStatusAfterTailing = contracts.StatusCanceled
+				} else if err != nil {
+					log.Warn().Err(err).Msgf("[%v] [%v] Service container failed after log tailing", parentStage.Name, service.Name)
+					finalStatusAfterTailing = contracts.StatusFailed
+				} else {
+					log.Info().Msgf("[%v] [%v] Finished service successfully after log tailing", parentStage.Name, service.Name)
+				}
+
+				pr.tailLogsChannel <- contracts.TailLogLine{
+					Step:        service.Name,
+					ParentStage: parentStage.Name,
+					Type:        "service",
+					Depth:       1,
+					Status:      &finalStatusAfterTailing,
+				}
+			}(ctx, envvars, parentStage, service, containerID)
+		}
 	}
 
 	// wait for service to be ready if readiness probe is defined
-	if service.Readiness != nil {
+	if err == nil && service.Readiness != nil {
 		log.Info().Msgf("[%v] Starting readiness probe...", parentStage.Name)
 		err = pr.dockerRunner.RunReadinessProbeContainer(ctx, parentStage, service, *service.Readiness)
 	}
@@ -332,18 +338,18 @@ func (pr *pipelineRunnerImpl) RunService(ctx context.Context, envvars map[string
 	// log tailing - finalize stage
 	finalStatus := contracts.StatusRunning
 	if pr.canceled {
-		log.Info().Msgf("[%v] Canceled service '%v'", parentStageName, service.Name)
+		log.Info().Msgf("[%v] [%v] Canceled service", parentStage.Name, service.Name)
 		finalStatus = contracts.StatusCanceled
 	} else if err != nil {
-		log.Warn().Err(err).Msgf("[%v] Service '%v' container failed", parentStageName, service.Name)
+		log.Warn().Err(err).Msgf("[%v] [%v] Service container failed", parentStage.Name, service.Name)
 		finalStatus = contracts.StatusFailed
 	} else {
-		log.Info().Msgf("[%v] Started service '%v' successfully", parentStageName, service.Name)
+		return
 	}
 
 	pr.tailLogsChannel <- contracts.TailLogLine{
 		Step:        service.Name,
-		ParentStage: parentStageName,
+		ParentStage: parentStage.Name,
 		Type:        "service",
 		Depth:       1,
 		Duration:    &runDuration,
@@ -394,7 +400,7 @@ func (pr *pipelineRunnerImpl) RunStages(ctx context.Context, depth int, stages [
 		}
 
 		var whenEvaluationResult bool
-		whenEvaluationResult, err = pr.whenEvaluator.evaluate(p.Name, p.When, pr.whenEvaluator.getParameters())
+		whenEvaluationResult, err = pr.whenEvaluator.Evaluate(p.Name, p.When, pr.whenEvaluator.GetParameters())
 		if err != nil {
 			return buildLogSteps, err
 		}
@@ -460,7 +466,7 @@ func (pr *pipelineRunnerImpl) RunParallelStages(ctx context.Context, depth int, 
 				return
 			}
 
-			whenEvaluationResult, err := pr.whenEvaluator.evaluate(stage.Name, stage.When, pr.whenEvaluator.getParameters())
+			whenEvaluationResult, err := pr.whenEvaluator.Evaluate(stage.Name, stage.When, pr.whenEvaluator.GetParameters())
 			if err != nil {
 				errors <- err
 				return
@@ -519,17 +525,17 @@ func (pr *pipelineRunnerImpl) RunServices(ctx context.Context, envvars map[strin
 		go func(ctx context.Context, envvars map[string]string, parentStage manifest.EstafetteStage, service manifest.EstafetteService) {
 			defer wg.Done()
 
-			log.Info().Msgf("Starting service '%v' for stage '%v'...", s.ContainerImage, parentStage.Name)
+			log.Info().Msgf("[%v] [%v] Starting service...", parentStage.Name, service.Name)
 
 			// set some defaults here, until they get passed in from the api
-			if s.When == "" {
-				s.When = "status == 'succeeded'"
+			if service.When == "" {
+				service.When = "status == 'succeeded'"
 			}
-			if s.Shell == "" {
-				s.Shell = "/bin/sh"
+			if service.Shell == "" {
+				service.Shell = "/bin/sh"
 			}
 
-			whenEvaluationResult, err := pr.whenEvaluator.evaluate(s.Name, s.When, pr.whenEvaluator.getParameters())
+			whenEvaluationResult, err := pr.whenEvaluator.Evaluate(service.Name, service.When, pr.whenEvaluator.GetParameters())
 			if err != nil {
 				errors <- err
 				return
@@ -546,7 +552,7 @@ func (pr *pipelineRunnerImpl) RunServices(ctx context.Context, envvars map[strin
 						Text:       err.Error(),
 					}
 					pr.tailLogsChannel <- contracts.TailLogLine{
-						Step:        s.Name,
+						Step:        service.Name,
 						ParentStage: parentStage.Name,
 						Type:        "service",
 						Depth:       1,
