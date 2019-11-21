@@ -59,6 +59,7 @@ func (pr *pipelineRunnerImpl) RunStage(ctx context.Context, depth int, runIndex 
 
 	// init some variables
 	parentStageName, stagePlaceholder, autoInjected := pr.initStageVariables(ctx, depth, runIndex, dir, envvars, parentStage, stage)
+	stage.ContainerImage = os.Expand(stage.ContainerImage, pr.envvarHelper.getEstafetteEnv)
 
 	log.Info().Msgf("%v Starting stage", stagePlaceholder)
 
@@ -209,6 +210,9 @@ func (pr *pipelineRunnerImpl) RunService(ctx context.Context, envvars map[string
 	span, ctx := opentracing.StartSpanFromContext(ctx, "RunService")
 	defer span.Finish()
 	span.SetTag("service", service.Name)
+
+	// init some variables
+	service.ContainerImage = os.Expand(service.ContainerImage, pr.envvarHelper.getEstafetteEnv)
 
 	log.Info().Msgf("[%v] [%v] Starting service", parentStage.Name, service.Name)
 
@@ -513,8 +517,6 @@ func (pr *pipelineRunnerImpl) pullImageIfNeeded(ctx context.Context, stageName, 
 	var buildLogStepDockerImage *contracts.BuildLogStepDockerImage
 
 	if containerImage != "" {
-
-		containerImage = os.Expand(containerImage, pr.envvarHelper.getEstafetteEnv)
 
 		isPulledImage = pr.dockerRunner.IsImagePulled(stageName, containerImage)
 		isTrustedImage = pr.dockerRunner.IsTrustedImage(stageName, containerImage)
