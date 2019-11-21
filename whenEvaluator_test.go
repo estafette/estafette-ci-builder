@@ -18,7 +18,7 @@ func TestWhenEvaluator(t *testing.T) {
 		envvarHelper.unsetEstafetteEnvvars()
 
 		// act
-		result, err := whenEvaluator.evaluate("name", "", make(map[string]interface{}, 0))
+		result, err := whenEvaluator.Evaluate("name", "", make(map[string]interface{}, 0))
 
 		assert.NotNil(t, err)
 		assert.False(t, result)
@@ -29,7 +29,7 @@ func TestWhenEvaluator(t *testing.T) {
 		envvarHelper.unsetEstafetteEnvvars()
 
 		// act
-		result, _ := whenEvaluator.evaluate("name", "3 > 2", make(map[string]interface{}, 0))
+		result, _ := whenEvaluator.Evaluate("name", "3 > 2", make(map[string]interface{}, 0))
 
 		assert.True(t, result)
 	})
@@ -43,7 +43,7 @@ func TestWhenEvaluator(t *testing.T) {
 		parameters["status"] = "succeeded"
 
 		// act
-		result, _ := whenEvaluator.evaluate("name", "status == 'succeeded' && branch == 'master'", parameters)
+		result, _ := whenEvaluator.Evaluate("name", "status == 'succeeded' && branch == 'master'", parameters)
 
 		assert.True(t, result)
 	})
@@ -57,7 +57,7 @@ func TestWhenEvaluator(t *testing.T) {
 		parameters["status"] = "succeeded"
 
 		// act
-		result, _ := whenEvaluator.evaluate("name", "status == 'succeeded' && branch == 'master'", parameters)
+		result, _ := whenEvaluator.Evaluate("name", "status == 'succeeded' && branch == 'master'", parameters)
 
 		assert.True(t, result)
 	})
@@ -72,7 +72,7 @@ func TestWhenParameters(t *testing.T) {
 		envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
 
 		// act
-		parameters := whenEvaluator.getParameters()
+		parameters := whenEvaluator.GetParameters()
 
 		assert.False(t, strings.Contains(parameters["branch"].(string), "\n"))
 	})
@@ -84,7 +84,7 @@ func TestWhenParameters(t *testing.T) {
 		envvarHelper.setEstafetteEnv("ESTAFETTE_RELEASE_ACTION", "deploy-canary")
 
 		// act
-		parameters := whenEvaluator.getParameters()
+		parameters := whenEvaluator.GetParameters()
 
 		assert.Equal(t, "deploy-canary", parameters["action"])
 	})
@@ -96,7 +96,7 @@ func TestWhenParameters(t *testing.T) {
 		envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
 
 		// act
-		parameters := whenEvaluator.getParameters()
+		parameters := whenEvaluator.GetParameters()
 
 		assert.Equal(t, "succeeded", parameters["status"])
 	})

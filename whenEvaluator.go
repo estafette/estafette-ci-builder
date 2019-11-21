@@ -9,8 +9,8 @@ import (
 
 // WhenEvaluator evaluates when clauses from the manifest
 type WhenEvaluator interface {
-	evaluate(string, string, map[string]interface{}) (bool, error)
-	getParameters() map[string]interface{}
+	Evaluate(string, string, map[string]interface{}) (bool, error)
+	GetParameters() map[string]interface{}
 }
 
 type whenEvaluatorImpl struct {
@@ -24,7 +24,7 @@ func NewWhenEvaluator(envvarHelper EnvvarHelper) WhenEvaluator {
 	}
 }
 
-func (we *whenEvaluatorImpl) evaluate(pipelineName, input string, parameters map[string]interface{}) (result bool, err error) {
+func (we *whenEvaluatorImpl) Evaluate(pipelineName, input string, parameters map[string]interface{}) (result bool, err error) {
 
 	if input == "" {
 		return false, errors.New("When expression is empty")
@@ -48,7 +48,7 @@ func (we *whenEvaluatorImpl) evaluate(pipelineName, input string, parameters map
 	return false, errors.New("Result of evaluating when expression is not of type boolean")
 }
 
-func (we *whenEvaluatorImpl) getParameters() map[string]interface{} {
+func (we *whenEvaluatorImpl) GetParameters() map[string]interface{} {
 
 	parameters := make(map[string]interface{}, 3)
 	parameters["branch"] = we.envvarHelper.getEstafetteEnv("ESTAFETTE_GIT_BRANCH")
