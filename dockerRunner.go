@@ -45,7 +45,6 @@ type DockerRunner interface {
 	CreateDockerClient() (*client.Client, error)
 	CreateBridgeNetwork(ctx context.Context) error
 	DeleteBridgeNetwork(ctx context.Context) error
-	StopContainersOnCancellation()
 	StopContainers()
 }
 
@@ -58,7 +57,6 @@ type dockerRunnerImpl struct {
 	cancellationChannel chan struct{}
 	tailLogsChannel     chan contracts.TailLogLine
 	runningContainerIDs []string
-	canceled            bool
 	networkBridge       string
 	networkBridgeID     string
 }
@@ -702,12 +700,6 @@ func (dr *dockerRunnerImpl) RunReadinessProbeContainer(ctx context.Context, pare
 	in := bufio.NewReader(rc)
 	var readError error
 	for {
-
-		if dr.canceled {
-			log.Debug().Msgf("Cancelled tailing logs for container %v", containerID)
-			return
-		}
-
 		// strip first 8 bytes, they contain docker control characters (https://github.com/docker/docker-ce/blob/v18.06.1-ce/components/engine/client/container_logs.go#L23-L32)
 		headers := make([]byte, 8)
 		n, readError := in.Read(headers)
@@ -775,12 +767,6 @@ func (dr *dockerRunnerImpl) TailContainerLogs(ctx context.Context, containerID, 
 	in := bufio.NewReader(rc)
 	var readError error
 	for {
-
-		if dr.canceled {
-			log.Debug().Msgf("Cancelled tailing logs for container %v", containerID)
-			return
-		}
-
 		// strip first 8 bytes, they contain docker control characters (https://github.com/docker/docker-ce/blob/v18.06.1-ce/components/engine/client/container_logs.go#L23-L32)
 		headers := make([]byte, 8)
 		n, readError := in.Read(headers)
@@ -998,15 +984,6 @@ func (dr *dockerRunnerImpl) stopContainer(containerID string) error {
 
 	log.Info().Msgf("Stopped container with id %v", containerID)
 	return nil
-}
-
-func (dr *dockerRunnerImpl) StopContainersOnCancellation() {
-
-	// wait for cancellation
-	<-dr.cancellationChannel
-	dr.canceled = true
-
-	dr.StopContainers()
 }
 
 func (dr *dockerRunnerImpl) StopContainers() {

@@ -310,7 +310,6 @@ func main() {
 
 		// listen to cancellation in order to stop any running pipeline or container
 		go pipelineRunner.StopPipelineOnCancellation()
-		go dockerRunner.StopContainersOnCancellation()
 
 		// get current working directory
 		dir := envvarHelper.getWorkDir()

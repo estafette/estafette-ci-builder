@@ -312,7 +312,9 @@ func (pr *pipelineRunnerImpl) RunStages(ctx context.Context, depth int, stages [
 
 		// handle cancellation happening in between stages
 		if pr.canceled {
-			return
+			// set canceled status for all the next stages
+			pr.forceStatusForStage(*p, contracts.StatusCanceled)
+			continue
 		}
 
 		var whenEvaluationResult bool
@@ -332,17 +334,9 @@ func (pr *pipelineRunnerImpl) RunStages(ctx context.Context, depth int, stages [
 				finalErr = err
 			}
 		} else {
-
 			// if an error has happened in one of the previous steps or the when expression evaluates to false we still want to render the following steps in the result table
-			status := contracts.StatusSkipped
-			pr.tailLogsChannel <- contracts.TailLogLine{
-				Step:         p.Name,
-				Type:         contracts.TypeStage,
-				Depth:        depth,
-				RunIndex:     0,
-				AutoInjected: &p.AutoInjected,
-				Status:       &status,
-			}
+			pr.forceStatusForStage(*p, contracts.StatusSkipped)
+			continue
 		}
 	}
 
@@ -498,6 +492,8 @@ func (pr *pipelineRunnerImpl) StopPipelineOnCancellation() {
 	<-pr.cancellationChannel
 
 	pr.canceled = true
+
+	pr.dockerRunner.StopContainers()
 }
 
 func (pr *pipelineRunnerImpl) EnableBuilderInfoStageInjection() {
@@ -580,6 +576,59 @@ func (pr *pipelineRunnerImpl) sendStatusMessage(step, parentStageName, container
 	}
 
 	pr.tailLogsChannel <- tailLogLine
+}
+
+func (pr *pipelineRunnerImpl) forceStatusForStage(stage manifest.EstafetteStage, status string) {
+
+	var autoInjected *bool
+	var image *contracts.BuildLogStepDockerImage
+	if stage.ContainerImage != "" {
+		isTrustedImage := pr.dockerRunner.IsTrustedImage(stage.Name, stage.ContainerImage)
+		image = &contracts.BuildLogStepDockerImage{
+			Name:      getContainerImageName(stage.ContainerImage),
+			Tag:       getContainerImageTag(stage.ContainerImage),
+			IsTrusted: isTrustedImage,
+		}
+	}
+	if stage.AutoInjected {
+		autoInjected = &stage.AutoInjected
+	}
+
+	pr.sendStatusMessage(stage.Name, "", contracts.TypeStage, 0, 0, autoInjected, image, nil, status)
+
+	// loop through all parallel stages and set status
+	for _, ps := range stage.ParallelStages {
+		var autoInjected *bool
+		var image *contracts.BuildLogStepDockerImage
+		if ps.ContainerImage != "" {
+			isTrustedImage := pr.dockerRunner.IsTrustedImage(ps.Name, ps.ContainerImage)
+			image = &contracts.BuildLogStepDockerImage{
+				Name:      getContainerImageName(ps.ContainerImage),
+				Tag:       getContainerImageTag(ps.ContainerImage),
+				IsTrusted: isTrustedImage,
+			}
+		}
+		if ps.AutoInjected {
+			autoInjected = &ps.AutoInjected
+		}
+
+		pr.sendStatusMessage(ps.Name, stage.Name, contracts.TypeStage, 1, 0, autoInjected, image, nil, status)
+	}
+
+	// loop through all services and set status
+	for _, s := range stage.Services {
+		var image *contracts.BuildLogStepDockerImage
+		if s.ContainerImage != "" {
+			isTrustedImage := pr.dockerRunner.IsTrustedImage(s.Name, s.ContainerImage)
+			image = &contracts.BuildLogStepDockerImage{
+				Name:      getContainerImageName(s.ContainerImage),
+				Tag:       getContainerImageTag(s.ContainerImage),
+				IsTrusted: isTrustedImage,
+			}
+		}
+
+		pr.sendStatusMessage(s.Name, stage.Name, contracts.TypeService, 1, 0, nil, image, nil, status)
+	}
 }
 
 func (pr *pipelineRunnerImpl) tailLogs(ctx context.Context, stageExecutionDone chan struct{}) {

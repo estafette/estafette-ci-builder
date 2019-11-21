@@ -1133,6 +1133,62 @@ func TestRunService(t *testing.T) {
 
 func TestRunStages(t *testing.T) {
 
+	t.Run("CallsCreateBridgeNetwork", func(t *testing.T) {
+
+		dockerRunnerMock, _, _, pipelineRunner := resetState()
+
+		depth := 0
+		dir := "/estafette-work"
+		envvars := map[string]string{}
+		stages := []*manifest.EstafetteStage{
+			&manifest.EstafetteStage{
+				Name:           "stage-a",
+				ContainerImage: "alpine:latest",
+				When:           "status == 'succeeded'",
+			},
+		}
+
+		// set mock responses
+		createBridgeNetworkFuncCalled := false
+		dockerRunnerMock.createBridgeNetworkFunc = func(ctx context.Context) error {
+			createBridgeNetworkFuncCalled = true
+			return nil
+		}
+
+		// act
+		_, _ = pipelineRunner.RunStages(context.Background(), depth, stages, dir, envvars)
+
+		assert.True(t, createBridgeNetworkFuncCalled)
+	})
+
+	t.Run("CallsDeleteBridgeNetwork", func(t *testing.T) {
+
+		dockerRunnerMock, _, _, pipelineRunner := resetState()
+
+		depth := 0
+		dir := "/estafette-work"
+		envvars := map[string]string{}
+		stages := []*manifest.EstafetteStage{
+			&manifest.EstafetteStage{
+				Name:           "stage-a",
+				ContainerImage: "alpine:latest",
+				When:           "status == 'succeeded'",
+			},
+		}
+
+		// set mock responses
+		deleteBridgeNetworkFuncCalled := false
+		dockerRunnerMock.deleteBridgeNetworkFunc = func(ctx context.Context) error {
+			deleteBridgeNetworkFuncCalled = true
+			return nil
+		}
+
+		// act
+		_, _ = pipelineRunner.RunStages(context.Background(), depth, stages, dir, envvars)
+
+		assert.True(t, deleteBridgeNetworkFuncCalled)
+	})
+
 	t.Run("ReturnsErrorWhenFirstStageFails", func(t *testing.T) {
 
 		dockerRunnerMock, _, _, pipelineRunner := resetState()
@@ -1340,8 +1396,8 @@ func TestRunStages(t *testing.T) {
 		buildLogSteps, _ := pipelineRunner.RunStages(context.Background(), depth, stages, dir, envvars)
 
 		if assert.Equal(t, 1, len(buildLogSteps)) {
-			assert.GreaterOrEqual(t, int64(50), buildLogSteps[0].Image.PullDuration.Milliseconds())
-			assert.GreaterOrEqual(t, int64(100), buildLogSteps[0].Duration.Milliseconds())
+			assert.GreaterOrEqual(t, buildLogSteps[0].Image.PullDuration.Milliseconds(), int64(50))
+			assert.GreaterOrEqual(t, buildLogSteps[0].Duration.Milliseconds(), int64(100))
 		}
 	})
 
@@ -1372,37 +1428,9 @@ func TestRunStages(t *testing.T) {
 		}
 	})
 
-	t.Run("CallsCreateBridgeNetwork", func(t *testing.T) {
+	t.Run("SendsCanceledStageForAllStagesWhenFirstStageGetsCanceled", func(t *testing.T) {
 
-		dockerRunnerMock, _, _, pipelineRunner := resetState()
-
-		depth := 0
-		dir := "/estafette-work"
-		envvars := map[string]string{}
-		stages := []*manifest.EstafetteStage{
-			&manifest.EstafetteStage{
-				Name:           "stage-a",
-				ContainerImage: "alpine:latest",
-				When:           "status == 'succeeded'",
-			},
-		}
-
-		// set mock responses
-		createBridgeNetworkFuncCalled := false
-		dockerRunnerMock.createBridgeNetworkFunc = func(ctx context.Context) error {
-			createBridgeNetworkFuncCalled = true
-			return nil
-		}
-
-		// act
-		_, _ = pipelineRunner.RunStages(context.Background(), depth, stages, dir, envvars)
-
-		assert.True(t, createBridgeNetworkFuncCalled)
-	})
-
-	t.Run("CallsDeleteBridgeNetwork", func(t *testing.T) {
-
-		dockerRunnerMock, _, _, pipelineRunner := resetState()
+		_, _, cancellationChannel, pipelineRunner := resetState()
 
 		depth := 0
 		dir := "/estafette-work"
@@ -1413,19 +1441,30 @@ func TestRunStages(t *testing.T) {
 				ContainerImage: "alpine:latest",
 				When:           "status == 'succeeded'",
 			},
-		}
-
-		// set mock responses
-		deleteBridgeNetworkFuncCalled := false
-		dockerRunnerMock.deleteBridgeNetworkFunc = func(ctx context.Context) error {
-			deleteBridgeNetworkFuncCalled = true
-			return nil
+			&manifest.EstafetteStage{
+				Name:           "stage-b",
+				ContainerImage: "alpine:latest",
+				When:           "status == 'succeeded'",
+			},
+			&manifest.EstafetteStage{
+				Name:           "stage-c",
+				ContainerImage: "alpine:latest",
+				When:           "status == 'succeeded' || status == 'failed'",
+			},
 		}
 
 		// act
-		_, _ = pipelineRunner.RunStages(context.Background(), depth, stages, dir, envvars)
+		go pipelineRunner.StopPipelineOnCancellation()
+		cancellationChannel <- struct{}{}
+		buildLogSteps, _ := pipelineRunner.RunStages(context.Background(), depth, stages, dir, envvars)
 
-		assert.True(t, deleteBridgeNetworkFuncCalled)
+		if assert.Equal(t, 3, len(buildLogSteps)) {
+			assert.Equal(t, contracts.StatusCanceled, buildLogSteps[0].Status)
+			assert.Equal(t, contracts.StatusCanceled, buildLogSteps[1].Status)
+			assert.Equal(t, contracts.StatusCanceled, buildLogSteps[2].Status)
+		}
+
+		assert.Equal(t, contracts.StatusCanceled, contracts.GetAggregatedStatus(buildLogSteps))
 	})
 }
 
