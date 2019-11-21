@@ -368,7 +368,7 @@ func main() {
 		// run stages
 		pipelineRunner.EnableBuilderInfoStageInjection()
 		buildLog.Steps, err = pipelineRunner.RunStages(ctx, 0, stages, dir, envvars)
-		if err != nil && buildLog.HasCanceledStatus() {
+		if err != nil && buildLog.HasUnknownStatus() {
 			endOfLifeHelper.handleFatal(ctx, buildLog, err, "Executing stages from manifest failed")
 		}
 
