@@ -2,13 +2,13 @@
 
 set -e
 
-sigterm_handler() {
+forward_sigterm() {
     echo "Received SIGTERM, forwarding to forked processes"
     trap - 15
-    kill -- -$$ # Sends SIGTERM to child/sub processes
+    kill -- -$$
 }
 
-trap sigterm_handler 15
+trap forward_sigterm 15
 
 {{range .Commands}}
     {{- .}}
