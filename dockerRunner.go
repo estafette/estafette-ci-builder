@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"io"
 	"io/ioutil"
 	"os"
@@ -139,128 +140,13 @@ func (dr *dockerRunnerImpl) StartStageContainer(ctx context.Context, depth int, 
 	// check if image is trusted image
 	trustedImage := dr.config.GetTrustedImage(p.ContainerImage)
 
-	// run docker with image and commands from yaml
-
-	// define entrypoint
-	entrypoint := make([]string, 0)
-	entrypoint = []string{p.Shell}
-	if runtime.GOOS == "windows" && p.Shell == "powershell" {
-		entrypoint = append(entrypoint, "-Command")
-	} else if runtime.GOOS == "windows" && p.Shell == "cmd" {
-		entrypoint = append(entrypoint, "/S", "/C")
-	} else {
-		entrypoint = append(entrypoint, "-c")
-	}
-
-	// define commands
-	cmds := make([]string, 0)
-	cmdStopOnErrorFlag := ""
-	cmdSeparator := ";"
-	if runtime.GOOS == "windows" && p.Shell == "powershell" {
-		cmdStopOnErrorFlag = "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue'; "
-		if dr.config.DockerDaemonMTU != nil && *dr.config.DockerDaemonMTU != "" {
-			mtu, err := strconv.Atoi(*dr.config.DockerDaemonMTU)
-			if err == nil {
-				mtu -= 50
-				cmdStopOnErrorFlag += fmt.Sprintf("Write-Host 'Updating MTU to %v...'; Get-NetAdapter | Where-Object Name -like \"*Ethernet*\" | ForEach-Object { & netsh interface ipv4 set subinterface $_.InterfaceIndex mtu=%v store=persistent }; ", mtu, mtu)
-			}
-		}
-		cmdSeparator = ";"
-	} else if runtime.GOOS == "windows" && p.Shell == "cmd" {
-		cmdStopOnErrorFlag = ""
-		cmdSeparator = " && "
-	} else {
-		cmdStopOnErrorFlag = "set -e; "
-		cmdSeparator = ";"
-	}
-	cmds = append(cmds, cmdStopOnErrorFlag+strings.Join(p.Commands, cmdSeparator))
+	entrypoint, cmds, binds := dr.initContainerStartVariables(p.Shell, p.Commands)
 
 	// add custom properties as ESTAFETTE_EXTENSION_... envvar
-	extensionEnvVars := map[string]string{}
-	if p.CustomProperties != nil && len(p.CustomProperties) > 0 {
-		for k, v := range p.CustomProperties {
-			extensionkey := dr.envvarHelper.getEstafetteEnvvarName(fmt.Sprintf("ESTAFETTE_EXTENSION_%v", dr.envvarHelper.toUpperSnake(k)))
-
-			if s, isString := v.(string); isString {
-				// if custom property is of type string add the envvar
-				extensionEnvVars[extensionkey] = s
-			} else if s, isBool := v.(bool); isBool {
-				// if custom property is of type bool add the envvar
-				extensionEnvVars[extensionkey] = strconv.FormatBool(s)
-			} else if s, isInt := v.(int); isInt {
-				// if custom property is of type bool add the envvar
-				extensionEnvVars[extensionkey] = strconv.FormatInt(int64(s), 10)
-			} else if s, isFloat := v.(float64); isFloat {
-				// if custom property is of type bool add the envvar
-				extensionEnvVars[extensionkey] = strconv.FormatFloat(float64(s), 'f', -1, 64)
-
-			} else if i, isInterfaceArray := v.([]interface{}); isInterfaceArray {
-				// check whether all array items are of type string
-				valid := true
-				stringValues := []string{}
-				for _, iv := range i {
-					if s, isString := iv.(string); isString {
-						stringValues = append(stringValues, s)
-					} else {
-						valid = false
-						break
-					}
-				}
-
-				if valid {
-					// if all array items are string, pass as comma-separated list to extension
-					extensionEnvVars[extensionkey] = strings.Join(stringValues, ",")
-				} else {
-					log.Warn().Interface("customProperty", v).Msgf("Cannot turn custom property %v into extension envvar", k)
-				}
-			} else {
-				log.Warn().Interface("customProperty", v).Msgf("Cannot turn custom property %v of type %v into extension envvar", k, reflect.TypeOf(v))
-			}
-		}
-
-		// add envvar to custom properties
-		customProperties := p.CustomProperties
-		customProperties["env"] = p.EnvVars
-
-		// also add add custom properties as json object in ESTAFETTE_EXTENSION_CUSTOM_PROPERTIES envvar
-		customPropertiesBytes, err := json.Marshal(customProperties)
-		if err == nil {
-			extensionEnvVars["ESTAFETTE_EXTENSION_CUSTOM_PROPERTIES"] = string(customPropertiesBytes)
-		} else {
-			log.Warn().Err(err).Interface("customProperty", customProperties).Msg("Cannot marshal custom properties for ESTAFETTE_EXTENSION_CUSTOM_PROPERTIES envvar")
-		}
-
-		// also add add custom properties as json object in ESTAFETTE_EXTENSION_CUSTOM_PROPERTIES_YAML envvar
-		customPropertiesYamlBytes, err := yaml.Marshal(customProperties)
-		if err == nil {
-			extensionEnvVars["ESTAFETTE_EXTENSION_CUSTOM_PROPERTIES_YAML"] = string(customPropertiesYamlBytes)
-		} else {
-			log.Warn().Err(err).Interface("customProperty", customProperties).Msg("Cannot marshal custom properties for ESTAFETTE_EXTENSION_CUSTOM_PROPERTIES_YAML envvar")
-		}
-	}
+	extensionEnvVars := dr.generateExtensionEnvvars(p.CustomProperties, p.EnvVars)
 
 	// add credentials if trusted image with injectedCredentialTypes
-	credentialEnvVars := map[string]string{}
-	if trustedImage != nil {
-		// add credentials as ESTAFETTE_CREDENTIALS_... envvar with snake cased credential type so they can be unmarshalled separately in the image
-
-		credentialMap := dr.config.GetCredentialsForTrustedImage(*trustedImage)
-		for credentialType, credentialsForType := range credentialMap {
-
-			credentialkey := dr.envvarHelper.getEstafetteEnvvarName(fmt.Sprintf("ESTAFETTE_CREDENTIALS_%v", dr.envvarHelper.toUpperSnake(credentialType)))
-
-			// convert credentialsForType to json string
-			credentialsForTypeBytes, err := json.Marshal(credentialsForType)
-			if err != nil {
-				log.Warn().Err(err).Msgf("Failed to marshal credentials of type %v for envvar %v", credentialType, credentialkey)
-			}
-
-			// set envvar
-			credentialEnvVars[credentialkey] = string(credentialsForTypeBytes)
-
-			log.Debug().Msgf("Set envvar %v to credentials of type %v", credentialkey, credentialType)
-		}
-	}
+	credentialEnvVars := dr.generateCredentialsEnvvars(trustedImage)
 
 	// add stage name to envvars
 	if p.EnvVars == nil {
@@ -283,7 +169,6 @@ func (dr *dockerRunnerImpl) StartStageContainer(ctx context.Context, depth int, 
 	}
 
 	// define binds
-	binds := make([]string, 0)
 	binds = append(binds, fmt.Sprintf("%v:%v", dir, os.Expand(p.WorkingDirectory, dr.envvarHelper.getEstafetteEnv)))
 
 	// check if this is a trusted image with RunDocker set to true
@@ -320,10 +205,10 @@ func (dr *dockerRunnerImpl) StartStageContainer(ctx context.Context, depth int, 
 			return
 		}
 
-		// only pass commands when they are set, so extensions can work without
-		config.Cmd = cmds
 		// only override entrypoint when commands are set, so extensions can work without commands
 		config.Entrypoint = entrypoint
+		// only pass commands when they are set, so extensions can work without
+		config.Cmd = cmds
 	}
 	if trustedImage != nil && trustedImage.RunDocker {
 		if runtime.GOOS != "windows" {
@@ -381,128 +266,13 @@ func (dr *dockerRunnerImpl) StartServiceContainer(ctx context.Context, envvars m
 	// check if image is trusted image
 	trustedImage := dr.config.GetTrustedImage(service.ContainerImage)
 
-	// run docker with image and commands from yaml
-
-	// define entrypoint
-	entrypoint := make([]string, 0)
-	entrypoint = []string{service.Shell}
-	if runtime.GOOS == "windows" && service.Shell == "powershell" {
-		entrypoint = append(entrypoint, "-Command")
-	} else if runtime.GOOS == "windows" && service.Shell == "cmd" {
-		entrypoint = append(entrypoint, "/S", "/C")
-	} else {
-		entrypoint = append(entrypoint, "-c")
-	}
-
-	// define commands
-	cmds := make([]string, 0)
-	cmdStopOnErrorFlag := ""
-	cmdSeparator := ";"
-	if runtime.GOOS == "windows" && service.Shell == "powershell" {
-		cmdStopOnErrorFlag = "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue'; "
-		if dr.config.DockerDaemonMTU != nil && *dr.config.DockerDaemonMTU != "" {
-			mtu, err := strconv.Atoi(*dr.config.DockerDaemonMTU)
-			if err == nil {
-				mtu -= 50
-				cmdStopOnErrorFlag += fmt.Sprintf("Write-Host 'Updating MTU to %v...'; Get-NetAdapter | Where-Object Name -like \"*Ethernet*\" | ForEach-Object { & netsh interface ipv4 set subinterface $_.InterfaceIndex mtu=%v store=persistent }; ", mtu, mtu)
-			}
-		}
-		cmdSeparator = ";"
-	} else if runtime.GOOS == "windows" && service.Shell == "cmd" {
-		cmdStopOnErrorFlag = ""
-		cmdSeparator = " && "
-	} else {
-		cmdStopOnErrorFlag = "set -e; "
-		cmdSeparator = ";"
-	}
-	cmds = append(cmds, cmdStopOnErrorFlag+strings.Join(service.Commands, cmdSeparator))
+	entrypoint, cmds, binds := dr.initContainerStartVariables(service.Shell, service.Commands)
 
 	// add custom properties as ESTAFETTE_EXTENSION_... envvar
-	extensionEnvVars := map[string]string{}
-	if service.CustomProperties != nil && len(service.CustomProperties) > 0 {
-		for k, v := range service.CustomProperties {
-			extensionkey := dr.envvarHelper.getEstafetteEnvvarName(fmt.Sprintf("ESTAFETTE_EXTENSION_%v", dr.envvarHelper.toUpperSnake(k)))
-
-			if s, isString := v.(string); isString {
-				// if custom property is of type string add the envvar
-				extensionEnvVars[extensionkey] = s
-			} else if s, isBool := v.(bool); isBool {
-				// if custom property is of type bool add the envvar
-				extensionEnvVars[extensionkey] = strconv.FormatBool(s)
-			} else if s, isInt := v.(int); isInt {
-				// if custom property is of type bool add the envvar
-				extensionEnvVars[extensionkey] = strconv.FormatInt(int64(s), 10)
-			} else if s, isFloat := v.(float64); isFloat {
-				// if custom property is of type bool add the envvar
-				extensionEnvVars[extensionkey] = strconv.FormatFloat(float64(s), 'f', -1, 64)
-
-			} else if i, isInterfaceArray := v.([]interface{}); isInterfaceArray {
-				// check whether all array items are of type string
-				valid := true
-				stringValues := []string{}
-				for _, iv := range i {
-					if s, isString := iv.(string); isString {
-						stringValues = append(stringValues, s)
-					} else {
-						valid = false
-						break
-					}
-				}
-
-				if valid {
-					// if all array items are string, pass as comma-separated list to extension
-					extensionEnvVars[extensionkey] = strings.Join(stringValues, ",")
-				} else {
-					log.Warn().Interface("customProperty", v).Msgf("Cannot turn custom property %v into extension envvar", k)
-				}
-			} else {
-				log.Warn().Interface("customProperty", v).Msgf("Cannot turn custom property %v of type %v into extension envvar", k, reflect.TypeOf(v))
-			}
-		}
-
-		// add envvar to custom properties
-		customProperties := service.CustomProperties
-		customProperties["env"] = service.EnvVars
-
-		// also add add custom properties as json object in ESTAFETTE_EXTENSION_CUSTOM_PROPERTIES envvar
-		customPropertiesBytes, err := json.Marshal(customProperties)
-		if err == nil {
-			extensionEnvVars["ESTAFETTE_EXTENSION_CUSTOM_PROPERTIES"] = string(customPropertiesBytes)
-		} else {
-			log.Warn().Err(err).Interface("customProperty", customProperties).Msg("Cannot marshal custom properties for ESTAFETTE_EXTENSION_CUSTOM_PROPERTIES envvar")
-		}
-
-		// also add add custom properties as json object in ESTAFETTE_EXTENSION_CUSTOM_PROPERTIES_YAML envvar
-		customPropertiesYamlBytes, err := yaml.Marshal(customProperties)
-		if err == nil {
-			extensionEnvVars["ESTAFETTE_EXTENSION_CUSTOM_PROPERTIES_YAML"] = string(customPropertiesYamlBytes)
-		} else {
-			log.Warn().Err(err).Interface("customProperty", customProperties).Msg("Cannot marshal custom properties for ESTAFETTE_EXTENSION_CUSTOM_PROPERTIES_YAML envvar")
-		}
-	}
+	extensionEnvVars := dr.generateExtensionEnvvars(service.CustomProperties, service.EnvVars)
 
 	// add credentials if trusted image with injectedCredentialTypes
-	credentialEnvVars := map[string]string{}
-	if trustedImage != nil {
-		// add credentials as ESTAFETTE_CREDENTIALS_... envvar with snake cased credential type so they can be unmarshalled separately in the image
-
-		credentialMap := dr.config.GetCredentialsForTrustedImage(*trustedImage)
-		for credentialType, credentialsForType := range credentialMap {
-
-			credentialkey := dr.envvarHelper.getEstafetteEnvvarName(fmt.Sprintf("ESTAFETTE_CREDENTIALS_%v", dr.envvarHelper.toUpperSnake(credentialType)))
-
-			// convert credentialsForType to json string
-			credentialsForTypeBytes, err := json.Marshal(credentialsForType)
-			if err != nil {
-				log.Warn().Err(err).Msgf("Failed to marshal credentials of type %v for envvar %v", credentialType, credentialkey)
-			}
-
-			// set envvar
-			credentialEnvVars[credentialkey] = string(credentialsForTypeBytes)
-
-			log.Debug().Msgf("Set envvar %v to credentials of type %v", credentialkey, credentialType)
-		}
-	}
+	credentialEnvVars := dr.generateCredentialsEnvvars(trustedImage)
 
 	// add service name to envvars
 	if service.EnvVars == nil {
@@ -525,7 +295,6 @@ func (dr *dockerRunnerImpl) StartServiceContainer(ctx context.Context, envvars m
 	}
 
 	// check if this is a trusted image with RunDocker set to true
-	binds := make([]string, 0)
 	if trustedImage != nil && trustedImage.RunDocker {
 		if runtime.GOOS == "windows" {
 			if ok, _ := pathExists(`\\.\pipe\docker_engine`); ok {
@@ -1086,4 +855,198 @@ func (dr *dockerRunnerImpl) DeleteBridgeNetwork(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (dr *dockerRunnerImpl) generateEntrypointScript(shell string, commands []string) (path string, extension string, err error) {
+
+	data := struct {
+		Shell    string
+		Commands []string
+	}{
+		shell,
+		commands,
+	}
+
+	extension = "sh"
+	if runtime.GOOS == "windows" && shell == "powershell" {
+		extension = "ps"
+	} else if runtime.GOOS == "windows" && shell == "cmd" {
+		extension = "cmd"
+	}
+
+	templatePath := fmt.Sprintf("/estafette-templates/estafette-entrypoint.%v", extension)
+
+	// read and parse template
+	entrypointTemplate, err := template.ParseFiles(templatePath)
+	if err != nil {
+		return "", extension, err
+	}
+
+	// create target file to render template to
+	targetFile, err := ioutil.TempFile("/estafette-entrypoints", "estafette-entrypoint-*.sh")
+	if err != nil {
+		return "", extension, err
+	}
+	defer targetFile.Close()
+	path = targetFile.Name()
+
+	err = entrypointTemplate.Execute(targetFile, data)
+	if err != nil {
+		return "", extension, err
+	}
+
+	if runtime.GOOS != "windows" {
+		err = os.Chmod(path, 0755)
+		if err != nil {
+			return "", extension, err
+		}
+	}
+
+	return path, extension, nil
+}
+
+func (dr *dockerRunnerImpl) initContainerStartVariables(shell string, commands []string) (entrypoint []string, cmds []string, binds []string) {
+	entrypoint = make([]string, 0)
+	cmds = make([]string, 0)
+	binds = make([]string, 0)
+
+	if len(commands) > 0 {
+		// generate entrypoint script
+		path, extension, err := dr.generateEntrypointScript(shell, commands)
+		if runtime.GOOS != "windows" && err == nil {
+			// use generated entrypoint script for executing commands
+			entrypointScriptPath := fmt.Sprintf("/estafette-entrypoint.%v", extension)
+			entrypoint = []string{entrypointScriptPath}
+			binds = append(binds, fmt.Sprintf("%v:%v", path, entrypointScriptPath))
+		} else {
+			// generating entrypoint script failed, do it in the old way
+
+			// define entrypoint
+			entrypoint = []string{shell}
+			if runtime.GOOS == "windows" && shell == "powershell" {
+				entrypoint = append(entrypoint, "-Command")
+			} else if runtime.GOOS == "windows" && shell == "cmd" {
+				entrypoint = append(entrypoint, "/S", "/C")
+			} else {
+				entrypoint = append(entrypoint, "-c")
+			}
+
+			// define commands
+			cmdStopOnErrorFlag := ""
+			cmdSeparator := ";"
+			if runtime.GOOS == "windows" && shell == "powershell" {
+				cmdStopOnErrorFlag = "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue'; "
+				if dr.config.DockerDaemonMTU != nil && *dr.config.DockerDaemonMTU != "" {
+					mtu, err := strconv.Atoi(*dr.config.DockerDaemonMTU)
+					if err == nil {
+						mtu -= 50
+						cmdStopOnErrorFlag += fmt.Sprintf("Write-Host 'Updating MTU to %v...'; Get-NetAdapter | Where-Object Name -like \"*Ethernet*\" | ForEach-Object { & netsh interface ipv4 set subinterface $_.InterfaceIndex mtu=%v store=persistent }; ", mtu, mtu)
+					}
+				}
+				cmdSeparator = ";"
+			} else if runtime.GOOS == "windows" && shell == "cmd" {
+				cmdStopOnErrorFlag = ""
+				cmdSeparator = " && "
+			} else {
+				cmdStopOnErrorFlag = "set -e; "
+				cmdSeparator = ";"
+			}
+			cmds = append(cmds, cmdStopOnErrorFlag+strings.Join(commands, cmdSeparator))
+		}
+	}
+
+	return
+}
+
+func (dr *dockerRunnerImpl) generateExtensionEnvvars(customProperties map[string]interface{}, envvars map[string]string) (extensionEnvVars map[string]string) {
+	extensionEnvVars = map[string]string{}
+	if customProperties != nil && len(customProperties) > 0 {
+		for k, v := range customProperties {
+			extensionkey := dr.envvarHelper.getEstafetteEnvvarName(fmt.Sprintf("ESTAFETTE_EXTENSION_%v", dr.envvarHelper.toUpperSnake(k)))
+
+			if s, isString := v.(string); isString {
+				// if custom property is of type string add the envvar
+				extensionEnvVars[extensionkey] = s
+			} else if s, isBool := v.(bool); isBool {
+				// if custom property is of type bool add the envvar
+				extensionEnvVars[extensionkey] = strconv.FormatBool(s)
+			} else if s, isInt := v.(int); isInt {
+				// if custom property is of type bool add the envvar
+				extensionEnvVars[extensionkey] = strconv.FormatInt(int64(s), 10)
+			} else if s, isFloat := v.(float64); isFloat {
+				// if custom property is of type bool add the envvar
+				extensionEnvVars[extensionkey] = strconv.FormatFloat(float64(s), 'f', -1, 64)
+
+			} else if i, isInterfaceArray := v.([]interface{}); isInterfaceArray {
+				// check whether all array items are of type string
+				valid := true
+				stringValues := []string{}
+				for _, iv := range i {
+					if s, isString := iv.(string); isString {
+						stringValues = append(stringValues, s)
+					} else {
+						valid = false
+						break
+					}
+				}
+
+				if valid {
+					// if all array items are string, pass as comma-separated list to extension
+					extensionEnvVars[extensionkey] = strings.Join(stringValues, ",")
+				} else {
+					log.Warn().Interface("customProperty", v).Msgf("Cannot turn custom property %v into extension envvar", k)
+				}
+			} else {
+				log.Warn().Interface("customProperty", v).Msgf("Cannot turn custom property %v of type %v into extension envvar", k, reflect.TypeOf(v))
+			}
+		}
+
+		// add envvar to custom properties
+		customProperties := customProperties
+		customProperties["env"] = envvars
+
+		// also add add custom properties as json object in ESTAFETTE_EXTENSION_CUSTOM_PROPERTIES envvar
+		customPropertiesBytes, err := json.Marshal(customProperties)
+		if err == nil {
+			extensionEnvVars["ESTAFETTE_EXTENSION_CUSTOM_PROPERTIES"] = string(customPropertiesBytes)
+		} else {
+			log.Warn().Err(err).Interface("customProperty", customProperties).Msg("Cannot marshal custom properties for ESTAFETTE_EXTENSION_CUSTOM_PROPERTIES envvar")
+		}
+
+		// also add add custom properties as json object in ESTAFETTE_EXTENSION_CUSTOM_PROPERTIES_YAML envvar
+		customPropertiesYamlBytes, err := yaml.Marshal(customProperties)
+		if err == nil {
+			extensionEnvVars["ESTAFETTE_EXTENSION_CUSTOM_PROPERTIES_YAML"] = string(customPropertiesYamlBytes)
+		} else {
+			log.Warn().Err(err).Interface("customProperty", customProperties).Msg("Cannot marshal custom properties for ESTAFETTE_EXTENSION_CUSTOM_PROPERTIES_YAML envvar")
+		}
+	}
+
+	return
+}
+
+func (dr *dockerRunnerImpl) generateCredentialsEnvvars(trustedImage *contracts.TrustedImageConfig) (credentialEnvVars map[string]string) {
+	credentialEnvVars = map[string]string{}
+	if trustedImage != nil {
+		// add credentials as ESTAFETTE_CREDENTIALS_... envvar with snake cased credential type so they can be unmarshalled separately in the image
+
+		credentialMap := dr.config.GetCredentialsForTrustedImage(*trustedImage)
+		for credentialType, credentialsForType := range credentialMap {
+
+			credentialkey := dr.envvarHelper.getEstafetteEnvvarName(fmt.Sprintf("ESTAFETTE_CREDENTIALS_%v", dr.envvarHelper.toUpperSnake(credentialType)))
+
+			// convert credentialsForType to json string
+			credentialsForTypeBytes, err := json.Marshal(credentialsForType)
+			if err != nil {
+				log.Warn().Err(err).Msgf("Failed to marshal credentials of type %v for envvar %v", credentialType, credentialkey)
+			}
+
+			// set envvar
+			credentialEnvVars[credentialkey] = string(credentialsForTypeBytes)
+
+			log.Debug().Msgf("Set envvar %v to credentials of type %v", credentialkey, credentialType)
+		}
+	}
+
+	return
 }

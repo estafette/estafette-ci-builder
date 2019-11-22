@@ -33,6 +33,8 @@ stages:
         repositories:
         - estafette
         path: ./publish
+        copy:
+        - templates
 
       bake-gocd-agent:
         image: extensions/docker:dev
@@ -42,6 +44,8 @@ stages:
         repositories:
         - estafette
         path: ./publish
+        copy:
+        - templates
         dockerfile: Dockerfile.gocd
 
   clean-working-directory:
