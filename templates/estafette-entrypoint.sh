@@ -1,9 +1,10 @@
 #!{{.Shell}}
 set -e
 
-trap "kill $!" 15
+trap 'echo "Forwarding SIGTERM..."; kill $pid' 15
 
 {{range .Commands}}
 {{.}} &
-wait
+pid=$!
+wait $pid
 {{end}}
