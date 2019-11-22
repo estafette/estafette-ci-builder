@@ -1,6 +1,6 @@
-#!{{.Shell}}
+#!/bin/bash
 
-set -ex
+set -e
 
 # 15 - SIGTERM
 trap "graceful_exit" 15
