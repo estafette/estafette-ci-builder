@@ -3,9 +3,8 @@ set -e
 
 {{- range .Commands}}
 {{.}} &
-pid=$!
-trap "kill $pid; wait; exit" 1 2 15
-wait $pid
+trap "kill $!; wait; exit" 1 2 15
+wait
 {{- end}}
 
 exec {{.FinalCommand}}

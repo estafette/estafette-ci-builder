@@ -177,7 +177,7 @@ func TestGenerateEntrypointScript(t *testing.T) {
 
 		bytes, err := ioutil.ReadFile(path)
 		assert.Nil(t, err)
-		assert.Equal(t, "#!/bin/sh\nset -e\ngo test ./... &\npid=$!\ntrap \"kill $pid; wait; exit\" 1 2 15\nwait $pid\n\nexec go build", string(bytes))
+		assert.Equal(t, "#!/bin/sh\nset -e\ngo test ./... &\ntrap \"kill $!; wait; exit\" 1 2 15\nwait\n\nexec go build", string(bytes))
 	})
 }
 
