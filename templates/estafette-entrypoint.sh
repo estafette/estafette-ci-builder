@@ -3,12 +3,13 @@
 set -e
 
 forward_sigterm() {
-    echo "Received SIGTERM, forwarding to forked processes..."
-    trap - 15
-    kill -- -$$
+    echo "Received SIGTERM, forwarding to child processes..."
+    ps aux
+    trap - TERM
+    pkill -P $$
 }
 
-trap forward_sigterm 15
+trap forward_sigterm TERM
 
 {{range .Commands}}
     {{- .}}
