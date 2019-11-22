@@ -4,7 +4,7 @@ set -e
 
 forward_sigterm() {
     echo "Received SIGTERM, forwarding to child processes..."
-    ps aux
+    ps -o pid,ppid,pgid,gid,user,command
     trap - TERM
     pkill -P $$
 }
