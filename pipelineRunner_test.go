@@ -334,6 +334,7 @@ func TestRunStage(t *testing.T) {
 		// act
 		go pipelineRunner.StopPipelineOnCancellation()
 		cancellationChannel <- struct{}{}
+		time.Sleep(10 * time.Millisecond)
 		err := pipelineRunner.RunStage(context.Background(), depth, runIndex, dir, envvars, parentStage, stage)
 
 		assert.Nil(t, err)
@@ -380,6 +381,7 @@ func TestRunStage(t *testing.T) {
 		// act
 		go pipelineRunner.StopPipelineOnCancellation()
 		cancellationChannel <- struct{}{}
+		time.Sleep(10 * time.Millisecond)
 		err := pipelineRunner.RunStage(context.Background(), depth, runIndex, dir, envvars, parentStage, stage)
 
 		assert.NotNil(t, err)
@@ -1056,6 +1058,7 @@ func TestRunService(t *testing.T) {
 		// act
 		go pipelineRunner.StopPipelineOnCancellation()
 		cancellationChannel <- struct{}{}
+		time.Sleep(10 * time.Millisecond)
 		err := pipelineRunner.RunService(context.Background(), envvars, parentStage, service)
 
 		// wait for tailContainerLogsFunc to finish
@@ -1113,6 +1116,7 @@ func TestRunService(t *testing.T) {
 		// act
 		go pipelineRunner.StopPipelineOnCancellation()
 		cancellationChannel <- struct{}{}
+		time.Sleep(10 * time.Millisecond)
 		err := pipelineRunner.RunService(context.Background(), envvars, parentStage, service)
 
 		// wait for tailContainerLogsFunc to finish
@@ -1456,6 +1460,7 @@ func TestRunStages(t *testing.T) {
 		// act
 		go pipelineRunner.StopPipelineOnCancellation()
 		cancellationChannel <- struct{}{}
+		time.Sleep(10 * time.Millisecond)
 		buildLogSteps, _ := pipelineRunner.RunStages(context.Background(), depth, stages, dir, envvars)
 
 		if assert.Equal(t, 3, len(buildLogSteps)) {
