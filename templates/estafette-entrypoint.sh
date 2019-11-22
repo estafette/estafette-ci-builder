@@ -14,6 +14,7 @@ forward_sigterm() {
 # 3  - SIGQUIT
 # 15 - SIGTERM
 trap "forward_sigterm" 2 3 15
+trap "echo 'caught signal'" 2 3 15
 trap
 
 {{range .Commands}}
