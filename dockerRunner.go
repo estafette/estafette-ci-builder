@@ -925,8 +925,6 @@ func (dr *dockerRunnerImpl) initContainerStartVariables(shell string, commands [
 			entrypointScriptPath := fmt.Sprintf("/estafette-entrypoint.%v", extension)
 			entrypoint = []string{entrypointScriptPath}
 			binds = append(binds, fmt.Sprintf("%v:%v", path, entrypointScriptPath))
-			// ensure pkill is available in any docker container to send sigterm to child processes
-			binds = append(binds, "/usr/bin/pkill:/usr/bin/pkill")
 		} else {
 			// generating entrypoint script failed, do it in the old way
 			log.Warn().Err(err).Msgf("Generating entrypoint script failed, setting up entrypoint and command in old style")
