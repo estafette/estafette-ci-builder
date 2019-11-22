@@ -156,7 +156,10 @@ stages:
                     "WorkingDirectory":"/estafette-work",
                     "Commands":[
                       "go test ./...",
-                      "go build -v -ldflags \"-X main.version=${ESTAFETTE_BUILD_VERSION} -X main.revision=${ESTAFETTE_GIT_REVISION} -X main.branch=${ESTAFETTE_GIT_BRANCH} -X main.buildDate=${ESTAFETTE_BUILD_DATETIME}\" -o ./publish/${ESTAFETTE_GIT_NAME}"
+                      "go build -v -ldflags \"-X main.version=${ESTAFETTE_BUILD_VERSION} -X main.revision=${ESTAFETTE_GIT_REVISION} -X main.branch=${ESTAFETTE_GIT_BRANCH} -X main.buildDate=${ESTAFETTE_BUILD_DATETIME}\" -o ./publish/${ESTAFETTE_GIT_NAME}",
+                      "echo $PWD",
+                      "ls -latr",
+                      "ls -latr ./publish"
                     ],
                     "When":"status == ''succeeded''",
                     "EnvVars":{
