@@ -2,17 +2,23 @@ package main
 
 import (
 	"context"
+	"io/ioutil"
+	"strings"
+	"testing"
 
 	"github.com/docker/docker/client"
+	contracts "github.com/estafette/estafette-ci-contracts"
+	crypt "github.com/estafette/estafette-ci-crypt"
 	manifest "github.com/estafette/estafette-ci-manifest"
+	"github.com/stretchr/testify/assert"
 )
 
 type dockerRunnerMockImpl struct {
 	isImagePulledFunc                func(stageName string, containerImage string) bool
 	pullImageFunc                    func(ctx context.Context, stageName string, containerImage string) error
 	getImageSizeFunc                 func(containerImage string) (int64, error)
-	startStageContainerFunc          func(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, p manifest.EstafetteStage) (containerID string, err error)
-	startServiceContainerFunc        func(ctx context.Context, envvars map[string]string, parentStage *manifest.EstafetteStage, service manifest.EstafetteService) (containerID string, err error)
+	startStageContainerFunc          func(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, stage manifest.EstafetteStage) (containerID string, err error)
+	startServiceContainerFunc        func(ctx context.Context, envvars map[string]string, service manifest.EstafetteService) (containerID string, err error)
 	runReadinessProbeContainerFunc   func(ctx context.Context, parentStage manifest.EstafetteStage, service manifest.EstafetteService, readiness manifest.ReadinessProbe) (err error)
 	tailContainerLogsFunc            func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error)
 	stopServiceContainersFunc        func(ctx context.Context, parentStage manifest.EstafetteStage)
@@ -47,18 +53,18 @@ func (d *dockerRunnerMockImpl) GetImageSize(containerImage string) (int64, error
 	return d.getImageSizeFunc(containerImage)
 }
 
-func (d *dockerRunnerMockImpl) StartStageContainer(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, p manifest.EstafetteStage) (containerID string, err error) {
+func (d *dockerRunnerMockImpl) StartStageContainer(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, stage manifest.EstafetteStage) (containerID string, err error) {
 	if d.startStageContainerFunc == nil {
 		return "abc", nil
 	}
-	return d.startStageContainerFunc(ctx, depth, runIndex, dir, envvars, parentStage, p)
+	return d.startStageContainerFunc(ctx, depth, runIndex, dir, envvars, stage)
 }
 
-func (d *dockerRunnerMockImpl) StartServiceContainer(ctx context.Context, envvars map[string]string, parentStage *manifest.EstafetteStage, service manifest.EstafetteService) (containerID string, err error) {
+func (d *dockerRunnerMockImpl) StartServiceContainer(ctx context.Context, envvars map[string]string, service manifest.EstafetteService) (containerID string, err error) {
 	if d.startServiceContainerFunc == nil {
 		return "abc", nil
 	}
-	return d.startServiceContainerFunc(ctx, envvars, parentStage, service)
+	return d.startServiceContainerFunc(ctx, envvars, service)
 }
 
 func (d *dockerRunnerMockImpl) RunReadinessProbeContainer(ctx context.Context, parentStage manifest.EstafetteStage, service manifest.EstafetteService, readiness manifest.ReadinessProbe) (err error) {
@@ -132,4 +138,58 @@ func (d *dockerRunnerMockImpl) DeleteBridgeNetwork(ctx context.Context) error {
 		return nil
 	}
 	return d.deleteBridgeNetworkFunc(ctx)
+}
+
+func TestGenerateEntrypointScript(t *testing.T) {
+
+	t.Run("ReturnsVariablesForOneCommand", func(t *testing.T) {
+
+		dockerRunner := dockerRunnerImpl{
+			entrypointTemplateDir: "./templates",
+			entrypointTargetDir:   "",
+		}
+
+		// act
+		path, extension, err := dockerRunner.generateEntrypointScript("/bin/sh", []string{"go test ./..."})
+
+		assert.Nil(t, err)
+		assert.True(t, strings.Contains(path, "estafette-entrypoint-"))
+		assert.Equal(t, extension, "sh")
+
+		bytes, err := ioutil.ReadFile(path)
+		assert.Nil(t, err)
+		assert.Equal(t, "#!/bin/sh\nset -e\n\nexec go test ./...", string(bytes))
+	})
+
+	t.Run("ReturnsVariablesForTwoOrMoreCommands", func(t *testing.T) {
+
+		dockerRunner := dockerRunnerImpl{
+			entrypointTemplateDir: "./templates",
+			entrypointTargetDir:   "",
+		}
+
+		// act
+		path, extension, err := dockerRunner.generateEntrypointScript("/bin/sh", []string{"go test ./...", "go build"})
+
+		assert.Nil(t, err)
+		assert.True(t, strings.Contains(path, "estafette-entrypoint-"))
+		assert.Equal(t, extension, "sh")
+
+		bytes, err := ioutil.ReadFile(path)
+		assert.Nil(t, err)
+		assert.Equal(t, "#!/bin/sh\nset -e\ngo test ./... &\npid=$!\ntrap \"kill $pid; wait; exit\" 1 2 15\nwait $pid\n\nexec go build", string(bytes))
+	})
+}
+
+func getDockerRunnerAndMocks() (chan contracts.TailLogLine, DockerRunner) {
+
+	secretHelper := crypt.NewSecretHelper("SazbwMf3NZxVVbBqQHebPcXCqrVn3DDp", false)
+	envvarHelper := NewEnvvarHelper("TESTPREFIX_", secretHelper, obfuscator)
+	obfuscator := NewObfuscator(secretHelper)
+	config := contracts.BuilderConfig{}
+	tailLogsChannel := make(chan contracts.TailLogLine, 10000)
+
+	dockerRunner := NewDockerRunner(envvarHelper, obfuscator, config, tailLogsChannel)
+
+	return tailLogsChannel, dockerRunner
 }

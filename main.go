@@ -169,7 +169,7 @@ func main() {
 
 	// bootstrap continued
 	tailLogsChannel := make(chan contracts.TailLogLine, 10000)
-	dockerRunner := NewDockerRunner(envvarHelper, obfuscator, *runAsJob, builderConfig, cancellationChannel, tailLogsChannel)
+	dockerRunner := NewDockerRunner(envvarHelper, obfuscator, builderConfig, tailLogsChannel)
 	pipelineRunner := NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner, *runAsJob, cancellationChannel, tailLogsChannel)
 	endOfLifeHelper := NewEndOfLifeHelper(*runAsJob, builderConfig, *podName)
 

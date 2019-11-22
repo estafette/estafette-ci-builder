@@ -9,7 +9,7 @@ RUN mkdir -p /estafette-entrypoints
 
 # copy builder
 COPY ${ESTAFETTE_GIT_NAME} /usr/bin/
-COPY templates /estafette-templates
+COPY templates /entrypoint-templates
 
 ENV ESTAFETTE_CI_SERVER="gocd" \
     DOCKER_API_VERSION="1.38" \

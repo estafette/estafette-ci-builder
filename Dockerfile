@@ -8,7 +8,7 @@ RUN addgroup docker \
 
 # copy builder & startup script
 COPY ${ESTAFETTE_GIT_NAME} /
-COPY templates /estafette-templates
+COPY templates /entrypoint-templates
 
 ENV ESTAFETTE_CI_SERVER="estafette" \
     ESTAFETTE_WORKDIR="/estafette-work" \

@@ -89,7 +89,7 @@ func (pr *pipelineRunnerImpl) RunStage(ctx context.Context, depth int, runIndex 
 		}
 	} else {
 		var containerID string
-		containerID, err = pr.dockerRunner.StartStageContainer(ctx, depth, runIndex, dir, envvars, parentStage, stage)
+		containerID, err = pr.dockerRunner.StartStageContainer(ctx, depth, runIndex, dir, envvars, stage)
 		if err != nil {
 			return
 		}
@@ -225,7 +225,7 @@ func (pr *pipelineRunnerImpl) RunService(ctx context.Context, envvars map[string
 	}
 
 	var containerID string
-	containerID, err = pr.dockerRunner.StartServiceContainer(ctx, envvars, &parentStage, service)
+	containerID, err = pr.dockerRunner.StartServiceContainer(ctx, envvars, service)
 	if err != nil {
 		return
 	}

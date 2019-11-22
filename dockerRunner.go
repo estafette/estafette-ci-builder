@@ -36,8 +36,8 @@ type DockerRunner interface {
 	IsTrustedImage(stageName string, containerImage string) bool
 	PullImage(ctx context.Context, stageName string, containerImage string) error
 	GetImageSize(containerImage string) (int64, error)
-	StartStageContainer(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, p manifest.EstafetteStage) (containerID string, err error)
-	StartServiceContainer(ctx context.Context, envvars map[string]string, parentStage *manifest.EstafetteStage, service manifest.EstafetteService) (containerID string, err error)
+	StartStageContainer(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, stage manifest.EstafetteStage) (containerID string, err error)
+	StartServiceContainer(ctx context.Context, envvars map[string]string, service manifest.EstafetteService) (containerID string, err error)
 	RunReadinessProbeContainer(ctx context.Context, parentStage manifest.EstafetteStage, service manifest.EstafetteService, readiness manifest.ReadinessProbe) (err error)
 	TailContainerLogs(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error)
 	StopServiceContainers(ctx context.Context, parentStage manifest.EstafetteStage)
@@ -50,29 +50,29 @@ type DockerRunner interface {
 }
 
 type dockerRunnerImpl struct {
-	envvarHelper        EnvvarHelper
-	obfuscator          Obfuscator
-	dockerClient        *client.Client
-	runAsJob            bool
-	config              contracts.BuilderConfig
-	cancellationChannel chan struct{}
-	tailLogsChannel     chan contracts.TailLogLine
-	runningContainerIDs []string
-	networkBridge       string
-	networkBridgeID     string
+	envvarHelper          EnvvarHelper
+	obfuscator            Obfuscator
+	dockerClient          *client.Client
+	config                contracts.BuilderConfig
+	tailLogsChannel       chan contracts.TailLogLine
+	runningContainerIDs   []string
+	networkBridge         string
+	networkBridgeID       string
+	entrypointTemplateDir string
+	entrypointTargetDir   string
 }
 
 // NewDockerRunner returns a new DockerRunner
-func NewDockerRunner(envvarHelper EnvvarHelper, obfuscator Obfuscator, runAsJob bool, config contracts.BuilderConfig, cancellationChannel chan struct{}, tailLogsChannel chan contracts.TailLogLine) DockerRunner {
+func NewDockerRunner(envvarHelper EnvvarHelper, obfuscator Obfuscator, config contracts.BuilderConfig, tailLogsChannel chan contracts.TailLogLine) DockerRunner {
 	return &dockerRunnerImpl{
-		envvarHelper:        envvarHelper,
-		obfuscator:          obfuscator,
-		runAsJob:            runAsJob,
-		config:              config,
-		cancellationChannel: cancellationChannel,
-		tailLogsChannel:     tailLogsChannel,
-		runningContainerIDs: make([]string, 0),
-		networkBridge:       "estafette",
+		envvarHelper:          envvarHelper,
+		obfuscator:            obfuscator,
+		config:                config,
+		tailLogsChannel:       tailLogsChannel,
+		runningContainerIDs:   make([]string, 0),
+		networkBridge:         "estafette",
+		entrypointTemplateDir: "/entrypoint-templates",
+		entrypointTargetDir:   "/estafette-entrypoints",
 	}
 }
 
@@ -131,31 +131,31 @@ func (dr *dockerRunnerImpl) GetImageSize(containerImage string) (totalSize int64
 	return totalSize, nil
 }
 
-func (dr *dockerRunnerImpl) StartStageContainer(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, p manifest.EstafetteStage) (containerID string, err error) {
+func (dr *dockerRunnerImpl) StartStageContainer(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, stage manifest.EstafetteStage) (containerID string, err error) {
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "StartStageContainer")
 	defer span.Finish()
-	span.SetTag("docker-image", p.ContainerImage)
+	span.SetTag("docker-image", stage.ContainerImage)
 
 	// check if image is trusted image
-	trustedImage := dr.config.GetTrustedImage(p.ContainerImage)
+	trustedImage := dr.config.GetTrustedImage(stage.ContainerImage)
 
-	entrypoint, cmds, binds := dr.initContainerStartVariables(p.Shell, p.Commands)
+	entrypoint, cmds, binds := dr.initContainerStartVariables(stage.Shell, stage.Commands)
 
 	// add custom properties as ESTAFETTE_EXTENSION_... envvar
-	extensionEnvVars := dr.generateExtensionEnvvars(p.CustomProperties, p.EnvVars)
+	extensionEnvVars := dr.generateExtensionEnvvars(stage.CustomProperties, stage.EnvVars)
 
 	// add credentials if trusted image with injectedCredentialTypes
 	credentialEnvVars := dr.generateCredentialsEnvvars(trustedImage)
 
 	// add stage name to envvars
-	if p.EnvVars == nil {
-		p.EnvVars = map[string]string{}
+	if stage.EnvVars == nil {
+		stage.EnvVars = map[string]string{}
 	}
-	p.EnvVars["ESTAFETTE_STAGE_NAME"] = p.Name
+	stage.EnvVars["ESTAFETTE_STAGE_NAME"] = stage.Name
 
-	// combine and override estafette and global envvars with pipeline envvars
-	combinedEnvVars := dr.envvarHelper.overrideEnvvars(envvars, p.EnvVars, extensionEnvVars, credentialEnvVars)
+	// combine and override estafette and global envvars with stage envvars
+	combinedEnvVars := dr.envvarHelper.overrideEnvvars(envvars, stage.EnvVars, extensionEnvVars, credentialEnvVars)
 
 	// decrypt secrets in all envvars
 	combinedEnvVars = dr.envvarHelper.decryptSecrets(combinedEnvVars)
@@ -169,7 +169,7 @@ func (dr *dockerRunnerImpl) StartStageContainer(ctx context.Context, depth int, 
 	}
 
 	// define binds
-	binds = append(binds, fmt.Sprintf("%v:%v", dir, os.Expand(p.WorkingDirectory, dr.envvarHelper.getEstafetteEnv)))
+	binds = append(binds, fmt.Sprintf("%v:%v", dir, os.Expand(stage.WorkingDirectory, dr.envvarHelper.getEstafetteEnv)))
 
 	// check if this is a trusted image with RunDocker set to true
 	if trustedImage != nil && trustedImage.RunDocker {
@@ -195,10 +195,10 @@ func (dr *dockerRunnerImpl) StartStageContainer(ctx context.Context, depth int, 
 		AttachStdout: true,
 		AttachStderr: true,
 		Env:          dockerEnvVars,
-		Image:        p.ContainerImage,
-		WorkingDir:   os.Expand(p.WorkingDirectory, dr.envvarHelper.getEstafetteEnv),
+		Image:        stage.ContainerImage,
+		WorkingDir:   os.Expand(stage.WorkingDirectory, dr.envvarHelper.getEstafetteEnv),
 	}
-	if len(p.Commands) > 0 {
+	if len(stage.Commands) > 0 {
 		if trustedImage != nil && !trustedImage.AllowCommands && len(trustedImage.InjectedCredentialTypes) > 0 {
 			// return stage as failed with error message indicating that this trusted image doesn't allow commands
 			err = fmt.Errorf("This trusted image does not allow for commands to be set as a protection against snooping injected credentials")
@@ -257,7 +257,7 @@ func (dr *dockerRunnerImpl) StartStageContainer(ctx context.Context, depth int, 
 	return
 }
 
-func (dr *dockerRunnerImpl) StartServiceContainer(ctx context.Context, envvars map[string]string, parentStage *manifest.EstafetteStage, service manifest.EstafetteService) (containerID string, err error) {
+func (dr *dockerRunnerImpl) StartServiceContainer(ctx context.Context, envvars map[string]string, service manifest.EstafetteService) (containerID string, err error) {
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "StartServiceContainer")
 	defer span.Finish()
@@ -861,11 +861,13 @@ func (dr *dockerRunnerImpl) DeleteBridgeNetwork(ctx context.Context) error {
 func (dr *dockerRunnerImpl) generateEntrypointScript(shell string, commands []string) (path string, extension string, err error) {
 
 	data := struct {
-		Shell    string
-		Commands []string
+		Shell        string
+		Commands     []string
+		FinalCommand string
 	}{
 		shell,
-		commands,
+		commands[:len(commands)-1],
+		commands[len(commands)-1],
 	}
 
 	extension = "sh"
@@ -875,7 +877,7 @@ func (dr *dockerRunnerImpl) generateEntrypointScript(shell string, commands []st
 		extension = "cmd"
 	}
 
-	templatePath := fmt.Sprintf("/estafette-templates/estafette-entrypoint.%v", extension)
+	templatePath := fmt.Sprintf("%v/estafette-entrypoint.%v", dr.entrypointTemplateDir, extension)
 
 	// read and parse template
 	entrypointTemplate, err := template.ParseFiles(templatePath)
@@ -884,7 +886,7 @@ func (dr *dockerRunnerImpl) generateEntrypointScript(shell string, commands []st
 	}
 
 	// create target file to render template to
-	targetFile, err := ioutil.TempFile("/estafette-entrypoints", "estafette-entrypoint-*.sh")
+	targetFile, err := ioutil.TempFile(dr.entrypointTargetDir, "estafette-entrypoint-*.sh")
 	if err != nil {
 		return "", extension, err
 	}
