@@ -5,6 +5,5 @@ set -ex
 {{.}} &
 pid=$!
 trap "kill $pid; wait; exit" 1 2 15
-ps
 wait $pid
 {{end}}
