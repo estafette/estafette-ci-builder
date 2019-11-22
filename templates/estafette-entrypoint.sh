@@ -4,13 +4,13 @@ set -e
 
 forward_sigterm() {
     echo "Received SIGTERM, forwarding to child processes..."
-    trap - 15
+    trap - TERM QUIT
     pkill -P $$
 }
-
-trap forward_sigterm 15
+trap 'forward_sigterm' TERM INT QUIT
+trap
 
 {{range .Commands}}
     {{- .}} &
-    wait
+    wait $!
 {{end}}
