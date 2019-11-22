@@ -402,6 +402,7 @@ func (dr *dockerRunnerImpl) RunReadinessProbeContainer(ctx context.Context, pare
 		"READINESS_PATH":            readiness.Path,
 		"READINESS_HOSTNAME":        readiness.Hostname,
 		"READINESS_TIMEOUT_SECONDS": strconv.Itoa(readiness.TimeoutSeconds),
+		"ESTAFETTE_LOG_FORMAT":      "console",
 	}
 
 	// decrypt secrets in all envvars

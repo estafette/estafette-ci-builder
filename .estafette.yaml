@@ -254,6 +254,7 @@ stages:
           ]
         }'
       SECRET_DECRYPTION_KEY: "8c6E5e7R8ameE2L6qxEcN5Yc3Q7P4Yd4"
+      ESTAFETTE_LOG_FORMAT: console
 
   push-all:
     parallelStages:

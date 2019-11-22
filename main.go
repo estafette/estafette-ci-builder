@@ -55,12 +55,18 @@ func main() {
 	// parse command line parameters
 	kingpin.Parse()
 
+	logFormat := os.Getenv("ESTAFETTE_LOG_FORMAT")
+	switch logFormat {
+	case "v3":
+		foundation.InitV3Logging(appgroup, app, version, branch, revision, buildDate)
+	case "console":
+		foundation.InitConsoleLogging(appgroup, app, version, branch, revision, buildDate)
+	default:
+		foundation.InitConsoleLogging(appgroup, app, version, branch, revision, buildDate)
+	}
+
 	// this builder binary is mounted inside a scratch container to run as a readiness probe against service containers
 	if *runAsReadinessProbe {
-
-		// configure plain text logging
-		foundation.InitConsoleLogging(appgroup, app, version, branch, revision, buildDate)
-
 		err := waitForReadiness(*readinessProtocol, *readinessHost, *readinessPort, *readinessPath, *readinessHostname, *readinessTimeoutSeconds)
 		if err != nil {
 			log.Fatal().Err(err).Msgf("Readiness probe failed")
@@ -101,17 +107,6 @@ func main() {
 
 	// detect controlling server
 	ciServer := envvarHelper.getCiServer()
-
-	if ciServer != "estafette" {
-
-		// configure plain text logging
-		foundation.InitConsoleLogging(appgroup, app, version, branch, revision, buildDate)
-
-	} else {
-
-		// configure json logging
-		foundation.InitV3Logging(appgroup, app, version, branch, revision, buildDate)
-	}
 
 	// read builder config either from file or envvar
 	var builderConfigJSON []byte
