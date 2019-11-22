@@ -59,6 +59,8 @@ func main() {
 	switch logFormat {
 	case "v3":
 		foundation.InitV3Logging(appgroup, app, version, branch, revision, buildDate)
+	case "stackdriver":
+		foundation.InitStackdriverLogging(appgroup, app, version, branch, revision, buildDate)
 	case "console":
 		foundation.InitConsoleLogging(appgroup, app, version, branch, revision, buildDate)
 	default:
