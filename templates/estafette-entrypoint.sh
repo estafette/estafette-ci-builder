@@ -12,5 +12,6 @@ forward_sigterm() {
 trap forward_sigterm TERM
 
 {{range .Commands}}
-    {{- .}}
+    {{- .}} &
+    wait
 {{end}}
