@@ -1,6 +1,6 @@
 #!{{.Shell}}
 
-set -e
+set -ex
 
 forward_sigterm() {
     echo "Received SIGTERM, forwarding to forked processes"
