@@ -902,6 +902,12 @@ func (dr *dockerRunnerImpl) generateEntrypointScript(shell string, commands []st
 		}
 	}
 
+	bytes, err := ioutil.ReadFile(path)
+	if err != nil {
+		return "", extension, err
+	}
+	log.Debug().Str("entrypoint", string(bytes)).Msgf("Inspecting entrypoint script at %v", path)
+
 	return path, extension, nil
 }
 
@@ -920,6 +926,7 @@ func (dr *dockerRunnerImpl) initContainerStartVariables(shell string, commands [
 			binds = append(binds, fmt.Sprintf("%v:%v", path, entrypointScriptPath))
 		} else {
 			// generating entrypoint script failed, do it in the old way
+			log.Warn().Err(err).Msgf("Generating entrypoint script failed, setting up entrypoint and command in old style")
 
 			// define entrypoint
 			entrypoint = []string{shell}
