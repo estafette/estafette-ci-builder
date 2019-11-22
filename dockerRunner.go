@@ -863,9 +863,11 @@ func (dr *dockerRunnerImpl) generateEntrypointScript(shell string, commands []st
 	data := struct {
 		Shell    string
 		Commands []string
+		UseExec  bool
 	}{
 		shell,
 		commands,
+		len(commands) == 1,
 	}
 
 	extension = "sh"
