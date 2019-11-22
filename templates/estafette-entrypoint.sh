@@ -1,7 +1,7 @@
 #!{{.Shell}}
 set -e
 
-trap "kill -TERM $!" 0 1 2 15
+trap "kill $!" 15
 
 {{range .Commands}}
 {{.}} &
