@@ -12,7 +12,7 @@ COPY templates /estafette-templates
 
 ENV ESTAFETTE_CI_SERVER="estafette" \
     ESTAFETTE_WORKDIR="/estafette-work" \
-    ESTAFETTE_LOG_FORMAT="console"
+    ESTAFETTE_LOG_FORMAT="v3"
 
 WORKDIR ${ESTAFETTE_WORKDIR}
 

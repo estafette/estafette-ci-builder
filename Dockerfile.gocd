@@ -13,4 +13,4 @@ COPY templates /estafette-templates
 
 ENV ESTAFETTE_CI_SERVER="gocd" \
     DOCKER_API_VERSION="1.38" \
-    ESTAFETTE_LOG_FORMAT="v3"
+    ESTAFETTE_LOG_FORMAT="console"
