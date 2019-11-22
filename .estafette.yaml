@@ -120,6 +120,25 @@ stages:
                       "Port": 80,
                       "Protocol": "http"
                     }
+                  },
+                  {
+                    "Name": "cockroachdb",
+                    "ContainerImage": "cockroachdb/cockroach:v19.2.0",
+                    "Commands":[
+                      "/cockroach/cockroach start-single-node --insecure --advertise-addr cockroachdb --logtostderr"
+                    ],
+                    "EnvVars":{
+                      "COCKROACH_SKIP_ENABLING_DIAGNOSTIC_REPORTING":"true"
+                    },
+                    "Shell":"/bin/sh",
+                    "When":"status == ''succeeded''",
+                    "Readiness": {
+                      "Path": "/health?ready=1",
+                      "TimeoutSeconds": 30,
+                      "Hostname": "cockroachdb",
+                      "Port": 8080,
+                      "Protocol": "http"
+                    }
                   }
                 ]
               },
