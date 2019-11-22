@@ -1,8 +1,8 @@
 #!{{.Shell}}
-set -e
+set -ex
 
 {{range .Commands}}
 {{.}} &
-trap "kill $!" 15
+trap "echo 'Trapped signal...'; kill $!" 0 1 2 15
 wait
 {{end}}
