@@ -1,10 +1,9 @@
 #!{{.Shell}}
 set -e
 
-trap "kill $pid; wait; exit" 1 2 15
-
 {{range .Commands}}
 {{.}} &
 pid=$!
+trap "kill $pid; wait; exit" 1 2 15
 wait $pid
 {{end}}
