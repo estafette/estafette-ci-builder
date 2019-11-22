@@ -2,22 +2,15 @@
 
 set -ex
 
-forward_sigterm() {
+# 15 - SIGTERM
+trap "graceful_exit" 15
+
+graceful_exit() {
     echo "Received SIGTERM, forwarding to child processes..."
-    trap - 2 3 15
+    trap - 15
     pkill -P $$
-    sleep 1
     exit 0
 }
-
-# 2  - SIGINT
-# 3  - SIGQUIT
-# 15 - SIGTERM
-trap "forward_sigterm" 2 3 15
-trap "echo 2" 2
-trap "echo 3" 3
-trap "echo 15" 15
-trap
 
 {{range .Commands}}
     {{- .}} &
