@@ -1,9 +1,9 @@
 #!{{.Shell}}
 
-set -ex
+set -e
 
 forward_sigterm() {
-    echo "Received SIGTERM, forwarding to forked processes"
+    echo "Received SIGTERM, forwarding to forked processes..."
     trap - 15
     kill -- -$$
 }
