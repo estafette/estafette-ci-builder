@@ -244,11 +244,13 @@ func main() {
 			Steps:        make([]*contracts.BuildLogStep, 0),
 		}
 
-		// set some default fields added to all logs
-		log.Logger = log.Logger.With().
-			Str("jobName", *builderConfig.JobName).
-			Interface("git", builderConfig.Git).
-			Logger()
+		if logFormat == "v3" {
+			// set some default fields added to all logs
+			log.Logger = log.Logger.With().
+				Str("jobName", *builderConfig.JobName).
+				Interface("git", builderConfig.Git).
+				Logger()
+		}
 
 		if runtime.GOOS == "windows" {
 			if builderConfig.DockerDaemonMTU != nil && *builderConfig.DockerDaemonMTU != "" {
