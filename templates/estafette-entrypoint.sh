@@ -4,7 +4,7 @@ set -ex
 {{range .Commands}}
 {{.}} &
 pid=$!
-trap "kill $pid" 1 2 15
+trap "kill $pid; wait; exit" 1 2 15
 ps
 wait $pid
 {{end}}
