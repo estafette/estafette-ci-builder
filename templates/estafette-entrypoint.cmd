@@ -1,0 +1,3 @@
+{{range .Commands}}
+    {{- .}}
+{{end}}
