@@ -130,7 +130,7 @@ stages:
                     "EnvVars":{
                       "COCKROACH_SKIP_ENABLING_DIAGNOSTIC_REPORTING":"true"
                     },
-                    "Shell":"/bin/bash",
+                    "Shell":"/bin/sh",
                     "When":"status == ''succeeded''",
                     "Readiness": {
                       "Path": "/health?ready=1",
