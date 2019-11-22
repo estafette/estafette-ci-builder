@@ -125,7 +125,7 @@ stages:
                     "Name": "cockroachdb",
                     "ContainerImage": "cockroachdb/cockroach:v19.2.0",
                     "Commands":[
-                      "/cockroach/cockroach start-single-node --insecure --advertise-addr cockroachdb --logtostderr"
+                      "/cockroach/cockroach start-single-node --insecure --advertise-addr cockroachdb"
                     ],
                     "EnvVars":{
                       "COCKROACH_SKIP_ENABLING_DIAGNOSTIC_REPORTING":"true"
