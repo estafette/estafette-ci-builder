@@ -55,19 +55,8 @@ func main() {
 	// parse command line parameters
 	kingpin.Parse()
 
-	logFormat := os.Getenv("ESTAFETTE_LOG_FORMAT")
-	switch logFormat {
-	case "v3":
-		foundation.InitV3Logging(appgroup, app, version, branch, revision, buildDate)
-	case "json":
-		foundation.InitJSONLogging(appgroup, app, version, branch, revision, buildDate)
-	case "stackdriver":
-		foundation.InitStackdriverLogging(appgroup, app, version, branch, revision, buildDate)
-	case "console":
-		foundation.InitConsoleLogging(appgroup, app, version, branch, revision, buildDate)
-	default:
-		foundation.InitConsoleLogging(appgroup, app, version, branch, revision, buildDate)
-	}
+	// init log format from envvar ESTAFETTE_LOG_FORMAT
+	foundation.InitLoggingFromEnv(appgroup, app, version, branch, revision, buildDate)
 
 	// this builder binary is mounted inside a scratch container to run as a readiness probe against service containers
 	if *runAsReadinessProbe {
@@ -248,7 +237,7 @@ func main() {
 			Steps:        make([]*contracts.BuildLogStep, 0),
 		}
 
-		if logFormat == "v3" {
+		if os.Getenv("ESTAFETTE_LOG_FORMAT") == "v3" {
 			// set some default fields added to all logs
 			log.Logger = log.Logger.With().
 				Str("jobName", *builderConfig.JobName).
