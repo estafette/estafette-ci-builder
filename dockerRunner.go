@@ -867,7 +867,7 @@ func (dr *dockerRunnerImpl) generateEntrypointScript(shell string, commands []st
 
 	for _, c := range commands[:len(commands)-1] {
 		// check if the command is assigning a value, in which case it shouldn't be run in the background
-		match, err := regexp.MatchString("^[a-zA-Z0-9_]+=", c)
+		match, err := regexp.MatchString("[a-zA-Z0-9_]+=|&&|\\|\\|", c)
 		if err != nil {
 			log.Warn().Err(err).Msgf("Regex for checking whether command '%v' assigns a value failed", c)
 		}
