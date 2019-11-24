@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"os/user"
 	"reflect"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -859,15 +860,38 @@ func (dr *dockerRunnerImpl) DeleteBridgeNetwork(ctx context.Context) error {
 }
 
 func (dr *dockerRunnerImpl) generateEntrypointScript(shell string, commands []string) (path string, extension string, err error) {
+	firstCommands := []struct {
+		Command         string
+		RunInBackground bool
+	}{}
+
+	for _, c := range commands[:len(commands)-1] {
+		// check if the command is assigning a value, in which case it shouldn't be run in the background
+		match, err := regexp.MatchString("^[a-zA-Z0-9_]+=", c)
+		if err != nil {
+			log.Warn().Err(err).Msgf("Regex for checking whether command '%v' assigns a value failed", c)
+		}
+		runInBackground := (err == nil && !match) || err != nil
+
+		firstCommands = append(firstCommands, struct {
+			Command         string
+			RunInBackground bool
+		}{c, runInBackground})
+	}
+
+	lastCommand := commands[len(commands)-1]
 
 	data := struct {
-		Shell        string
-		Commands     []string
+		Shell    string
+		Commands []struct {
+			Command         string
+			RunInBackground bool
+		}
 		FinalCommand string
 	}{
 		shell,
-		commands[:len(commands)-1],
-		commands[len(commands)-1],
+		firstCommands,
+		lastCommand,
 	}
 
 	extension = "sh"
