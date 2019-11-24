@@ -150,7 +150,7 @@ func TestGenerateEntrypointScript(t *testing.T) {
 		}
 
 		// act
-		path, extension, err := dockerRunner.generateEntrypointScript("/bin/sh", []string{"go test ./..."})
+		path, extension, err := dockerRunner.generateEntrypointScript("/bin/sh", []string{"go test ./..."}, false)
 
 		assert.Nil(t, err)
 		assert.True(t, strings.Contains(path, "estafette-entrypoint-"))
@@ -169,7 +169,7 @@ func TestGenerateEntrypointScript(t *testing.T) {
 		}
 
 		// act
-		path, extension, err := dockerRunner.generateEntrypointScript("/bin/sh", []string{"go test ./...", "go build"})
+		path, extension, err := dockerRunner.generateEntrypointScript("/bin/sh", []string{"go test ./...", "go build"}, false)
 
 		assert.Nil(t, err)
 		assert.True(t, strings.Contains(path, "estafette-entrypoint-"))
@@ -188,7 +188,7 @@ func TestGenerateEntrypointScript(t *testing.T) {
 		}
 
 		// act
-		path, extension, err := dockerRunner.generateEntrypointScript("/bin/sh", []string{"go test ./...", "MY_TITLE_2=abc", "echo $MY_TITLE_2", "go build"})
+		path, extension, err := dockerRunner.generateEntrypointScript("/bin/sh", []string{"go test ./...", "MY_TITLE_2=abc", "echo $MY_TITLE_2", "go build"}, false)
 
 		assert.Nil(t, err)
 		assert.True(t, strings.Contains(path, "estafette-entrypoint-"))
@@ -197,6 +197,25 @@ func TestGenerateEntrypointScript(t *testing.T) {
 		bytes, err := ioutil.ReadFile(path)
 		assert.Nil(t, err)
 		assert.Equal(t, "#!/bin/sh\nset -e\necho -e \"\\x1b[38;5;250m> go test ./... &\\x1b[0m\"\ngo test ./... &\ntrap \"kill $!; wait; exit\" 1 2 15\nwait\necho -e \"\\x1b[38;5;250m> MY_TITLE_2=abc\\x1b[0m\"\nMY_TITLE_2=abc\necho -e \"\\x1b[38;5;250m> echo $MY_TITLE_2 &\\x1b[0m\"\necho $MY_TITLE_2 &\ntrap \"kill $!; wait; exit\" 1 2 15\nwait\n\necho -e \"\\x1b[38;5;250m> exec go build\\x1b[0m\"\nexec go build", string(bytes))
+	})
+
+	t.Run("DoesNotRunAnyCommandInBackgroundWhenCommandsNotAsJobIsTrue", func(t *testing.T) {
+
+		dockerRunner := dockerRunnerImpl{
+			entrypointTemplateDir: "./templates",
+			entrypointTargetDir:   "",
+		}
+
+		// act
+		path, extension, err := dockerRunner.generateEntrypointScript("/bin/sh", []string{"go test ./...", "go build"}, true)
+
+		assert.Nil(t, err)
+		assert.True(t, strings.Contains(path, "estafette-entrypoint-"))
+		assert.Equal(t, extension, "sh")
+
+		bytes, err := ioutil.ReadFile(path)
+		assert.Nil(t, err)
+		assert.Equal(t, "#!/bin/sh\nset -e\necho -e \"\\x1b[38;5;250m> go test ./...\\x1b[0m\"\ngo test ./...\n\necho -e \"\\x1b[38;5;250m> exec go build\\x1b[0m\"\nexec go build", string(bytes))
 	})
 }
 
