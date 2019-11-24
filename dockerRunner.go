@@ -861,7 +861,7 @@ func (dr *dockerRunnerImpl) DeleteBridgeNetwork(ctx context.Context) error {
 
 func (dr *dockerRunnerImpl) generateEntrypointScript(shell string, commands []string, commandsNotAsJob bool) (path string, extension string, err error) {
 
-	r, _ := regexp.Compile("[a-zA-Z0-9_]+=|&&|\\|\\|")
+	r, _ := regexp.Compile("[a-zA-Z0-9_]+=|;|&&|\\|\\|")
 
 	firstCommands := []struct {
 		Command         string

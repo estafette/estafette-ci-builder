@@ -237,6 +237,25 @@ func TestGenerateEntrypointScript(t *testing.T) {
 		assert.Equal(t, "#!/bin/sh\nset -e\necho -e \"\\x1b[38;5;250m> false && true\\x1b[0m\"\nfalse && true\n\necho -e \"\\x1b[38;5;250m> exec go build\\x1b[0m\"\nexec go build", string(bytes))
 	})
 
+	t.Run("DoesNotRunCommandsWithSemicolonInBackground", func(t *testing.T) {
+
+		dockerRunner := dockerRunnerImpl{
+			entrypointTemplateDir: "./templates",
+			entrypointTargetDir:   "",
+		}
+
+		// act
+		path, extension, err := dockerRunner.generateEntrypointScript("/bin/sh", []string{"if [ \"${VARIABLE}\" -ne \"\" ]; then echo $VARIABLE; fi", "go build"}, false)
+
+		assert.Nil(t, err)
+		assert.True(t, strings.Contains(path, "estafette-entrypoint-"))
+		assert.Equal(t, extension, "sh")
+
+		bytes, err := ioutil.ReadFile(path)
+		assert.Nil(t, err)
+		assert.Equal(t, "#!/bin/sh\nset -e\necho -e \"\\x1b[38;5;250m> if [ \"${VARIABLE}\" -ne \"\" ]; then echo $VARIABLE; fi\\x1b[0m\"\nif [ \"${VARIABLE}\" -ne \"\" ]; then echo $VARIABLE; fi\n\necho -e \"\\x1b[38;5;250m> exec go build\\x1b[0m\"\nexec go build", string(bytes))
+	})
+
 	t.Run("DoesNotRunAnyCommandInBackgroundWhenCommandsNotAsJobIsTrue", func(t *testing.T) {
 
 		dockerRunner := dockerRunnerImpl{
