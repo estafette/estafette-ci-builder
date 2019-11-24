@@ -860,18 +860,17 @@ func (dr *dockerRunnerImpl) DeleteBridgeNetwork(ctx context.Context) error {
 }
 
 func (dr *dockerRunnerImpl) generateEntrypointScript(shell string, commands []string, commandsNotAsJob bool) (path string, extension string, err error) {
+
+	r, _ := regexp.Compile("[a-zA-Z0-9_]+=|&&|\\|\\|")
+
 	firstCommands := []struct {
 		Command         string
 		RunInBackground bool
 	}{}
-
 	for _, c := range commands[:len(commands)-1] {
 		// check if the command is assigning a value, in which case it shouldn't be run in the background
-		match, err := regexp.MatchString("[a-zA-Z0-9_]+=|&&|\\|\\|", c)
-		if err != nil {
-			log.Warn().Err(err).Msgf("Regex for checking whether command '%v' assigns a value failed", c)
-		}
-		runInBackground := !commandsNotAsJob && ((err == nil && !match) || err != nil)
+		match := r.MatchString(c)
+		runInBackground := !commandsNotAsJob && !match
 
 		firstCommands = append(firstCommands, struct {
 			Command         string
@@ -880,6 +879,8 @@ func (dr *dockerRunnerImpl) generateEntrypointScript(shell string, commands []st
 	}
 
 	lastCommand := commands[len(commands)-1]
+	match := r.MatchString(lastCommand)
+	runFinalCommandWithExec := !commandsNotAsJob && !match
 
 	data := struct {
 		Shell    string
@@ -887,11 +888,13 @@ func (dr *dockerRunnerImpl) generateEntrypointScript(shell string, commands []st
 			Command         string
 			RunInBackground bool
 		}
-		FinalCommand string
+		FinalCommand            string
+		RunFinalCommandWithExec bool
 	}{
 		shell,
 		firstCommands,
 		lastCommand,
+		runFinalCommandWithExec,
 	}
 
 	extension = "sh"

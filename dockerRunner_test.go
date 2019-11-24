@@ -253,7 +253,7 @@ func TestGenerateEntrypointScript(t *testing.T) {
 
 		bytes, err := ioutil.ReadFile(path)
 		assert.Nil(t, err)
-		assert.Equal(t, "#!/bin/sh\nset -e\necho -e \"\\x1b[38;5;250m> go test ./...\\x1b[0m\"\ngo test ./...\n\necho -e \"\\x1b[38;5;250m> exec go build\\x1b[0m\"\nexec go build", string(bytes))
+		assert.Equal(t, "#!/bin/sh\nset -e\necho -e \"\\x1b[38;5;250m> go test ./...\\x1b[0m\"\ngo test ./...\n\necho -e \"\\x1b[38;5;250m> go build\\x1b[0m\"\ngo build", string(bytes))
 	})
 }
 
