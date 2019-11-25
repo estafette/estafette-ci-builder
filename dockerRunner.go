@@ -861,26 +861,7 @@ func (dr *dockerRunnerImpl) DeleteBridgeNetwork(ctx context.Context) error {
 
 func (dr *dockerRunnerImpl) generateEntrypointScript(shell string, commands []string, runCommandsInForeground bool) (path string, extension string, err error) {
 
-	extension = "sh"
-	if runtime.GOOS == "windows" && shell == "powershell" {
-		extension = "ps"
-	} else if runtime.GOOS == "windows" && shell == "cmd" {
-		extension = "cmd"
-	}
-
-	templatePath := fmt.Sprintf("%v/estafette-entrypoint.%v", dr.entrypointTemplateDir, extension)
-
-	// create target file to render template to
-	targetFile, err := ioutil.TempFile(dr.entrypointTargetDir, "estafette-entrypoint-*.sh")
-	if err != nil {
-		return "", extension, err
-	}
-	defer targetFile.Close()
-	path = targetFile.Name()
-
-	entrypointScriptPath := fmt.Sprintf("/estafette-entrypoint.%v", extension)
-
-	r, _ := regexp.Compile("[a-zA-Z0-9_]+=|shopt|;|cd |\\||&&|\\|\\|")
+	r, _ := regexp.Compile("[a-zA-Z0-9_]+=|export|shopt|;|cd |\\||&&|\\|\\|")
 
 	firstCommands := []struct {
 		Command         string
@@ -904,9 +885,8 @@ func (dr *dockerRunnerImpl) generateEntrypointScript(shell string, commands []st
 	runFinalCommandWithExec := !runCommandsInForeground && !match
 
 	data := struct {
-		Shell                string
-		EntrypointScriptPath string
-		Commands             []struct {
+		Shell    string
+		Commands []struct {
 			Command         string
 			EscapedCommand  string
 			RunInBackground bool
@@ -916,12 +896,28 @@ func (dr *dockerRunnerImpl) generateEntrypointScript(shell string, commands []st
 		RunFinalCommandWithExec bool
 	}{
 		shell,
-		entrypointScriptPath,
 		firstCommands,
 		lastCommand,
 		strings.Replace(lastCommand, "\"", "\\\"", -1),
 		runFinalCommandWithExec,
 	}
+
+	extension = "sh"
+	if runtime.GOOS == "windows" && shell == "powershell" {
+		extension = "ps"
+	} else if runtime.GOOS == "windows" && shell == "cmd" {
+		extension = "cmd"
+	}
+
+	templatePath := fmt.Sprintf("%v/estafette-entrypoint.%v", dr.entrypointTemplateDir, extension)
+
+	// create target file to render template to
+	targetFile, err := ioutil.TempFile(dr.entrypointTargetDir, "estafette-entrypoint-*.sh")
+	if err != nil {
+		return "", extension, err
+	}
+	defer targetFile.Close()
+	path = targetFile.Name()
 
 	// read and parse template
 	entrypointTemplate, err := template.ParseFiles(templatePath)
