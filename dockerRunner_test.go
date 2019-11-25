@@ -256,6 +256,25 @@ func TestGenerateEntrypointScript(t *testing.T) {
 		assert.Equal(t, "#!/bin/sh\nset -e\necho -e \"\\x1b[38;5;250m> cat kubernetes.yaml | kubectl apply -f -\\x1b[0m\"\ncat kubernetes.yaml | kubectl apply -f -\n\necho -e \"\\x1b[38;5;250m> exec kubectl rollout status deploy/myapp\\x1b[0m\"\nexec kubectl rollout status deploy/myapp", string(bytes))
 	})
 
+	t.Run("DoesNotRunCommandsWithChangeDirectoryInBackground", func(t *testing.T) {
+
+		dockerRunner := dockerRunnerImpl{
+			entrypointTemplateDir: "./templates",
+			entrypointTargetDir:   "",
+		}
+
+		// act
+		path, extension, err := dockerRunner.generateEntrypointScript("/bin/sh", []string{"cd subdir", "ls -latr"}, false)
+
+		assert.Nil(t, err)
+		assert.True(t, strings.Contains(path, "estafette-entrypoint-"))
+		assert.Equal(t, extension, "sh")
+
+		bytes, err := ioutil.ReadFile(path)
+		assert.Nil(t, err)
+		assert.Equal(t, "#!/bin/sh\nset -e\necho -e \"\\x1b[38;5;250m> cd subdir\\x1b[0m\"\ncd subdir\n\necho -e \"\\x1b[38;5;250m> exec ls -latr\\x1b[0m\"\nexec ls -latr", string(bytes))
+	})
+
 	t.Run("DoesNotRunCommandsWithSemicolonInBackground", func(t *testing.T) {
 
 		dockerRunner := dockerRunnerImpl{
