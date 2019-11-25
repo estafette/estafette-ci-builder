@@ -1,9 +1,6 @@
 #!{{.Shell}}
 set -e
 
-echo -e "\x1b[38;5;250m> cat {{.EntrypointScriptPath}} &\x1b[0m"
-cat {{.EntrypointScriptPath}}
-
 {{- range .Commands }}
 {{- if .RunInBackground}}
 echo -e "\x1b[38;5;250m> {{.EscapedCommand}} &\x1b[0m"
