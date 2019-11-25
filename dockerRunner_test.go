@@ -291,7 +291,45 @@ func TestGenerateEntrypointScript(t *testing.T) {
 
 		bytes, err := ioutil.ReadFile(path)
 		assert.Nil(t, err)
-		assert.Equal(t, "#!/bin/sh\nset -e\n\necho -e \"\\x1b[38;5;250m> cat /estafette-entrypoint.sh &\\x1b[0m\"\ncat /estafette-entrypoint.sh\necho -e \"\\x1b[38;5;250m> if [ \"${VARIABLE}\" -ne \"\" ]; then echo $VARIABLE; fi\\x1b[0m\"\nif [ \"${VARIABLE}\" -ne \"\" ]; then echo $VARIABLE; fi\n\necho -e \"\\x1b[38;5;250m> exec go build\\x1b[0m\"\nexec go build", string(bytes))
+		assert.Equal(t, "#!/bin/sh\nset -e\n\necho -e \"\\x1b[38;5;250m> cat /estafette-entrypoint.sh &\\x1b[0m\"\ncat /estafette-entrypoint.sh\necho -e \"\\x1b[38;5;250m> if [ \\\"${VARIABLE}\\\" -ne \\\"\\\" ]; then echo $VARIABLE; fi\\x1b[0m\"\nif [ \"${VARIABLE}\" -ne \"\" ]; then echo $VARIABLE; fi\n\necho -e \"\\x1b[38;5;250m> exec go build\\x1b[0m\"\nexec go build", string(bytes))
+	})
+
+	t.Run("EscapesDoubleQuotesInEchoStatements", func(t *testing.T) {
+
+		dockerRunner := dockerRunnerImpl{
+			entrypointTemplateDir: "./templates",
+			entrypointTargetDir:   "",
+		}
+
+		// act
+		path, extension, err := dockerRunner.generateEntrypointScript("/bin/sh", []string{"echo \"<xml />\""}, false)
+
+		assert.Nil(t, err)
+		assert.True(t, strings.Contains(path, "estafette-entrypoint-"))
+		assert.Equal(t, extension, "sh")
+
+		bytes, err := ioutil.ReadFile(path)
+		assert.Nil(t, err)
+		assert.Equal(t, "#!/bin/sh\nset -e\n\necho -e \"\\x1b[38;5;250m> cat /estafette-entrypoint.sh &\\x1b[0m\"\ncat /estafette-entrypoint.sh\n\necho -e \"\\x1b[38;5;250m> exec echo \\\"<xml />\\\"\\x1b[0m\"\nexec echo \"<xml />\"", string(bytes))
+	})
+
+	t.Run("DoesNotEscapeSingleQuotesInEchoStatements", func(t *testing.T) {
+
+		dockerRunner := dockerRunnerImpl{
+			entrypointTemplateDir: "./templates",
+			entrypointTargetDir:   "",
+		}
+
+		// act
+		path, extension, err := dockerRunner.generateEntrypointScript("/bin/sh", []string{"echo '<xml />'"}, false)
+
+		assert.Nil(t, err)
+		assert.True(t, strings.Contains(path, "estafette-entrypoint-"))
+		assert.Equal(t, extension, "sh")
+
+		bytes, err := ioutil.ReadFile(path)
+		assert.Nil(t, err)
+		assert.Equal(t, "#!/bin/sh\nset -e\n\necho -e \"\\x1b[38;5;250m> cat /estafette-entrypoint.sh &\\x1b[0m\"\ncat /estafette-entrypoint.sh\n\necho -e \"\\x1b[38;5;250m> exec echo '<xml />'\\x1b[0m\"\nexec echo '<xml />'", string(bytes))
 	})
 
 	t.Run("DoesNotRunAnyCommandInBackgroundWhenRunCommandsInForegroundIsTrue", func(t *testing.T) {

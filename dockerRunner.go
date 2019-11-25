@@ -884,6 +884,7 @@ func (dr *dockerRunnerImpl) generateEntrypointScript(shell string, commands []st
 
 	firstCommands := []struct {
 		Command         string
+		EscapedCommand  string
 		RunInBackground bool
 	}{}
 	for _, c := range commands[:len(commands)-1] {
@@ -893,8 +894,9 @@ func (dr *dockerRunnerImpl) generateEntrypointScript(shell string, commands []st
 
 		firstCommands = append(firstCommands, struct {
 			Command         string
+			EscapedCommand  string
 			RunInBackground bool
-		}{c, runInBackground})
+		}{c, strings.Replace(c, "\"", "\\\"", -1), runInBackground})
 	}
 
 	lastCommand := commands[len(commands)-1]
@@ -906,15 +908,18 @@ func (dr *dockerRunnerImpl) generateEntrypointScript(shell string, commands []st
 		EntrypointScriptPath string
 		Commands             []struct {
 			Command         string
+			EscapedCommand  string
 			RunInBackground bool
 		}
 		FinalCommand            string
+		EscapedFinalCommand     string
 		RunFinalCommandWithExec bool
 	}{
 		shell,
 		entrypointScriptPath,
 		firstCommands,
 		lastCommand,
+		strings.Replace(lastCommand, "\"", "\\\"", -1),
 		runFinalCommandWithExec,
 	}
 
