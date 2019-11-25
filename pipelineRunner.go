@@ -181,6 +181,7 @@ func (pr *pipelineRunnerImpl) RunStageWithRetry(ctx context.Context, depth int, 
 
 		// create log line for error
 		logLineObject := contracts.BuildLogLine{
+			LineNumber: 10000,
 			Timestamp:  time.Now().UTC(),
 			StreamType: "stderr",
 			Text:       err.Error(),
@@ -459,6 +460,7 @@ func (pr *pipelineRunnerImpl) RunServices(ctx context.Context, envvars map[strin
 
 					// create log line for error
 					logLineObject := contracts.BuildLogLine{
+						LineNumber: 10000,
 						Timestamp:  time.Now().UTC(),
 						StreamType: "stderr",
 						Text:       err.Error(),
@@ -662,6 +664,7 @@ func (pr *pipelineRunnerImpl) logBuilderInfo() {
 	builderVersionMessage := fmt.Sprintf("Estafette-ci-builder version %v (branch=%v revision=%v buildDate=%v goVersion=%v os=%v)", version, branch, revision, buildDate, goVersion, runtime.GOOS)
 
 	logLineObject := contracts.BuildLogLine{
+		LineNumber: 1,
 		Timestamp:  time.Now().UTC(),
 		StreamType: "stdout",
 		Text:       builderVersionMessage,
