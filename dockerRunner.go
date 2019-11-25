@@ -880,7 +880,7 @@ func (dr *dockerRunnerImpl) generateEntrypointScript(shell string, commands []st
 
 	entrypointScriptPath := fmt.Sprintf("/estafette-entrypoint.%v", extension)
 
-	r, _ := regexp.Compile("[a-zA-Z0-9_]+=|;|cd |\\||&&|\\|\\|")
+	r, _ := regexp.Compile("[a-zA-Z0-9_]+=|shopt|;|cd |\\||&&|\\|\\|")
 
 	firstCommands := []struct {
 		Command         string
