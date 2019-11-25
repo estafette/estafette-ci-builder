@@ -141,7 +141,7 @@ func (dr *dockerRunnerImpl) StartStageContainer(ctx context.Context, depth int, 
 	// check if image is trusted image
 	trustedImage := dr.config.GetTrustedImage(stage.ContainerImage)
 
-	entrypoint, cmds, binds := dr.initContainerStartVariables(stage.Shell, stage.Commands, stage.CommandsNotAsJob)
+	entrypoint, cmds, binds := dr.initContainerStartVariables(stage.Shell, stage.Commands, stage.RunCommandsInForeground)
 
 	// add custom properties as ESTAFETTE_EXTENSION_... envvar
 	extensionEnvVars := dr.generateExtensionEnvvars(stage.CustomProperties, stage.EnvVars)
@@ -267,7 +267,7 @@ func (dr *dockerRunnerImpl) StartServiceContainer(ctx context.Context, envvars m
 	// check if image is trusted image
 	trustedImage := dr.config.GetTrustedImage(service.ContainerImage)
 
-	entrypoint, cmds, binds := dr.initContainerStartVariables(service.Shell, service.Commands, service.CommandsNotAsJob)
+	entrypoint, cmds, binds := dr.initContainerStartVariables(service.Shell, service.Commands, service.RunCommandsInForeground)
 
 	// add custom properties as ESTAFETTE_EXTENSION_... envvar
 	extensionEnvVars := dr.generateExtensionEnvvars(service.CustomProperties, service.EnvVars)
@@ -859,7 +859,7 @@ func (dr *dockerRunnerImpl) DeleteBridgeNetwork(ctx context.Context) error {
 	return nil
 }
 
-func (dr *dockerRunnerImpl) generateEntrypointScript(shell string, commands []string, commandsNotAsJob bool) (path string, extension string, err error) {
+func (dr *dockerRunnerImpl) generateEntrypointScript(shell string, commands []string, runCommandsInForeground bool) (path string, extension string, err error) {
 
 	r, _ := regexp.Compile("[a-zA-Z0-9_]+=|;|cd |\\||&&|\\|\\|")
 
@@ -870,7 +870,7 @@ func (dr *dockerRunnerImpl) generateEntrypointScript(shell string, commands []st
 	for _, c := range commands[:len(commands)-1] {
 		// check if the command is assigning a value, in which case it shouldn't be run in the background
 		match := r.MatchString(c)
-		runInBackground := !commandsNotAsJob && !match
+		runInBackground := !runCommandsInForeground && !match
 
 		firstCommands = append(firstCommands, struct {
 			Command         string
@@ -880,7 +880,7 @@ func (dr *dockerRunnerImpl) generateEntrypointScript(shell string, commands []st
 
 	lastCommand := commands[len(commands)-1]
 	match := r.MatchString(lastCommand)
-	runFinalCommandWithExec := !commandsNotAsJob && !match
+	runFinalCommandWithExec := !runCommandsInForeground && !match
 
 	data := struct {
 		Shell    string
@@ -941,14 +941,14 @@ func (dr *dockerRunnerImpl) generateEntrypointScript(shell string, commands []st
 	return path, extension, nil
 }
 
-func (dr *dockerRunnerImpl) initContainerStartVariables(shell string, commands []string, commandsNotAsJob bool) (entrypoint []string, cmds []string, binds []string) {
+func (dr *dockerRunnerImpl) initContainerStartVariables(shell string, commands []string, runCommandsInForeground bool) (entrypoint []string, cmds []string, binds []string) {
 	entrypoint = make([]string, 0)
 	cmds = make([]string, 0)
 	binds = make([]string, 0)
 
 	if len(commands) > 0 {
 		// generate entrypoint script
-		path, extension, err := dr.generateEntrypointScript(shell, commands, commandsNotAsJob)
+		path, extension, err := dr.generateEntrypointScript(shell, commands, runCommandsInForeground)
 		if runtime.GOOS != "windows" && err == nil {
 			// use generated entrypoint script for executing commands
 			entrypointScriptPath := fmt.Sprintf("/estafette-entrypoint.%v", extension)

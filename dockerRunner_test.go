@@ -294,7 +294,7 @@ func TestGenerateEntrypointScript(t *testing.T) {
 		assert.Equal(t, "#!/bin/sh\nset -e\necho -e \"\\x1b[38;5;250m> if [ \"${VARIABLE}\" -ne \"\" ]; then echo $VARIABLE; fi\\x1b[0m\"\nif [ \"${VARIABLE}\" -ne \"\" ]; then echo $VARIABLE; fi\n\necho -e \"\\x1b[38;5;250m> exec go build\\x1b[0m\"\nexec go build", string(bytes))
 	})
 
-	t.Run("DoesNotRunAnyCommandInBackgroundWhenCommandsNotAsJobIsTrue", func(t *testing.T) {
+	t.Run("DoesNotRunAnyCommandInBackgroundWhenRunCommandsInForegroundIsTrue", func(t *testing.T) {
 
 		dockerRunner := dockerRunnerImpl{
 			entrypointTemplateDir: "./templates",
