@@ -877,7 +877,7 @@ func (dr *dockerRunnerImpl) generateEntrypointScript(shell string, commands []st
 			Command         string
 			EscapedCommand  string
 			RunInBackground bool
-		}{c, strings.Replace(c, "\"", "\\\"", -1), runInBackground})
+		}{c, strings.Replace(c, "'", "\\'", -1), runInBackground})
 	}
 
 	lastCommand := commands[len(commands)-1]
@@ -898,7 +898,7 @@ func (dr *dockerRunnerImpl) generateEntrypointScript(shell string, commands []st
 		shell,
 		firstCommands,
 		lastCommand,
-		strings.Replace(lastCommand, "\"", "\\\"", -1),
+		strings.Replace(lastCommand, "'", "\\'", -1),
 		runFinalCommandWithExec,
 	}
 
