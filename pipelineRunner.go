@@ -661,7 +661,7 @@ func (pr *pipelineRunnerImpl) tailLogs(ctx context.Context, stageExecutionDone c
 
 func (pr *pipelineRunnerImpl) logBuilderInfo() {
 
-	builderVersionMessage := fmt.Sprintf("Estafette-ci-builder version %v (branch=%v revision=%v buildDate=%v goVersion=%v os=%v)", version, branch, revision, buildDate, goVersion, runtime.GOOS)
+	builderVersionMessage := fmt.Sprintf("Starting \x1b[1m%v\x1b[0m version \x1b[1m%v\x1b[0m... \x1b[36mbranch=\x1b[0m%v \x1b[36mbuildDate=\x1b[0m%v \x1b[36mgoVersion=\x1b[0m%v \x1b[36mos=\x1b[0m%v \x1b[36mrevision=\x1b[0m%v", app, version, branch, buildDate, goVersion, runtime.GOOS, revision)
 
 	logLineObject := contracts.BuildLogLine{
 		LineNumber: 1,
