@@ -2,8 +2,15 @@ FROM travix/gocd-agent:19.10.0-alpine
 
 MAINTAINER estafette.io
 
-ENV ESTAFETTE_CI_SERVER="gocd" \
-    DOCKER_API_VERSION="1.38"
+LABEL maintainer="estafette.io" \
+      description="The ${ESTAFETTE_GIT_NAME} is the component that runs builds as defined in the .estafette.yaml manifest"
+
+RUN mkdir -p /estafette-entrypoints
 
 # copy builder
 COPY ${ESTAFETTE_GIT_NAME} /usr/bin/
+COPY templates /entrypoint-templates
+
+ENV ESTAFETTE_CI_SERVER="gocd" \
+    DOCKER_API_VERSION="1.38" \
+    ESTAFETTE_LOG_FORMAT="console"

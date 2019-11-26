@@ -55,12 +55,11 @@ func main() {
 	// parse command line parameters
 	kingpin.Parse()
 
+	// init log format from envvar ESTAFETTE_LOG_FORMAT
+	foundation.InitLoggingFromEnv(appgroup, app, version, branch, revision, buildDate)
+
 	// this builder binary is mounted inside a scratch container to run as a readiness probe against service containers
 	if *runAsReadinessProbe {
-
-		// configure plain text logging
-		foundation.InitConsoleLogging(appgroup, app, version, branch, revision, buildDate)
-
 		err := waitForReadiness(*readinessProtocol, *readinessHost, *readinessPort, *readinessPath, *readinessHostname, *readinessTimeoutSeconds)
 		if err != nil {
 			log.Fatal().Err(err).Msgf("Readiness probe failed")
@@ -101,17 +100,6 @@ func main() {
 
 	// detect controlling server
 	ciServer := envvarHelper.getCiServer()
-
-	if ciServer != "estafette" {
-
-		// configure plain text logging
-		foundation.InitConsoleLogging(appgroup, app, version, branch, revision, buildDate)
-
-	} else {
-
-		// configure json logging
-		foundation.InitV3Logging(appgroup, app, version, branch, revision, buildDate)
-	}
 
 	// read builder config either from file or envvar
 	var builderConfigJSON []byte
@@ -170,7 +158,7 @@ func main() {
 
 	// bootstrap continued
 	tailLogsChannel := make(chan contracts.TailLogLine, 10000)
-	dockerRunner := NewDockerRunner(envvarHelper, obfuscator, *runAsJob, builderConfig, cancellationChannel, tailLogsChannel)
+	dockerRunner := NewDockerRunner(envvarHelper, obfuscator, builderConfig, tailLogsChannel)
 	pipelineRunner := NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner, *runAsJob, cancellationChannel, tailLogsChannel)
 	endOfLifeHelper := NewEndOfLifeHelper(*runAsJob, builderConfig, *podName)
 
@@ -249,11 +237,13 @@ func main() {
 			Steps:        make([]*contracts.BuildLogStep, 0),
 		}
 
-		// set some default fields added to all logs
-		log.Logger = log.Logger.With().
-			Str("jobName", *builderConfig.JobName).
-			Interface("git", builderConfig.Git).
-			Logger()
+		if os.Getenv("ESTAFETTE_LOG_FORMAT") == "v3" {
+			// set some default fields added to all logs
+			log.Logger = log.Logger.With().
+				Str("jobName", *builderConfig.JobName).
+				Interface("git", builderConfig.Git).
+				Logger()
+		}
 
 		if runtime.GOOS == "windows" {
 			if builderConfig.DockerDaemonMTU != nil && *builderConfig.DockerDaemonMTU != "" {

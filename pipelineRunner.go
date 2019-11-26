@@ -89,7 +89,7 @@ func (pr *pipelineRunnerImpl) RunStage(ctx context.Context, depth int, runIndex 
 		}
 	} else {
 		var containerID string
-		containerID, err = pr.dockerRunner.StartStageContainer(ctx, depth, runIndex, dir, envvars, parentStage, stage)
+		containerID, err = pr.dockerRunner.StartStageContainer(ctx, depth, runIndex, dir, envvars, stage)
 		if err != nil {
 			return
 		}
@@ -181,6 +181,7 @@ func (pr *pipelineRunnerImpl) RunStageWithRetry(ctx context.Context, depth int, 
 
 		// create log line for error
 		logLineObject := contracts.BuildLogLine{
+			LineNumber: 10000,
 			Timestamp:  time.Now().UTC(),
 			StreamType: "stderr",
 			Text:       err.Error(),
@@ -225,7 +226,7 @@ func (pr *pipelineRunnerImpl) RunService(ctx context.Context, envvars map[string
 	}
 
 	var containerID string
-	containerID, err = pr.dockerRunner.StartServiceContainer(ctx, envvars, &parentStage, service)
+	containerID, err = pr.dockerRunner.StartServiceContainer(ctx, envvars, service)
 	if err != nil {
 		return
 	}
@@ -459,6 +460,7 @@ func (pr *pipelineRunnerImpl) RunServices(ctx context.Context, envvars map[strin
 
 					// create log line for error
 					logLineObject := contracts.BuildLogLine{
+						LineNumber: 10000,
 						Timestamp:  time.Now().UTC(),
 						StreamType: "stderr",
 						Text:       err.Error(),
@@ -659,9 +661,10 @@ func (pr *pipelineRunnerImpl) tailLogs(ctx context.Context, stageExecutionDone c
 
 func (pr *pipelineRunnerImpl) logBuilderInfo() {
 
-	builderVersionMessage := fmt.Sprintf("Estafette-ci-builder version %v (branch=%v revision=%v buildDate=%v goVersion=%v os=%v)", version, branch, revision, buildDate, goVersion, runtime.GOOS)
+	builderVersionMessage := fmt.Sprintf("Starting \x1b[1m%v\x1b[0m version \x1b[1m%v\x1b[0m... \x1b[36mbranch=\x1b[0m%v \x1b[36mbuildDate=\x1b[0m%v \x1b[36mgoVersion=\x1b[0m%v \x1b[36mos=\x1b[0m%v \x1b[36mrevision=\x1b[0m%v", app, version, branch, buildDate, goVersion, runtime.GOOS, revision)
 
 	logLineObject := contracts.BuildLogLine{
+		LineNumber: 1,
 		Timestamp:  time.Now().UTC(),
 		StreamType: "stdout",
 		Text:       builderVersionMessage,

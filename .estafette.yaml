@@ -33,6 +33,8 @@ stages:
         repositories:
         - estafette
         path: ./publish
+        copy:
+        - templates
 
       bake-gocd-agent:
         image: extensions/docker:dev
@@ -42,6 +44,8 @@ stages:
         repositories:
         - estafette
         path: ./publish
+        copy:
+        - templates
         dockerfile: Dockerfile.gocd
 
   clean-working-directory:
@@ -116,6 +120,25 @@ stages:
                       "Port": 80,
                       "Protocol": "http"
                     }
+                  },
+                  {
+                    "Name": "cockroachdb",
+                    "ContainerImage": "cockroachdb/cockroach:v19.2.0",
+                    "Commands":[
+                      "/cockroach/cockroach start-single-node --insecure --advertise-addr cockroachdb"
+                    ],
+                    "EnvVars":{
+                      "COCKROACH_SKIP_ENABLING_DIAGNOSTIC_REPORTING":"true"
+                    },
+                    "Shell":"/bin/sh",
+                    "When":"status == ''succeeded''",
+                    "Readiness": {
+                      "Path": "/health?ready=1",
+                      "TimeoutSeconds": 30,
+                      "Hostname": "cockroachdb",
+                      "Port": 8080,
+                      "Protocol": "http"
+                    }
                   }
                 ]
               },
@@ -152,7 +175,10 @@ stages:
                     "WorkingDirectory":"/estafette-work",
                     "Commands":[
                       "go test ./...",
-                      "go build -v -ldflags \"-X main.version=${ESTAFETTE_BUILD_VERSION} -X main.revision=${ESTAFETTE_GIT_REVISION} -X main.branch=${ESTAFETTE_GIT_BRANCH} -X main.buildDate=${ESTAFETTE_BUILD_DATETIME}\" -o ./publish/${ESTAFETTE_GIT_NAME}"
+                      "go build -v -ldflags \"-X main.version=${ESTAFETTE_BUILD_VERSION} -X main.revision=${ESTAFETTE_GIT_REVISION} -X main.branch=${ESTAFETTE_GIT_BRANCH} -X main.buildDate=${ESTAFETTE_BUILD_DATETIME}\" -o ./publish/${ESTAFETTE_GIT_NAME}",
+                      "echo $PWD",
+                      "ls -latr",
+                      "ls -latr ./publish"
                     ],
                     "When":"status == ''succeeded''",
                     "EnvVars":{
@@ -247,6 +273,7 @@ stages:
           ]
         }'
       SECRET_DECRYPTION_KEY: "8c6E5e7R8ameE2L6qxEcN5Yc3Q7P4Yd4"
+      ESTAFETTE_LOG_FORMAT: console
 
   push-all:
     parallelStages:
