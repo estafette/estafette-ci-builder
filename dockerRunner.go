@@ -366,6 +366,7 @@ func (dr *dockerRunnerImpl) StartServiceContainer(ctx context.Context, envvars m
 	resp, err := dr.dockerClient.ContainerCreate(ctx, &config, &container.HostConfig{
 		Binds:      binds,
 		Privileged: privileged,
+		AutoRemove: true,
 	}, &network.NetworkingConfig{}, service.Name)
 	if err != nil {
 		return
