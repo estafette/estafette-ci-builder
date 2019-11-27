@@ -317,8 +317,8 @@ func (pr *pipelineRunnerImpl) RunStages(ctx context.Context, depth int, stages [
 
 	// start log tailing
 	pr.buildLogSteps = make([]*contracts.BuildLogStep, 0)
-	stageExecutionDone := make(chan struct{}, 1)
-	go pr.tailLogs(ctx, stageExecutionDone)
+	tailLogsDone := make(chan struct{}, 1)
+	go pr.tailLogs(ctx, tailLogsDone, stages)
 
 	err = pr.dockerRunner.CreateBridgeNetwork(ctx)
 	if err != nil {
@@ -380,11 +380,7 @@ func (pr *pipelineRunnerImpl) RunStages(ctx context.Context, depth int, stages [
 
 	pr.dockerRunner.StopMultiStageServiceContainers(ctx)
 
-	// wait for log tailing to finish
-	pr.waitForFinalStageToBeComplete(stages)
-
-	// signal that running stages have finished so taillogs can stop
-	stageExecutionDone <- struct{}{}
+	<-tailLogsDone
 
 	return pr.getLogs(ctx), finalErr
 }
@@ -670,7 +666,10 @@ func (pr *pipelineRunnerImpl) forceStatusForStage(stage manifest.EstafetteStage,
 	}
 }
 
-func (pr *pipelineRunnerImpl) tailLogs(ctx context.Context, stageExecutionDone chan struct{}) {
+func (pr *pipelineRunnerImpl) tailLogs(ctx context.Context, tailLogsDone chan struct{}, stages []*manifest.EstafetteStage) {
+
+	stageExecutionDone := make(chan struct{}, 1)
+
 	for {
 		select {
 		case tailLogLine := <-pr.tailLogsChannel:
@@ -688,7 +687,14 @@ func (pr *pipelineRunnerImpl) tailLogs(ctx context.Context, stageExecutionDone c
 
 			pr.upsertTailLogLine(tailLogLine)
 
+			if tailLogLine.Status != nil && pr.isFinalStageComplete(stages) {
+				// signal that running stages have finished so taillogs can stop
+				stageExecutionDone <- struct{}{}
+			}
+
 		case <-stageExecutionDone:
+			// signal that tailing logs is done
+			tailLogsDone <- struct{}{}
 			return
 		}
 	}
@@ -895,15 +901,6 @@ func (pr *pipelineRunnerImpl) getNestedBuildLogService(tailLogLine contracts.Tai
 	}
 
 	return nil
-}
-
-func (pr *pipelineRunnerImpl) waitForFinalStageToBeComplete(stages []*manifest.EstafetteStage) {
-	for {
-		if pr.isFinalStageComplete(stages) {
-			return
-		}
-		time.Sleep(1 * time.Second)
-	}
 }
 
 func (pr *pipelineRunnerImpl) isFinalStageComplete(stages []*manifest.EstafetteStage) bool {
