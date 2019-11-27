@@ -71,6 +71,11 @@ func (pr *pipelineRunnerImpl) RunStage(ctx context.Context, depth int, runIndex 
 	wg.Add(parallelActions)
 	errors := make(chan error, parallelActions)
 
+	if parallelActions > 1 {
+		// send pending stage for main stage status to be sent to web ui before service container status
+		pr.sendStatusMessage(stage.Name, parentStageName, contracts.TypeStage, depth, runIndex, autoInjected, nil, nil, contracts.StatusPending)
+	}
+
 	// pull image, get size and send pending/running status messages
 	go func(ctx context.Context, stageName, parentStageName, containerImage, containerType string, depth int, runIndex int, autoInjected *bool) {
 		defer wg.Done()
@@ -240,11 +245,13 @@ func (pr *pipelineRunnerImpl) RunService(ctx context.Context, envvars map[string
 
 	// init some variables
 	service.ContainerImage = os.Expand(service.ContainerImage, pr.envvarHelper.getEstafetteEnv)
+	depth := 1
+	runIndex := 0
 
 	log.Info().Msgf("[%v] [%v] Starting service", parentStage.Name, service.Name)
 
 	// pull image, get size and send pending/running status messages
-	err = pr.pullImageIfNeeded(ctx, service.Name, parentStage.Name, service.ContainerImage, contracts.TypeService, 1, 0, nil)
+	err = pr.pullImageIfNeeded(ctx, service.Name, parentStage.Name, service.ContainerImage, contracts.TypeService, depth, runIndex, nil)
 	dockerRunStart := time.Now()
 	defer pr.handleServiceFinish(ctx, envvars, parentStage, service, true, dockerRunStart, &err)
 	if err != nil {

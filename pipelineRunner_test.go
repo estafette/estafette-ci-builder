@@ -214,7 +214,7 @@ func TestRunStage(t *testing.T) {
 		assert.Equal(t, contracts.StatusSucceeded, *succeededStatusMessage.Status)
 	})
 
-	t.Run("SendsSequenceOfPendingRunningAndSucceededMessageToChannelForSuccessfulRun", func(t *testing.T) {
+	t.Run("SendsSequenceOfPendingAndRunningAndSucceededMessageToChannelForSuccessfulRun", func(t *testing.T) {
 
 		dockerRunnerMock, tailLogsChannel, _, pipelineRunner := getPipelineRunnerAndMocks()
 
@@ -248,8 +248,9 @@ func TestRunStage(t *testing.T) {
 
 		assert.Nil(t, err)
 
-		pendingStatusMessage := <-tailLogsChannel
-		assert.Equal(t, contracts.StatusPending, *pendingStatusMessage.Status)
+		pendingStatusAndImageInfoMessage := <-tailLogsChannel
+		assert.Equal(t, contracts.StatusPending, *pendingStatusAndImageInfoMessage.Status)
+		assert.NotNil(t, pendingStatusAndImageInfoMessage.Image)
 
 		runningStatusMessage := <-tailLogsChannel
 		assert.Equal(t, contracts.StatusRunning, *runningStatusMessage.Status)
@@ -258,7 +259,7 @@ func TestRunStage(t *testing.T) {
 		assert.Equal(t, contracts.StatusSucceeded, *succeededStatusMessage.Status)
 	})
 
-	t.Run("SendsSequenceOfPendingRunningAndFailedMessageToChannelForFailingRun", func(t *testing.T) {
+	t.Run("SendsSequenceOfPendingAndRunningAndFailedMessageToChannelForFailingRun", func(t *testing.T) {
 
 		dockerRunnerMock, tailLogsChannel, _, pipelineRunner := getPipelineRunnerAndMocks()
 
@@ -292,8 +293,9 @@ func TestRunStage(t *testing.T) {
 
 		assert.NotNil(t, err)
 
-		pendingStatusMessage := <-tailLogsChannel
-		assert.Equal(t, contracts.StatusPending, *pendingStatusMessage.Status)
+		pendingStatusAndImageInfoMessage := <-tailLogsChannel
+		assert.Equal(t, contracts.StatusPending, *pendingStatusAndImageInfoMessage.Status)
+		assert.NotNil(t, pendingStatusAndImageInfoMessage.Image)
 
 		runningStatusMessage := <-tailLogsChannel
 		assert.Equal(t, contracts.StatusRunning, *runningStatusMessage.Status)
@@ -302,7 +304,7 @@ func TestRunStage(t *testing.T) {
 		assert.Equal(t, contracts.StatusFailed, *failedStatusMessage.Status)
 	})
 
-	t.Run("SendsSequenceOfPendingRunningAndCanceledMessageToChannelForCanceledRun", func(t *testing.T) {
+	t.Run("SendsSequenceOfPendingAndRunningAndCanceledMessageToChannelForCanceledRun", func(t *testing.T) {
 
 		dockerRunnerMock, tailLogsChannel, cancellationChannel, pipelineRunner := getPipelineRunnerAndMocks()
 
@@ -339,8 +341,9 @@ func TestRunStage(t *testing.T) {
 
 		assert.Nil(t, err)
 
-		pendingStatusMessage := <-tailLogsChannel
-		assert.Equal(t, contracts.StatusPending, *pendingStatusMessage.Status)
+		pendingStatusAndImageInfoMessage := <-tailLogsChannel
+		assert.Equal(t, contracts.StatusPending, *pendingStatusAndImageInfoMessage.Status)
+		assert.NotNil(t, pendingStatusAndImageInfoMessage.Image)
 
 		runningStatusMessage := <-tailLogsChannel
 		assert.Equal(t, contracts.StatusRunning, *runningStatusMessage.Status)
@@ -349,7 +352,7 @@ func TestRunStage(t *testing.T) {
 		assert.Equal(t, contracts.StatusCanceled, *canceledStatusMessage.Status)
 	})
 
-	t.Run("SendsSequenceOfPendingRunningAndCanceledMessageToChannelForCanceledRunEvenWhenRunFails", func(t *testing.T) {
+	t.Run("SendsSequenceOfPendingAndRunningAndCanceledMessageToChannelForCanceledRunEvenWhenRunFails", func(t *testing.T) {
 
 		dockerRunnerMock, tailLogsChannel, cancellationChannel, pipelineRunner := getPipelineRunnerAndMocks()
 
@@ -386,8 +389,9 @@ func TestRunStage(t *testing.T) {
 
 		assert.NotNil(t, err)
 
-		pendingStatusMessage := <-tailLogsChannel
-		assert.Equal(t, contracts.StatusPending, *pendingStatusMessage.Status)
+		pendingStatusAndImageInfoMessage := <-tailLogsChannel
+		assert.Equal(t, contracts.StatusPending, *pendingStatusAndImageInfoMessage.Status)
+		assert.NotNil(t, pendingStatusAndImageInfoMessage.Image)
 
 		runningStatusMessage := <-tailLogsChannel
 		assert.Equal(t, contracts.StatusRunning, *runningStatusMessage.Status)
@@ -449,6 +453,61 @@ func TestRunStage(t *testing.T) {
 		assert.Equal(t, "nested-stage-0", succeededStatusMessage.Step)
 		assert.Equal(t, 1, succeededStatusMessage.Depth)
 		assert.Equal(t, "stage-a", succeededStatusMessage.ParentStage)
+	})
+
+	t.Run("SendsSequenceOfPendingBeforeImageInfoMessageToChannelForSuccessfulRunWithServiceContainers", func(t *testing.T) {
+
+		dockerRunnerMock, tailLogsChannel, _, pipelineRunner := getPipelineRunnerAndMocks()
+
+		depth := 0
+		runIndex := 0
+		dir := "/estafette-work"
+		envvars := map[string]string{}
+		var parentStage *manifest.EstafetteStage = nil
+		stage := manifest.EstafetteStage{
+			Name:           "stage-a",
+			ContainerImage: "alpine:latest",
+			Services: []*manifest.EstafetteService{
+				&manifest.EstafetteService{
+					Name:           "nested-service-0",
+					ContainerImage: "alpine:latest",
+					When:           "status == 'succeeded'",
+				},
+				&manifest.EstafetteService{
+					Name:           "nested-service-1",
+					ContainerImage: "alpine:latest",
+					When:           "status == 'succeeded'",
+				},
+			},
+		}
+
+		// set mock responses
+		dockerRunnerMock.isImagePulledFunc = func(stageName string, containerImage string) bool { return false }
+		dockerRunnerMock.pullImageFunc = func(ctx context.Context, stageName string, containerImage string) error {
+			return nil
+		}
+		dockerRunnerMock.getImageSizeFunc = func(containerImage string) (int64, error) {
+			return 0, nil
+		}
+		dockerRunnerMock.startStageContainerFunc = func(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, stage manifest.EstafetteStage) (containerID string, err error) {
+			return "abc", nil
+		}
+		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int, multiStage *bool) (err error) {
+			return nil
+		}
+
+		// act
+		err := pipelineRunner.RunStage(context.Background(), depth, runIndex, dir, envvars, parentStage, stage)
+
+		assert.Nil(t, err)
+
+		pendingStatusMessage := <-tailLogsChannel
+		assert.Equal(t, contracts.StatusPending, *pendingStatusMessage.Status)
+		assert.Nil(t, pendingStatusMessage.Image)
+
+		imageInfoMessage := <-tailLogsChannel
+		assert.Equal(t, contracts.StatusPending, *imageInfoMessage.Status)
+		assert.NotNil(t, imageInfoMessage.Image)
 	})
 }
 
@@ -967,7 +1026,7 @@ func TestRunService(t *testing.T) {
 		assert.Equal(t, contracts.StatusRunning, *runningStatusMessage.Status)
 	})
 
-	t.Run("SendsSequenceOfPendingRunningAndFailedMessageToChannelForFailingReadiness", func(t *testing.T) {
+	t.Run("SendsSequenceOfPendingAndRunningAndFailedMessageToChannelForFailingReadiness", func(t *testing.T) {
 
 		dockerRunnerMock, tailLogsChannel, _, pipelineRunner := getPipelineRunnerAndMocks()
 
@@ -1022,7 +1081,7 @@ func TestRunService(t *testing.T) {
 		assert.Equal(t, contracts.StatusFailed, *failedStatusMessage.Status)
 	})
 
-	t.Run("SendsSequenceOfPendingRunningAndCanceledMessageToChannelForCanceledRun", func(t *testing.T) {
+	t.Run("SendsSequenceOfPendingAndRunningAndCanceledMessageToChannelForCanceledRun", func(t *testing.T) {
 
 		dockerRunnerMock, tailLogsChannel, cancellationChannel, pipelineRunner := getPipelineRunnerAndMocks()
 
@@ -1076,7 +1135,7 @@ func TestRunService(t *testing.T) {
 		assert.Equal(t, contracts.StatusCanceled, *canceledStatusMessage.Status)
 	})
 
-	t.Run("SendsSequenceOfPendingRunningAndCanceledMessageToChannelForCanceledRunEvenWhenReadinessFails", func(t *testing.T) {
+	t.Run("SendsSequenceOfPendingAndRunningAndCanceledMessageToChannelForCanceledRunEvenWhenReadinessFails", func(t *testing.T) {
 
 		dockerRunnerMock, tailLogsChannel, cancellationChannel, pipelineRunner := getPipelineRunnerAndMocks()
 
@@ -1866,7 +1925,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 			Step:        "nested-stage-0",
 			ParentStage: "stage-a",
 			Type:        contracts.TypeService,
-			Depth: 1,
+			Depth:       1,
 		}
 
 		// act
