@@ -2605,6 +2605,70 @@ func TestIsFinalStageComplete(t *testing.T) {
 
 		assert.False(t, isComplete)
 	})
+
+	t.Run("ReturnsFalseIfLastStepHasSucceededStatusButMultiStageServicesFromPreviousStagesHaveNotFinished", func(t *testing.T) {
+
+		pipelineRunner := pipelineRunnerImpl{
+			buildLogSteps: []*contracts.BuildLogStep{
+				&contracts.BuildLogStep{
+					Step:   "earlier-stage",
+					Status: contracts.StatusSucceeded,
+					Services: []*contracts.BuildLogStep{
+						&contracts.BuildLogStep{
+							Step:   "nested-service-1",
+							Status: contracts.StatusRunning,
+						},
+					},
+				},
+				&contracts.BuildLogStep{
+					Step:   "last-stage",
+					Status: contracts.StatusSucceeded,
+				},
+			},
+		}
+		stages := []*manifest.EstafetteStage{
+			&manifest.EstafetteStage{
+				Name: "last-stage",
+			},
+		}
+
+		// act
+		isComplete := pipelineRunner.isFinalStageComplete(stages)
+
+		assert.False(t, isComplete)
+	})
+
+	t.Run("ReturnsTrueIfLastStepHasSucceededStatusAndAllServicesFromPreviousStagesHaveFinished", func(t *testing.T) {
+
+		pipelineRunner := pipelineRunnerImpl{
+			buildLogSteps: []*contracts.BuildLogStep{
+				&contracts.BuildLogStep{
+					Step:   "earlier-stage",
+					Status: contracts.StatusSucceeded,
+					Services: []*contracts.BuildLogStep{
+						&contracts.BuildLogStep{
+							Step:   "nested-service-1",
+							Status: contracts.StatusRunning,
+						},
+					},
+				},
+				&contracts.BuildLogStep{
+					Step:   "last-stage",
+					Status: contracts.StatusSucceeded,
+				},
+			},
+		}
+		stages := []*manifest.EstafetteStage{
+			&manifest.EstafetteStage{
+				Name: "last-stage",
+			},
+		}
+
+		// act
+		isComplete := pipelineRunner.isFinalStageComplete(stages)
+
+		assert.False(t, isComplete)
+	})
 }
 
 func getPipelineRunnerAndMocks() (*dockerRunnerMockImpl, chan contracts.TailLogLine, chan struct{}, PipelineRunner) {

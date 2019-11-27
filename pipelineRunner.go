@@ -892,6 +892,7 @@ func (pr *pipelineRunnerImpl) isFinalStageComplete(stages []*manifest.EstafetteS
 			return false
 		}
 
+		// check that all parallel stages are done
 		allNestedStepsAreDone := true
 		for _, ns := range lastBuildLogsStep.NestedSteps {
 			switch ns.Status {
@@ -908,16 +909,19 @@ func (pr *pipelineRunnerImpl) isFinalStageComplete(stages []*manifest.EstafetteS
 			return false
 		}
 
+		// check that all service containers are done
 		allNestedServicesAreDone := true
-		for _, s := range lastBuildLogsStep.Services {
-			switch s.Status {
-			case contracts.StatusSucceeded,
-				contracts.StatusFailed,
-				contracts.StatusSkipped,
-				contracts.StatusCanceled:
+		for _, st := range pr.buildLogSteps {
+			for _, s := range st.Services {
+				switch s.Status {
+				case contracts.StatusSucceeded,
+					contracts.StatusFailed,
+					contracts.StatusSkipped,
+					contracts.StatusCanceled:
 
-			default:
-				allNestedServicesAreDone = false
+				default:
+					allNestedServicesAreDone = false
+				}
 			}
 		}
 		if !allNestedServicesAreDone {
