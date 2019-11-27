@@ -87,7 +87,7 @@ func (pr *pipelineRunnerImpl) RunStage(ctx context.Context, depth int, runIndex 
 		} else {
 			log.Warn().Msgf("%v Can't run parallel stages nested inside nested stages", stagePlaceholder)
 		}
-	} else {
+	} else if stage.ContainerImage != "" {
 		var containerID string
 		containerID, err = pr.dockerRunner.StartStageContainer(ctx, depth, runIndex, dir, envvars, stage)
 		if err != nil {
