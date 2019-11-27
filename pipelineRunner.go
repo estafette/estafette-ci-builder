@@ -63,19 +63,45 @@ func (pr *pipelineRunnerImpl) RunStage(ctx context.Context, depth int, runIndex 
 
 	log.Info().Msgf("%v Starting stage", stagePlaceholder)
 
-	// pull image, get size and send pending/running status messages
-	err = pr.pullImageIfNeeded(ctx, stage.Name, parentStageName, stage.ContainerImage, contracts.TypeStage, depth, runIndex, autoInjected)
-	defer pr.handleStageFinish(ctx, depth, runIndex, dir, envvars, parentStage, stage, time.Now(), &err)
-	if err != nil {
-		return
+	var wg sync.WaitGroup
+	parallelActions := 1
+	if len(stage.Services) > 0 {
+		parallelActions++
 	}
+	wg.Add(parallelActions)
+	errors := make(chan error, parallelActions)
+
+	// pull image, get size and send pending/running status messages
+	go func(ctx context.Context, stageName, parentStageName, containerImage, containerType string, depth int, runIndex int, autoInjected *bool) {
+		defer wg.Done()
+		err = pr.pullImageIfNeeded(ctx, stageName, parentStageName, containerImage, containerType, depth, runIndex, autoInjected)
+		if err != nil {
+			errors <- err
+		}
+	}(ctx, stage.Name, parentStageName, stage.ContainerImage, contracts.TypeStage, depth, runIndex, autoInjected)
 
 	if len(stage.Services) > 0 {
 		// this stage has service containers, start them first
-		err = pr.RunServices(ctx, envvars, stage, stage.Services)
-		if err != nil {
-			return
-		}
+		go func(ctx context.Context, envvars map[string]string, parentStage manifest.EstafetteStage, services []*manifest.EstafetteService) {
+			defer wg.Done()
+			err = pr.RunServices(ctx, envvars, parentStage, services)
+			if err != nil {
+				errors <- err
+			}
+		}(ctx, envvars, stage, stage.Services)
+	}
+
+	wg.Wait()
+
+	close(errors)
+	for e := range errors {
+		err = e
+		break
+	}
+
+	defer pr.handleStageFinish(ctx, depth, runIndex, dir, envvars, parentStage, stage, time.Now(), &err)
+	if err != nil {
+		return
 	}
 
 	if len(stage.ParallelStages) > 0 {
@@ -695,14 +721,14 @@ func (pr *pipelineRunnerImpl) upsertTailLogLine(tailLogLine contracts.TailLogLin
 		if tailLogLine.ParentStage != "" {
 			mainStage = &contracts.BuildLogStep{
 				Step:     tailLogLine.ParentStage,
-				Depth:    tailLogLine.Depth,
+				Depth:    0,
 				RunIndex: tailLogLine.RunIndex,
 			}
 			pr.buildLogSteps = append(pr.buildLogSteps, mainStage)
 		} else {
 			mainStage = &contracts.BuildLogStep{
 				Step:     tailLogLine.Step,
-				Depth:    tailLogLine.Depth,
+				Depth:    0,
 				RunIndex: tailLogLine.RunIndex,
 			}
 			pr.buildLogSteps = append(pr.buildLogSteps, mainStage)
@@ -715,7 +741,7 @@ func (pr *pipelineRunnerImpl) upsertTailLogLine(tailLogLine contracts.TailLogLin
 			if nestedStage == nil {
 				nestedStage = &contracts.BuildLogStep{
 					Step:     tailLogLine.Step,
-					Depth:    tailLogLine.Depth,
+					Depth:    1,
 					RunIndex: tailLogLine.RunIndex,
 				}
 				mainStage.NestedSteps = append(mainStage.NestedSteps, nestedStage)
@@ -746,7 +772,7 @@ func (pr *pipelineRunnerImpl) upsertTailLogLine(tailLogLine contracts.TailLogLin
 			if nestedService == nil {
 				nestedService = &contracts.BuildLogStep{
 					Step:     tailLogLine.Step,
-					Depth:    tailLogLine.Depth,
+					Depth:    1,
 					RunIndex: tailLogLine.RunIndex,
 				}
 				mainStage.Services = append(mainStage.Services, nestedService)

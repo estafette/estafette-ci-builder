@@ -1857,6 +1857,26 @@ func TestUpsertTailLogLine(t *testing.T) {
 		assert.Equal(t, "stage-a", pipelineRunner.buildLogSteps[0].Step)
 	})
 
+	t.Run("AddsMainStageWithDepth0IfServiceContainerStatusComesInFirst", func(t *testing.T) {
+
+		pipelineRunner := pipelineRunnerImpl{
+			buildLogSteps: make([]*contracts.BuildLogStep, 0),
+		}
+		tailLogLine := contracts.TailLogLine{
+			Step:        "nested-stage-0",
+			ParentStage: "stage-a",
+			Type:        contracts.TypeService,
+			Depth: 1,
+		}
+
+		// act
+		pipelineRunner.upsertTailLogLine(tailLogLine)
+
+		assert.Equal(t, 1, len(pipelineRunner.buildLogSteps))
+		assert.Equal(t, "stage-a", pipelineRunner.buildLogSteps[0].Step)
+		assert.Equal(t, 0, pipelineRunner.buildLogSteps[0].Depth)
+	})
+
 	t.Run("AddsNestedStageIfDoesNotExist", func(t *testing.T) {
 
 		pipelineRunner := pipelineRunnerImpl{
