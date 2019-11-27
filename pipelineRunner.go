@@ -668,7 +668,7 @@ func (pr *pipelineRunnerImpl) forceStatusForStage(stage manifest.EstafetteStage,
 
 func (pr *pipelineRunnerImpl) tailLogs(ctx context.Context, tailLogsDone chan struct{}, stages []*manifest.EstafetteStage) {
 
-	stageExecutionDone := make(chan struct{}, 1)
+	allLogsReceived := make(chan struct{}, 1)
 
 	for {
 		select {
@@ -689,10 +689,10 @@ func (pr *pipelineRunnerImpl) tailLogs(ctx context.Context, tailLogsDone chan st
 
 			if tailLogLine.Status != nil && pr.isFinalStageComplete(stages) {
 				// signal that running stages have finished so taillogs can stop
-				stageExecutionDone <- struct{}{}
+				allLogsReceived <- struct{}{}
 			}
 
-		case <-stageExecutionDone:
+		case <-allLogsReceived:
 			// signal that tailing logs is done
 			tailLogsDone <- struct{}{}
 			return
