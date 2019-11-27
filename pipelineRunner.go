@@ -94,7 +94,7 @@ func (pr *pipelineRunnerImpl) RunStage(ctx context.Context, depth int, runIndex 
 			return
 		}
 
-		err = pr.dockerRunner.TailContainerLogs(ctx, containerID, parentStageName, stage.Name, contracts.TypeStage, depth, runIndex)
+		err = pr.dockerRunner.TailContainerLogs(ctx, containerID, parentStageName, stage.Name, contracts.TypeStage, depth, runIndex, nil)
 		if err != nil {
 			return
 		}
@@ -138,7 +138,7 @@ func (pr *pipelineRunnerImpl) handleStageFinish(ctx context.Context, depth int, 
 
 	if len(stage.Services) > 0 {
 		// this stage has service containers, stop them now that the stage has finished
-		pr.dockerRunner.StopServiceContainers(ctx, stage)
+		pr.dockerRunner.StopSingleStageServiceContainers(ctx, stage)
 	}
 
 	runDurationValue := time.Since(dockerRunStart)
@@ -235,7 +235,7 @@ func (pr *pipelineRunnerImpl) RunService(ctx context.Context, envvars map[string
 	go func(ctx context.Context, envvars map[string]string, parentStage manifest.EstafetteStage, service manifest.EstafetteService, containerID string) {
 		var err error
 		defer pr.handleServiceFinish(ctx, envvars, parentStage, service, false, dockerRunStart, &err)
-		err = pr.dockerRunner.TailContainerLogs(ctx, containerID, parentStage.Name, service.Name, contracts.TypeService, 1, 0)
+		err = pr.dockerRunner.TailContainerLogs(ctx, containerID, parentStage.Name, service.Name, contracts.TypeService, 1, 0, service.MultiStage)
 	}(ctx, envvars, parentStage, service, containerID)
 
 	// wait for service to be ready if readiness probe is defined
@@ -344,6 +344,8 @@ func (pr *pipelineRunnerImpl) RunStages(ctx context.Context, depth int, stages [
 			continue
 		}
 	}
+
+	pr.dockerRunner.StopMultiStageServiceContainers(ctx)
 
 	// wait for log tailing to finish
 	pr.waitForFinalStageToBeComplete(stages)
@@ -499,7 +501,7 @@ func (pr *pipelineRunnerImpl) StopPipelineOnCancellation() {
 
 	pr.canceled = true
 
-	pr.dockerRunner.StopContainers()
+	pr.dockerRunner.StopAllContainers()
 }
 
 func (pr *pipelineRunnerImpl) EnableBuilderInfoStageInjection() {

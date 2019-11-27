@@ -116,7 +116,7 @@ func TestRunStage(t *testing.T) {
 		dockerRunnerMock.startStageContainerFunc = func(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, stage manifest.EstafetteStage) (containerID string, err error) {
 			return "abc", nil
 		}
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error) {
+		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int, multiStage *bool) (err error) {
 			return fmt.Errorf("Failed tailing container logs")
 		}
 
@@ -160,7 +160,7 @@ func TestRunStage(t *testing.T) {
 			startStageContainerFuncCalled = true
 			return "abc", nil
 		}
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error) {
+		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int, multiStage *bool) (err error) {
 			tailContainerLogsFuncCalled = true
 			return nil
 		}
@@ -198,7 +198,7 @@ func TestRunStage(t *testing.T) {
 		dockerRunnerMock.startStageContainerFunc = func(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, stage manifest.EstafetteStage) (containerID string, err error) {
 			return "abc", nil
 		}
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error) {
+		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int, multiStage *bool) (err error) {
 			return nil
 		}
 
@@ -239,7 +239,7 @@ func TestRunStage(t *testing.T) {
 		dockerRunnerMock.startStageContainerFunc = func(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, stage manifest.EstafetteStage) (containerID string, err error) {
 			return "abc", nil
 		}
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error) {
+		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int, multiStage *bool) (err error) {
 			return nil
 		}
 
@@ -283,7 +283,7 @@ func TestRunStage(t *testing.T) {
 		dockerRunnerMock.startStageContainerFunc = func(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, stage manifest.EstafetteStage) (containerID string, err error) {
 			return "abc", nil
 		}
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error) {
+		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int, multiStage *bool) (err error) {
 			return fmt.Errorf("Failed tailing container logs")
 		}
 
@@ -327,7 +327,7 @@ func TestRunStage(t *testing.T) {
 		dockerRunnerMock.startStageContainerFunc = func(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, stage manifest.EstafetteStage) (containerID string, err error) {
 			return "abc", nil
 		}
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error) {
+		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int, multiStage *bool) (err error) {
 			return nil
 		}
 
@@ -374,7 +374,7 @@ func TestRunStage(t *testing.T) {
 		dockerRunnerMock.startStageContainerFunc = func(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, stage manifest.EstafetteStage) (containerID string, err error) {
 			return "abc", nil
 		}
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error) {
+		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int, multiStage *bool) (err error) {
 			return fmt.Errorf("Failed tailing container logs")
 		}
 
@@ -426,7 +426,7 @@ func TestRunStage(t *testing.T) {
 		dockerRunnerMock.startStageContainerFunc = func(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, stage manifest.EstafetteStage) (containerID string, err error) {
 			return "abc", nil
 		}
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error) {
+		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int, multiStage *bool) (err error) {
 			return nil
 		}
 
@@ -470,7 +470,7 @@ func TestRunStageWithRetry(t *testing.T) {
 
 		// set mock responses
 		callCount := 0
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error) {
+		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int, multiStage *bool) (err error) {
 			callCount++
 			return fmt.Errorf("Failed tailing container logs")
 		}
@@ -500,7 +500,7 @@ func TestRunStageWithRetry(t *testing.T) {
 		// set mock responses
 		iteration := 0
 		callCount := 0
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error) {
+		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int, multiStage *bool) (err error) {
 
 			defer func() { iteration++ }()
 			callCount++
@@ -542,7 +542,7 @@ func TestRunStageWithRetry(t *testing.T) {
 		// set mock responses
 		iteration := 0
 		callCount := 0
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error) {
+		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int, multiStage *bool) (err error) {
 
 			defer func() { iteration++ }()
 			callCount++
@@ -581,7 +581,7 @@ func TestRunStageWithRetry(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error) {
+		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int, multiStage *bool) (err error) {
 			return fmt.Errorf("Failed tailing container logs")
 		}
 
@@ -614,7 +614,7 @@ func TestRunStageWithRetry(t *testing.T) {
 
 		// set mock responses
 		iteration := 0
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error) {
+		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int, multiStage *bool) (err error) {
 
 			defer func() { iteration++ }()
 
@@ -763,7 +763,7 @@ func TestRunService(t *testing.T) {
 		}
 		var wg sync.WaitGroup
 		wg.Add(1)
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error) {
+		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int, multiStage *bool) (err error) {
 			defer wg.Done()
 			return fmt.Errorf("Failed tailing container logs")
 		}
@@ -798,7 +798,7 @@ func TestRunService(t *testing.T) {
 		}
 		var wg sync.WaitGroup
 		wg.Add(1)
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error) {
+		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int, multiStage *bool) (err error) {
 			defer wg.Done()
 			return nil
 		}
@@ -852,7 +852,7 @@ func TestRunService(t *testing.T) {
 		}
 		var wg sync.WaitGroup
 		wg.Add(1)
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error) {
+		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int, multiStage *bool) (err error) {
 			defer wg.Done()
 			tailContainerLogsFuncCalled = true
 			return nil
@@ -900,7 +900,7 @@ func TestRunService(t *testing.T) {
 		}
 		var wg sync.WaitGroup
 		wg.Add(1)
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error) {
+		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int, multiStage *bool) (err error) {
 			defer wg.Done()
 			return nil
 		}
@@ -944,7 +944,7 @@ func TestRunService(t *testing.T) {
 		}
 		var wg sync.WaitGroup
 		wg.Add(1)
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error) {
+		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int, multiStage *bool) (err error) {
 			defer wg.Done()
 			return nil
 		}
@@ -994,7 +994,7 @@ func TestRunService(t *testing.T) {
 		}
 		var wg sync.WaitGroup
 		wg.Add(1)
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error) {
+		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int, multiStage *bool) (err error) {
 			defer wg.Done()
 			// ensure tailing doesn't set status before the main routine does
 			time.Sleep(100 * time.Millisecond)
@@ -1048,7 +1048,7 @@ func TestRunService(t *testing.T) {
 		}
 		var wg sync.WaitGroup
 		wg.Add(1)
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error) {
+		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int, multiStage *bool) (err error) {
 			defer wg.Done()
 			// ensure tailing doesn't set status before the main routine does
 			time.Sleep(100 * time.Millisecond)
@@ -1103,7 +1103,7 @@ func TestRunService(t *testing.T) {
 		}
 		var wg sync.WaitGroup
 		wg.Add(1)
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error) {
+		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int, multiStage *bool) (err error) {
 			defer wg.Done()
 			// ensure tailing doesn't set status before the main routine does
 			time.Sleep(100 * time.Millisecond)
@@ -1191,6 +1191,33 @@ func TestRunStages(t *testing.T) {
 		_, _ = pipelineRunner.RunStages(context.Background(), depth, stages, dir, envvars)
 
 		assert.True(t, deleteBridgeNetworkFuncCalled)
+	})
+
+	t.Run("CallsStopMultiStageServiceContainers", func(t *testing.T) {
+
+		dockerRunnerMock, _, _, pipelineRunner := getPipelineRunnerAndMocks()
+
+		depth := 0
+		dir := "/estafette-work"
+		envvars := map[string]string{}
+		stages := []*manifest.EstafetteStage{
+			&manifest.EstafetteStage{
+				Name:           "stage-a",
+				ContainerImage: "alpine:latest",
+				When:           "status == 'succeeded'",
+			},
+		}
+
+		// set mock responses
+		stopMultiStageServiceContainersFuncCalled := false
+		dockerRunnerMock.stopMultiStageServiceContainersFunc = func(ctx context.Context) {
+			stopMultiStageServiceContainersFuncCalled = true
+		}
+
+		// act
+		_, _ = pipelineRunner.RunStages(context.Background(), depth, stages, dir, envvars)
+
+		assert.True(t, stopMultiStageServiceContainersFuncCalled)
 	})
 
 	t.Run("ReturnsErrorWhenFirstStageFails", func(t *testing.T) {
@@ -1391,7 +1418,7 @@ func TestRunStages(t *testing.T) {
 			time.Sleep(50 * time.Millisecond)
 			return nil
 		}
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error) {
+		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int, multiStage *bool) (err error) {
 			time.Sleep(100 * time.Millisecond)
 			return nil
 		}
@@ -1568,13 +1595,13 @@ func TestRunStagesWithServices(t *testing.T) {
 		}
 		var wg sync.WaitGroup
 		wg.Add(1)
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error) {
+		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int, multiStage *bool) (err error) {
 			if stageType == contracts.TypeService {
 				wg.Wait()
 			}
 			return nil
 		}
-		dockerRunnerMock.stopServiceContainersFunc = func(ctx context.Context, parentStage manifest.EstafetteStage) {
+		dockerRunnerMock.stopSingleStageServiceContainersFunc = func(ctx context.Context, parentStage manifest.EstafetteStage) {
 			wg.Done()
 		}
 
