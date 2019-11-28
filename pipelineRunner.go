@@ -63,56 +63,25 @@ func (pr *pipelineRunnerImpl) RunStage(ctx context.Context, depth int, runIndex 
 
 	log.Info().Msgf("%v Starting stage", stagePlaceholder)
 
-	var wg sync.WaitGroup
-	parallelActions := 1
-	if len(stage.Services) > 0 {
-		parallelActions++
-	}
-	wg.Add(parallelActions)
-	errors := make(chan error, parallelActions)
-
-	if parallelActions > 1 {
-		// send pending stage for main stage status to be sent to web ui before service container status
-		pr.sendStatusMessage(stage.Name, parentStageName, contracts.TypeStage, depth, runIndex, autoInjected, nil, nil, contracts.StatusPending)
-	}
-
 	// pull image, get size and send pending/running status messages
-	go func(ctx context.Context, stageName, parentStageName, containerImage, containerType string, depth int, runIndex int, autoInjected *bool) {
-		defer wg.Done()
-		err = pr.pullImageIfNeeded(ctx, stageName, parentStageName, containerImage, containerType, depth, runIndex, autoInjected)
-		if err != nil {
-			errors <- err
-		}
-	}(ctx, stage.Name, parentStageName, stage.ContainerImage, contracts.TypeStage, depth, runIndex, autoInjected)
+	err = pr.pullImageIfNeeded(ctx, stage.Name, parentStageName, stage.ContainerImage, contracts.TypeStage, depth, runIndex, autoInjected)
+	defer pr.handleStageFinish(ctx, depth, runIndex, dir, envvars, parentStage, stage, time.Now(), &err)
+	if pr.canceled || err != nil {
+		return
+	}
 
 	if len(stage.Services) > 0 {
 		// this stage has service containers, start them first
-		go func(ctx context.Context, envvars map[string]string, parentStage manifest.EstafetteStage, services []*manifest.EstafetteService) {
-			defer wg.Done()
-			err = pr.RunServices(ctx, envvars, parentStage, services)
-			if err != nil {
-				errors <- err
-			}
-		}(ctx, envvars, stage, stage.Services)
-	}
-
-	wg.Wait()
-
-	close(errors)
-	for e := range errors {
-		err = e
-		break
-	}
-
-	defer pr.handleStageFinish(ctx, depth, runIndex, dir, envvars, parentStage, stage, time.Now(), &err)
-	if err != nil {
-		return
+		err = pr.RunServices(ctx, envvars, stage, stage.Services)
+		if pr.canceled || err != nil {
+			return
+		}
 	}
 
 	if len(stage.ParallelStages) > 0 {
 		if depth == 0 {
 			err = pr.RunParallelStages(ctx, depth+1, dir, envvars, stage, stage.ParallelStages)
-			if err != nil {
+			if pr.canceled || err != nil {
 				return
 			}
 		} else {
@@ -121,12 +90,12 @@ func (pr *pipelineRunnerImpl) RunStage(ctx context.Context, depth int, runIndex 
 	} else if stage.ContainerImage != "" {
 		var containerID string
 		containerID, err = pr.dockerRunner.StartStageContainer(ctx, depth, runIndex, dir, envvars, stage)
-		if err != nil {
+		if pr.canceled || err != nil {
 			return
 		}
 
 		err = pr.dockerRunner.TailContainerLogs(ctx, containerID, parentStageName, stage.Name, contracts.TypeStage, depth, runIndex, nil)
-		if err != nil {
+		if pr.canceled || err != nil {
 			return
 		}
 	}
@@ -200,14 +169,9 @@ func (pr *pipelineRunnerImpl) RunStageWithRetry(ctx context.Context, depth int, 
 	for runIndex <= retries {
 		err = pr.RunStage(ctx, depth, runIndex, dir, envvars, parentStage, stage)
 
-		// if canceled during stage stop further execution
-		if pr.canceled {
-			return nil
-		}
-
 		// if execution is successful, we're done
-		if err == nil {
-			return nil
+		if pr.canceled || err == nil {
+			return
 		}
 
 		// create log line for error
@@ -230,11 +194,11 @@ func (pr *pipelineRunnerImpl) RunStageWithRetry(ctx context.Context, depth int, 
 		runIndex++
 	}
 
-	if err != nil {
-		return err
+	if pr.canceled || err != nil {
+		return
 	}
 
-	return nil
+	return
 }
 
 func (pr *pipelineRunnerImpl) RunService(ctx context.Context, envvars map[string]string, parentStage manifest.EstafetteStage, service manifest.EstafetteService) (err error) {
@@ -254,13 +218,13 @@ func (pr *pipelineRunnerImpl) RunService(ctx context.Context, envvars map[string
 	err = pr.pullImageIfNeeded(ctx, service.Name, parentStage.Name, service.ContainerImage, contracts.TypeService, depth, runIndex, nil)
 	dockerRunStart := time.Now()
 	defer pr.handleServiceFinish(ctx, envvars, parentStage, service, true, dockerRunStart, &err)
-	if err != nil {
+	if pr.canceled || err != nil {
 		return
 	}
 
 	var containerID string
 	containerID, err = pr.dockerRunner.StartServiceContainer(ctx, envvars, service)
-	if err != nil {
+	if pr.canceled || err != nil {
 		return
 	}
 
@@ -275,7 +239,7 @@ func (pr *pipelineRunnerImpl) RunService(ctx context.Context, envvars map[string
 	if service.Readiness != nil {
 		log.Info().Msgf("[%v] Starting readiness probe...", parentStage.Name)
 		err = pr.dockerRunner.RunReadinessProbeContainer(ctx, parentStage, service, *service.Readiness)
-		if err != nil {
+		if pr.canceled || err != nil {
 			return
 		}
 	}
@@ -346,36 +310,42 @@ func (pr *pipelineRunnerImpl) RunStages(ctx context.Context, depth int, stages [
 	log.Info().Msgf("Running %v stages", len(stages))
 
 	var finalErr error
-	for _, p := range stages {
+	for _, s := range stages {
+		func(stage *manifest.EstafetteStage) {
+			defer func(stage *manifest.EstafetteStage) {
+				// handle cancellation happening in between stages
+				if pr.canceled {
+					// set canceled status for all the next stages
+					pr.forceStatusForStage(*stage, contracts.StatusCanceled)
+				}
+			}(stage)
 
-		// handle cancellation happening in between stages
-		if pr.canceled {
-			// set canceled status for all the next stages
-			pr.forceStatusForStage(*p, contracts.StatusCanceled)
-			continue
-		}
-
-		var whenEvaluationResult bool
-		whenEvaluationResult, err = pr.whenEvaluator.Evaluate(p.Name, p.When, pr.whenEvaluator.GetParameters())
-		if err != nil {
-			return buildLogSteps, err
-		}
-
-		if whenEvaluationResult {
-
-			err = pr.RunStageWithRetry(ctx, depth, dir, envvars, nil, *p)
-
+			var whenEvaluationResult bool
+			whenEvaluationResult, err = pr.whenEvaluator.Evaluate(stage.Name, stage.When, pr.whenEvaluator.GetParameters())
 			if err != nil {
-				// set 'failed' build status
-				pr.envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "failed")
-				envvars[pr.envvarHelper.getEstafetteEnvvarName("ESTAFETTE_BUILD_STATUS")] = "failed"
 				finalErr = err
+				return
 			}
-		} else {
-			// if an error has happened in one of the previous steps or the when expression evaluates to false we still want to render the following steps in the result table
-			pr.forceStatusForStage(*p, contracts.StatusSkipped)
-			continue
-		}
+
+			if pr.canceled {
+				return
+			}
+			if whenEvaluationResult {
+				err = pr.RunStageWithRetry(ctx, depth, dir, envvars, nil, *stage)
+				if pr.canceled {
+					return
+				}
+				if err != nil {
+					// set 'failed' build status
+					pr.envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "failed")
+					envvars[pr.envvarHelper.getEstafetteEnvvarName("ESTAFETTE_BUILD_STATUS")] = "failed"
+					finalErr = err
+				}
+			} else {
+				// if an error has happened in one of the previous steps or the when expression evaluates to false we still want to render the following steps in the result table
+				pr.forceStatusForStage(*stage, contracts.StatusSkipped)
+			}
+		}(s)
 	}
 
 	pr.dockerRunner.StopMultiStageServiceContainers(ctx)
@@ -411,8 +381,10 @@ func (pr *pipelineRunnerImpl) RunParallelStages(ctx context.Context, depth int, 
 			}
 
 			whenEvaluationResult, err := pr.whenEvaluator.Evaluate(stage.Name, stage.When, pr.whenEvaluator.GetParameters())
-			if err != nil {
-				errors <- err
+			if pr.canceled || err != nil {
+				if err != nil {
+					errors <- err
+				}
 				return
 			}
 
@@ -420,8 +392,10 @@ func (pr *pipelineRunnerImpl) RunParallelStages(ctx context.Context, depth int, 
 
 				err = pr.RunStageWithRetry(ctx, depth, dir, envvars, &parentStage, stage)
 
-				if err != nil {
-					errors <- err
+				if pr.canceled || err != nil {
+					if err != nil {
+						errors <- err
+					}
 					return
 				}
 
@@ -480,14 +454,19 @@ func (pr *pipelineRunnerImpl) RunServices(ctx context.Context, envvars map[strin
 			}
 
 			whenEvaluationResult, err := pr.whenEvaluator.Evaluate(service.Name, service.When, pr.whenEvaluator.GetParameters())
-			if err != nil {
-				errors <- err
+
+			if pr.canceled || err != nil {
+				if err != nil {
+					errors <- err
+				}
 				return
 			}
 
 			if whenEvaluationResult {
 				err := pr.RunService(ctx, envvars, parentStage, service)
-				if err != nil {
+				if pr.canceled {
+					return
+				} else if err != nil {
 
 					// create log line for error
 					logLineObject := contracts.BuildLogLine{
@@ -549,12 +528,12 @@ func (pr *pipelineRunnerImpl) pullImageIfNeeded(ctx context.Context, stageName, 
 	var imageSize int64
 	var buildLogStepDockerImage *contracts.BuildLogStepDockerImage
 
-	if containerImage != "" {
+	if !pr.canceled && containerImage != "" {
 
 		isPulledImage = pr.dockerRunner.IsImagePulled(stageName, containerImage)
 		isTrustedImage = pr.dockerRunner.IsTrustedImage(stageName, containerImage)
 
-		if !isPulledImage || runtime.GOOS == "windows" {
+		if !pr.canceled && (!isPulledImage || runtime.GOOS == "windows") {
 
 			buildLogStepDockerImage = &contracts.BuildLogStepDockerImage{
 				Name:      getContainerImageName(containerImage),
@@ -572,11 +551,11 @@ func (pr *pipelineRunnerImpl) pullImageIfNeeded(ctx context.Context, stageName, 
 		}
 
 		// set docker image size
-		if err == nil {
+		if !pr.canceled && err == nil {
 			imageSize, err = pr.dockerRunner.GetImageSize(containerImage)
 		}
 
-		if err == nil {
+		if !pr.canceled && err == nil {
 			buildLogStepDockerImage = &contracts.BuildLogStepDockerImage{
 				Name:         getContainerImageName(containerImage),
 				Tag:          getContainerImageTag(containerImage),
@@ -588,7 +567,7 @@ func (pr *pipelineRunnerImpl) pullImageIfNeeded(ctx context.Context, stageName, 
 		}
 	}
 
-	if err == nil {
+	if !pr.canceled && err == nil {
 		// start running stage
 		pr.sendStatusMessage(stageName, parentStageName, containerType, depth, runIndex, autoInjected, buildLogStepDockerImage, nil, contracts.StatusRunning)
 	}

@@ -304,7 +304,7 @@ func TestRunStage(t *testing.T) {
 		assert.Equal(t, contracts.StatusFailed, *failedStatusMessage.Status)
 	})
 
-	t.Run("SendsSequenceOfPendingAndRunningAndCanceledMessageToChannelForCanceledRun", func(t *testing.T) {
+	t.Run("SendsCanceledMessageToChannelForCanceledRun", func(t *testing.T) {
 
 		dockerRunnerMock, tailLogsChannel, cancellationChannel, pipelineRunner := getPipelineRunnerAndMocks()
 
@@ -341,18 +341,11 @@ func TestRunStage(t *testing.T) {
 
 		assert.Nil(t, err)
 
-		pendingStatusAndImageInfoMessage := <-tailLogsChannel
-		assert.Equal(t, contracts.StatusPending, *pendingStatusAndImageInfoMessage.Status)
-		assert.NotNil(t, pendingStatusAndImageInfoMessage.Image)
-
-		runningStatusMessage := <-tailLogsChannel
-		assert.Equal(t, contracts.StatusRunning, *runningStatusMessage.Status)
-
 		canceledStatusMessage := <-tailLogsChannel
 		assert.Equal(t, contracts.StatusCanceled, *canceledStatusMessage.Status)
 	})
 
-	t.Run("SendsSequenceOfPendingAndRunningAndCanceledMessageToChannelForCanceledRunEvenWhenRunFails", func(t *testing.T) {
+	t.Run("SendsCanceledMessageToChannelForCanceledRunEvenWhenRunFails", func(t *testing.T) {
 
 		dockerRunnerMock, tailLogsChannel, cancellationChannel, pipelineRunner := getPipelineRunnerAndMocks()
 
@@ -387,14 +380,7 @@ func TestRunStage(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 		err := pipelineRunner.RunStage(context.Background(), depth, runIndex, dir, envvars, parentStage, stage)
 
-		assert.NotNil(t, err)
-
-		pendingStatusAndImageInfoMessage := <-tailLogsChannel
-		assert.Equal(t, contracts.StatusPending, *pendingStatusAndImageInfoMessage.Status)
-		assert.NotNil(t, pendingStatusAndImageInfoMessage.Image)
-
-		runningStatusMessage := <-tailLogsChannel
-		assert.Equal(t, contracts.StatusRunning, *runningStatusMessage.Status)
+		assert.Nil(t, err)
 
 		canceledStatusMessage := <-tailLogsChannel
 		assert.Equal(t, contracts.StatusCanceled, *canceledStatusMessage.Status)
@@ -453,61 +439,6 @@ func TestRunStage(t *testing.T) {
 		assert.Equal(t, "nested-stage-0", succeededStatusMessage.Step)
 		assert.Equal(t, 1, succeededStatusMessage.Depth)
 		assert.Equal(t, "stage-a", succeededStatusMessage.ParentStage)
-	})
-
-	t.Run("SendsSequenceOfPendingBeforeImageInfoMessageToChannelForSuccessfulRunWithServiceContainers", func(t *testing.T) {
-
-		dockerRunnerMock, tailLogsChannel, _, pipelineRunner := getPipelineRunnerAndMocks()
-
-		depth := 0
-		runIndex := 0
-		dir := "/estafette-work"
-		envvars := map[string]string{}
-		var parentStage *manifest.EstafetteStage = nil
-		stage := manifest.EstafetteStage{
-			Name:           "stage-a",
-			ContainerImage: "alpine:latest",
-			Services: []*manifest.EstafetteService{
-				&manifest.EstafetteService{
-					Name:           "nested-service-0",
-					ContainerImage: "alpine:latest",
-					When:           "status == 'succeeded'",
-				},
-				&manifest.EstafetteService{
-					Name:           "nested-service-1",
-					ContainerImage: "alpine:latest",
-					When:           "status == 'succeeded'",
-				},
-			},
-		}
-
-		// set mock responses
-		dockerRunnerMock.isImagePulledFunc = func(stageName string, containerImage string) bool { return false }
-		dockerRunnerMock.pullImageFunc = func(ctx context.Context, stageName string, containerImage string) error {
-			return nil
-		}
-		dockerRunnerMock.getImageSizeFunc = func(containerImage string) (int64, error) {
-			return 0, nil
-		}
-		dockerRunnerMock.startStageContainerFunc = func(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, stage manifest.EstafetteStage) (containerID string, err error) {
-			return "abc", nil
-		}
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int, multiStage *bool) (err error) {
-			return nil
-		}
-
-		// act
-		err := pipelineRunner.RunStage(context.Background(), depth, runIndex, dir, envvars, parentStage, stage)
-
-		assert.Nil(t, err)
-
-		pendingStatusMessage := <-tailLogsChannel
-		assert.Equal(t, contracts.StatusPending, *pendingStatusMessage.Status)
-		assert.Nil(t, pendingStatusMessage.Image)
-
-		imageInfoMessage := <-tailLogsChannel
-		assert.Equal(t, contracts.StatusPending, *imageInfoMessage.Status)
-		assert.NotNil(t, imageInfoMessage.Image)
 	})
 }
 
@@ -1081,7 +1012,7 @@ func TestRunService(t *testing.T) {
 		assert.Equal(t, contracts.StatusFailed, *failedStatusMessage.Status)
 	})
 
-	t.Run("SendsSequenceOfPendingAndRunningAndCanceledMessageToChannelForCanceledRun", func(t *testing.T) {
+	t.Run("SendsCanceledMessageToChannelForCanceledRun", func(t *testing.T) {
 
 		dockerRunnerMock, tailLogsChannel, cancellationChannel, pipelineRunner := getPipelineRunnerAndMocks()
 
@@ -1102,40 +1033,19 @@ func TestRunService(t *testing.T) {
 		dockerRunnerMock.getImageSizeFunc = func(containerImage string) (int64, error) {
 			return 0, nil
 		}
-		dockerRunnerMock.startServiceContainerFunc = func(ctx context.Context, envvars map[string]string, service manifest.EstafetteService) (containerID string, err error) {
-			return "abc", nil
-		}
-		var wg sync.WaitGroup
-		wg.Add(1)
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int, multiStage *bool) (err error) {
-			defer wg.Done()
-			// ensure tailing doesn't set status before the main routine does
-			time.Sleep(100 * time.Millisecond)
-			return nil
-		}
-
 		// act
 		go pipelineRunner.StopPipelineOnCancellation()
 		cancellationChannel <- struct{}{}
 		time.Sleep(10 * time.Millisecond)
 		err := pipelineRunner.RunService(context.Background(), envvars, parentStage, service)
 
-		// wait for tailContainerLogsFunc to finish
-		wg.Wait()
-
 		assert.Nil(t, err)
-
-		pendingStatusMessage := <-tailLogsChannel
-		assert.Equal(t, contracts.StatusPending, *pendingStatusMessage.Status)
-
-		runningStatusMessage := <-tailLogsChannel
-		assert.Equal(t, contracts.StatusRunning, *runningStatusMessage.Status)
 
 		canceledStatusMessage := <-tailLogsChannel
 		assert.Equal(t, contracts.StatusCanceled, *canceledStatusMessage.Status)
 	})
 
-	t.Run("SendsSequenceOfPendingAndRunningAndCanceledMessageToChannelForCanceledRunEvenWhenReadinessFails", func(t *testing.T) {
+	t.Run("SendsCanceledMessageToChannelForCanceledRunEvenWhenReadinessFails", func(t *testing.T) {
 
 		dockerRunnerMock, tailLogsChannel, cancellationChannel, pipelineRunner := getPipelineRunnerAndMocks()
 
@@ -1157,20 +1067,6 @@ func TestRunService(t *testing.T) {
 		dockerRunnerMock.getImageSizeFunc = func(containerImage string) (int64, error) {
 			return 0, nil
 		}
-		dockerRunnerMock.startServiceContainerFunc = func(ctx context.Context, envvars map[string]string, service manifest.EstafetteService) (containerID string, err error) {
-			return "abc", nil
-		}
-		var wg sync.WaitGroup
-		wg.Add(1)
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int, multiStage *bool) (err error) {
-			defer wg.Done()
-			// ensure tailing doesn't set status before the main routine does
-			time.Sleep(100 * time.Millisecond)
-			return nil
-		}
-		dockerRunnerMock.runReadinessProbeContainerFunc = func(ctx context.Context, parentStage manifest.EstafetteStage, service manifest.EstafetteService, readiness manifest.ReadinessProbe) (err error) {
-			return fmt.Errorf("Failed readiness probe")
-		}
 
 		// act
 		go pipelineRunner.StopPipelineOnCancellation()
@@ -1178,16 +1074,7 @@ func TestRunService(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 		err := pipelineRunner.RunService(context.Background(), envvars, parentStage, service)
 
-		// wait for tailContainerLogsFunc to finish
-		wg.Wait()
-
-		assert.NotNil(t, err)
-
-		pendingStatusMessage := <-tailLogsChannel
-		assert.Equal(t, contracts.StatusPending, *pendingStatusMessage.Status)
-
-		runningStatusMessage := <-tailLogsChannel
-		assert.Equal(t, contracts.StatusRunning, *runningStatusMessage.Status)
+		assert.Nil(t, err)
 
 		canceledStatusMessage := <-tailLogsChannel
 		assert.Equal(t, contracts.StatusCanceled, *canceledStatusMessage.Status)
