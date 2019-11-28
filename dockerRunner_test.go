@@ -177,7 +177,7 @@ func TestGenerateEntrypointScript(t *testing.T) {
 
 		bytes, err := ioutil.ReadFile(path)
 		assert.Nil(t, err)
-		assert.Equal(t, "#!/bin/sh\nset -e\necho -e \"\\x1b[38;5;250m> go test ./... &\\x1b[0m\"\ngo test ./... &\ntrap \"kill $!; wait; exit\" 1 2 15\nwait\n\necho -e \"\\x1b[38;5;250m> exec go build\\x1b[0m\"\nexec go build", string(bytes))
+		assert.Equal(t, "#!/bin/sh\nset -e\necho -e \"\\x1b[38;5;250m> go test ./... &\\x1b[0m\"\ngo test ./... &\ntrap \"kill $!; wait; exit\" 1 2 15\nwait $!\n\necho -e \"\\x1b[38;5;250m> exec go build\\x1b[0m\"\nexec go build", string(bytes))
 	})
 
 	t.Run("DoesNotRunVariableAssignmentInBackground", func(t *testing.T) {
@@ -196,7 +196,7 @@ func TestGenerateEntrypointScript(t *testing.T) {
 
 		bytes, err := ioutil.ReadFile(path)
 		assert.Nil(t, err)
-		assert.Equal(t, "#!/bin/sh\nset -e\necho -e \"\\x1b[38;5;250m> go test ./... &\\x1b[0m\"\ngo test ./... &\ntrap \"kill $!; wait; exit\" 1 2 15\nwait\necho -e \"\\x1b[38;5;250m> export MY_TITLE_2=abc\\x1b[0m\"\nexport MY_TITLE_2=abc\necho -e \"\\x1b[38;5;250m> echo $MY_TITLE_2 &\\x1b[0m\"\necho $MY_TITLE_2 &\ntrap \"kill $!; wait; exit\" 1 2 15\nwait\n\necho -e \"\\x1b[38;5;250m> exec go build\\x1b[0m\"\nexec go build", string(bytes))
+		assert.Equal(t, "#!/bin/sh\nset -e\necho -e \"\\x1b[38;5;250m> go test ./... &\\x1b[0m\"\ngo test ./... &\ntrap \"kill $!; wait; exit\" 1 2 15\nwait $!\necho -e \"\\x1b[38;5;250m> export MY_TITLE_2=abc\\x1b[0m\"\nexport MY_TITLE_2=abc\necho -e \"\\x1b[38;5;250m> echo $MY_TITLE_2 &\\x1b[0m\"\necho $MY_TITLE_2 &\ntrap \"kill $!; wait; exit\" 1 2 15\nwait $!\n\necho -e \"\\x1b[38;5;250m> exec go build\\x1b[0m\"\nexec go build", string(bytes))
 	})
 
 	t.Run("DoesNotRunCommandsWithOrInBackground", func(t *testing.T) {

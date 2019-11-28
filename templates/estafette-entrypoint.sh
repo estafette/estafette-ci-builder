@@ -6,7 +6,7 @@ set -e
 echo -e "\x1b[38;5;250m> {{.EscapedCommand}} &\x1b[0m"
 {{.Command}} &
 trap "kill $!; wait; exit" 1 2 15
-wait
+wait $!
 {{- else }}
 echo -e "\x1b[38;5;250m> {{.EscapedCommand}}\x1b[0m"
 {{.Command}}
