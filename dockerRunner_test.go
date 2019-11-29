@@ -14,22 +14,22 @@ import (
 )
 
 type dockerRunnerMockImpl struct {
-	isImagePulledFunc                func(stageName string, containerImage string) bool
-	pullImageFunc                    func(ctx context.Context, stageName string, containerImage string) error
-	getImageSizeFunc                 func(containerImage string) (int64, error)
-	startStageContainerFunc          func(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, stage manifest.EstafetteStage) (containerID string, err error)
-	startServiceContainerFunc        func(ctx context.Context, envvars map[string]string, service manifest.EstafetteService) (containerID string, err error)
-	runReadinessProbeContainerFunc   func(ctx context.Context, parentStage manifest.EstafetteStage, service manifest.EstafetteService, readiness manifest.ReadinessProbe) (err error)
-	tailContainerLogsFunc            func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error)
-	stopServiceContainersFunc        func(ctx context.Context, parentStage manifest.EstafetteStage)
-	startDockerDaemonFunc            func() error
-	waitForDockerDaemonFunc          func()
-	createDockerClientFunc           func() (*client.Client, error)
-	isTrustedImageFunc               func(stageName string, containerImage string) bool
-	stopContainersOnCancellationFunc func()
-	stopContainersFunc               func()
-	createBridgeNetworkFunc          func(ctx context.Context) error
-	deleteBridgeNetworkFunc          func(ctx context.Context) error
+	isImagePulledFunc                    func(stageName string, containerImage string) bool
+	pullImageFunc                        func(ctx context.Context, stageName string, containerImage string) error
+	getImageSizeFunc                     func(containerImage string) (int64, error)
+	startStageContainerFunc              func(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, stage manifest.EstafetteStage) (containerID string, err error)
+	startServiceContainerFunc            func(ctx context.Context, envvars map[string]string, service manifest.EstafetteService) (containerID string, err error)
+	runReadinessProbeContainerFunc       func(ctx context.Context, parentStage manifest.EstafetteStage, service manifest.EstafetteService, readiness manifest.ReadinessProbe) (err error)
+	tailContainerLogsFunc                func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int, multiStage *bool) (err error)
+	stopSingleStageServiceContainersFunc func(ctx context.Context, parentStage manifest.EstafetteStage)
+	stopMultiStageServiceContainersFunc  func(ctx context.Context)
+	startDockerDaemonFunc                func() error
+	waitForDockerDaemonFunc              func()
+	createDockerClientFunc               func() (*client.Client, error)
+	isTrustedImageFunc                   func(stageName string, containerImage string) bool
+	stopAllContainersFunc                func()
+	createBridgeNetworkFunc              func(ctx context.Context) error
+	deleteBridgeNetworkFunc              func(ctx context.Context) error
 }
 
 func (d *dockerRunnerMockImpl) IsImagePulled(stageName string, containerImage string) bool {
@@ -74,16 +74,22 @@ func (d *dockerRunnerMockImpl) RunReadinessProbeContainer(ctx context.Context, p
 	return d.runReadinessProbeContainerFunc(ctx, parentStage, service, readiness)
 }
 
-func (d *dockerRunnerMockImpl) TailContainerLogs(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int) (err error) {
+func (d *dockerRunnerMockImpl) TailContainerLogs(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int, multiStage *bool) (err error) {
 	if d.tailContainerLogsFunc == nil {
 		return nil
 	}
-	return d.tailContainerLogsFunc(ctx, containerID, parentStageName, stageName, stageType, depth, runIndex)
+	return d.tailContainerLogsFunc(ctx, containerID, parentStageName, stageName, stageType, depth, runIndex, multiStage)
 }
 
-func (d *dockerRunnerMockImpl) StopServiceContainers(ctx context.Context, parentStage manifest.EstafetteStage) {
-	if d.stopServiceContainersFunc != nil {
-		d.stopServiceContainersFunc(ctx, parentStage)
+func (d *dockerRunnerMockImpl) StopSingleStageServiceContainers(ctx context.Context, parentStage manifest.EstafetteStage) {
+	if d.stopSingleStageServiceContainersFunc != nil {
+		d.stopSingleStageServiceContainersFunc(ctx, parentStage)
+	}
+}
+
+func (d *dockerRunnerMockImpl) StopMultiStageServiceContainers(ctx context.Context) {
+	if d.stopMultiStageServiceContainersFunc != nil {
+		d.stopMultiStageServiceContainersFunc(ctx)
 	}
 }
 
@@ -114,15 +120,9 @@ func (d *dockerRunnerMockImpl) IsTrustedImage(stageName string, containerImage s
 	return d.isTrustedImageFunc(stageName, containerImage)
 }
 
-func (d *dockerRunnerMockImpl) StopContainersOnCancellation() {
-	if d.stopContainersOnCancellationFunc != nil {
-		d.stopContainersOnCancellationFunc()
-	}
-}
-
-func (d *dockerRunnerMockImpl) StopContainers() {
-	if d.stopContainersFunc != nil {
-		d.stopContainersFunc()
+func (d *dockerRunnerMockImpl) StopAllContainers() {
+	if d.stopAllContainersFunc != nil {
+		d.stopAllContainersFunc()
 	}
 }
 
@@ -158,7 +158,7 @@ func TestGenerateEntrypointScript(t *testing.T) {
 
 		bytes, err := ioutil.ReadFile(path)
 		assert.Nil(t, err)
-		assert.Equal(t, "#!/bin/sh\nset -e\n\necho -e '\\x1b[38;5;250m> exec go test ./...\\x1b[0m'\nexec go test ./...", string(bytes))
+		assert.Equal(t, "#!/bin/sh\nset -e\n\necho -e \"\\x1b[38;5;250m> exec go test ./...\\x1b[0m\"\nexec go test ./...", string(bytes))
 	})
 
 	t.Run("ReturnsVariablesForTwoOrMoreCommands", func(t *testing.T) {
@@ -177,7 +177,7 @@ func TestGenerateEntrypointScript(t *testing.T) {
 
 		bytes, err := ioutil.ReadFile(path)
 		assert.Nil(t, err)
-		assert.Equal(t, "#!/bin/sh\nset -e\necho -e '\\x1b[38;5;250m> go test ./... &\\x1b[0m'\ngo test ./... &\ntrap \"kill $!; wait; exit\" 1 2 15\nwait\n\necho -e '\\x1b[38;5;250m> exec go build\\x1b[0m'\nexec go build", string(bytes))
+		assert.Equal(t, "#!/bin/sh\nset -e\necho -e \"\\x1b[38;5;250m> go test ./... &\\x1b[0m\"\ngo test ./... &\ntrap \"kill $!; wait; exit\" 1 2 15\nwait $!\n\necho -e \"\\x1b[38;5;250m> exec go build\\x1b[0m\"\nexec go build", string(bytes))
 	})
 
 	t.Run("DoesNotRunVariableAssignmentInBackground", func(t *testing.T) {
@@ -196,7 +196,7 @@ func TestGenerateEntrypointScript(t *testing.T) {
 
 		bytes, err := ioutil.ReadFile(path)
 		assert.Nil(t, err)
-		assert.Equal(t, "#!/bin/sh\nset -e\necho -e '\\x1b[38;5;250m> go test ./... &\\x1b[0m'\ngo test ./... &\ntrap \"kill $!; wait; exit\" 1 2 15\nwait\necho -e '\\x1b[38;5;250m> export MY_TITLE_2=abc\\x1b[0m'\nexport MY_TITLE_2=abc\necho -e '\\x1b[38;5;250m> echo $MY_TITLE_2 &\\x1b[0m'\necho $MY_TITLE_2 &\ntrap \"kill $!; wait; exit\" 1 2 15\nwait\n\necho -e '\\x1b[38;5;250m> exec go build\\x1b[0m'\nexec go build", string(bytes))
+		assert.Equal(t, "#!/bin/sh\nset -e\necho -e \"\\x1b[38;5;250m> go test ./... &\\x1b[0m\"\ngo test ./... &\ntrap \"kill $!; wait; exit\" 1 2 15\nwait $!\necho -e \"\\x1b[38;5;250m> export MY_TITLE_2=abc\\x1b[0m\"\nexport MY_TITLE_2=abc\necho -e \"\\x1b[38;5;250m> echo $MY_TITLE_2 &\\x1b[0m\"\necho $MY_TITLE_2 &\ntrap \"kill $!; wait; exit\" 1 2 15\nwait $!\n\necho -e \"\\x1b[38;5;250m> exec go build\\x1b[0m\"\nexec go build", string(bytes))
 	})
 
 	t.Run("DoesNotRunCommandsWithOrInBackground", func(t *testing.T) {
@@ -215,7 +215,7 @@ func TestGenerateEntrypointScript(t *testing.T) {
 
 		bytes, err := ioutil.ReadFile(path)
 		assert.Nil(t, err)
-		assert.Equal(t, "#!/bin/sh\nset -e\necho -e '\\x1b[38;5;250m> false || true\\x1b[0m'\nfalse || true\n\necho -e '\\x1b[38;5;250m> exec go build\\x1b[0m'\nexec go build", string(bytes))
+		assert.Equal(t, "#!/bin/sh\nset -e\necho -e \"\\x1b[38;5;250m> false || true\\x1b[0m\"\nfalse || true\n\necho -e \"\\x1b[38;5;250m> exec go build\\x1b[0m\"\nexec go build", string(bytes))
 	})
 
 	t.Run("DoesNotRunCommandsWithAndInBackground", func(t *testing.T) {
@@ -234,7 +234,7 @@ func TestGenerateEntrypointScript(t *testing.T) {
 
 		bytes, err := ioutil.ReadFile(path)
 		assert.Nil(t, err)
-		assert.Equal(t, "#!/bin/sh\nset -e\necho -e '\\x1b[38;5;250m> false && true\\x1b[0m'\nfalse && true\n\necho -e '\\x1b[38;5;250m> exec go build\\x1b[0m'\nexec go build", string(bytes))
+		assert.Equal(t, "#!/bin/sh\nset -e\necho -e \"\\x1b[38;5;250m> false && true\\x1b[0m\"\nfalse && true\n\necho -e \"\\x1b[38;5;250m> exec go build\\x1b[0m\"\nexec go build", string(bytes))
 	})
 
 	t.Run("DoesNotRunCommandsWithPipeInBackground", func(t *testing.T) {
@@ -253,7 +253,7 @@ func TestGenerateEntrypointScript(t *testing.T) {
 
 		bytes, err := ioutil.ReadFile(path)
 		assert.Nil(t, err)
-		assert.Equal(t, "#!/bin/sh\nset -e\necho -e '\\x1b[38;5;250m> cat kubernetes.yaml | kubectl apply -f -\\x1b[0m'\ncat kubernetes.yaml | kubectl apply -f -\n\necho -e '\\x1b[38;5;250m> exec kubectl rollout status deploy/myapp\\x1b[0m'\nexec kubectl rollout status deploy/myapp", string(bytes))
+		assert.Equal(t, "#!/bin/sh\nset -e\necho -e \"\\x1b[38;5;250m> cat kubernetes.yaml | kubectl apply -f -\\x1b[0m\"\ncat kubernetes.yaml | kubectl apply -f -\n\necho -e \"\\x1b[38;5;250m> exec kubectl rollout status deploy/myapp\\x1b[0m\"\nexec kubectl rollout status deploy/myapp", string(bytes))
 	})
 
 	t.Run("DoesNotRunCommandsWithChangeDirectoryInBackground", func(t *testing.T) {
@@ -272,7 +272,7 @@ func TestGenerateEntrypointScript(t *testing.T) {
 
 		bytes, err := ioutil.ReadFile(path)
 		assert.Nil(t, err)
-		assert.Equal(t, "#!/bin/sh\nset -e\necho -e '\\x1b[38;5;250m> cd subdir\\x1b[0m'\ncd subdir\n\necho -e '\\x1b[38;5;250m> exec ls -latr\\x1b[0m'\nexec ls -latr", string(bytes))
+		assert.Equal(t, "#!/bin/sh\nset -e\necho -e \"\\x1b[38;5;250m> cd subdir\\x1b[0m\"\ncd subdir\n\necho -e \"\\x1b[38;5;250m> exec ls -latr\\x1b[0m\"\nexec ls -latr", string(bytes))
 	})
 
 	t.Run("DoesNotRunCommandsWithExportInBackground", func(t *testing.T) {
@@ -291,7 +291,7 @@ func TestGenerateEntrypointScript(t *testing.T) {
 
 		bytes, err := ioutil.ReadFile(path)
 		assert.Nil(t, err)
-		assert.Equal(t, "#!/bin/sh\nset -e\necho -e '\\x1b[38;5;250m> export $(python3 requiredenv.py)\\x1b[0m'\nexport $(python3 requiredenv.py)\n\necho -e '\\x1b[38;5;250m> exec ls -latr\\x1b[0m'\nexec ls -latr", string(bytes))
+		assert.Equal(t, "#!/bin/sh\nset -e\necho -e \"\\x1b[38;5;250m> export $(python3 requiredenv.py)\\x1b[0m\"\nexport $(python3 requiredenv.py)\n\necho -e \"\\x1b[38;5;250m> exec ls -latr\\x1b[0m\"\nexec ls -latr", string(bytes))
 	})
 
 	t.Run("DoesNotRunCommandsWithShoptInBackground", func(t *testing.T) {
@@ -310,7 +310,7 @@ func TestGenerateEntrypointScript(t *testing.T) {
 
 		bytes, err := ioutil.ReadFile(path)
 		assert.Nil(t, err)
-		assert.Equal(t, "#!/bin/sh\nset -e\necho -e '\\x1b[38;5;250m> shopt -u dotglob\\x1b[0m'\nshopt -u dotglob\n\necho -e '\\x1b[38;5;250m> exec ls -latr\\x1b[0m'\nexec ls -latr", string(bytes))
+		assert.Equal(t, "#!/bin/sh\nset -e\necho -e \"\\x1b[38;5;250m> shopt -u dotglob\\x1b[0m\"\nshopt -u dotglob\n\necho -e \"\\x1b[38;5;250m> exec ls -latr\\x1b[0m\"\nexec ls -latr", string(bytes))
 	})
 
 	t.Run("DoesNotRunCommandsWithSemicolonInBackground", func(t *testing.T) {
@@ -329,10 +329,10 @@ func TestGenerateEntrypointScript(t *testing.T) {
 
 		bytes, err := ioutil.ReadFile(path)
 		assert.Nil(t, err)
-		assert.Equal(t, "#!/bin/sh\nset -e\necho -e '\\x1b[38;5;250m> if [ \"${VARIABLE}\" -ne \"\" ]; then echo $VARIABLE; fi\\x1b[0m'\nif [ \"${VARIABLE}\" -ne \"\" ]; then echo $VARIABLE; fi\n\necho -e '\\x1b[38;5;250m> exec go build\\x1b[0m'\nexec go build", string(bytes))
+		assert.Equal(t, "#!/bin/sh\nset -e\necho -e \"\\x1b[38;5;250m> if [ \\\"${VARIABLE}\\\" -ne \\\"\\\" ]; then echo $VARIABLE; fi\\x1b[0m\"\nif [ \"${VARIABLE}\" -ne \"\" ]; then echo $VARIABLE; fi\n\necho -e \"\\x1b[38;5;250m> exec go build\\x1b[0m\"\nexec go build", string(bytes))
 	})
 
-	t.Run("DoesNotEscapeDoubleQuotesInEchoStatements", func(t *testing.T) {
+	t.Run("EscapesDoubleQuotesInEchoStatements", func(t *testing.T) {
 
 		dockerRunner := dockerRunnerImpl{
 			entrypointTemplateDir: "./templates",
@@ -348,10 +348,10 @@ func TestGenerateEntrypointScript(t *testing.T) {
 
 		bytes, err := ioutil.ReadFile(path)
 		assert.Nil(t, err)
-		assert.Equal(t, "#!/bin/sh\nset -e\n\necho -e '\\x1b[38;5;250m> exec echo \"<xml />\"\\x1b[0m'\nexec echo \"<xml />\"", string(bytes))
+		assert.Equal(t, "#!/bin/sh\nset -e\n\necho -e \"\\x1b[38;5;250m> exec echo \\\"<xml />\\\"\\x1b[0m\"\nexec echo \"<xml />\"", string(bytes))
 	})
 
-	t.Run("EscapesSingleQuotesInEchoStatements", func(t *testing.T) {
+	t.Run("DoesNotEscapeSingleQuotesInEchoStatements", func(t *testing.T) {
 
 		dockerRunner := dockerRunnerImpl{
 			entrypointTemplateDir: "./templates",
@@ -367,7 +367,7 @@ func TestGenerateEntrypointScript(t *testing.T) {
 
 		bytes, err := ioutil.ReadFile(path)
 		assert.Nil(t, err)
-		assert.Equal(t, "#!/bin/sh\nset -e\n\necho -e '\\x1b[38;5;250m> exec echo \\'<xml />\\'\\x1b[0m'\nexec echo '<xml />'", string(bytes))
+		assert.Equal(t, "#!/bin/sh\nset -e\n\necho -e \"\\x1b[38;5;250m> exec echo '<xml />'\\x1b[0m\"\nexec echo '<xml />'", string(bytes))
 	})
 
 	t.Run("DoesNotRunAnyCommandInBackgroundWhenRunCommandsInForegroundIsTrue", func(t *testing.T) {
@@ -386,7 +386,7 @@ func TestGenerateEntrypointScript(t *testing.T) {
 
 		bytes, err := ioutil.ReadFile(path)
 		assert.Nil(t, err)
-		assert.Equal(t, "#!/bin/sh\nset -e\necho -e '\\x1b[38;5;250m> go test ./...\\x1b[0m'\ngo test ./...\n\necho -e '\\x1b[38;5;250m> go build\\x1b[0m'\ngo build", string(bytes))
+		assert.Equal(t, "#!/bin/sh\nset -e\necho -e \"\\x1b[38;5;250m> go test ./...\\x1b[0m\"\ngo test ./...\n\necho -e \"\\x1b[38;5;250m> go build\\x1b[0m\"\ngo build", string(bytes))
 	})
 }
 
