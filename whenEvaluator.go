@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"os"
 
 	"github.com/Knetic/govaluate"
 	"github.com/rs/zerolog/log"
@@ -31,6 +32,9 @@ func (we *whenEvaluatorImpl) Evaluate(pipelineName, input string, parameters map
 	}
 
 	log.Info().Msgf("[%v] Evaluating when expression \"%v\" with parameters \"%v\"", pipelineName, input, parameters)
+
+	// replace estafette envvars in when clause
+	input = os.Expand(input, we.envvarHelper.getEstafetteEnv)
 
 	expression, err := govaluate.NewEvaluableExpression(input)
 	if err != nil {
