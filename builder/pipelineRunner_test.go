@@ -1,4 +1,4 @@
-package main
+package builder
 
 import (
 	"context"
@@ -10,6 +10,7 @@ import (
 	contracts "github.com/estafette/estafette-ci-contracts"
 	crypt "github.com/estafette/estafette-ci-crypt"
 	manifest "github.com/estafette/estafette-ci-manifest"
+	foundation "github.com/estafette/estafette-foundation"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -2645,7 +2646,7 @@ func getPipelineRunnerAndMocks() (*dockerRunnerMockImpl, chan contracts.TailLogL
 	dockerRunnerMock := &dockerRunnerMockImpl{}
 	tailLogsChannel := make(chan contracts.TailLogLine, 10000)
 	cancellationChannel := make(chan struct{})
-	pipelineRunner := NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunnerMock, true, cancellationChannel, tailLogsChannel)
+	pipelineRunner := NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunnerMock, true, cancellationChannel, tailLogsChannel, foundation.ApplicationInfo{})
 
 	return dockerRunnerMock, tailLogsChannel, cancellationChannel, pipelineRunner
 }

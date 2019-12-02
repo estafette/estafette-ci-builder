@@ -1,4 +1,4 @@
-package main
+package builder
 
 import (
 	"bufio"
@@ -163,7 +163,7 @@ func (dr *dockerRunnerImpl) StartStageContainer(ctx context.Context, depth int, 
 	stage.EnvVars["ESTAFETTE_STAGE_NAME"] = stage.Name
 
 	// combine and override estafette and global envvars with stage envvars
-	combinedEnvVars := dr.envvarHelper.overrideEnvvars(envvars, stage.EnvVars, extensionEnvVars, credentialEnvVars)
+	combinedEnvVars := dr.envvarHelper.OverrideEnvvars(envvars, stage.EnvVars, extensionEnvVars, credentialEnvVars)
 
 	// decrypt secrets in all envvars
 	combinedEnvVars = dr.envvarHelper.decryptSecrets(combinedEnvVars)
@@ -289,7 +289,7 @@ func (dr *dockerRunnerImpl) StartServiceContainer(ctx context.Context, envvars m
 	service.EnvVars["ESTAFETTE_SERVICE_NAME"] = service.Name
 
 	// combine and override estafette and global envvars with pipeline envvars
-	combinedEnvVars := dr.envvarHelper.overrideEnvvars(envvars, service.EnvVars, extensionEnvVars, credentialEnvVars)
+	combinedEnvVars := dr.envvarHelper.OverrideEnvvars(envvars, service.EnvVars, extensionEnvVars, credentialEnvVars)
 
 	// decrypt secrets in all envvars
 	combinedEnvVars = dr.envvarHelper.decryptSecrets(combinedEnvVars)

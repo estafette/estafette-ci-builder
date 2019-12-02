@@ -1,4 +1,4 @@
-package main
+package builder
 
 import (
 	"os"
@@ -8,7 +8,7 @@ import (
 
 // GocdFatalHandler has methods to shutdown the runner after a fatal or successful run
 type GocdFatalHandler interface {
-	handleGocdFatal(error, string)
+	HandleGocdFatal(error, string)
 }
 
 type gocdFatalHandlerImpl struct {
@@ -19,7 +19,7 @@ func NewGocdFatalHandler() GocdFatalHandler {
 	return &gocdFatalHandlerImpl{}
 }
 
-func (elh *gocdFatalHandlerImpl) handleGocdFatal(err error, message string) {
+func (elh *gocdFatalHandlerImpl) HandleGocdFatal(err error, message string) {
 
 	log.Fatal().Err(err).Msg(message)
 	os.Exit(1)

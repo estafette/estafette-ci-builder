@@ -1,4 +1,4 @@
-package main
+package builder
 
 import (
 	"errors"
@@ -59,7 +59,7 @@ func (we *whenEvaluatorImpl) GetParameters() map[string]interface{} {
 	parameters["trigger"] = we.envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER")
 	parameters["status"] = we.envvarHelper.getEstafetteEnv("ESTAFETTE_BUILD_STATUS")
 	parameters["action"] = we.envvarHelper.getEstafetteEnv("ESTAFETTE_RELEASE_ACTION")
-	parameters["server"] = we.envvarHelper.getCiServer()
+	parameters["server"] = we.envvarHelper.GetCiServer()
 
 	return parameters
 }

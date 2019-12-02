@@ -1,4 +1,4 @@
-package main
+package builder
 
 import (
 	"encoding/json"
@@ -23,9 +23,9 @@ import (
 type EnvvarHelper interface {
 	toUpperSnake(string) string
 	getCommandOutput(string, ...string) (string, error)
-	setEstafetteGlobalEnvvars() error
-	setEstafetteStagesEnvvar([]*manifest.EstafetteStage) error
-	setEstafetteBuilderConfigEnvvars(builderConfig contracts.BuilderConfig) error
+	SetEstafetteGlobalEnvvars() error
+	SetEstafetteStagesEnvvar([]*manifest.EstafetteStage) error
+	SetEstafetteBuilderConfigEnvvars(builderConfig contracts.BuilderConfig) error
 	setEstafetteEventEnvvars(events []*manifest.EstafetteEvent) error
 	initGitSource() error
 	initGitOwner() error
@@ -37,18 +37,18 @@ type EnvvarHelper interface {
 	initBuildStatus() error
 	initLabels(manifest.EstafetteManifest) error
 	collectEstafetteEnvvars() map[string]string
-	collectEstafetteEnvvarsAndLabels(manifest.EstafetteManifest) map[string]string
-	collectGlobalEnvvars(manifest.EstafetteManifest) map[string]string
-	unsetEstafetteEnvvars()
+	CollectEstafetteEnvvarsAndLabels(manifest.EstafetteManifest) map[string]string
+	CollectGlobalEnvvars(manifest.EstafetteManifest) map[string]string
+	UnsetEstafetteEnvvars()
 	getEstafetteEnv(string) string
 	setEstafetteEnv(string, string) error
 	unsetEstafetteEnv(string) error
 	getEstafetteEnvvarName(string) string
-	overrideEnvvars(...map[string]string) map[string]string
+	OverrideEnvvars(...map[string]string) map[string]string
 	decryptSecret(string) string
 	decryptSecrets(map[string]string) map[string]string
-	getCiServer() string
-	getWorkDir() string
+	GetCiServer() string
+	GetWorkDir() string
 	makeDNSLabelSafe(string) string
 
 	getGitOrigin() (string, error)
@@ -111,7 +111,7 @@ func (h *envvarHelperImpl) getCommandOutput(name string, arg ...string) (string,
 	return strings.TrimSpace(string(out)), nil
 }
 
-func (h *envvarHelperImpl) setEstafetteGlobalEnvvars() (err error) {
+func (h *envvarHelperImpl) SetEstafetteGlobalEnvvars() (err error) {
 
 	// initialize git source envvar
 	err = h.initGitSource()
@@ -164,7 +164,7 @@ func (h *envvarHelperImpl) setEstafetteGlobalEnvvars() (err error) {
 	return
 }
 
-func (h *envvarHelperImpl) setEstafetteStagesEnvvar(stages []*manifest.EstafetteStage) (err error) {
+func (h *envvarHelperImpl) SetEstafetteStagesEnvvar(stages []*manifest.EstafetteStage) (err error) {
 
 	stagesJSONBytes, err := json.Marshal(stages)
 	if err != nil {
@@ -178,7 +178,7 @@ func (h *envvarHelperImpl) setEstafetteStagesEnvvar(stages []*manifest.Estafette
 	return
 }
 
-func (h *envvarHelperImpl) setEstafetteBuilderConfigEnvvars(builderConfig contracts.BuilderConfig) (err error) {
+func (h *envvarHelperImpl) SetEstafetteBuilderConfigEnvvars(builderConfig contracts.BuilderConfig) (err error) {
 	// set envvars that can be used by any container
 	h.setEstafetteEnv("ESTAFETTE_GIT_SOURCE", builderConfig.Git.RepoSource)
 	h.setEstafetteEnv("ESTAFETTE_GIT_OWNER", builderConfig.Git.RepoOwner)
@@ -412,7 +412,7 @@ func (h *envvarHelperImpl) initLabels(m manifest.EstafetteManifest) (err error) 
 	return
 }
 
-func (h *envvarHelperImpl) collectEstafetteEnvvarsAndLabels(m manifest.EstafetteManifest) (envvars map[string]string) {
+func (h *envvarHelperImpl) CollectEstafetteEnvvarsAndLabels(m manifest.EstafetteManifest) (envvars map[string]string) {
 
 	// set labels as envvars
 	h.initLabels(m)
@@ -442,7 +442,7 @@ func (h *envvarHelperImpl) collectEstafetteEnvvars() (envvars map[string]string)
 	return
 }
 
-func (h *envvarHelperImpl) collectGlobalEnvvars(m manifest.EstafetteManifest) (envvars map[string]string) {
+func (h *envvarHelperImpl) CollectGlobalEnvvars(m manifest.EstafetteManifest) (envvars map[string]string) {
 
 	envvars = map[string]string{}
 
@@ -454,7 +454,7 @@ func (h *envvarHelperImpl) collectGlobalEnvvars(m manifest.EstafetteManifest) (e
 }
 
 // only to be used from unit tests
-func (h *envvarHelperImpl) unsetEstafetteEnvvars() {
+func (h *envvarHelperImpl) UnsetEstafetteEnvvars() {
 
 	envvarsToUnset := h.collectEstafetteEnvvars()
 	for key := range envvarsToUnset {
@@ -502,7 +502,7 @@ func (h *envvarHelperImpl) getEstafetteEnvvarName(key string) string {
 	return strings.Replace(key, "ESTAFETTE_", h.prefix, -1)
 }
 
-func (h *envvarHelperImpl) overrideEnvvars(envvarMaps ...map[string]string) (envvars map[string]string) {
+func (h *envvarHelperImpl) OverrideEnvvars(envvarMaps ...map[string]string) (envvars map[string]string) {
 
 	envvars = make(map[string]string)
 	for _, envvarMap := range envvarMaps {
@@ -542,11 +542,11 @@ func (h *envvarHelperImpl) decryptSecrets(encryptedEnvvars map[string]string) (e
 	return
 }
 
-func (h *envvarHelperImpl) getCiServer() string {
+func (h *envvarHelperImpl) GetCiServer() string {
 	return h.ciServer
 }
 
-func (h *envvarHelperImpl) getWorkDir() string {
+func (h *envvarHelperImpl) GetWorkDir() string {
 	return h.workDir
 }
 

@@ -1,4 +1,4 @@
-package main
+package builder
 
 // EstafetteCiBuilderEvent represents a finished estafette build
 type EstafetteCiBuilderEvent struct {

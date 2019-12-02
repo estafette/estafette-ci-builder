@@ -15,6 +15,7 @@ import (
 	"syscall"
 
 	"github.com/alecthomas/kingpin"
+	"github.com/estafette/estafette-ci-builder/builder"
 	contracts "github.com/estafette/estafette-ci-contracts"
 	crypt "github.com/estafette/estafette-ci-crypt"
 	manifest "github.com/estafette/estafette-ci-manifest"
@@ -55,12 +56,14 @@ func main() {
 	// parse command line parameters
 	kingpin.Parse()
 
+	applicationInfo := foundation.NewApplicationInfo(appgroup, app, version, branch, revision, buildDate)
+
 	// init log format from envvar ESTAFETTE_LOG_FORMAT
-	foundation.InitLoggingFromEnv(appgroup, app, version, branch, revision, buildDate)
+	foundation.InitLoggingFromEnv(applicationInfo)
 
 	// this builder binary is mounted inside a scratch container to run as a readiness probe against service containers
 	if *runAsReadinessProbe {
-		err := waitForReadiness(*readinessProtocol, *readinessHost, *readinessPort, *readinessPath, *readinessHostname, *readinessTimeoutSeconds)
+		err := builder.WaitForReadiness(*readinessProtocol, *readinessHost, *readinessPort, *readinessPath, *readinessHostname, *readinessTimeoutSeconds)
 		if err != nil {
 			log.Fatal().Err(err).Msgf("Readiness probe failed")
 		}
@@ -94,12 +97,12 @@ func main() {
 	secretHelper := crypt.NewSecretHelper(decryptionKey, false)
 
 	// bootstrap
-	obfuscator := NewObfuscator(secretHelper)
-	envvarHelper := NewEnvvarHelper("ESTAFETTE_", secretHelper, obfuscator)
-	whenEvaluator := NewWhenEvaluator(envvarHelper)
+	obfuscator := builder.NewObfuscator(secretHelper)
+	envvarHelper := builder.NewEnvvarHelper("ESTAFETTE_", secretHelper, obfuscator)
+	whenEvaluator := builder.NewWhenEvaluator(envvarHelper)
 
 	// detect controlling server
-	ciServer := envvarHelper.getCiServer()
+	ciServer := envvarHelper.GetCiServer()
 
 	// read builder config either from file or envvar
 	var builderConfigJSON []byte
@@ -158,65 +161,65 @@ func main() {
 
 	// bootstrap continued
 	tailLogsChannel := make(chan contracts.TailLogLine, 10000)
-	dockerRunner := NewDockerRunner(envvarHelper, obfuscator, builderConfig, tailLogsChannel)
-	pipelineRunner := NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner, *runAsJob, cancellationChannel, tailLogsChannel)
-	endOfLifeHelper := NewEndOfLifeHelper(*runAsJob, builderConfig, *podName)
+	dockerRunner := builder.NewDockerRunner(envvarHelper, obfuscator, builderConfig, tailLogsChannel)
+	pipelineRunner := builder.NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner, *runAsJob, cancellationChannel, tailLogsChannel, applicationInfo)
+	endOfLifeHelper := builder.NewEndOfLifeHelper(*runAsJob, builderConfig, *podName)
 
 	if ciServer == "gocd" {
 
-		fatalHandler := NewGocdFatalHandler()
+		fatalHandler := builder.NewGocdFatalHandler()
 
 		// create docker client
 		_, err := dockerRunner.CreateDockerClient()
 		if err != nil {
-			fatalHandler.handleGocdFatal(err, "Failed creating a docker client")
+			fatalHandler.HandleGocdFatal(err, "Failed creating a docker client")
 		}
 
 		// read yaml
 		manifest, err := manifest.ReadManifestFromFile(".estafette.yaml")
 		if err != nil {
-			fatalHandler.handleGocdFatal(err, "Reading .estafette.yaml manifest failed")
+			fatalHandler.HandleGocdFatal(err, "Reading .estafette.yaml manifest failed")
 		}
 
 		// initialize obfuscator
 		err = obfuscator.CollectSecrets(manifest)
 		if err != nil {
-			fatalHandler.handleGocdFatal(err, "Collecting secrets to obfuscate failed")
+			fatalHandler.HandleGocdFatal(err, "Collecting secrets to obfuscate failed")
 		}
 
 		// get current working directory
 		dir, err := os.Getwd()
 		if err != nil {
-			fatalHandler.handleGocdFatal(err, "Getting current working directory failed")
+			fatalHandler.HandleGocdFatal(err, "Getting current working directory failed")
 		}
 
 		log.Info().Msgf("Running %v stages", len(manifest.Stages))
 
-		err = envvarHelper.setEstafetteGlobalEnvvars()
+		err = envvarHelper.SetEstafetteGlobalEnvvars()
 		if err != nil {
-			fatalHandler.handleGocdFatal(err, "Setting global environment variables failed")
+			fatalHandler.HandleGocdFatal(err, "Setting global environment variables failed")
 		}
-		err = envvarHelper.setEstafetteStagesEnvvar(manifest.Stages)
+		err = envvarHelper.SetEstafetteStagesEnvvar(manifest.Stages)
 		if err != nil {
-			fatalHandler.handleGocdFatal(err, "Setting ESTAFETTE_STAGES environment variable failed")
+			fatalHandler.HandleGocdFatal(err, "Setting ESTAFETTE_STAGES environment variable failed")
 		}
 
 		// collect estafette and 'global' envvars from manifest
-		estafetteEnvvars := envvarHelper.collectEstafetteEnvvarsAndLabels(manifest)
-		globalEnvvars := envvarHelper.collectGlobalEnvvars(manifest)
+		estafetteEnvvars := envvarHelper.CollectEstafetteEnvvarsAndLabels(manifest)
+		globalEnvvars := envvarHelper.CollectGlobalEnvvars(manifest)
 
 		// merge estafette and global envvars
-		envvars := envvarHelper.overrideEnvvars(estafetteEnvvars, globalEnvvars)
+		envvars := envvarHelper.OverrideEnvvars(estafetteEnvvars, globalEnvvars)
 
 		// run stages
 		buildLogSteps, err := pipelineRunner.RunStages(context.Background(), 0, manifest.Stages, dir, envvars)
 		if err != nil {
-			fatalHandler.handleGocdFatal(err, "Executing stages from manifest failed")
+			fatalHandler.HandleGocdFatal(err, "Executing stages from manifest failed")
 		}
 
-		renderStats(buildLogSteps)
+		builder.RenderStats(buildLogSteps)
 
-		handleExit(buildLogSteps)
+		builder.HandleExit(buildLogSteps)
 
 	} else if ciServer == "estafette" {
 
@@ -224,9 +227,9 @@ func main() {
 		defer closer.Close()
 
 		// unset all ESTAFETTE_ envvars so they don't get abused by non-estafette components
-		envvarHelper.unsetEstafetteEnvvars()
+		envvarHelper.UnsetEstafetteEnvvars()
 
-		envvarHelper.setEstafetteBuilderConfigEnvvars(builderConfig)
+		envvarHelper.SetEstafetteBuilderConfigEnvvars(builderConfig)
 
 		buildLog := contracts.BuildLog{
 			RepoSource:   builderConfig.Git.RepoSource,
@@ -283,14 +286,14 @@ func main() {
 		ctx = opentracing.ContextWithSpan(ctx, rootSpan)
 
 		// set running state, so a restarted job will show up as running once a new pod runs
-		_ = endOfLifeHelper.sendBuildStartedEvent(ctx)
+		_ = endOfLifeHelper.SendBuildStartedEvent(ctx)
 
 		// start docker daemon
 		if runtime.GOOS != "windows" {
 			dockerDaemonStartSpan, _ := opentracing.StartSpanFromContext(ctx, "StartDockerDaemon")
 			err = dockerRunner.StartDockerDaemon()
 			if err != nil {
-				endOfLifeHelper.handleFatal(ctx, buildLog, err, "Error starting docker daemon")
+				endOfLifeHelper.HandleFatal(ctx, buildLog, err, "Error starting docker daemon")
 			}
 
 			// wait for docker daemon to be ready for usage
@@ -302,21 +305,21 @@ func main() {
 		go pipelineRunner.StopPipelineOnCancellation()
 
 		// get current working directory
-		dir := envvarHelper.getWorkDir()
+		dir := envvarHelper.GetWorkDir()
 		if dir == "" {
-			endOfLifeHelper.handleFatal(ctx, buildLog, nil, "Getting working directory from environment variable ESTAFETTE_WORKDIR failed")
+			endOfLifeHelper.HandleFatal(ctx, buildLog, nil, "Getting working directory from environment variable ESTAFETTE_WORKDIR failed")
 		}
 
 		// set some envvars
-		err = envvarHelper.setEstafetteGlobalEnvvars()
+		err = envvarHelper.SetEstafetteGlobalEnvvars()
 		if err != nil {
-			endOfLifeHelper.handleFatal(ctx, buildLog, err, "Setting global environment variables failed")
+			endOfLifeHelper.HandleFatal(ctx, buildLog, err, "Setting global environment variables failed")
 		}
 
 		// initialize obfuscator
 		err = obfuscator.CollectSecrets(*builderConfig.Manifest)
 		if err != nil {
-			endOfLifeHelper.handleFatal(ctx, buildLog, err, "Collecting secrets to obfuscate failed")
+			endOfLifeHelper.HandleFatal(ctx, buildLog, err, "Collecting secrets to obfuscate failed")
 		}
 
 		// check whether this is a regular build or a release
@@ -331,42 +334,42 @@ func main() {
 				}
 			}
 			if !releaseExists {
-				endOfLifeHelper.handleFatal(ctx, buildLog, nil, fmt.Sprintf("Release %v does not exist", builderConfig.ReleaseParams.ReleaseName))
+				endOfLifeHelper.HandleFatal(ctx, buildLog, nil, fmt.Sprintf("Release %v does not exist", builderConfig.ReleaseParams.ReleaseName))
 			}
 			log.Info().Msgf("Starting release %v at version %v...", builderConfig.ReleaseParams.ReleaseName, builderConfig.BuildVersion.Version)
 		} else {
 			log.Info().Msgf("Starting build version %v...", builderConfig.BuildVersion.Version)
 		}
 
-		err = envvarHelper.setEstafetteStagesEnvvar(stages)
+		err = envvarHelper.SetEstafetteStagesEnvvar(stages)
 		if err != nil {
-			endOfLifeHelper.handleFatal(ctx, buildLog, err, "Setting ESTAFETTE_STAGES environment variable failed")
+			endOfLifeHelper.HandleFatal(ctx, buildLog, err, "Setting ESTAFETTE_STAGES environment variable failed")
 		}
 
 		// create docker client
 		_, err = dockerRunner.CreateDockerClient()
 		if err != nil {
-			endOfLifeHelper.handleFatal(ctx, buildLog, err, "Failed creating a docker client")
+			endOfLifeHelper.HandleFatal(ctx, buildLog, err, "Failed creating a docker client")
 		}
 
 		// collect estafette envvars and run stages from manifest
 		log.Info().Msgf("Running %v stages", len(stages))
-		estafetteEnvvars := envvarHelper.collectEstafetteEnvvarsAndLabels(*builderConfig.Manifest)
-		globalEnvvars := envvarHelper.collectGlobalEnvvars(*builderConfig.Manifest)
-		envvars := envvarHelper.overrideEnvvars(estafetteEnvvars, globalEnvvars)
+		estafetteEnvvars := envvarHelper.CollectEstafetteEnvvarsAndLabels(*builderConfig.Manifest)
+		globalEnvvars := envvarHelper.CollectGlobalEnvvars(*builderConfig.Manifest)
+		envvars := envvarHelper.OverrideEnvvars(estafetteEnvvars, globalEnvvars)
 
 		// run stages
 		pipelineRunner.EnableBuilderInfoStageInjection()
 		buildLog.Steps, err = pipelineRunner.RunStages(ctx, 0, stages, dir, envvars)
 		if err != nil && buildLog.HasUnknownStatus() {
-			endOfLifeHelper.handleFatal(ctx, buildLog, err, "Executing stages from manifest failed")
+			endOfLifeHelper.HandleFatal(ctx, buildLog, err, "Executing stages from manifest failed")
 		}
 
 		// send result to ci-api
 		buildStatus := strings.ToLower(contracts.GetAggregatedStatus(buildLog.Steps))
-		_ = endOfLifeHelper.sendBuildFinishedEvent(ctx, buildStatus)
-		_ = endOfLifeHelper.sendBuildJobLogEvent(ctx, buildLog)
-		_ = endOfLifeHelper.sendBuildCleanEvent(ctx, buildStatus)
+		_ = endOfLifeHelper.SendBuildFinishedEvent(ctx, buildStatus)
+		_ = endOfLifeHelper.SendBuildJobLogEvent(ctx, buildLog)
+		_ = endOfLifeHelper.SendBuildCleanEvent(ctx, buildStatus)
 
 		// finish and flush so it gets sent to the tracing backend
 		rootSpan.Finish()
@@ -375,7 +378,7 @@ func main() {
 		if *runAsJob {
 			os.Exit(0)
 		} else {
-			handleExit(buildLog.Steps)
+			builder.HandleExit(buildLog.Steps)
 		}
 
 	} else {

@@ -1,4 +1,4 @@
-package main
+package builder
 
 import (
 	"fmt"
@@ -19,7 +19,7 @@ func contains(s []string, e string) bool {
 	return false
 }
 
-func handleExit(buildLogSteps []*contracts.BuildLogStep) {
+func HandleExit(buildLogSteps []*contracts.BuildLogStep) {
 
 	if !contracts.HasSucceededStatus(buildLogSteps) {
 		os.Exit(1)
@@ -28,7 +28,7 @@ func handleExit(buildLogSteps []*contracts.BuildLogStep) {
 	os.Exit(0)
 }
 
-func renderStats(buildLogSteps []*contracts.BuildLogStep) {
+func RenderStats(buildLogSteps []*contracts.BuildLogStep) {
 
 	data := make([][]string, 0)
 

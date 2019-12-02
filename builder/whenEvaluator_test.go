@@ -1,4 +1,4 @@
-package main
+package builder
 
 import (
 	"strings"
@@ -15,7 +15,7 @@ func TestWhenEvaluator(t *testing.T) {
 
 	t.Run("ReturnsFalseIfInputIsEmpty", func(t *testing.T) {
 
-		envvarHelper.unsetEstafetteEnvvars()
+		envvarHelper.UnsetEstafetteEnvvars()
 
 		// act
 		result, err := whenEvaluator.Evaluate("name", "", make(map[string]interface{}, 0))
@@ -26,7 +26,7 @@ func TestWhenEvaluator(t *testing.T) {
 
 	t.Run("ReturnsTrueIfInputEvaluatesToTrueWithoutParameters", func(t *testing.T) {
 
-		envvarHelper.unsetEstafetteEnvvars()
+		envvarHelper.UnsetEstafetteEnvvars()
 
 		// act
 		result, _ := whenEvaluator.Evaluate("name", "3 > 2", make(map[string]interface{}, 0))
@@ -36,7 +36,7 @@ func TestWhenEvaluator(t *testing.T) {
 
 	t.Run("ReturnsTrueIfInputEvaluatesToTrueWithParameters", func(t *testing.T) {
 
-		envvarHelper.unsetEstafetteEnvvars()
+		envvarHelper.UnsetEstafetteEnvvars()
 		parameters := make(map[string]interface{}, 3)
 		parameters["branch"] = "master"
 		parameters["trigger"] = ""
@@ -50,7 +50,7 @@ func TestWhenEvaluator(t *testing.T) {
 
 	t.Run("ReturnsTrueIfInputEvaluatesToTrueWithParameters", func(t *testing.T) {
 
-		envvarHelper.unsetEstafetteEnvvars()
+		envvarHelper.UnsetEstafetteEnvvars()
 		parameters := make(map[string]interface{}, 3)
 		parameters["branch"] = "master"
 		parameters["trigger"] = ""
@@ -67,8 +67,8 @@ func TestWhenParameters(t *testing.T) {
 
 	t.Run("ReturnsMapWithBranchEqualToBranchWithoutTrailingNewline", func(t *testing.T) {
 
-		envvarHelper.unsetEstafetteEnvvars()
-		envvarHelper.setEstafetteGlobalEnvvars()
+		envvarHelper.UnsetEstafetteEnvvars()
+		envvarHelper.SetEstafetteGlobalEnvvars()
 		envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
 
 		// act
@@ -79,8 +79,8 @@ func TestWhenParameters(t *testing.T) {
 
 	t.Run("ReturnsMapWithAction", func(t *testing.T) {
 
-		envvarHelper.unsetEstafetteEnvvars()
-		envvarHelper.setEstafetteGlobalEnvvars()
+		envvarHelper.UnsetEstafetteEnvvars()
+		envvarHelper.SetEstafetteGlobalEnvvars()
 		envvarHelper.setEstafetteEnv("ESTAFETTE_RELEASE_ACTION", "deploy-canary")
 
 		// act
@@ -91,8 +91,8 @@ func TestWhenParameters(t *testing.T) {
 
 	t.Run("ReturnsMapWithStatusSetToSucceededByDefault", func(t *testing.T) {
 
-		envvarHelper.unsetEstafetteEnvvars()
-		envvarHelper.setEstafetteGlobalEnvvars()
+		envvarHelper.UnsetEstafetteEnvvars()
+		envvarHelper.SetEstafetteGlobalEnvvars()
 		envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
 
 		// act

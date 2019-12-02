@@ -1,4 +1,4 @@
-package main
+package builder
 
 import (
 	"crypto/tls"
@@ -9,7 +9,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func waitForReadiness(protocol, host string, port int, path, hostname string, timeoutSeconds int) error {
+func WaitForReadiness(protocol, host string, port int, path, hostname string, timeoutSeconds int) error {
 
 	if protocol == "" {
 		return fmt.Errorf("Protocol is empty, should be either http or https")

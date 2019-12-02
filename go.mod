@@ -17,7 +17,7 @@ require (
 	github.com/estafette/estafette-ci-contracts v0.0.179
 	github.com/estafette/estafette-ci-crypt v0.0.27
 	github.com/estafette/estafette-ci-manifest v0.1.138
-	github.com/estafette/estafette-foundation v0.0.32
+	github.com/estafette/estafette-foundation v0.0.40
 	github.com/gogo/protobuf v1.3.0 // indirect
 	github.com/google/go-cmp v0.3.1 // indirect
 	github.com/gorilla/mux v1.7.3 // indirect
@@ -29,7 +29,7 @@ require (
 	github.com/opencontainers/image-spec v1.0.1 // indirect
 	github.com/opentracing-contrib/go-stdlib v0.0.0-20190519235532-cf7a6c988dc9
 	github.com/opentracing/opentracing-go v1.1.0
-	github.com/rs/zerolog v1.15.0
+	github.com/rs/zerolog v1.17.2
 	github.com/sethgrid/pester v0.0.0-20190127155807-68a33a018ad0
 	github.com/stretchr/testify v1.4.0
 	github.com/uber-go/atomic v1.4.0 // indirect

@@ -1,4 +1,4 @@
-package main
+package builder
 
 import (
 	"context"
@@ -10,6 +10,7 @@ import (
 
 	contracts "github.com/estafette/estafette-ci-contracts"
 	manifest "github.com/estafette/estafette-ci-manifest"
+	foundation "github.com/estafette/estafette-foundation"
 	"github.com/opentracing/opentracing-go"
 	"github.com/rs/zerolog/log"
 )
@@ -36,10 +37,11 @@ type pipelineRunnerImpl struct {
 	buildLogSteps          []*contracts.BuildLogStep
 	canceled               bool
 	injectBuilderInfoStage bool
+	applicationInfo        foundation.ApplicationInfo
 }
 
 // NewPipelineRunner returns a new PipelineRunner
-func NewPipelineRunner(envvarHelper EnvvarHelper, whenEvaluator WhenEvaluator, dockerRunner DockerRunner, runAsJob bool, cancellationChannel chan struct{}, tailLogsChannel chan contracts.TailLogLine) PipelineRunner {
+func NewPipelineRunner(envvarHelper EnvvarHelper, whenEvaluator WhenEvaluator, dockerRunner DockerRunner, runAsJob bool, cancellationChannel chan struct{}, tailLogsChannel chan contracts.TailLogLine, applicationInfo foundation.ApplicationInfo) PipelineRunner {
 	return &pipelineRunnerImpl{
 		envvarHelper:        envvarHelper,
 		whenEvaluator:       whenEvaluator,
@@ -48,6 +50,7 @@ func NewPipelineRunner(envvarHelper EnvvarHelper, whenEvaluator WhenEvaluator, d
 		cancellationChannel: cancellationChannel,
 		tailLogsChannel:     tailLogsChannel,
 		buildLogSteps:       make([]*contracts.BuildLogStep, 0),
+		applicationInfo:     applicationInfo,
 	}
 }
 
@@ -304,7 +307,7 @@ func (pr *pipelineRunnerImpl) RunStages(ctx context.Context, depth int, stages [
 
 	// creates first injected stage with builder info
 	if pr.injectBuilderInfoStage {
-		pr.logBuilderInfo()
+		pr.logBuilderInfo(pr.applicationInfo)
 	}
 
 	log.Info().Msgf("Running %v stages", len(stages))
@@ -679,9 +682,9 @@ func (pr *pipelineRunnerImpl) tailLogs(ctx context.Context, tailLogsDone chan st
 	}
 }
 
-func (pr *pipelineRunnerImpl) logBuilderInfo() {
+func (pr *pipelineRunnerImpl) logBuilderInfo(applicationInfo foundation.ApplicationInfo) {
 
-	builderVersionMessage := fmt.Sprintf("Starting \x1b[1m%v\x1b[0m version \x1b[1m%v\x1b[0m... \x1b[36mbranch=\x1b[0m%v \x1b[36mbuildDate=\x1b[0m%v \x1b[36mgoVersion=\x1b[0m%v \x1b[36mos=\x1b[0m%v \x1b[36mrevision=\x1b[0m%v", app, version, branch, buildDate, goVersion, runtime.GOOS, revision)
+	builderVersionMessage := fmt.Sprintf("Starting \x1b[1m%v\x1b[0m version \x1b[1m%v\x1b[0m... \x1b[36mbranch=\x1b[0m%v \x1b[36mbuildDate=\x1b[0m%v \x1b[36mgoVersion=\x1b[0m%v \x1b[36mos=\x1b[0m%v \x1b[36mrevision=\x1b[0m%v", applicationInfo.App, applicationInfo.Version, applicationInfo.Branch, applicationInfo.BuildDate, applicationInfo.GoVersion(), applicationInfo.OperatingSystem(), applicationInfo.Revision)
 
 	logLineObject := contracts.BuildLogLine{
 		LineNumber: 1,
