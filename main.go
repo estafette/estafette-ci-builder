@@ -61,9 +61,11 @@ func main() {
 	// init log format from envvar ESTAFETTE_LOG_FORMAT
 	foundation.InitLoggingFromEnv(applicationInfo)
 
+	ciBuilder := builder.NewCIBuilder()
+
 	// this builder binary is mounted inside a scratch container to run as a readiness probe against service containers
 	if *runAsReadinessProbe {
-		err := builder.WaitForReadiness(*readinessProtocol, *readinessHost, *readinessPort, *readinessPath, *readinessHostname, *readinessTimeoutSeconds)
+		err := ciBuilder.RunReadinessProbe(*readinessProtocol, *readinessHost, *readinessPort, *readinessPath, *readinessHostname, *readinessTimeoutSeconds)
 		if err != nil {
 			log.Fatal().Err(err).Msgf("Readiness probe failed")
 		}
