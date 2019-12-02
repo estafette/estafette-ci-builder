@@ -548,21 +548,21 @@ func (pr *pipelineRunnerImpl) pullImageIfNeeded(ctx context.Context, stageName, 
 			dockerPullStart := time.Now()
 			err = pr.dockerRunner.PullImage(ctx, stageName, containerImage)
 			imagePullDuration = time.Since(dockerPullStart)
-		}
 
-		// set docker image size
-		if !pr.canceled && err == nil {
-			imageSize, err = pr.dockerRunner.GetImageSize(containerImage)
-		}
+			// set docker image size
+			if !pr.canceled && err == nil {
+				imageSize, err = pr.dockerRunner.GetImageSize(containerImage)
+			}
 
-		if !pr.canceled && err == nil {
-			buildLogStepDockerImage = &contracts.BuildLogStepDockerImage{
-				Name:         getContainerImageName(containerImage),
-				Tag:          getContainerImageTag(containerImage),
-				IsTrusted:    isTrustedImage,
-				IsPulled:     isPulledImage,
-				ImageSize:    imageSize,
-				PullDuration: imagePullDuration,
+			if !pr.canceled && err == nil {
+				buildLogStepDockerImage = &contracts.BuildLogStepDockerImage{
+					Name:         getContainerImageName(containerImage),
+					Tag:          getContainerImageTag(containerImage),
+					IsTrusted:    isTrustedImage,
+					IsPulled:     isPulledImage,
+					ImageSize:    imageSize,
+					PullDuration: imagePullDuration,
+				}
 			}
 		}
 	}
