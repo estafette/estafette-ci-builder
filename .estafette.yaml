@@ -48,33 +48,33 @@ stages:
         - builder/templates
         dockerfile: Dockerfile.gocd
 
-    dive-and-trivy-all:
-      parallelStages:
-        dive:
-          image: extensions/docker:dev
-          action: dive
-          repositories:
-          - estafette
+  dive-and-trivy-all:
+    parallelStages:
+      dive:
+        image: extensions/docker:dev
+        action: dive
+        repositories:
+        - estafette
 
-        dive-gocd-agent:
-          image: extensions/docker:dev
-          action: dive
-          versionTagSuffix: gocd
-          repositories:
-          - estafette
+      dive-gocd-agent:
+        image: extensions/docker:dev
+        action: dive
+        versionTagSuffix: gocd
+        repositories:
+        - estafette
 
-        trivy:
-          image: extensions/docker:dev
-          action: trivy
-          repositories:
-          - estafette
+      trivy:
+        image: extensions/docker:dev
+        action: trivy
+        repositories:
+        - estafette
 
-        trivy-gocd-agent:
-          image: extensions/docker:dev
-          action: trivy
-          versionTagSuffix: gocd
-          repositories:
-          - estafette
+      trivy-gocd-agent:
+        image: extensions/docker:dev
+        action: trivy
+        versionTagSuffix: gocd
+        repositories:
+        - estafette
 
   clean-working-directory:
     image: golang:1.13.5-alpine3.10
