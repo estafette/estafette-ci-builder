@@ -11,7 +11,7 @@ import (
 
 // Obfuscator hides secret values and other sensitive stuff from the logs
 type Obfuscator interface {
-	CollectSecrets(manifest.EstafetteManifest) error
+	CollectSecrets(manifest.EstafetteManifest, string) error
 	Obfuscate(string) string
 	ObfuscateSecrets(string) string
 }
@@ -28,7 +28,7 @@ func NewObfuscator(secretHelper crypt.SecretHelper) Obfuscator {
 	}
 }
 
-func (ob *obfuscatorImpl) CollectSecrets(manifest manifest.EstafetteManifest) (err error) {
+func (ob *obfuscatorImpl) CollectSecrets(manifest manifest.EstafetteManifest, pipeline string) (err error) {
 	// turn manifest into string to easily scan for secrets
 	manifestBytes, err := json.Marshal(manifest)
 	if err != nil {
@@ -45,7 +45,7 @@ func (ob *obfuscatorImpl) CollectSecrets(manifest manifest.EstafetteManifest) (e
 	if matches != nil {
 		for _, m := range matches {
 			if len(m) > 1 {
-				decryptedValue, err := ob.secretHelper.Decrypt(m[1])
+				decryptedValue, _, err := ob.secretHelper.Decrypt(m[1], pipeline)
 				if err != nil {
 					return err
 				}

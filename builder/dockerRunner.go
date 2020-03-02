@@ -52,11 +52,13 @@ type DockerRunner interface {
 }
 
 type dockerRunnerImpl struct {
-	envvarHelper                          EnvvarHelper
-	obfuscator                            Obfuscator
-	dockerClient                          *client.Client
-	config                                contracts.BuilderConfig
-	tailLogsChannel                       chan contracts.TailLogLine
+	envvarHelper    EnvvarHelper
+	obfuscator      Obfuscator
+	dockerClient    *client.Client
+	config          contracts.BuilderConfig
+	tailLogsChannel chan contracts.TailLogLine
+	pipeline        string
+
 	runningStageContainerIDs              []string
 	runningSingleStageServiceContainerIDs []string
 	runningMultiStageServiceContainerIDs  []string
@@ -68,12 +70,13 @@ type dockerRunnerImpl struct {
 }
 
 // NewDockerRunner returns a new DockerRunner
-func NewDockerRunner(envvarHelper EnvvarHelper, obfuscator Obfuscator, config contracts.BuilderConfig, tailLogsChannel chan contracts.TailLogLine) DockerRunner {
+func NewDockerRunner(envvarHelper EnvvarHelper, obfuscator Obfuscator, config contracts.BuilderConfig, tailLogsChannel chan contracts.TailLogLine, pipeline string) DockerRunner {
 	return &dockerRunnerImpl{
 		envvarHelper:                          envvarHelper,
 		obfuscator:                            obfuscator,
 		config:                                config,
 		tailLogsChannel:                       tailLogsChannel,
+		pipeline:                              pipeline,
 		runningStageContainerIDs:              make([]string, 0),
 		runningSingleStageServiceContainerIDs: make([]string, 0),
 		runningMultiStageServiceContainerIDs:  make([]string, 0),
@@ -166,7 +169,7 @@ func (dr *dockerRunnerImpl) StartStageContainer(ctx context.Context, depth int, 
 	combinedEnvVars := dr.envvarHelper.OverrideEnvvars(envvars, stage.EnvVars, extensionEnvVars, credentialEnvVars)
 
 	// decrypt secrets in all envvars
-	combinedEnvVars = dr.envvarHelper.decryptSecrets(combinedEnvVars)
+	combinedEnvVars = dr.envvarHelper.decryptSecrets(combinedEnvVars, dr.pipeline)
 
 	// define docker envvars and expand ESTAFETTE_ variables
 	dockerEnvVars := make([]string, 0)
@@ -292,7 +295,7 @@ func (dr *dockerRunnerImpl) StartServiceContainer(ctx context.Context, envvars m
 	combinedEnvVars := dr.envvarHelper.OverrideEnvvars(envvars, service.EnvVars, extensionEnvVars, credentialEnvVars)
 
 	// decrypt secrets in all envvars
-	combinedEnvVars = dr.envvarHelper.decryptSecrets(combinedEnvVars)
+	combinedEnvVars = dr.envvarHelper.decryptSecrets(combinedEnvVars, dr.pipeline)
 
 	// define docker envvars and expand ESTAFETTE_ variables
 	dockerEnvVars := make([]string, 0)
@@ -419,7 +422,7 @@ func (dr *dockerRunnerImpl) RunReadinessProbeContainer(ctx context.Context, pare
 	}
 
 	// decrypt secrets in all envvars
-	envvars = dr.envvarHelper.decryptSecrets(envvars)
+	envvars = dr.envvarHelper.decryptSecrets(envvars, dr.pipeline)
 
 	// define docker envvars and expand ESTAFETTE_ variables
 	dockerEnvVars := make([]string, 0)

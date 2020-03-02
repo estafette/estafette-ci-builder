@@ -246,7 +246,7 @@ func TestDecryptSecret(t *testing.T) {
 	t.Run("ReturnsOriginalValueIfDoesNotMatchEstafetteSecret", func(t *testing.T) {
 
 		// act
-		result := envvarHelper.decryptSecret("not a secret")
+		result := envvarHelper.decryptSecret("not a secret", "github.com/estafette/estafette-ci-builder")
 
 		assert.Equal(t, "not a secret", result)
 	})
@@ -256,7 +256,7 @@ func TestDecryptSecret(t *testing.T) {
 		value := "estafette.secret(deFTz5Bdjg6SUe29.oPIkXbze5G9PNEWS2-ZnArl8BCqHnx4MdTdxHg37th9u)"
 
 		// act
-		result := envvarHelper.decryptSecret(value)
+		result := envvarHelper.decryptSecret(value, "github.com/estafette/estafette-ci-builder")
 
 		assert.Equal(t, "this is my secret", result)
 	})
@@ -266,7 +266,7 @@ func TestDecryptSecret(t *testing.T) {
 		value := "estafette.secret(yOQOYnIJAS1tN5eQ.Xaao3tVnwszu3OJ4XqGO0NMw8Cw0c0V3qA==)"
 
 		// act
-		result := envvarHelper.decryptSecret(value)
+		result := envvarHelper.decryptSecret(value, "github.com/estafette/estafette-ci-builder")
 
 		assert.Equal(t, "estafette", result)
 	})
@@ -281,7 +281,7 @@ func TestDecryptSecrets(t *testing.T) {
 		}
 
 		// act
-		result := envvarHelper.decryptSecrets(envvars)
+		result := envvarHelper.decryptSecrets(envvars, "github.com/estafette/estafette-ci-builder")
 
 		assert.Equal(t, 1, len(result))
 		assert.Equal(t, "not a secret", result["SOME_PLAIN_ENVVAR"])
@@ -294,7 +294,7 @@ func TestDecryptSecrets(t *testing.T) {
 		}
 
 		// act
-		result := envvarHelper.decryptSecrets(envvars)
+		result := envvarHelper.decryptSecrets(envvars, "github.com/estafette/estafette-ci-builder")
 
 		assert.Equal(t, 1, len(result))
 		assert.Equal(t, "this is my secret", result["SOME_SECRET"])

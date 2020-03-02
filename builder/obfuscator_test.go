@@ -20,8 +20,9 @@ func TestObfuscate(t *testing.T) {
 				"MY_SECRET": "estafette.secret(deFTz5Bdjg6SUe29.oPIkXbze5G9PNEWS2-ZnArl8BCqHnx4MdTdxHg37th9u)",
 			},
 		}
+		pipeline := "github.com/estafette/estafette-ci-builder"
 
-		obfuscator.CollectSecrets(manifest)
+		obfuscator.CollectSecrets(manifest, pipeline)
 
 		// act
 		output := obfuscator.Obfuscate("this is my secret")

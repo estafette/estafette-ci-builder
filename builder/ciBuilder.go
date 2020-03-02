@@ -29,12 +29,14 @@ type CIBuilder interface {
 
 type ciBuilderImpl struct {
 	applicationInfo foundation.ApplicationInfo
+	pipeline        string
 }
 
 // NewCIBuilder returns a new CIBuilder
-func NewCIBuilder(applicationInfo foundation.ApplicationInfo) CIBuilder {
+func NewCIBuilder(applicationInfo foundation.ApplicationInfo, pipeline string) CIBuilder {
 	return &ciBuilderImpl{
 		applicationInfo: applicationInfo,
+		pipeline:        pipeline,
 	}
 }
 
@@ -144,7 +146,7 @@ func (b *ciBuilderImpl) RunEstafetteBuildJob(pipelineRunner PipelineRunner, dock
 	}
 
 	// initialize obfuscator
-	err = obfuscator.CollectSecrets(*builderConfig.Manifest)
+	err = obfuscator.CollectSecrets(*builderConfig.Manifest, b.pipeline)
 	if err != nil {
 		endOfLifeHelper.HandleFatal(ctx, buildLog, err, "Collecting secrets to obfuscate failed")
 	}
@@ -226,7 +228,7 @@ func (b *ciBuilderImpl) RunGocdAgentBuild(pipelineRunner PipelineRunner, dockerR
 	}
 
 	// initialize obfuscator
-	err = obfuscator.CollectSecrets(manifest)
+	err = obfuscator.CollectSecrets(manifest, b.pipeline)
 	if err != nil {
 		fatalHandler.HandleGocdFatal(err, "Collecting secrets to obfuscate failed")
 	}

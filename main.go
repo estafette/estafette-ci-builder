@@ -56,13 +56,6 @@ func main() {
 		close(cancellationChannel)
 	})
 
-	ciBuilder := builder.NewCIBuilder(applicationInfo)
-
-	// this builder binary is mounted inside a scratch container to run as a readiness probe against service containers
-	if *runAsReadinessProbe {
-		ciBuilder.RunReadinessProbe(*readinessProtocol, *readinessHost, *readinessPort, *readinessPath, *readinessHostname, *readinessTimeoutSeconds)
-	}
-
 	// init secret helper
 	decryptionKey := getDecryptionKey()
 	secretHelper := crypt.NewSecretHelper(decryptionKey, false)
@@ -72,12 +65,19 @@ func main() {
 	obfuscator := builder.NewObfuscator(secretHelper)
 	envvarHelper := builder.NewEnvvarHelper("ESTAFETTE_", secretHelper, obfuscator)
 	whenEvaluator := builder.NewWhenEvaluator(envvarHelper)
-	builderConfig := loadBuilderConfig(secretHelper)
-	dockerRunner := builder.NewDockerRunner(envvarHelper, obfuscator, builderConfig, tailLogsChannel)
+	builderConfig := loadBuilderConfig(secretHelper, envvarHelper.GetPipelineName())
+	dockerRunner := builder.NewDockerRunner(envvarHelper, obfuscator, builderConfig, tailLogsChannel, envvarHelper.GetPipelineName())
 	pipelineRunner := builder.NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner, *runAsJob, cancellationChannel, tailLogsChannel, applicationInfo)
+	ciBuilder := builder.NewCIBuilder(applicationInfo, envvarHelper.GetPipelineName())
+
+	// this builder binary is mounted inside a scratch container to run as a readiness probe against service containers
+	if *runAsReadinessProbe {
+		ciBuilder.RunReadinessProbe(*readinessProtocol, *readinessHost, *readinessPort, *readinessPath, *readinessHostname, *readinessTimeoutSeconds)
+	}
 
 	// detect controlling server
 	ciServer := envvarHelper.GetCiServer()
+
 	if ciServer == "gocd" {
 		ciBuilder.RunGocdAgentBuild(pipelineRunner, dockerRunner, envvarHelper, obfuscator)
 	} else if ciServer == "estafette" {
@@ -88,7 +88,7 @@ func main() {
 	}
 }
 
-func loadBuilderConfig(secretHelper crypt.SecretHelper) (builderConfig contracts.BuilderConfig) {
+func loadBuilderConfig(secretHelper crypt.SecretHelper, pipeline string) (builderConfig contracts.BuilderConfig) {
 	// read builder config either from file or envvar
 	var builderConfigJSON []byte
 
@@ -129,7 +129,7 @@ func loadBuilderConfig(secretHelper crypt.SecretHelper) (builderConfig contracts
 		decryptedAdditionalProperties := map[string]interface{}{}
 		for key, value := range c.AdditionalProperties {
 			if s, isString := value.(string); isString {
-				decryptedAdditionalProperties[key], err = secretHelper.DecryptAllEnvelopes(s)
+				decryptedAdditionalProperties[key], err = secretHelper.DecryptAllEnvelopes(s, pipeline)
 				if err != nil {
 					log.Fatal().Err(err).Msgf("Failed decrypting credential %v property %v", c.Name, key)
 				}

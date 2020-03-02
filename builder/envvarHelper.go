@@ -45,9 +45,10 @@ type EnvvarHelper interface {
 	unsetEstafetteEnv(string) error
 	getEstafetteEnvvarName(string) string
 	OverrideEnvvars(...map[string]string) map[string]string
-	decryptSecret(string) string
-	decryptSecrets(map[string]string) map[string]string
+	decryptSecret(string, string) string
+	decryptSecrets(map[string]string, string) map[string]string
 	GetCiServer() string
+	GetPipelineName() string
 	GetWorkDir() string
 	makeDNSLabelSafe(string) string
 
@@ -327,6 +328,19 @@ func (h *envvarHelperImpl) initGitFullName() (err error) {
 	return
 }
 
+func (h *envvarHelperImpl) GetPipelineName() string {
+
+	origin, err := h.getGitOrigin()
+	if err != nil {
+		return ""
+	}
+	source := h.getSourceFromOrigin(origin)
+	owner := h.getOwnerFromOrigin(origin)
+	name := h.getNameFromOrigin(origin)
+
+	return fmt.Sprintf("%v/%v/%v", source, owner, name)
+}
+
 func (h *envvarHelperImpl) getSourceFromOrigin(origin string) string {
 
 	re := regexp.MustCompile(`^(git@|https://)([^:\/]+)(:|/)([^\/]+)/([^\/]+)\.git`)
@@ -516,9 +530,9 @@ func (h *envvarHelperImpl) OverrideEnvvars(envvarMaps ...map[string]string) (env
 	return
 }
 
-func (h *envvarHelperImpl) decryptSecret(encryptedValue string) (decryptedValue string) {
+func (h *envvarHelperImpl) decryptSecret(encryptedValue, pipeline string) (decryptedValue string) {
 
-	decryptedValue, err := h.secretHelper.DecryptAllEnvelopes(encryptedValue)
+	decryptedValue, err := h.secretHelper.DecryptAllEnvelopes(encryptedValue, pipeline)
 
 	if err != nil {
 		log.Warn().Err(err).Msg("Failed decrypting secret")
@@ -528,7 +542,7 @@ func (h *envvarHelperImpl) decryptSecret(encryptedValue string) (decryptedValue 
 	return
 }
 
-func (h *envvarHelperImpl) decryptSecrets(encryptedEnvvars map[string]string) (envvars map[string]string) {
+func (h *envvarHelperImpl) decryptSecrets(encryptedEnvvars map[string]string, pipeline string) (envvars map[string]string) {
 
 	if encryptedEnvvars == nil || len(encryptedEnvvars) == 0 {
 		return encryptedEnvvars
@@ -536,7 +550,7 @@ func (h *envvarHelperImpl) decryptSecrets(encryptedEnvvars map[string]string) (e
 
 	envvars = make(map[string]string)
 	for k, v := range encryptedEnvvars {
-		envvars[k] = h.decryptSecret(v)
+		envvars[k] = h.decryptSecret(v, pipeline)
 	}
 
 	return

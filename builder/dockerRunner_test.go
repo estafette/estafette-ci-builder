@@ -398,7 +398,7 @@ func getDockerRunnerAndMocks() (chan contracts.TailLogLine, DockerRunner) {
 	config := contracts.BuilderConfig{}
 	tailLogsChannel := make(chan contracts.TailLogLine, 10000)
 
-	dockerRunner := NewDockerRunner(envvarHelper, obfuscator, config, tailLogsChannel)
+	dockerRunner := NewDockerRunner(envvarHelper, obfuscator, config, tailLogsChannel, "github.com/estafette/estafette-ci-builder")
 
 	return tailLogsChannel, dockerRunner
 }
