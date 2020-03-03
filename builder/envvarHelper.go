@@ -330,13 +330,13 @@ func (h *envvarHelperImpl) initGitFullName() (err error) {
 
 func (h *envvarHelperImpl) GetPipelineName() string {
 
-	origin, err := h.getGitOrigin()
-	if err != nil {
-		return ""
+	source := h.getEstafetteEnv("ESTAFETTE_GIT_SOURCE")
+	owner := h.getEstafetteEnv("ESTAFETTE_GIT_OWNER")
+	name := h.getEstafetteEnv("ESTAFETTE_GIT_NAME")
+
+	if source == "" || owner == "" || name == "" {
+		log.Fatal().Msg("Git environment variables have not been set yet, cannot resolve pipeline name")
 	}
-	source := h.getSourceFromOrigin(origin)
-	owner := h.getOwnerFromOrigin(origin)
-	name := h.getNameFromOrigin(origin)
 
 	return fmt.Sprintf("%v/%v/%v", source, owner, name)
 }
