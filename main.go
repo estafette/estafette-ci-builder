@@ -121,6 +121,12 @@ func loadBuilderConfig(secretHelper crypt.SecretHelper, envvarHelper builder.Env
 		log.Fatal().Err(err).Interface("builderConfigJSON", builderConfigJSON).Msg("Failed to unmarshal builder config")
 	}
 
+	// ensure GetPipelineName does not fail below
+	err = envvarHelper.SetPipelineName(builderConfig)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to set pipeline name")
+	}
+
 	// decrypt all credentials
 	decryptedCredentials := []*contracts.CredentialConfig{}
 	for _, c := range builderConfig.Credentials {

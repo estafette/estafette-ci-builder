@@ -48,6 +48,7 @@ type EnvvarHelper interface {
 	decryptSecret(string, string) string
 	decryptSecrets(map[string]string, string) map[string]string
 	GetCiServer() string
+	SetPipelineName(builderConfig contracts.BuilderConfig) error
 	GetPipelineName() string
 	GetWorkDir() string
 	makeDNSLabelSafe(string) string
@@ -326,6 +327,45 @@ func (h *envvarHelperImpl) initGitFullName() (err error) {
 		return h.setEstafetteEnv("ESTAFETTE_GIT_FULLNAME", fmt.Sprintf("%v/%v", owner, name))
 	}
 	return
+}
+
+func (h *envvarHelperImpl) SetPipelineName(builderConfig contracts.BuilderConfig) (err error) {
+
+	if builderConfig.Git == nil {
+		err = h.initGitSource()
+		if err != nil {
+			return
+		}
+
+		err = h.initGitOwner()
+		if err != nil {
+			return
+		}
+
+		err = h.initGitName()
+		if err != nil {
+			return
+		}
+
+		return nil
+	}
+
+	err = h.setEstafetteEnv("ESTAFETTE_GIT_SOURCE", builderConfig.Git.RepoSource)
+	if err != nil {
+		return
+	}
+
+	err = h.setEstafetteEnv("ESTAFETTE_GIT_OWNER", builderConfig.Git.RepoOwner)
+	if err != nil {
+		return
+	}
+
+	err = h.setEstafetteEnv("ESTAFETTE_GIT_NAME", builderConfig.Git.RepoName)
+	if err != nil {
+		return
+	}
+
+	return nil
 }
 
 func (h *envvarHelperImpl) GetPipelineName() string {
