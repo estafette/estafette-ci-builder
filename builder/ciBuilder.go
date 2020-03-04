@@ -23,7 +23,7 @@ import (
 type CIBuilder interface {
 	RunReadinessProbe(protocol, host string, port int, path, hostname string, timeoutSeconds int)
 	RunEstafetteBuildJob(pipelineRunner PipelineRunner, dockerRunner DockerRunner, envvarHelper EnvvarHelper, obfuscator Obfuscator, endOfLifeHelper EndOfLifeHelper, builderConfig contracts.BuilderConfig, runAsJob bool)
-	RunGocdAgentBuild(pipelineRunner PipelineRunner, dockerRunner DockerRunner, envvarHelper EnvvarHelper, obfuscator Obfuscator)
+	RunGocdAgentBuild(pipelineRunner PipelineRunner, dockerRunner DockerRunner, envvarHelper EnvvarHelper, obfuscator Obfuscator, builderConfig contracts.BuilderConfig)
 	RunEstafetteCLIBuild() error
 }
 
@@ -144,7 +144,7 @@ func (b *ciBuilderImpl) RunEstafetteBuildJob(pipelineRunner PipelineRunner, dock
 	}
 
 	// initialize obfuscator
-	err = obfuscator.CollectSecrets(*builderConfig.Manifest, envvarHelper.GetPipelineName())
+	err = obfuscator.CollectSecrets(*builderConfig.Manifest, builderConfig, envvarHelper.GetPipelineName())
 	if err != nil {
 		endOfLifeHelper.HandleFatal(ctx, buildLog, err, "Collecting secrets to obfuscate failed")
 	}
@@ -209,7 +209,7 @@ func (b *ciBuilderImpl) RunEstafetteBuildJob(pipelineRunner PipelineRunner, dock
 	}
 }
 
-func (b *ciBuilderImpl) RunGocdAgentBuild(pipelineRunner PipelineRunner, dockerRunner DockerRunner, envvarHelper EnvvarHelper, obfuscator Obfuscator) {
+func (b *ciBuilderImpl) RunGocdAgentBuild(pipelineRunner PipelineRunner, dockerRunner DockerRunner, envvarHelper EnvvarHelper, obfuscator Obfuscator, builderConfig contracts.BuilderConfig) {
 
 	fatalHandler := NewGocdFatalHandler()
 
@@ -226,7 +226,7 @@ func (b *ciBuilderImpl) RunGocdAgentBuild(pipelineRunner PipelineRunner, dockerR
 	}
 
 	// initialize obfuscator
-	err = obfuscator.CollectSecrets(manifest, envvarHelper.GetPipelineName())
+	err = obfuscator.CollectSecrets(manifest, builderConfig, envvarHelper.GetPipelineName())
 	if err != nil {
 		fatalHandler.HandleGocdFatal(err, "Collecting secrets to obfuscate failed")
 	}

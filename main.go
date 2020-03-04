@@ -79,7 +79,7 @@ func main() {
 	// detect controlling server
 	ciServer := envvarHelper.GetCiServer()
 	if ciServer == "gocd" {
-		ciBuilder.RunGocdAgentBuild(pipelineRunner, dockerRunner, envvarHelper, obfuscator)
+		ciBuilder.RunGocdAgentBuild(pipelineRunner, dockerRunner, envvarHelper, obfuscator, builderConfig)
 	} else if ciServer == "estafette" {
 		endOfLifeHelper := builder.NewEndOfLifeHelper(*runAsJob, builderConfig, *podName)
 		ciBuilder.RunEstafetteBuildJob(pipelineRunner, dockerRunner, envvarHelper, obfuscator, endOfLifeHelper, builderConfig, *runAsJob)

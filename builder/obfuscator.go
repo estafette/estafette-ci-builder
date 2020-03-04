@@ -5,15 +5,16 @@ import (
 	"regexp"
 	"strings"
 
+	contracts "github.com/estafette/estafette-ci-contracts"
 	crypt "github.com/estafette/estafette-ci-crypt"
 	manifest "github.com/estafette/estafette-ci-manifest"
 )
 
 // Obfuscator hides secret values and other sensitive stuff from the logs
 type Obfuscator interface {
-	CollectSecrets(manifest.EstafetteManifest, string) error
-	Obfuscate(string) string
-	ObfuscateSecrets(string) string
+	CollectSecrets(manifest manifest.EstafetteManifest, builderConfig contracts.BuilderConfig, pipeline string) (err error)
+	Obfuscate(input string) string
+	ObfuscateSecrets(input string) string
 }
 
 type obfuscatorImpl struct {
@@ -28,7 +29,7 @@ func NewObfuscator(secretHelper crypt.SecretHelper) Obfuscator {
 	}
 }
 
-func (ob *obfuscatorImpl) CollectSecrets(manifest manifest.EstafetteManifest, pipeline string) (err error) {
+func (ob *obfuscatorImpl) CollectSecrets(manifest manifest.EstafetteManifest, builderConfig contracts.BuilderConfig, pipeline string) (err error) {
 	// turn manifest into string to easily scan for secrets
 	manifestBytes, err := json.Marshal(manifest)
 	if err != nil {
@@ -40,8 +41,9 @@ func (ob *obfuscatorImpl) CollectSecrets(manifest manifest.EstafetteManifest, pi
 		return err
 	}
 
-	matches := r.FindAllStringSubmatch(string(manifestBytes), -1)
 	replacerStrings := []string{}
+
+	matches := r.FindAllStringSubmatch(string(manifestBytes), -1)
 	if matches != nil {
 		for _, m := range matches {
 			if len(m) > 1 {
@@ -51,6 +53,27 @@ func (ob *obfuscatorImpl) CollectSecrets(manifest manifest.EstafetteManifest, pi
 				}
 
 				replacerStrings = append(replacerStrings, decryptedValue, "***")
+			}
+		}
+	}
+
+	if builderConfig.Credentials != nil && len(builderConfig.Credentials) > 0 {
+		credentialsBytes, err := json.Marshal(builderConfig.Credentials)
+		if err != nil {
+			return err
+		}
+
+		matches := r.FindAllStringSubmatch(string(credentialsBytes), -1)
+		if matches != nil {
+			for _, m := range matches {
+				if len(m) > 1 {
+					decryptedValue, _, err := ob.secretHelper.Decrypt(m[1], pipeline)
+					if err != nil {
+						return err
+					}
+
+					replacerStrings = append(replacerStrings, decryptedValue, "***")
+				}
 			}
 		}
 	}
