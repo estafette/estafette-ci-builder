@@ -13,11 +13,12 @@ require (
 	github.com/docker/docker v1.13.1
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/docker/go-units v0.4.0 // indirect
-	github.com/estafette/estafette-ci-contracts v0.0.179
+	github.com/estafette/estafette-ci-contracts v0.0.182
 	github.com/estafette/estafette-ci-crypt v0.0.35
-	github.com/estafette/estafette-ci-manifest v0.1.138
-	github.com/estafette/estafette-foundation v0.0.49
+	github.com/estafette/estafette-ci-manifest v0.1.145
+	github.com/estafette/estafette-foundation v0.0.53
 	github.com/gogo/protobuf v1.3.0 // indirect
+	github.com/google/go-cmp v0.3.1 // indirect
 	github.com/gorilla/mux v1.7.3 // indirect
 	github.com/kr/pretty v0.1.0 // indirect
 	github.com/mattn/go-runewidth v0.0.4 // indirect
@@ -37,6 +38,7 @@ require (
 	google.golang.org/grpc v1.23.1 // indirect
 	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
 	gopkg.in/yaml.v2 v2.2.2
+	gotest.tools v2.2.0+incompatible // indirect
 )
 
 replace github.com/docker/docker v1.13.1 => github.com/docker/engine v0.0.0-20190822205725-ed20165a37b4
