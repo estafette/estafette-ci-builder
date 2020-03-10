@@ -30,54 +30,40 @@ func NewObfuscator(secretHelper crypt.SecretHelper) Obfuscator {
 }
 
 func (ob *obfuscatorImpl) CollectSecrets(manifest manifest.EstafetteManifest, builderConfig contracts.BuilderConfig, pipeline string) (err error) {
-	// turn manifest into string to easily scan for secrets
+
+	replacerStrings := []string{}
+
+	// collect all secrets from manifest
 	manifestBytes, err := json.Marshal(manifest)
 	if err != nil {
 		return err
 	}
-
-	r, err := regexp.Compile(`estafette\.secret\(([a-zA-Z0-9.=_-]+)\)`)
+	values, err := ob.secretHelper.GetAllSecretValues(string(manifestBytes), pipeline)
 	if err != nil {
 		return err
 	}
-
-	replacerStrings := []string{}
-
-	matches := r.FindAllStringSubmatch(string(manifestBytes), -1)
-	if matches != nil {
-		for _, m := range matches {
-			if len(m) > 1 {
-				decryptedValue, _, err := ob.secretHelper.Decrypt(m[1], pipeline)
-				if err != nil {
-					return err
-				}
-
-				replacerStrings = append(replacerStrings, decryptedValue, "***")
-			}
-		}
+	for _, v := range values {
+		replacerStrings = append(replacerStrings, v, "***")
 	}
 
+	// collect all secrets from injected credentials
 	if builderConfig.Credentials != nil && len(builderConfig.Credentials) > 0 {
 		credentialsBytes, err := json.Marshal(builderConfig.Credentials)
 		if err != nil {
 			return err
 		}
 
-		matches := r.FindAllStringSubmatch(string(credentialsBytes), -1)
-		if matches != nil {
-			for _, m := range matches {
-				if len(m) > 1 {
-					decryptedValue, _, err := ob.secretHelper.Decrypt(m[1], pipeline)
-					if err != nil {
-						return err
-					}
+		values, err := ob.secretHelper.GetAllSecretValues(string(credentialsBytes), pipeline)
+		if err != nil {
+			return err
+		}
 
-					replacerStrings = append(replacerStrings, decryptedValue, "***")
-				}
-			}
+		for _, v := range values {
+			replacerStrings = append(replacerStrings, v, "***")
 		}
 	}
 
+	// replace all secret values with obfuscated string
 	ob.replacer = strings.NewReplacer(replacerStrings...)
 
 	return nil
