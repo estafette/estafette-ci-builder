@@ -1,6 +1,7 @@
 package builder
 
 import (
+	"encoding/json"
 	"testing"
 
 	contracts "github.com/estafette/estafette-ci-contracts"
@@ -23,8 +24,9 @@ func TestObfuscate(t *testing.T) {
 		}
 		credentials := []*contracts.CredentialConfig{}
 		pipeline := "github.com/estafette/estafette-ci-builder"
+		credentialsBytes, _ := json.Marshal(credentials)
 
-		obfuscator.CollectSecrets(manifest, credentials, pipeline)
+		obfuscator.CollectSecrets(manifest, credentialsBytes, pipeline)
 
 		// act
 		output := obfuscator.Obfuscate("this is my secret")
@@ -43,8 +45,9 @@ func TestObfuscate(t *testing.T) {
 			},
 		}
 		pipeline := "github.com/estafette/estafette-ci-builder"
+		credentialsBytes, _ := json.Marshal(credentials)
 
-		obfuscator.CollectSecrets(manifest, credentials, pipeline)
+		obfuscator.CollectSecrets(manifest, credentialsBytes, pipeline)
 
 		// act
 		output := obfuscator.Obfuscate("this is my secret")

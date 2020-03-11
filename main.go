@@ -88,7 +88,7 @@ func main() {
 	}
 }
 
-func loadBuilderConfig(secretHelper crypt.SecretHelper, envvarHelper builder.EnvvarHelper) (builderConfig contracts.BuilderConfig, originalEncryptedCredentials []*contracts.CredentialConfig) {
+func loadBuilderConfig(secretHelper crypt.SecretHelper, envvarHelper builder.EnvvarHelper) (builderConfig contracts.BuilderConfig, credentialsBytes []byte) {
 	// read builder config either from file or envvar
 	var builderConfigJSON []byte
 	if *builderConfigPath != "" {
@@ -121,12 +121,10 @@ func loadBuilderConfig(secretHelper crypt.SecretHelper, envvarHelper builder.Env
 	}
 
 	// unmarshal a second time to be able to return the original unaltered credentials for the obfuscator to extract secrets from it
-	var builderConfigForOriginalCredentials contracts.BuilderConfig
-	err = json.Unmarshal(builderConfigJSON, &builderConfigForOriginalCredentials)
+	credentialsBytes, err = json.Marshal(builderConfig.Credentials)
 	if err != nil {
-		log.Fatal().Err(err).Interface("builderConfigJSON", builderConfigJSON).Msg("Failed to unmarshal builder config")
+		log.Fatal().Err(err).Msg("Failed to marshal credentials")
 	}
-	originalEncryptedCredentials = builderConfigForOriginalCredentials.Credentials
 
 	// ensure GetPipelineName does not fail below
 	err = envvarHelper.SetPipelineName(builderConfig)

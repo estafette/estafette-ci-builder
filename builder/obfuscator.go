@@ -5,14 +5,13 @@ import (
 	"regexp"
 	"strings"
 
-	contracts "github.com/estafette/estafette-ci-contracts"
 	crypt "github.com/estafette/estafette-ci-crypt"
 	manifest "github.com/estafette/estafette-ci-manifest"
 )
 
 // Obfuscator hides secret values and other sensitive stuff from the logs
 type Obfuscator interface {
-	CollectSecrets(manifest manifest.EstafetteManifest, credentials []*contracts.CredentialConfig, pipeline string) (err error)
+	CollectSecrets(manifest manifest.EstafetteManifest, credentialsBytes []byte, pipeline string) (err error)
 	Obfuscate(input string) string
 	ObfuscateSecrets(input string) string
 }
@@ -29,7 +28,7 @@ func NewObfuscator(secretHelper crypt.SecretHelper) Obfuscator {
 	}
 }
 
-func (ob *obfuscatorImpl) CollectSecrets(manifest manifest.EstafetteManifest, credentials []*contracts.CredentialConfig, pipeline string) (err error) {
+func (ob *obfuscatorImpl) CollectSecrets(manifest manifest.EstafetteManifest, credentialsBytes []byte, pipeline string) (err error) {
 
 	replacerStrings := []string{}
 
@@ -47,20 +46,13 @@ func (ob *obfuscatorImpl) CollectSecrets(manifest manifest.EstafetteManifest, cr
 	}
 
 	// collect all secrets from injected credentials
-	if credentials != nil && len(credentials) > 0 {
-		credentialsBytes, err := json.Marshal(credentials)
-		if err != nil {
-			return err
-		}
+	values, err = ob.secretHelper.GetAllSecretValues(string(credentialsBytes), pipeline)
+	if err != nil {
+		return err
+	}
 
-		values, err := ob.secretHelper.GetAllSecretValues(string(credentialsBytes), pipeline)
-		if err != nil {
-			return err
-		}
-
-		for _, v := range values {
-			replacerStrings = append(replacerStrings, v, "***")
-		}
+	for _, v := range values {
+		replacerStrings = append(replacerStrings, v, "***")
 	}
 
 	// replace all secret values with obfuscated string

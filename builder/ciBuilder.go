@@ -22,8 +22,8 @@ import (
 // CIBuilder runs builds for different types of integrations
 type CIBuilder interface {
 	RunReadinessProbe(protocol, host string, port int, path, hostname string, timeoutSeconds int)
-	RunEstafetteBuildJob(pipelineRunner PipelineRunner, dockerRunner DockerRunner, envvarHelper EnvvarHelper, obfuscator Obfuscator, endOfLifeHelper EndOfLifeHelper, builderConfig contracts.BuilderConfig, credentials []*contracts.CredentialConfig, runAsJob bool)
-	RunGocdAgentBuild(pipelineRunner PipelineRunner, dockerRunner DockerRunner, envvarHelper EnvvarHelper, obfuscator Obfuscator, builderConfig contracts.BuilderConfig, credentials []*contracts.CredentialConfig)
+	RunEstafetteBuildJob(pipelineRunner PipelineRunner, dockerRunner DockerRunner, envvarHelper EnvvarHelper, obfuscator Obfuscator, endOfLifeHelper EndOfLifeHelper, builderConfig contracts.BuilderConfig, credentialsBytes []byte, runAsJob bool)
+	RunGocdAgentBuild(pipelineRunner PipelineRunner, dockerRunner DockerRunner, envvarHelper EnvvarHelper, obfuscator Obfuscator, builderConfig contracts.BuilderConfig, credentialsBytes []byte)
 	RunEstafetteCLIBuild() error
 }
 
@@ -48,7 +48,7 @@ func (b *ciBuilderImpl) RunReadinessProbe(protocol, host string, port int, path,
 	os.Exit(0)
 }
 
-func (b *ciBuilderImpl) RunEstafetteBuildJob(pipelineRunner PipelineRunner, dockerRunner DockerRunner, envvarHelper EnvvarHelper, obfuscator Obfuscator, endOfLifeHelper EndOfLifeHelper, builderConfig contracts.BuilderConfig, credentials []*contracts.CredentialConfig, runAsJob bool) {
+func (b *ciBuilderImpl) RunEstafetteBuildJob(pipelineRunner PipelineRunner, dockerRunner DockerRunner, envvarHelper EnvvarHelper, obfuscator Obfuscator, endOfLifeHelper EndOfLifeHelper, builderConfig contracts.BuilderConfig, credentialsBytes []byte, runAsJob bool) {
 
 	closer := b.initJaeger(b.applicationInfo.App)
 	defer closer.Close()
@@ -144,7 +144,7 @@ func (b *ciBuilderImpl) RunEstafetteBuildJob(pipelineRunner PipelineRunner, dock
 	}
 
 	// initialize obfuscator
-	err = obfuscator.CollectSecrets(*builderConfig.Manifest, credentials, envvarHelper.GetPipelineName())
+	err = obfuscator.CollectSecrets(*builderConfig.Manifest, credentialsBytes, envvarHelper.GetPipelineName())
 	if err != nil {
 		endOfLifeHelper.HandleFatal(ctx, buildLog, err, "Collecting secrets to obfuscate failed")
 	}
@@ -209,7 +209,7 @@ func (b *ciBuilderImpl) RunEstafetteBuildJob(pipelineRunner PipelineRunner, dock
 	}
 }
 
-func (b *ciBuilderImpl) RunGocdAgentBuild(pipelineRunner PipelineRunner, dockerRunner DockerRunner, envvarHelper EnvvarHelper, obfuscator Obfuscator, builderConfig contracts.BuilderConfig, credentials []*contracts.CredentialConfig) {
+func (b *ciBuilderImpl) RunGocdAgentBuild(pipelineRunner PipelineRunner, dockerRunner DockerRunner, envvarHelper EnvvarHelper, obfuscator Obfuscator, builderConfig contracts.BuilderConfig, credentialsBytes []byte) {
 
 	fatalHandler := NewGocdFatalHandler()
 
@@ -226,7 +226,7 @@ func (b *ciBuilderImpl) RunGocdAgentBuild(pipelineRunner PipelineRunner, dockerR
 	}
 
 	// initialize obfuscator
-	err = obfuscator.CollectSecrets(manifest, credentials, envvarHelper.GetPipelineName())
+	err = obfuscator.CollectSecrets(manifest, credentialsBytes, envvarHelper.GetPipelineName())
 	if err != nil {
 		fatalHandler.HandleGocdFatal(err, "Collecting secrets to obfuscate failed")
 	}
