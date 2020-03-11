@@ -73,7 +73,13 @@ func main() {
 	envvarHelper := builder.NewEnvvarHelper("ESTAFETTE_", secretHelper, obfuscator)
 	whenEvaluator := builder.NewWhenEvaluator(envvarHelper)
 	builderConfig := loadBuilderConfig()
-	originalEncryptedCredentials := builderConfig.Credentials
+
+	// clone credentials before they're decrypted by processBuilderConfig, but are needed undecrypted by the obfuscator
+	originalEncryptedCredentials := []*contracts.CredentialConfig{}
+	for _, c := range builderConfig.Credentials {
+		originalEncryptedCredentials = append(originalEncryptedCredentials, c)
+	}
+
 	builderConfig = processBuilderConfig(builderConfig, secretHelper, envvarHelper)
 	dockerRunner := builder.NewDockerRunner(envvarHelper, obfuscator, builderConfig, tailLogsChannel)
 	pipelineRunner := builder.NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner, *runAsJob, cancellationChannel, tailLogsChannel, applicationInfo)
