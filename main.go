@@ -72,23 +72,25 @@ func main() {
 	obfuscator := builder.NewObfuscator(secretHelper)
 	envvarHelper := builder.NewEnvvarHelper("ESTAFETTE_", secretHelper, obfuscator)
 	whenEvaluator := builder.NewWhenEvaluator(envvarHelper)
-	builderConfig := loadBuilderConfig(secretHelper, envvarHelper)
+	builderConfig := loadBuilderConfig()
+	originalEncryptedCredentials := builderConfig.Credentials
+	builderConfig = processBuilderConfig(builderConfig, secretHelper, envvarHelper)
 	dockerRunner := builder.NewDockerRunner(envvarHelper, obfuscator, builderConfig, tailLogsChannel)
 	pipelineRunner := builder.NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner, *runAsJob, cancellationChannel, tailLogsChannel, applicationInfo)
 
 	// detect controlling server
 	ciServer := envvarHelper.GetCiServer()
 	if ciServer == "gocd" {
-		ciBuilder.RunGocdAgentBuild(pipelineRunner, dockerRunner, envvarHelper, obfuscator, builderConfig)
+		ciBuilder.RunGocdAgentBuild(pipelineRunner, dockerRunner, envvarHelper, obfuscator, builderConfig, originalEncryptedCredentials)
 	} else if ciServer == "estafette" {
 		endOfLifeHelper := builder.NewEndOfLifeHelper(*runAsJob, builderConfig, *podName)
-		ciBuilder.RunEstafetteBuildJob(pipelineRunner, dockerRunner, envvarHelper, obfuscator, endOfLifeHelper, builderConfig, *runAsJob)
+		ciBuilder.RunEstafetteBuildJob(pipelineRunner, dockerRunner, envvarHelper, obfuscator, endOfLifeHelper, builderConfig, originalEncryptedCredentials, *runAsJob)
 	} else {
 		log.Warn().Msgf("The CI Server (\"%s\") is not recognized, exiting.", ciServer)
 	}
 }
 
-func loadBuilderConfig(secretHelper crypt.SecretHelper, envvarHelper builder.EnvvarHelper) (builderConfig contracts.BuilderConfig) {
+func loadBuilderConfig() (builderConfig contracts.BuilderConfig) {
 	// read builder config either from file or envvar
 	var builderConfigJSON []byte
 
@@ -121,8 +123,12 @@ func loadBuilderConfig(secretHelper crypt.SecretHelper, envvarHelper builder.Env
 		log.Fatal().Err(err).Interface("builderConfigJSON", builderConfigJSON).Msg("Failed to unmarshal builder config")
 	}
 
+	return
+}
+
+func processBuilderConfig(builderConfig contracts.BuilderConfig, secretHelper crypt.SecretHelper, envvarHelper builder.EnvvarHelper) contracts.BuilderConfig {
 	// ensure GetPipelineName does not fail below
-	err = envvarHelper.SetPipelineName(builderConfig)
+	err := envvarHelper.SetPipelineName(builderConfig)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to set pipeline name")
 	}
@@ -149,7 +155,7 @@ func loadBuilderConfig(secretHelper crypt.SecretHelper, envvarHelper builder.Env
 	}
 	builderConfig.Credentials = decryptedCredentials
 
-	return
+	return builderConfig
 }
 
 func getDecryptionKey() string {

@@ -12,7 +12,7 @@ import (
 
 // Obfuscator hides secret values and other sensitive stuff from the logs
 type Obfuscator interface {
-	CollectSecrets(manifest manifest.EstafetteManifest, builderConfig contracts.BuilderConfig, pipeline string) (err error)
+	CollectSecrets(manifest manifest.EstafetteManifest, credentials []*contracts.CredentialConfig, pipeline string) (err error)
 	Obfuscate(input string) string
 	ObfuscateSecrets(input string) string
 }
@@ -29,7 +29,7 @@ func NewObfuscator(secretHelper crypt.SecretHelper) Obfuscator {
 	}
 }
 
-func (ob *obfuscatorImpl) CollectSecrets(manifest manifest.EstafetteManifest, builderConfig contracts.BuilderConfig, pipeline string) (err error) {
+func (ob *obfuscatorImpl) CollectSecrets(manifest manifest.EstafetteManifest, credentials []*contracts.CredentialConfig, pipeline string) (err error) {
 
 	replacerStrings := []string{}
 
@@ -47,8 +47,8 @@ func (ob *obfuscatorImpl) CollectSecrets(manifest manifest.EstafetteManifest, bu
 	}
 
 	// collect all secrets from injected credentials
-	if builderConfig.Credentials != nil && len(builderConfig.Credentials) > 0 {
-		credentialsBytes, err := json.Marshal(builderConfig.Credentials)
+	if credentials != nil && len(credentials) > 0 {
+		credentialsBytes, err := json.Marshal(credentials)
 		if err != nil {
 			return err
 		}

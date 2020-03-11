@@ -21,10 +21,10 @@ func TestObfuscate(t *testing.T) {
 				"MY_SECRET": "estafette.secret(deFTz5Bdjg6SUe29.oPIkXbze5G9PNEWS2-ZnArl8BCqHnx4MdTdxHg37th9u)",
 			},
 		}
-		builderConfig := contracts.BuilderConfig{}
+		credentials := []*contracts.CredentialConfig{}
 		pipeline := "github.com/estafette/estafette-ci-builder"
 
-		obfuscator.CollectSecrets(manifest, builderConfig, pipeline)
+		obfuscator.CollectSecrets(manifest, credentials, pipeline)
 
 		// act
 		output := obfuscator.Obfuscate("this is my secret")
@@ -35,18 +35,16 @@ func TestObfuscate(t *testing.T) {
 	t.Run("ObfuscatesSecretInCredentials", func(t *testing.T) {
 
 		manifest := manifest.EstafetteManifest{}
-		builderConfig := contracts.BuilderConfig{
-			Credentials: []*contracts.CredentialConfig{
-				&contracts.CredentialConfig{
-					AdditionalProperties: map[string]interface{}{
-						"password": "estafette.secret(deFTz5Bdjg6SUe29.oPIkXbze5G9PNEWS2-ZnArl8BCqHnx4MdTdxHg37th9u)",
-					},
+		credentials := []*contracts.CredentialConfig{
+			&contracts.CredentialConfig{
+				AdditionalProperties: map[string]interface{}{
+					"password": "estafette.secret(deFTz5Bdjg6SUe29.oPIkXbze5G9PNEWS2-ZnArl8BCqHnx4MdTdxHg37th9u)",
 				},
 			},
 		}
 		pipeline := "github.com/estafette/estafette-ci-builder"
 
-		obfuscator.CollectSecrets(manifest, builderConfig, pipeline)
+		obfuscator.CollectSecrets(manifest, credentials, pipeline)
 
 		// act
 		output := obfuscator.Obfuscate("this is my secret")
