@@ -917,7 +917,7 @@ func (dr *dockerRunnerImpl) generateEntrypointScript(shell string, commands []st
 			Command         string
 			EscapedCommand  string
 			RunInBackground bool
-		}{c, strings.Replace(c, "\"", "\\\"", -1), runInBackground})
+		}{c, escapeCharsInCommand(c), runInBackground})
 	}
 
 	lastCommand := commands[len(commands)-1]
@@ -938,7 +938,7 @@ func (dr *dockerRunnerImpl) generateEntrypointScript(shell string, commands []st
 		shell,
 		firstCommands,
 		lastCommand,
-		strings.Replace(lastCommand, "\"", "\\\"", -1),
+		escapeCharsInCommand(lastCommand),
 		runFinalCommandWithExec,
 	}
 
@@ -1131,4 +1131,10 @@ func (dr *dockerRunnerImpl) generateCredentialsEnvvars(trustedImage *contracts.T
 	}
 
 	return
+}
+
+func escapeCharsInCommand(command string) string {
+	command = strings.Replace(command, "\"", "\\\"", -1)
+	command = strings.Replace(command, "$(", "\\$(", -1)
+	return command
 }
