@@ -6,7 +6,7 @@ LABEL maintainer="estafette.io" \
       description="The ${ESTAFETTE_GIT_NAME} is the component that runs builds as defined in the .estafette.yaml manifest"
 
 RUN mkdir -p /estafette-entrypoints \
-    && docker version
+    && docker version || true
 
 # copy builder
 COPY ${ESTAFETTE_GIT_NAME} /usr/bin/
