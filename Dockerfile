@@ -8,7 +8,8 @@ RUN addgroup docker \
     && apk update \
     && apk add --no-cache --upgrade \
         openssl \
-    && rm -rf /var/cache/apk/*
+    && rm -rf /var/cache/apk/* \
+    && docker version
 
 # copy builder & startup script
 COPY ${ESTAFETTE_GIT_NAME} /
