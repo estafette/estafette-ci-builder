@@ -240,6 +240,7 @@ func (b *ciBuilderImpl) RunGocdAgentBuild(pipelineRunner PipelineRunner, dockerR
 	// check whether this is a regular build or a release
 	stages := manifest.Stages
 	releaseName := os.Getenv("ESTAFETTE_RELEASE_NAME")
+	buildVersion := os.Getenv("ESTAFETTE_BUILD_VERSION")
 	if releaseName != "" {
 		// check if the release is defined
 		releaseExists := false
@@ -252,9 +253,9 @@ func (b *ciBuilderImpl) RunGocdAgentBuild(pipelineRunner PipelineRunner, dockerR
 		if !releaseExists {
 			fatalHandler.HandleGocdFatal(fmt.Errorf("Release %v does not exist", releaseName), "")
 		}
-		log.Info().Msgf("Starting release %v at version %v...", releaseName, builderConfig.BuildVersion.Version)
+		log.Info().Msgf("Starting release %v at version %v...", releaseName, buildVersion)
 	} else {
-		log.Info().Msgf("Starting build version %v...", builderConfig.BuildVersion.Version)
+		log.Info().Msgf("Starting build version %v...", buildVersion)
 	}
 
 	log.Info().Msgf("Running %v stages", len(stages))
