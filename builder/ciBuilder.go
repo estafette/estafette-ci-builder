@@ -237,13 +237,33 @@ func (b *ciBuilderImpl) RunGocdAgentBuild(pipelineRunner PipelineRunner, dockerR
 		fatalHandler.HandleGocdFatal(err, "Getting current working directory failed")
 	}
 
-	log.Info().Msgf("Running %v stages", len(manifest.Stages))
+	// check whether this is a regular build or a release
+	stages := manifest.Stages
+	releaseName := os.Getenv("ESTAFETTE_RELEASE_NAME")
+	if releaseName != "" {
+		// check if the release is defined
+		releaseExists := false
+		for _, r := range manifest.Releases {
+			if r.Name == releaseName {
+				releaseExists = true
+				stages = r.Stages
+			}
+		}
+		if !releaseExists {
+			fatalHandler.HandleGocdFatal(fmt.Errorf("Release %v does not exist", releaseName), "")
+		}
+		log.Info().Msgf("Starting release %v at version %v...", releaseName, builderConfig.BuildVersion.Version)
+	} else {
+		log.Info().Msgf("Starting build version %v...", builderConfig.BuildVersion.Version)
+	}
+
+	log.Info().Msgf("Running %v stages", len(stages))
 
 	err = envvarHelper.SetEstafetteGlobalEnvvars()
 	if err != nil {
 		fatalHandler.HandleGocdFatal(err, "Setting global environment variables failed")
 	}
-	err = envvarHelper.SetEstafetteStagesEnvvar(manifest.Stages)
+	err = envvarHelper.SetEstafetteStagesEnvvar(stages)
 	if err != nil {
 		fatalHandler.HandleGocdFatal(err, "Setting ESTAFETTE_STAGES environment variable failed")
 	}
@@ -256,7 +276,7 @@ func (b *ciBuilderImpl) RunGocdAgentBuild(pipelineRunner PipelineRunner, dockerR
 	envvars := envvarHelper.OverrideEnvvars(estafetteEnvvars, globalEnvvars)
 
 	// run stages
-	buildLogSteps, err := pipelineRunner.RunStages(context.Background(), 0, manifest.Stages, dir, envvars)
+	buildLogSteps, err := pipelineRunner.RunStages(context.Background(), 0, stages, dir, envvars)
 	if err != nil {
 		fatalHandler.HandleGocdFatal(err, "Executing stages from manifest failed")
 	}
