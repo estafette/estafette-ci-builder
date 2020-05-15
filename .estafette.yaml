@@ -77,7 +77,7 @@ stages:
         - estafette
 
   clean-working-directory:
-    image: golang:1.14.0-alpine3.11
+    image: golang:1.14.2-alpine3.11
     commands:
     - rm -rf ..?* .[!.]* *
 
