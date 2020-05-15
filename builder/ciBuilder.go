@@ -220,7 +220,7 @@ func (b *ciBuilderImpl) RunGocdAgentBuild(pipelineRunner PipelineRunner, dockerR
 	}
 
 	// read yaml
-	manifest, err := manifest.ReadManifestFromFile(".estafette.yaml")
+	manifest, err := manifest.ReadManifestFromFile(builderConfig.ManifestPreferences, ".estafette.yaml")
 	if err != nil {
 		fatalHandler.HandleGocdFatal(err, "Reading .estafette.yaml manifest failed")
 	}
