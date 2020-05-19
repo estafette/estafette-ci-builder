@@ -20,7 +20,6 @@ func NewGocdFatalHandler() GocdFatalHandler {
 }
 
 func (elh *gocdFatalHandlerImpl) HandleGocdFatal(err error, message string) {
-
 	log.Fatal().Err(err).Msg(message)
 	os.Exit(1)
 }
