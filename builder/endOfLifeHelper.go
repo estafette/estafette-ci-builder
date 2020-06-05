@@ -125,10 +125,10 @@ func (elh *endOfLifeHelperImpl) SendBuildJobLogEventCore(ctx context.Context, bu
 	defer span.Finish()
 
 	ciServerBuilderPostLogsURL := elh.config.CIServer.PostLogsURL
-	ciAPIKey := elh.config.CIServer.APIKey
+	jwt := elh.config.CIServer.JWT
 	jobName := *elh.config.JobName
 
-	if ciServerBuilderPostLogsURL != "" && ciAPIKey != "" && jobName != "" {
+	if ciServerBuilderPostLogsURL != "" && jwt != "" && jobName != "" {
 
 		// convert BuildJobLogs to json
 		var requestBody io.Reader
@@ -179,7 +179,7 @@ func (elh *endOfLifeHelperImpl) SendBuildJobLogEventCore(ctx context.Context, bu
 		request, ht := nethttp.TraceRequest(span.Tracer(), request)
 
 		// add headers
-		request.Header.Add("Authorization", fmt.Sprintf("Bearer %v", ciAPIKey))
+		request.Header.Add("Authorization", fmt.Sprintf("Bearer %v", jwt))
 		request.Header.Add("Content-Type", "application/json")
 
 		// perform actual request
@@ -219,10 +219,10 @@ func (elh *endOfLifeHelperImpl) sendBuilderEvent(ctx context.Context, buildStatu
 	span.SetTag("event-type", event)
 
 	ciServerBuilderEventsURL := elh.config.CIServer.BuilderEventsURL
-	ciAPIKey := elh.config.CIServer.APIKey
+	jwt := elh.config.CIServer.JWT
 	jobName := *elh.config.JobName
 
-	if ciServerBuilderEventsURL != "" && ciAPIKey != "" && jobName != "" {
+	if ciServerBuilderEventsURL != "" && jwt != "" && jobName != "" {
 		// convert EstafetteCiBuilderEvent to json
 		var requestBody io.Reader
 
@@ -276,7 +276,7 @@ func (elh *endOfLifeHelperImpl) sendBuilderEvent(ctx context.Context, buildStatu
 		// add headers
 		request.Header.Add("X-Estafette-Event", event)
 		request.Header.Add("X-Estafette-Event-Job-Name", jobName)
-		request.Header.Add("Authorization", fmt.Sprintf("Bearer %v", ciAPIKey))
+		request.Header.Add("Authorization", fmt.Sprintf("Bearer %v", jwt))
 
 		// perform actual request
 		response, err := client.Do(request)
