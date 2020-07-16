@@ -326,7 +326,11 @@ func (pr *pipelineRunnerImpl) RunStages(ctx context.Context, depth int, stages [
 			var whenEvaluationResult bool
 			whenEvaluationResult, err = pr.whenEvaluator.Evaluate(stage.Name, stage.When, pr.whenEvaluator.GetParameters())
 			if err != nil {
+				// set 'failed' build status
+				pr.envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "failed")
+				envvars[pr.envvarHelper.getEstafetteEnvvarName("ESTAFETTE_BUILD_STATUS")] = "failed"
 				finalErr = err
+
 				return
 			}
 
