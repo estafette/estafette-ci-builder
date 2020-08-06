@@ -1,6 +1,7 @@
 package builder
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"regexp"
 	"strings"
@@ -43,6 +44,19 @@ func (ob *obfuscatorImpl) CollectSecrets(manifest manifest.EstafetteManifest, cr
 	}
 	for _, v := range values {
 		replacerStrings = append(replacerStrings, v, "***")
+
+		// if value looks like base64 decode it
+		decodedValue, err := base64.StdEncoding.DecodeString(v)
+		if err == nil {
+			// split decoded value on newlines and add individual lines to replacerStrings
+			decodedValueString := string(decodedValue)
+			decodedValueLines := strings.Split(decodedValueString, "\n")
+			for _, l := range decodedValueLines {
+				if l != "" {
+					replacerStrings = append(replacerStrings, l, "***")
+				}
+			}
+		}
 	}
 
 	// collect all secrets from injected credentials
@@ -53,6 +67,19 @@ func (ob *obfuscatorImpl) CollectSecrets(manifest manifest.EstafetteManifest, cr
 
 	for _, v := range values {
 		replacerStrings = append(replacerStrings, v, "***")
+
+		// if value looks like base64 decode it
+		decodedValue, err := base64.StdEncoding.DecodeString(v)
+		if err == nil {
+			// split decoded value on newlines and add individual lines to replacerStrings
+			decodedValueString := string(decodedValue)
+			decodedValueLines := strings.Split(decodedValueString, "\n")
+			for _, l := range decodedValueLines {
+				if l != "" {
+					replacerStrings = append(replacerStrings, l, "***")
+				}
+			}
+		}
 	}
 
 	// replace all secret values with obfuscated string
