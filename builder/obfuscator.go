@@ -1,6 +1,7 @@
 package builder
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"regexp"
 	"strings"
@@ -41,9 +42,8 @@ func (ob *obfuscatorImpl) CollectSecrets(manifest manifest.EstafetteManifest, cr
 	if err != nil {
 		return err
 	}
-	for _, v := range values {
-		replacerStrings = append(replacerStrings, v, "***")
-	}
+
+	replacerStrings = append(replacerStrings, ob.getReplacerStrings(values)...)
 
 	// collect all secrets from injected credentials
 	values, err = ob.secretHelper.GetAllSecretValues(string(credentialsBytes), pipeline)
@@ -51,14 +51,36 @@ func (ob *obfuscatorImpl) CollectSecrets(manifest manifest.EstafetteManifest, cr
 		return err
 	}
 
-	for _, v := range values {
-		replacerStrings = append(replacerStrings, v, "***")
-	}
+	replacerStrings = append(replacerStrings, ob.getReplacerStrings(values)...)
 
 	// replace all secret values with obfuscated string
 	ob.replacer = strings.NewReplacer(replacerStrings...)
 
 	return nil
+}
+
+func (ob *obfuscatorImpl) getReplacerStrings(values []string) (replacerStrings []string) {
+
+	replacerStrings = []string{}
+
+	for _, v := range values {
+		replacerStrings = append(replacerStrings, v, "***")
+
+		// if value looks like base64 decode it
+		decodedValue, err := base64.StdEncoding.DecodeString(v)
+		if err == nil {
+			// split decoded value on newlines and add individual lines to replacerStrings
+			decodedValueString := string(decodedValue)
+			decodedValueLines := strings.Split(decodedValueString, "\n")
+			for _, l := range decodedValueLines {
+				if l != "" {
+					replacerStrings = append(replacerStrings, l, "***")
+				}
+			}
+		}
+	}
+
+	return replacerStrings
 }
 
 func (ob *obfuscatorImpl) Obfuscate(input string) string {
