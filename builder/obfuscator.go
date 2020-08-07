@@ -64,7 +64,20 @@ func (ob *obfuscatorImpl) getReplacerStrings(values []string) (replacerStrings [
 	replacerStrings = []string{}
 
 	for _, v := range values {
-		replacerStrings = append(replacerStrings, v, "***")
+		valueLines := strings.Split(v, "\n")
+		for _, l := range valueLines {
+			if l != "" {
+				replacerStrings = append(replacerStrings, l, "***")
+
+				// split further if line contains \n (encoded newline)
+				valueLineLines := strings.Split(l, "\\n")
+				for _, ll := range valueLineLines {
+					if ll != "" {
+						replacerStrings = append(replacerStrings, ll, "***")
+					}
+				}
+			}
+		}
 
 		// if value looks like base64 decode it
 		decodedValue, err := base64.StdEncoding.DecodeString(v)
@@ -75,6 +88,14 @@ func (ob *obfuscatorImpl) getReplacerStrings(values []string) (replacerStrings [
 			for _, l := range decodedValueLines {
 				if l != "" {
 					replacerStrings = append(replacerStrings, l, "***")
+
+					// split further if line contains \n (encoded newline)
+					valueLineLines := strings.Split(l, "\\n")
+					for _, ll := range valueLineLines {
+						if ll != "" {
+							replacerStrings = append(replacerStrings, ll, "***")
+						}
+					}
 				}
 			}
 		}
