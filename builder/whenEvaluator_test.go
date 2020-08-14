@@ -61,6 +61,23 @@ func TestWhenEvaluator(t *testing.T) {
 
 		assert.True(t, result)
 	})
+
+	t.Run("ReturnsFalseIfInputIsMalformed", func(t *testing.T) {
+
+		envvarHelper.UnsetEstafetteEnvvars()
+		parameters := make(map[string]interface{}, 3)
+		parameters["action"] = "deploy-canary"
+		parameters["branch"] = "some-branch"
+		parameters["server"] = "estafette"
+		parameters["status"] = "succeeded"
+		parameters["trigger"] = ""
+
+		// act
+		result, err := whenEvaluator.Evaluate("name", "action == 'deploy-canary' || action == 'deploy-stable' || action == 'rollback-canary' || action == 'restart-stable' || action == 'diff-stable || action == 'diff-simple", parameters)
+
+		assert.NotNil(t, err)
+		assert.False(t, result)
+	})
 }
 
 func TestWhenParameters(t *testing.T) {
