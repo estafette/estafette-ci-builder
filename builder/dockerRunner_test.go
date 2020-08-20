@@ -390,6 +390,53 @@ func TestGenerateEntrypointScript(t *testing.T) {
 	})
 }
 
+func TestGenerateCredentialsEnvvars(t *testing.T) {
+
+	t.Run("ReturnsCredentialsForTrustedImages", func(t *testing.T) {
+
+		credentials := []*contracts.CredentialConfig{}
+		trustedImages := []*contracts.TrustedImageConfig{}
+
+		cloudSqlCredential := &contracts.CredentialConfig{
+			Name:                     "cloudsql-client-supplyhub-rsc",
+			Type:                     "cloudsql-client",
+			WhitelistedTrustedImages: "eu.gcr.io/travix-com/supplyhub-cloud-sql-agent",
+			AdditionalProperties: map[string]interface{}{
+				"serviceAccountKeyfile": "***",
+			},
+		}
+
+		cloudSqlTrustedImage := &contracts.TrustedImageConfig{
+			ImagePath:               "eu.gcr.io/travix-com/supplyhub-cloud-sql-agent",
+			RunPrivileged:           false,
+			RunDocker:               false,
+			AllowCommands:           false,
+			InjectedCredentialTypes: []string{"cloudsql-client"},
+		}
+
+		credentials = append(credentials, cloudSqlCredential)
+		trustedImages = append(trustedImages, cloudSqlTrustedImage)
+
+		secretHelper := crypt.NewSecretHelper("SazbwMf3NZxVVbBqQHebPcXCqrVn3DDp", false)
+		obfuscator := NewObfuscator(secretHelper)
+
+		dockerRunner := dockerRunnerImpl{
+			envvarHelper: NewEnvvarHelper("TESTPREFIX_", secretHelper, obfuscator),
+			config: contracts.BuilderConfig{
+				Credentials:   credentials,
+				TrustedImages: trustedImages,
+			},
+		}
+
+		// act
+		trustedImage := dockerRunner.config.GetTrustedImage("eu.gcr.io/travix-com/supplyhub-cloud-sql-agent:1.0.19-sys-1309-use-central-credential")
+
+		credentialEnvVars := dockerRunner.generateCredentialsEnvvars(trustedImage)
+
+		assert.NotNil(t, credentialEnvVars)
+	})
+}
+
 func getDockerRunnerAndMocks() (chan contracts.TailLogLine, DockerRunner) {
 
 	secretHelper := crypt.NewSecretHelper("SazbwMf3NZxVVbBqQHebPcXCqrVn3DDp", false)
