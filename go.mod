@@ -13,9 +13,9 @@ require (
 	github.com/docker/docker v1.13.1
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/docker/go-units v0.4.0 // indirect
-	github.com/estafette/estafette-ci-contracts v0.0.219
+	github.com/estafette/estafette-ci-contracts v0.0.223
 	github.com/estafette/estafette-ci-crypt v0.0.39
-	github.com/estafette/estafette-ci-manifest v0.1.155
+	github.com/estafette/estafette-ci-manifest v0.1.165
 	github.com/estafette/estafette-foundation v0.0.54
 	github.com/gogo/protobuf v1.3.0 // indirect
 	github.com/google/go-cmp v0.3.1 // indirect
@@ -30,7 +30,7 @@ require (
 	github.com/opentracing/opentracing-go v1.1.0
 	github.com/rs/zerolog v1.17.2
 	github.com/sethgrid/pester v0.0.0-20190127155807-68a33a018ad0
-	github.com/stretchr/testify v1.4.0
+	github.com/stretchr/testify v1.6.1
 	github.com/uber/jaeger-client-go v2.20.1+incompatible
 	golang.org/x/net v0.0.0-20190724013045-ca1201d0de80 // indirect
 	golang.org/x/sys v0.0.0-20190813064441-fde4db37ae7a // indirect
