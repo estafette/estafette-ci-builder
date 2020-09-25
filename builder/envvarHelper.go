@@ -190,18 +190,26 @@ func (h *envvarHelperImpl) SetEstafetteBuilderConfigEnvvars(builderConfig contra
 	h.setEstafetteEnv("ESTAFETTE_GIT_BRANCH", builderConfig.Git.RepoBranch)
 	h.setEstafetteEnv("ESTAFETTE_GIT_REVISION", builderConfig.Git.RepoRevision)
 	h.setEstafetteEnv("ESTAFETTE_BUILD_VERSION", builderConfig.BuildVersion.Version)
-	if builderConfig.BuildVersion.Major != nil {
+	if builderConfig.BuildVersion != nil && builderConfig.BuildVersion.Major != nil {
 		h.setEstafetteEnv("ESTAFETTE_BUILD_VERSION_MAJOR", strconv.Itoa(*builderConfig.BuildVersion.Major))
 	}
-	if builderConfig.BuildVersion.Minor != nil {
+	if builderConfig.BuildVersion != nil && builderConfig.BuildVersion.Minor != nil {
 		h.setEstafetteEnv("ESTAFETTE_BUILD_VERSION_MINOR", strconv.Itoa(*builderConfig.BuildVersion.Minor))
 	}
-	if builderConfig.BuildVersion.AutoIncrement != nil {
+	if builderConfig.BuildVersion != nil && builderConfig.BuildVersion.AutoIncrement != nil {
 		h.setEstafetteEnv("ESTAFETTE_BUILD_VERSION_PATCH", strconv.Itoa(*builderConfig.BuildVersion.AutoIncrement))
 	}
-	if builderConfig.BuildVersion.Label != nil {
+	if builderConfig.BuildVersion != nil && builderConfig.BuildVersion.Label != nil {
 		h.setEstafetteEnv("ESTAFETTE_BUILD_VERSION_LABEL", *builderConfig.BuildVersion.Label)
 	}
+
+	// set counters to enable release locking for older revisions inside extensions
+	if builderConfig.BuildVersion != nil {
+		h.setEstafetteEnv("ESTAFETTE_BUILD_CURRENT_COUNTER", strconv.Itoa(builderConfig.BuildVersion.CurrentCounter))
+		h.setEstafetteEnv("ESTAFETTE_BUILD_MAX_COUNTER", strconv.Itoa(builderConfig.BuildVersion.MaxCounter))
+		h.setEstafetteEnv("ESTAFETTE_BUILD_MAX_COUNTER_CURRENT_BRANCH", strconv.Itoa(builderConfig.BuildVersion.MaxCounterCurrentBranch))
+	}
+
 	if builderConfig.ReleaseParams != nil {
 		h.setEstafetteEnv("ESTAFETTE_RELEASE_NAME", builderConfig.ReleaseParams.ReleaseName)
 		h.setEstafetteEnv("ESTAFETTE_RELEASE_ACTION", builderConfig.ReleaseParams.ReleaseAction)
