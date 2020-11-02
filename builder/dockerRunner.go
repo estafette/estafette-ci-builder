@@ -753,6 +753,30 @@ func (dr *dockerRunnerImpl) getImagePullOptions(containerImage string) types.Ima
 		}
 	}
 
+	containerRegistryPullCredentials := dr.config.GetCredentialsByType("container-registry-pull")
+
+	if len(containerRegistryPullCredentials) > 0 {
+		// no real need to loop, since we only need one of these, but works anyway
+		for _, credential := range containerRegistryPullCredentials {
+			authConfig := types.AuthConfig{
+				Username: credential.AdditionalProperties["username"].(string),
+				Password: credential.AdditionalProperties["password"].(string),
+			}
+			encodedJSON, err := json.Marshal(authConfig)
+			if err == nil {
+				authStr := base64.URLEncoding.EncodeToString(encodedJSON)
+
+				return types.ImagePullOptions{
+					RegistryAuth: authStr,
+				}
+			}
+
+			log.Error().Err(err).Msgf("Failed marshaling docker auth config for container image %v", containerImage)
+
+			break
+		}
+	}
+
 	return types.ImagePullOptions{}
 }
 
