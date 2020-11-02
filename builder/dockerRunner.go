@@ -741,6 +741,8 @@ func (dr *dockerRunnerImpl) getImagePullOptions(containerImage string) types.Ima
 				if err == nil {
 					authStr := base64.URLEncoding.EncodeToString(encodedJSON)
 
+					log.Debug().Msgf("Using credential '%v' to authenticate for image '%v'", credential.Name, containerImage)
+
 					return types.ImagePullOptions{
 						RegistryAuth: authStr,
 					}
@@ -766,6 +768,8 @@ func (dr *dockerRunnerImpl) getImagePullOptions(containerImage string) types.Ima
 			encodedJSON, err := json.Marshal(authConfig)
 			if err == nil {
 				authStr := base64.URLEncoding.EncodeToString(encodedJSON)
+
+				log.Debug().Msgf("Using credential '%v' to authenticate for image '%v'", credential.Name, containerImage)
 
 				return types.ImagePullOptions{
 					RegistryAuth: authStr,
