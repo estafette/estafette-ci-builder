@@ -753,6 +753,7 @@ func (dr *dockerRunnerImpl) getImagePullOptions(containerImage string) types.Ima
 		}
 	}
 
+	// when no container-registry credentials apply use container-registry-pull as fallback to avoid docker hub rate limiting issues
 	containerRegistryPullCredentials := dr.config.GetCredentialsByType("container-registry-pull")
 
 	if len(containerRegistryPullCredentials) > 0 {
