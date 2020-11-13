@@ -10,6 +10,8 @@ import (
 	manifest "github.com/estafette/estafette-ci-manifest"
 )
 
+const maxLengthToSkipObfuscation = 3
+
 // Obfuscator hides secret values and other sensitive stuff from the logs
 type Obfuscator interface {
 	CollectSecrets(manifest manifest.EstafetteManifest, credentialsBytes []byte, pipeline string) (err error)
@@ -66,13 +68,13 @@ func (ob *obfuscatorImpl) getReplacerStrings(values []string) (replacerStrings [
 	for _, v := range values {
 		valueLines := strings.Split(v, "\n")
 		for _, l := range valueLines {
-			if len(l) > 1 {
+			if len(l) > maxLengthToSkipObfuscation {
 				replacerStrings = append(replacerStrings, l, "***")
 
 				// split further if line contains \n (encoded newline)
 				valueLineLines := strings.Split(l, "\\n")
 				for _, ll := range valueLineLines {
-					if len(ll) > 1 {
+					if len(ll) > maxLengthToSkipObfuscation {
 						replacerStrings = append(replacerStrings, ll, "***")
 					}
 				}
@@ -86,13 +88,13 @@ func (ob *obfuscatorImpl) getReplacerStrings(values []string) (replacerStrings [
 			decodedValueString := string(decodedValue)
 			decodedValueLines := strings.Split(decodedValueString, "\n")
 			for _, l := range decodedValueLines {
-				if len(l) > 1 {
+				if len(l) > maxLengthToSkipObfuscation {
 					replacerStrings = append(replacerStrings, l, "***")
 
 					// split further if line contains \n (encoded newline)
 					valueLineLines := strings.Split(l, "\\n")
 					for _, ll := range valueLineLines {
-						if len(ll) > 1 {
+						if len(ll) > maxLengthToSkipObfuscation {
 							replacerStrings = append(replacerStrings, ll, "***")
 						}
 					}

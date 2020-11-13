@@ -82,7 +82,7 @@ func TestObfuscate(t *testing.T) {
 			// act
 			input := fmt.Sprintf("%v", l)
 			output := obfuscator.Obfuscate(input)
-			if len(l) == 1 {
+			if len(l) <= maxLengthToSkipObfuscation {
 				assert.Equal(t, input, output)
 			} else {
 				assert.Equal(t, "***", output)
@@ -114,7 +114,7 @@ func TestObfuscate(t *testing.T) {
 			// act
 			input := fmt.Sprintf("%v", l)
 			output := obfuscator.Obfuscate(input)
-			if len(l) == 1 {
+			if len(l) <= maxLengthToSkipObfuscation {
 				assert.Equal(t, input, output)
 			} else {
 				assert.Equal(t, "***", output)
@@ -146,7 +146,7 @@ func TestObfuscate(t *testing.T) {
 			// act
 			input := fmt.Sprintf("%v\n", l)
 			output := obfuscator.Obfuscate(input)
-			if len(l) == 1 {
+			if len(l) <= maxLengthToSkipObfuscation {
 				assert.Equal(t, input, output)
 			} else {
 				assert.Equal(t, "***\n", output)
@@ -177,7 +177,7 @@ func TestObfuscate(t *testing.T) {
 			// act
 			input := fmt.Sprintf("%v", l)
 			output := obfuscator.Obfuscate(input)
-			if len(l) == 1 {
+			if len(l) <= maxLengthToSkipObfuscation {
 				assert.Equal(t, input, output)
 			} else {
 				assert.Equal(t, "***", output)
@@ -208,7 +208,7 @@ func TestObfuscate(t *testing.T) {
 			// act
 			input := fmt.Sprintf("%v", l)
 			output := obfuscator.Obfuscate(input)
-			if len(l) == 1 {
+			if len(l) <= maxLengthToSkipObfuscation {
 				assert.Equal(t, input, output)
 			} else {
 				assert.Equal(t, "***", output)
@@ -239,7 +239,7 @@ func TestObfuscate(t *testing.T) {
 			// act
 			input := fmt.Sprintf("%v\n", l)
 			output := obfuscator.Obfuscate(input)
-			if len(l) == 1 {
+			if len(l) <= maxLengthToSkipObfuscation {
 				assert.Equal(t, input, output)
 			} else {
 				assert.Equal(t, "***\n", output)
