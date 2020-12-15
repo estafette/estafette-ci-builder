@@ -162,10 +162,10 @@ func (elh *endOfLifeHelperImpl) SendBuildJobLogEventCore(ctx context.Context, bu
 
 		// create client, in order to add headers
 		client := pester.NewExtendedClient(&http.Client{Transport: &nethttp.Transport{}})
-		client.MaxRetries = 5
-		client.Backoff = pester.ExponentialJitterBackoff
+		client.MaxRetries = 1
+		client.Backoff = pester.DefaultBackoff
 		client.KeepLog = true
-		client.Timeout = time.Second * 120
+		client.Timeout = time.Second * 60
 		request, err := http.NewRequest("POST", ciServerBuilderPostLogsURL, requestBody)
 		if err != nil {
 			log.Error().Err(err).Msgf("Failed creating http client for job %v", jobName)
@@ -185,7 +185,7 @@ func (elh *endOfLifeHelperImpl) SendBuildJobLogEventCore(ctx context.Context, bu
 		// perform actual request
 		response, err := client.Do(request)
 		if err != nil {
-			log.Error().Err(err).Str("logs", client.LogString()).Msgf("Failed shipping logs to %v for job %v", ciServerBuilderPostLogsURL, jobName)
+			log.Error().Err(err).Str("logs", client.LogString()).Msgf("Failed shipping logs to %v for job %v: %v", ciServerBuilderPostLogsURL, jobName, client.LogString())
 			return err
 		}
 
@@ -257,7 +257,7 @@ func (elh *endOfLifeHelperImpl) sendBuilderEvent(ctx context.Context, buildStatu
 
 		// create client, in order to add headers
 		client := pester.NewExtendedClient(&http.Client{Transport: &nethttp.Transport{}})
-		client.MaxRetries = 5
+		client.MaxRetries = 3
 		client.Backoff = pester.ExponentialJitterBackoff
 		client.KeepLog = true
 		client.Timeout = time.Second * 10
@@ -285,7 +285,7 @@ func (elh *endOfLifeHelperImpl) sendBuilderEvent(ctx context.Context, buildStatu
 			span.LogFields(
 				tracingLog.String("error", err.Error()),
 			)
-			log.Error().Err(err).Str("pesterLogs", client.LogString()).Msgf("Failed performing http request to %v for job %v", ciServerBuilderEventsURL, jobName)
+			log.Error().Err(err).Str("pesterLogs", client.LogString()).Msgf("Failed performing http request to %v for job %v: %v", ciServerBuilderEventsURL, jobName, client.LogString())
 			return err
 		}
 
