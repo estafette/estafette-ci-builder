@@ -1,4 +1,4 @@
-FROM docker:20.10.0-dind
+FROM docker:20.10.1-dind
 
 LABEL maintainer="estafette.io" \
       description="The ${ESTAFETTE_GIT_NAME} is the component that runs builds as defined in the .estafette.yaml manifest"
