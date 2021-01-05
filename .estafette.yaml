@@ -14,7 +14,7 @@ version:
 
 stages:
   build:
-    image: golang:1.15.1-alpine3.12
+    image: golang:1.15.6-alpine3.12
     env:
       CGO_ENABLED: 0
       GOOS: linux
@@ -78,7 +78,7 @@ stages:
         - estafette
 
   clean-working-directory:
-    image: golang:1.15.1-alpine3.12
+    image: golang:1.15.6-alpine3.12
     commands:
     - rm -rf ..?* .[!.]* *
 
