@@ -14,7 +14,7 @@ ENV GIT_DOWNLOAD_SHA256 8f65208f92c0b4c3ae4c0cf02d4b5f6791d539cd1a07b2df62b71164
 # steps inspired by "chcolateyInstall.ps1" from "git.install" (https://chocolatey.org/packages/git.install)
 RUN Write-Host ('Downloading {0} ...' -f $env:GIT_DOWNLOAD_URL); \
 	[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; \
-	Invoke-WebRequest -Uri $env:GIT_DOWNLOAD_URL -OutFile 'git.zip'; \
+	Invoke-WebRequest -Uri $env:GIT_DOWNLOAD_URL -OutFile 'git.zip' -TimeoutSec 300; \
 	\
 	Write-Host ('Verifying sha256 ({0}) ...' -f $env:GIT_DOWNLOAD_SHA256); \
 	if ((Get-FileHash git.zip -Algorithm sha256).Hash -ne $env:GIT_DOWNLOAD_SHA256) { \
@@ -50,7 +50,7 @@ ENV GOLANG_VERSION 1.15.6
 
 RUN $url = 'https://storage.googleapis.com/golang/go1.15.6.windows-amd64.zip'; \
 	Write-Host ('Downloading {0} ...' -f $url); \
-	Invoke-WebRequest -Uri $url -OutFile 'go.zip'; \
+	Invoke-WebRequest -Uri $url -OutFile 'go.zip' -TimeoutSec 300; \
 	\
 	$sha256 = 'b7b3808bb072c2bab73175009187fd5a7f20ffe0a31739937003a14c5c4d9006'; \
 	Write-Host ('Verifying sha256 ({0}) ...' -f $sha256); \
