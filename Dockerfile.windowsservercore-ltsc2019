@@ -3,7 +3,11 @@ FROM mcr.microsoft.com/windows/servercore:ltsc2019 as builder
 # $ProgressPreference: https://github.com/PowerShell/PowerShell/issues/2138#issuecomment-251261324
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
-RUN netsh interface ipv4 show subinterfaces;
+RUN netsh interface ipv4 show subinterfaces; \
+  Get-NetAdapter | Where-Object Name -like "*Ethernet*" | ForEach-Object { \
+    & netsh interface ipv4 set subinterface $_.InterfaceIndex mtu=1400 store=persistent; \
+  }; \
+  netsh interface ipv4 show subinterfaces;
 
 # install MinGit (especially for "go get")
 # https://blogs.msdn.microsoft.com/visualstudioalm/2016/09/03/whats-new-in-git-for-windows-2-10/
