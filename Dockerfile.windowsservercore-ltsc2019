@@ -18,7 +18,7 @@ ENV GIT_TAG v${GIT_VERSION}.windows.1
 ENV GIT_DOWNLOAD_URL https://github.com/git-for-windows/git/releases/download/${GIT_TAG}/MinGit-${GIT_VERSION}-64-bit.zip
 ENV GIT_DOWNLOAD_SHA256 8f65208f92c0b4c3ae4c0cf02d4b5f6791d539cd1a07b2df62b7116467724735
 # steps inspired by "chcolateyInstall.ps1" from "git.install" (https://chocolatey.org/packages/git.install)
-RUN Write-Host ('Downloading {0} ...' -f $env:GIT_DOWNLOAD_URL); \
+RUN Write-Host ('Downloading {0} to git.zip ...' -f $env:GIT_DOWNLOAD_URL); \
 	[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; \
 	Invoke-WebRequest -Uri $env:GIT_DOWNLOAD_URL -OutFile 'git.zip' -TimeoutSec 300; \
 	\
@@ -28,10 +28,10 @@ RUN Write-Host ('Downloading {0} ...' -f $env:GIT_DOWNLOAD_URL); \
 		exit 1; \
 	}; \
 	\
-	Write-Host 'Expanding ...'; \
+	Write-Host 'Expanding git.zip ...'; \
 	Expand-Archive -Path git.zip -DestinationPath C:\git\.; \
 	\
-	Write-Host 'Removing ...'; \
+	Write-Host 'Removing git.zip ...'; \
 	Remove-Item git.zip -Force; \
 	\
 	Write-Host 'Updating PATH ...'; \
@@ -41,7 +41,7 @@ RUN Write-Host ('Downloading {0} ...' -f $env:GIT_DOWNLOAD_URL); \
 	Write-Host 'Verifying install ("git version") ...'; \
 	git version; \
 	\
-	Write-Host 'Complete.';
+	Write-Host 'Completed installing git.';
 
 # ideally, this would be C:\go to match Linux a bit closer, but C:\go is the recommended install path for Go itself on Windows
 ENV GOPATH C:\\gopath
@@ -55,7 +55,7 @@ RUN $newPath = ('{0}\bin;C:\go\bin;{1}' -f $env:GOPATH, $env:PATH); \
 ENV GOLANG_VERSION 1.15.6
 
 RUN $url = 'https://storage.googleapis.com/golang/go1.15.6.windows-amd64.zip'; \
-	Write-Host ('Downloading {0} ...' -f $url); \
+	Write-Host ('Downloading {0} to go.zip ...' -f $url); \
 	Invoke-WebRequest -Uri $url -OutFile 'go.zip' -TimeoutSec 300; \
 	\
 	$sha256 = 'b7b3808bb072c2bab73175009187fd5a7f20ffe0a31739937003a14c5c4d9006'; \
@@ -65,18 +65,18 @@ RUN $url = 'https://storage.googleapis.com/golang/go1.15.6.windows-amd64.zip'; \
 		exit 1; \
 	}; \
 	\
-	Write-Host 'Expanding ...'; \
+	Write-Host 'Expanding go.zip ...'; \
 	Expand-Archive go.zip -DestinationPath C:\; \
 	\
-	Write-Host 'Removing ...'; \
+	Write-Host 'Removing go.zip ...'; \
 	Remove-Item go.zip -Force; \
 	\
 	Write-Host 'Verifying install ("go version") ...'; \
 	go version; \
 	\
-	Write-Host 'Complete.';
+	Write-Host 'Complete installing go.';
 
-WORKDIR $GOPATH
+WORKDIR C:/Work
 
 # perform actual build of the ci-builder
 COPY . .
