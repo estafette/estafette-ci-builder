@@ -51,6 +51,30 @@ type DockerRunner interface {
 	StopAllContainers()
 }
 
+// NewDockerRunner returns a new DockerRunner
+func NewDockerRunner(envvarHelper EnvvarHelper, obfuscator Obfuscator, config contracts.BuilderConfig, tailLogsChannel chan contracts.TailLogLine) DockerRunner {
+
+	networkBridge := "estafette"
+
+	if runtime.GOOS == "windows" {
+		networkBridge += "-" + generateRandomString(5)
+	}
+
+	return &dockerRunnerImpl{
+		envvarHelper:                          envvarHelper,
+		obfuscator:                            obfuscator,
+		config:                                config,
+		tailLogsChannel:                       tailLogsChannel,
+		runningStageContainerIDs:              make([]string, 0),
+		runningSingleStageServiceContainerIDs: make([]string, 0),
+		runningMultiStageServiceContainerIDs:  make([]string, 0),
+		runningReadinessProbeContainerIDs:     make([]string, 0),
+		networkBridge:                         networkBridge,
+		entrypointTemplateDir:                 "/entrypoint-templates",
+		entrypointTargetDir:                   "/estafette-entrypoints",
+	}
+}
+
 type dockerRunnerImpl struct {
 	envvarHelper    EnvvarHelper
 	obfuscator      Obfuscator
@@ -66,23 +90,6 @@ type dockerRunnerImpl struct {
 	networkBridgeID                       string
 	entrypointTemplateDir                 string
 	entrypointTargetDir                   string
-}
-
-// NewDockerRunner returns a new DockerRunner
-func NewDockerRunner(envvarHelper EnvvarHelper, obfuscator Obfuscator, config contracts.BuilderConfig, tailLogsChannel chan contracts.TailLogLine) DockerRunner {
-	return &dockerRunnerImpl{
-		envvarHelper:                          envvarHelper,
-		obfuscator:                            obfuscator,
-		config:                                config,
-		tailLogsChannel:                       tailLogsChannel,
-		runningStageContainerIDs:              make([]string, 0),
-		runningSingleStageServiceContainerIDs: make([]string, 0),
-		runningMultiStageServiceContainerIDs:  make([]string, 0),
-		runningReadinessProbeContainerIDs:     make([]string, 0),
-		networkBridge:                         "estafette",
-		entrypointTemplateDir:                 "/entrypoint-templates",
-		entrypointTargetDir:                   "/estafette-entrypoints",
-	}
 }
 
 func (dr *dockerRunnerImpl) IsImagePulled(stageName string, containerImage string) bool {
