@@ -93,6 +93,10 @@ WORKDIR C:/Work
 # perform actual build of the ci-builder
 COPY . .
 
+ENV CGO_ENABLED 0
+ENV GOOS windows
+ENV GOARCH amd64
+
 RUN dir; \
   go build -v -ldflags="-X main.app=$env:ESTAFETTE_GIT_NAME -X main.version=$env:ESTAFETTE_BUILD_VERSION -X main.revision=$env:ESTAFETTE_GIT_REVISION -X main.branch=$env:ESTAFETTE_GIT_BRANCH -X main.buildDate=$env:ESTAFETTE_BUILD_DATETIME" -o ./publish/estafette-ci-builder.exe
 
