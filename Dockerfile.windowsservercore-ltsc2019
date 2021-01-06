@@ -98,11 +98,12 @@ ENV GOOS windows
 ENV GOARCH amd64
 
 RUN dir; \
+  go mod download; \
   go build -v -ldflags="-X main.app=$env:ESTAFETTE_GIT_NAME -X main.version=$env:ESTAFETTE_BUILD_VERSION -X main.revision=$env:ESTAFETTE_GIT_REVISION -X main.branch=$env:ESTAFETTE_GIT_BRANCH -X main.buildDate=$env:ESTAFETTE_BUILD_DATETIME" -o ./publish/estafette-ci-builder.exe
 
 FROM mcr.microsoft.com/windows/servercore:ltsc2019
 
-COPY --from=builder C:/gopath/publish/estafette-ci-builder.exe C:/estafette-ci-builder.exe
+COPY --from=builder C:/Work/publish/estafette-ci-builder.exe C:/estafette-ci-builder.exe
 COPY builder/templates C:/entrypoint-templates
 
 ENV ESTAFETTE_CI_SERVER="estafette" \
