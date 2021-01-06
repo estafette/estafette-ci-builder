@@ -334,21 +334,30 @@ releases:
       os: windows
     clone: true
     stages:
+      build:
+        image: estafette/golang:1.15.6-windowsservercore-ltsc2019
+        env:
+          CGO_ENABLED: 0
+          GOOS: windows
+          GOARCH: amd64
+        commands:
+        - go build -v -ldflags "-X main.app=$env:ESTAFETTE_GIT_NAME -X main.version=$env:ESTAFETTE_BUILD_VERSION -X main.revision=$env:ESTAFETTE_GIT_REVISION -X main.branch=$env:ESTAFETTE_GIT_BRANCH -X main.buildDate=$env:ESTAFETTE_BUILD_DATETIME" -o ./publish/$env:ESTAFETTE_GIT_NAME.exe
+
       bake:
         image: extensions/docker:windowsservercore-ltsc2019
         action: build
         no-cache: true
         expand-variables: false
-        args:
-        - ESTAFETTE_GIT_NAME
-        - ESTAFETTE_BUILD_VERSION
-        - ESTAFETTE_GIT_REVISION
-        - ESTAFETTE_GIT_BRANCH
-        - ESTAFETTE_BUILD_DATETIME
         repositories:
         - estafette
         dockerfile: Dockerfile.windowsservercore-ltsc2019
         path: ./publish
+
+      integration-test-override-max:
+        image: extensions/git-clone:${ESTAFETTE_BUILD_VERSION}
+        repo: estafette.io
+        branch: main
+        subdir: test
 
       push-to-docker-hub:
         image: extensions/docker:windowsservercore-ltsc2019

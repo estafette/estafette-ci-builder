@@ -1,43 +1,6 @@
-FROM estafette/golang:1.15.6-windowsservercore-ltsc2019 as builder
-
-ARG ESTAFETTE_GIT_NAME="estafette-ci-builder"
-ARG ESTAFETTE_BUILD_VERSION="0.0.0"
-ARG ESTAFETTE_GIT_REVISION="abcdef"
-ARG ESTAFETTE_GIT_BRANCH="main"
-ARG ESTAFETTE_BUILD_DATETIME="2020-01-01T00:00:00Z"
-
-ENV ESTAFETTE_GIT_NAME=$ESTAFETTE_GIT_NAME
-ENV ESTAFETTE_BUILD_VERSION=$ESTAFETTE_BUILD_VERSION
-ENV ESTAFETTE_GIT_REVISION=$ESTAFETTE_GIT_REVISION
-ENV ESTAFETTE_GIT_BRANCH=$ESTAFETTE_GIT_BRANCH
-ENV ESTAFETTE_BUILD_DATETIME=$ESTAFETTE_BUILD_DATETIME
-
-# $ProgressPreference: https://github.com/PowerShell/PowerShell/issues/2138#issuecomment-251261324
-# SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
-
-# RUN netsh interface ipv4 show subinterfaces; \
-#   Get-NetAdapter | Where-Object Name -like "*Ethernet*" | ForEach-Object { \
-#     & netsh interface ipv4 set subinterface $_.InterfaceIndex mtu=1400 store=persistent; \
-#   }; \
-#   netsh interface ipv4 show subinterfaces;
-
-WORKDIR C:/Work
-
-# perform actual build of the ci-builder
-COPY . .
-
-ENV CGO_ENABLED 0
-ENV GOOS windows
-ENV GOARCH amd64
-
-RUN dir; \
-  go mod download; \
-  go build -v -o ./publish/estafette-ci-builder.exe;
-  # go build -v -ldflags="-X main.app=$env:ESTAFETTE_GIT_NAME -X main.version=$env:ESTAFETTE_BUILD_VERSION -X main.revision=$env:ESTAFETTE_GIT_REVISION -X main.branch=$env:ESTAFETTE_GIT_BRANCH -X main.buildDate=$env:ESTAFETTE_BUILD_DATETIME" -o ./publish/estafette-ci-builder.exe
-
 FROM mcr.microsoft.com/windows/servercore:ltsc2019
 
-COPY --from=builder C:/Work/publish/estafette-ci-builder.exe C:/estafette-ci-builder.exe
+COPY estafette-ci-builder.exe C:/estafette-ci-builder.exe
 COPY builder/templates C:/entrypoint-templates
 
 ENV ESTAFETTE_CI_SERVER="estafette" \
