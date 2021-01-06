@@ -355,12 +355,6 @@ releases:
         copy:
         - builder/templates
 
-      integration-test-override-max:
-        image: extensions/git-clone:${ESTAFETTE_BUILD_VERSION}
-        repo: estafette.io
-        branch: main
-        subdir: test
-
       push-to-docker-hub:
         image: extensions/docker:windowsservercore-ltsc2019
         action: push
