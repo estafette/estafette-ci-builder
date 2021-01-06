@@ -339,6 +339,12 @@ releases:
         action: build
         no-cache: true
         expand-variables: false
+        args:
+        - ESTAFETTE_GIT_NAME
+        - ESTAFETTE_BUILD_VERSION
+        - ESTAFETTE_GIT_REVISION
+        - ESTAFETTE_GIT_BRANCH
+        - ESTAFETTE_BUILD_DATETIME
         repositories:
         - estafette
         dockerfile: Dockerfile.windowsservercore-ltsc2019
