@@ -1,4 +1,5 @@
-FROM estafette/golang:1.15.6-windowsservercore-ltsc2019
+FROM estafette/golang:1.15.6-windowsservercore-ltsc2019 as builder
+
 ARG ESTAFETTE_GIT_NAME="estafette-ci-builder"
 ARG ESTAFETTE_BUILD_VERSION="0.0.0"
 ARG ESTAFETTE_GIT_REVISION="abcdef"
