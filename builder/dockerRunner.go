@@ -171,7 +171,9 @@ func (dr *dockerRunnerImpl) StartStageContainer(ctx context.Context, depth int, 
 	if err != nil {
 		return
 	}
-	binds = append(binds, fmt.Sprintf("%v:/credentials", credentialsdir))
+	if credentialsdir != "" {
+		binds = append(binds, fmt.Sprintf("%v:/credentials", credentialsdir))
+	}
 
 	// add stage name to envvars
 	if stage.EnvVars == nil {
@@ -304,7 +306,9 @@ func (dr *dockerRunnerImpl) StartServiceContainer(ctx context.Context, envvars m
 	if err != nil {
 		return
 	}
-	binds = append(binds, fmt.Sprintf("%v:/credentials", credentialsdir))
+	if credentialsdir != "" {
+		binds = append(binds, fmt.Sprintf("%v:/credentials", credentialsdir))
+	}
 
 	// add service name to envvars
 	if service.EnvVars == nil {
@@ -1188,6 +1192,10 @@ func (dr *dockerRunnerImpl) generateCredentialsFiles(trustedImage *contracts.Tru
 		}
 
 		credentialMap := dr.config.GetCredentialsForTrustedImage(*trustedImage)
+		if len(credentialMap) == 0 {
+			credentialsdir = ""
+			return
+		}
 		for credentialType, credentialsForType := range credentialMap {
 
 			filename := fmt.Sprintf("%v.json", foundation.ToLowerSnakeCase(credentialType))
