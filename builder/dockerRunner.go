@@ -172,7 +172,11 @@ func (dr *dockerRunnerImpl) StartStageContainer(ctx context.Context, depth int, 
 		return
 	}
 	if credentialsdir != "" {
-		binds = append(binds, fmt.Sprintf("%v:/credentials", credentialsdir))
+		if runtime.GOOS == "windows" {
+			binds = append(binds, fmt.Sprintf("%v:C:/credentials", credentialsdir))
+		} else {
+			binds = append(binds, fmt.Sprintf("%v:/credentials", credentialsdir))
+		}
 	}
 
 	// add stage name to envvars
@@ -307,7 +311,11 @@ func (dr *dockerRunnerImpl) StartServiceContainer(ctx context.Context, envvars m
 		return
 	}
 	if credentialsdir != "" {
-		binds = append(binds, fmt.Sprintf("%v:/credentials", credentialsdir))
+		if runtime.GOOS == "windows" {
+			binds = append(binds, fmt.Sprintf("%v:C:/credentials", credentialsdir))
+		} else {
+			binds = append(binds, fmt.Sprintf("%v:/credentials", credentialsdir))
+		}
 	}
 
 	// add service name to envvars
