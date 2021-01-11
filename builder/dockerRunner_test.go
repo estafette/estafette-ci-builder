@@ -145,7 +145,7 @@ func TestGenerateEntrypointScript(t *testing.T) {
 	t.Run("ReturnsVariablesForOneCommand", func(t *testing.T) {
 
 		dockerRunner := dockerRunnerImpl{
-			entrypointTemplateDir: "./templates",
+			entrypointTemplateDir: "../templates",
 			entrypointTargetDir:   "",
 		}
 
@@ -164,7 +164,7 @@ func TestGenerateEntrypointScript(t *testing.T) {
 	t.Run("ReturnsVariablesForTwoOrMoreCommands", func(t *testing.T) {
 
 		dockerRunner := dockerRunnerImpl{
-			entrypointTemplateDir: "./templates",
+			entrypointTemplateDir: "../templates",
 			entrypointTargetDir:   "",
 		}
 
@@ -183,7 +183,7 @@ func TestGenerateEntrypointScript(t *testing.T) {
 	t.Run("DoesNotRunVariableAssignmentInBackground", func(t *testing.T) {
 
 		dockerRunner := dockerRunnerImpl{
-			entrypointTemplateDir: "./templates",
+			entrypointTemplateDir: "../templates",
 			entrypointTargetDir:   "",
 		}
 
@@ -202,7 +202,7 @@ func TestGenerateEntrypointScript(t *testing.T) {
 	t.Run("DoesNotRunCommandsWithOrInBackground", func(t *testing.T) {
 
 		dockerRunner := dockerRunnerImpl{
-			entrypointTemplateDir: "./templates",
+			entrypointTemplateDir: "../templates",
 			entrypointTargetDir:   "",
 		}
 
@@ -221,7 +221,7 @@ func TestGenerateEntrypointScript(t *testing.T) {
 	t.Run("DoesNotRunCommandsWithAndInBackground", func(t *testing.T) {
 
 		dockerRunner := dockerRunnerImpl{
-			entrypointTemplateDir: "./templates",
+			entrypointTemplateDir: "../templates",
 			entrypointTargetDir:   "",
 		}
 
@@ -240,7 +240,7 @@ func TestGenerateEntrypointScript(t *testing.T) {
 	t.Run("DoesNotRunCommandsWithPipeInBackground", func(t *testing.T) {
 
 		dockerRunner := dockerRunnerImpl{
-			entrypointTemplateDir: "./templates",
+			entrypointTemplateDir: "../templates",
 			entrypointTargetDir:   "",
 		}
 
@@ -259,7 +259,7 @@ func TestGenerateEntrypointScript(t *testing.T) {
 	t.Run("DoesNotRunCommandsWithChangeDirectoryInBackground", func(t *testing.T) {
 
 		dockerRunner := dockerRunnerImpl{
-			entrypointTemplateDir: "./templates",
+			entrypointTemplateDir: "../templates",
 			entrypointTargetDir:   "",
 		}
 
@@ -278,7 +278,7 @@ func TestGenerateEntrypointScript(t *testing.T) {
 	t.Run("DoesNotRunCommandsWithExportInBackground", func(t *testing.T) {
 
 		dockerRunner := dockerRunnerImpl{
-			entrypointTemplateDir: "./templates",
+			entrypointTemplateDir: "../templates",
 			entrypointTargetDir:   "",
 		}
 
@@ -297,7 +297,7 @@ func TestGenerateEntrypointScript(t *testing.T) {
 	t.Run("DoesNotRunCommandsWithShoptInBackground", func(t *testing.T) {
 
 		dockerRunner := dockerRunnerImpl{
-			entrypointTemplateDir: "./templates",
+			entrypointTemplateDir: "../templates",
 			entrypointTargetDir:   "",
 		}
 
@@ -316,7 +316,7 @@ func TestGenerateEntrypointScript(t *testing.T) {
 	t.Run("DoesNotRunCommandsWithSemicolonInBackground", func(t *testing.T) {
 
 		dockerRunner := dockerRunnerImpl{
-			entrypointTemplateDir: "./templates",
+			entrypointTemplateDir: "../templates",
 			entrypointTargetDir:   "",
 		}
 
@@ -335,7 +335,7 @@ func TestGenerateEntrypointScript(t *testing.T) {
 	t.Run("EscapesDoubleQuotesInEchoStatements", func(t *testing.T) {
 
 		dockerRunner := dockerRunnerImpl{
-			entrypointTemplateDir: "./templates",
+			entrypointTemplateDir: "../templates",
 			entrypointTargetDir:   "",
 		}
 
@@ -354,7 +354,7 @@ func TestGenerateEntrypointScript(t *testing.T) {
 	t.Run("DoesNotEscapeSingleQuotesInEchoStatements", func(t *testing.T) {
 
 		dockerRunner := dockerRunnerImpl{
-			entrypointTemplateDir: "./templates",
+			entrypointTemplateDir: "../templates",
 			entrypointTargetDir:   "",
 		}
 
@@ -373,7 +373,7 @@ func TestGenerateEntrypointScript(t *testing.T) {
 	t.Run("DoesNotRunAnyCommandInBackgroundWhenRunCommandsInForegroundIsTrue", func(t *testing.T) {
 
 		dockerRunner := dockerRunnerImpl{
-			entrypointTemplateDir: "./templates",
+			entrypointTemplateDir: "../templates",
 			entrypointTargetDir:   "",
 		}
 
