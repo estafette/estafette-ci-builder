@@ -353,7 +353,7 @@ releases:
         dockerfile: Dockerfile.windowsservercore-ltsc2019
         path: ./publish
         copy:
-        - builder/templates
+        - templates
 
       push-to-docker-hub:
         image: extensions/docker:windowsservercore-ltsc2019
