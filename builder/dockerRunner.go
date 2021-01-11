@@ -1222,6 +1222,10 @@ func (dr *dockerRunnerImpl) generateCredentialsFiles(trustedImage *contracts.Tru
 
 			log.Debug().Msgf("Stored credentials of type %v in file %v", credentialType, filepath)
 		}
+
+		if runtime.GOOS == "windows" {
+			credentialsdir = strings.Replace(credentialsdir, "\\", "/", -1)
+		}
 	}
 
 	return
