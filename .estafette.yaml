@@ -35,7 +35,7 @@ stages:
         - estafette
         path: ./publish
         copy:
-        - builder/templates
+        - templates
 
       bake-gocd-agent:
         image: extensions/docker:dev
@@ -46,7 +46,7 @@ stages:
         - estafette
         path: ./publish
         copy:
-        - builder/templates
+        - templates
         dockerfile: Dockerfile.gocd
 
   dive-and-trivy-all:
