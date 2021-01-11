@@ -1207,7 +1207,7 @@ func (dr *dockerRunnerImpl) generateCredentialsFiles(trustedImage *contracts.Tru
 				return credentialsdir, innerErr
 			}
 
-			err = ioutil.WriteFile(filepath, credentialsForTypeBytes, 0644)
+			err = ioutil.WriteFile(filepath, credentialsForTypeBytes, 0666)
 			if err != nil {
 				return
 			}
