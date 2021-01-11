@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"os/user"
+	"path"
 	"reflect"
 	"regexp"
 	"runtime"
@@ -26,6 +27,7 @@ import (
 	"github.com/docker/docker/client"
 	contracts "github.com/estafette/estafette-ci-contracts"
 	manifest "github.com/estafette/estafette-ci-manifest"
+	foundation "github.com/estafette/estafette-foundation"
 	"github.com/opentracing/opentracing-go"
 	"github.com/rs/zerolog/log"
 	"gopkg.in/yaml.v2"
@@ -164,6 +166,13 @@ func (dr *dockerRunnerImpl) StartStageContainer(ctx context.Context, depth int, 
 	// add credentials if trusted image with injectedCredentialTypes
 	credentialEnvVars := dr.generateCredentialsEnvvars(trustedImage)
 
+	// mount injected credentials as files
+	credentialsdir, err := dr.generateCredentialsFiles(trustedImage)
+	if err != nil {
+		return
+	}
+	binds = append(binds, fmt.Sprintf("%v:/credentials", credentialsdir))
+
 	// add stage name to envvars
 	if stage.EnvVars == nil {
 		stage.EnvVars = map[string]string{}
@@ -289,6 +298,13 @@ func (dr *dockerRunnerImpl) StartServiceContainer(ctx context.Context, envvars m
 
 	// add credentials if trusted image with injectedCredentialTypes
 	credentialEnvVars := dr.generateCredentialsEnvvars(trustedImage)
+
+	// mount injected credentials as files
+	credentialsdir, err := dr.generateCredentialsFiles(trustedImage)
+	if err != nil {
+		return
+	}
+	binds = append(binds, fmt.Sprintf("%v:/credentials", credentialsdir))
 
 	// add service name to envvars
 	if service.EnvVars == nil {
@@ -1073,7 +1089,7 @@ func (dr *dockerRunnerImpl) generateExtensionEnvvars(customProperties map[string
 	extensionEnvVars = map[string]string{}
 	if customProperties != nil && len(customProperties) > 0 {
 		for k, v := range customProperties {
-			extensionkey := dr.envvarHelper.getEstafetteEnvvarName(fmt.Sprintf("ESTAFETTE_EXTENSION_%v", dr.envvarHelper.toUpperSnake(k)))
+			extensionkey := dr.envvarHelper.getEstafetteEnvvarName(fmt.Sprintf("ESTAFETTE_EXTENSION_%v", foundation.ToUpperSnakeCase(k)))
 
 			if s, isString := v.(string); isString {
 				// if custom property is of type string add the envvar
@@ -1144,7 +1160,7 @@ func (dr *dockerRunnerImpl) generateCredentialsEnvvars(trustedImage *contracts.T
 		credentialMap := dr.config.GetCredentialsForTrustedImage(*trustedImage)
 		for credentialType, credentialsForType := range credentialMap {
 
-			credentialkey := dr.envvarHelper.getEstafetteEnvvarName(fmt.Sprintf("ESTAFETTE_CREDENTIALS_%v", dr.envvarHelper.toUpperSnake(credentialType)))
+			credentialkey := dr.envvarHelper.getEstafetteEnvvarName(fmt.Sprintf("ESTAFETTE_CREDENTIALS_%v", foundation.ToUpperSnakeCase(credentialType)))
 
 			// convert credentialsForType to json string
 			credentialsForTypeBytes, err := json.Marshal(credentialsForType)
@@ -1156,6 +1172,39 @@ func (dr *dockerRunnerImpl) generateCredentialsEnvvars(trustedImage *contracts.T
 			credentialEnvVars[credentialkey] = string(credentialsForTypeBytes)
 
 			log.Debug().Msgf("Set envvar %v to credentials of type %v", credentialkey, credentialType)
+		}
+	}
+
+	return
+}
+
+func (dr *dockerRunnerImpl) generateCredentialsFiles(trustedImage *contracts.TrustedImageConfig) (credentialsdir string, err error) {
+
+	if trustedImage != nil {
+		// create a tempdir to store credential files in and mount into container
+		credentialsdir, err = ioutil.TempDir("", "*-credentials")
+		if err != nil {
+			return
+		}
+
+		credentialMap := dr.config.GetCredentialsForTrustedImage(*trustedImage)
+		for credentialType, credentialsForType := range credentialMap {
+
+			filename := fmt.Sprintf("%v.json", foundation.ToLowerSnakeCase(credentialType))
+			filepath := path.Join(credentialsdir, filename)
+
+			// convert credentialsForType to json string
+			credentialsForTypeBytes, innerErr := json.Marshal(credentialsForType)
+			if innerErr != nil {
+				return credentialsdir, innerErr
+			}
+
+			err = ioutil.WriteFile(filepath, credentialsForTypeBytes, 0644)
+			if err != nil {
+				return
+			}
+
+			log.Debug().Msgf("Stored credentials of type %v in file %v", credentialType, filepath)
 		}
 	}
 

@@ -10,18 +10,17 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unicode"
 
 	"github.com/rs/zerolog/log"
 
 	contracts "github.com/estafette/estafette-ci-contracts"
 	crypt "github.com/estafette/estafette-ci-crypt"
 	manifest "github.com/estafette/estafette-ci-manifest"
+	foundation "github.com/estafette/estafette-foundation"
 )
 
 // EnvvarHelper is the interface for getting, setting and retrieving ESTAFETTE_ environment variables
 type EnvvarHelper interface {
-	toUpperSnake(string) string
 	getCommandOutput(string, ...string) (string, error)
 	SetEstafetteGlobalEnvvars() error
 	SetEstafetteStagesEnvvar([]*manifest.EstafetteStage) error
@@ -76,31 +75,6 @@ func NewEnvvarHelper(prefix string, secretHelper crypt.SecretHelper, obfuscator 
 		secretHelper: secretHelper,
 		obfuscator:   obfuscator,
 	}
-}
-
-// https://gist.github.com/elwinar/14e1e897fdbe4d3432e1
-func (h *envvarHelperImpl) toUpperSnake(in string) string {
-	runes := []rune(in)
-	length := len(runes)
-
-	var out []rune
-	for i := 0; i < length; i++ {
-		if i > 0 && unicode.IsUpper(runes[i]) && ((i+1 < length && unicode.IsLower(runes[i+1])) || unicode.IsLower(runes[i-1])) {
-			out = append(out, '_')
-		}
-		out = append(out, unicode.ToUpper(runes[i]))
-	}
-
-	snake := string(out)
-
-	// make sure nothing but alphanumeric characters and underscores are returned
-	reg, err := regexp.Compile("[^A-Z0-9]+")
-	if err != nil {
-		log.Fatal().Err(err).Msgf("Failed converting %v to upper snake case", in)
-	}
-	cleanSnake := reg.ReplaceAllString(snake, "_")
-
-	return cleanSnake
 }
 
 func (h *envvarHelperImpl) getCommandOutput(name string, arg ...string) (string, error) {
@@ -262,7 +236,7 @@ func (h *envvarHelperImpl) setEstafetteEventEnvvars(events []*manifest.Estafette
 					triggerPropertyField := triggerPropertyFields.Field(j).Name
 					triggerPropertyValue := triggerPropertyValues.Field(j)
 
-					envvarName := "ESTAFETTE_TRIGGER_" + h.toUpperSnake(triggerField) + "_" + h.toUpperSnake(triggerPropertyField)
+					envvarName := "ESTAFETTE_TRIGGER_" + foundation.ToUpperSnakeCase(triggerField) + "_" + foundation.ToUpperSnakeCase(triggerPropertyField)
 					envvarValue := ""
 
 					switch triggerPropertyValue.Kind() {
@@ -463,7 +437,7 @@ func (h *envvarHelperImpl) initLabels(m manifest.EstafetteManifest) (err error) 
 	// set labels as envvars
 	if m.Labels != nil && len(m.Labels) > 0 {
 		for key, value := range m.Labels {
-			envvarName := "ESTAFETTE_LABEL_" + h.toUpperSnake(key)
+			envvarName := "ESTAFETTE_LABEL_" + foundation.ToUpperSnakeCase(key)
 			err = h.setEstafetteEnv(envvarName, value)
 			if err != nil {
 				return
