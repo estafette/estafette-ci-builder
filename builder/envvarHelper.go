@@ -50,6 +50,7 @@ type EnvvarHelper interface {
 	SetPipelineName(builderConfig contracts.BuilderConfig) error
 	GetPipelineName() string
 	GetWorkDir() string
+	GetTempDir() string
 	makeDNSLabelSafe(string) string
 
 	getGitOrigin() (string, error)
@@ -62,6 +63,7 @@ type envvarHelperImpl struct {
 	prefix       string
 	ciServer     string
 	workDir      string
+	tempDir      string
 	secretHelper crypt.SecretHelper
 	obfuscator   Obfuscator
 }
@@ -72,6 +74,7 @@ func NewEnvvarHelper(prefix string, secretHelper crypt.SecretHelper, obfuscator 
 		prefix:       prefix,
 		ciServer:     os.Getenv("ESTAFETTE_CI_SERVER"),
 		workDir:      os.Getenv("ESTAFETTE_WORKDIR"),
+		tempDir:      os.Getenv("ESTAFETTE_TEMPDIR"),
 		secretHelper: secretHelper,
 		obfuscator:   obfuscator,
 	}
@@ -584,6 +587,10 @@ func (h *envvarHelperImpl) GetCiServer() string {
 
 func (h *envvarHelperImpl) GetWorkDir() string {
 	return h.workDir
+}
+
+func (h *envvarHelperImpl) GetTempDir() string {
+	return h.tempDir
 }
 
 func (h *envvarHelperImpl) makeDNSLabelSafe(value string) string {

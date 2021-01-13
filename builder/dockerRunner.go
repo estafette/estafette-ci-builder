@@ -1225,8 +1225,9 @@ func (dr *dockerRunnerImpl) generateCredentialsFiles(trustedImage *contracts.Tru
 		}
 
 		if runtime.GOOS == "windows" {
+			log.Debug().Msgf("Joining %v and %v to create credentials dir hostpath for mounting credentials", dr.envvarHelper.GetTempDir(), credentialsdir)
 			// create full path to credentials dir on host (inside the emptydir representing the workdir) to able to bind it using docker-outside-docker
-			credentialsdir = filepath.Join(os.Getenv("ESTAFETTE_TEMPDIR"), strings.TrimPrefix(credentialsdir, "C:\\Users\\ContainerAdministrator\\AppData\\Local\\Temp"))
+			credentialsdir = filepath.Join(dr.envvarHelper.GetTempDir(), strings.TrimPrefix(credentialsdir, "C:\\Users\\ContainerAdministrator\\AppData\\Local\\Temp"))
 		}
 	}
 
