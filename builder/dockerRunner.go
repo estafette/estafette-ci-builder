@@ -1195,13 +1195,7 @@ func (dr *dockerRunnerImpl) generateCredentialsFiles(trustedImage *contracts.Tru
 
 	if trustedImage != nil {
 		// create a tempdir to store credential files in and mount into container
-
-		dir := ""
-		if runtime.GOOS == "windows" {
-			dir = "."
-		}
-
-		credentialsdir, err = ioutil.TempDir(dir, "*-credentials")
+		credentialsdir, err = ioutil.TempDir("", "*-credentials")
 		if err != nil {
 			return
 		}
@@ -1232,7 +1226,7 @@ func (dr *dockerRunnerImpl) generateCredentialsFiles(trustedImage *contracts.Tru
 
 		if runtime.GOOS == "windows" {
 			// create full path to credentials dir on host (inside the emptydir representing the workdir) to able to bind it using docker-outside-docker
-			credentialsdir = filepath.Join(dr.envvarHelper.GetWorkDir(), credentialsdir)
+			credentialsdir = filepath.Join(os.Getenv("ESTAFETTE_TEMPDIR"), strings.TrimPrefix(credentialsdir, "C:\\Windows\\Temp"))
 		}
 	}
 
