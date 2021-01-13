@@ -1216,7 +1216,12 @@ func (dr *dockerRunnerImpl) generateCredentialsFiles(trustedImage *contracts.Tru
 				return credentialsdir, innerErr
 			}
 
-			err = ioutil.WriteFile(filepath, credentialsForTypeBytes, 0666)
+			// expand estafette variables in json file
+			credentialsForTypeString := string(credentialsForTypeBytes)
+			credentialsForTypeString = os.Expand(credentialsForTypeString, dr.envvarHelper.getEstafetteEnv)
+
+			// write to file
+			err = ioutil.WriteFile(filepath, []byte(credentialsForTypeString), 0666)
 			if err != nil {
 				return
 			}
