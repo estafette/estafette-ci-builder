@@ -192,7 +192,7 @@ func (b *ciBuilderImpl) RunEstafetteBuildJob(pipelineRunner PipelineRunner, dock
 	}
 
 	// send result to ci-api
-	buildStatus := contracts.GetAggregatedStatus(buildLog.Steps).ToStatus()
+	buildStatus := contracts.GetAggregatedStatus(buildLog.Steps)
 	_ = endOfLifeHelper.SendBuildFinishedEvent(ctx, buildStatus)
 	_ = endOfLifeHelper.SendBuildJobLogEvent(ctx, buildLog)
 	_ = endOfLifeHelper.SendBuildCleanEvent(ctx, buildStatus)

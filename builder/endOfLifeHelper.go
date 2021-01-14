@@ -23,8 +23,8 @@ import (
 type EndOfLifeHelper interface {
 	HandleFatal(context.Context, contracts.BuildLog, error, string)
 	SendBuildStartedEvent(ctx context.Context) error
-	SendBuildFinishedEvent(ctx context.Context, buildStatus contracts.Status) error
-	SendBuildCleanEvent(ctx context.Context, buildStatus contracts.Status) error
+	SendBuildFinishedEvent(ctx context.Context, buildStatus contracts.LogStatus) error
+	SendBuildCleanEvent(ctx context.Context, buildStatus contracts.LogStatus) error
 	SendBuildJobLogEvent(ctx context.Context, buildLog contracts.BuildLog) error
 }
 
@@ -75,9 +75,9 @@ func (elh *endOfLifeHelperImpl) HandleFatal(ctx context.Context, buildLog contra
 
 	buildLog.Steps = append(buildLog.Steps, &fatalStep)
 
-	_ = elh.SendBuildFinishedEvent(ctx, contracts.StatusFailed)
+	_ = elh.SendBuildFinishedEvent(ctx, contracts.LogStatusFailed)
 	_ = elh.SendBuildJobLogEvent(ctx, buildLog)
-	_ = elh.SendBuildCleanEvent(ctx, contracts.StatusFailed)
+	_ = elh.SendBuildCleanEvent(ctx, contracts.LogStatusFailed)
 
 	if elh.runAsJob {
 		log.Error().Err(err).Msg(message)
@@ -100,7 +100,7 @@ func (elh *endOfLifeHelperImpl) SendBuildJobLogEvent(ctx context.Context, buildL
 	slimBuildLog.Steps = []*contracts.BuildLogStep{}
 	for _, s := range buildLog.Steps {
 		slimBuildLogStep := s
-		if s.Status.Equals(contracts.StatusSucceeded) {
+		if s.Status == contracts.LogStatusSucceeded {
 			if len(s.LogLines) > 0 {
 				slimBuildLogStep.LogLines = []contracts.BuildLogLine{
 					contracts.BuildLogLine{
@@ -199,19 +199,19 @@ func (elh *endOfLifeHelperImpl) SendBuildJobLogEventCore(ctx context.Context, bu
 }
 
 func (elh *endOfLifeHelperImpl) SendBuildStartedEvent(ctx context.Context) error {
-	buildStatus := contracts.StatusRunning
+	buildStatus := contracts.LogStatusRunning
 	return elh.sendBuilderEvent(ctx, buildStatus, fmt.Sprintf("builder:%v", buildStatus))
 }
 
-func (elh *endOfLifeHelperImpl) SendBuildFinishedEvent(ctx context.Context, buildStatus contracts.Status) error {
+func (elh *endOfLifeHelperImpl) SendBuildFinishedEvent(ctx context.Context, buildStatus contracts.LogStatus) error {
 	return elh.sendBuilderEvent(ctx, buildStatus, fmt.Sprintf("builder:%v", buildStatus))
 }
 
-func (elh *endOfLifeHelperImpl) SendBuildCleanEvent(ctx context.Context, buildStatus contracts.Status) error {
+func (elh *endOfLifeHelperImpl) SendBuildCleanEvent(ctx context.Context, buildStatus contracts.LogStatus) error {
 	return elh.sendBuilderEvent(ctx, buildStatus, "builder:clean")
 }
 
-func (elh *endOfLifeHelperImpl) sendBuilderEvent(ctx context.Context, buildStatus contracts.Status, event string) (err error) {
+func (elh *endOfLifeHelperImpl) sendBuilderEvent(ctx context.Context, buildStatus contracts.LogStatus, event string) (err error) {
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "SendBuildStatus")
 	defer span.Finish()
@@ -246,7 +246,7 @@ func (elh *endOfLifeHelperImpl) sendBuilderEvent(ctx context.Context, buildStatu
 			RepoRevision: elh.config.Git.RepoRevision,
 			ReleaseID:    releaseID,
 			BuildID:      buildID,
-			BuildStatus:  string(buildStatus),
+			BuildStatus:  buildStatus.ToStatus(),
 		}
 		data, err := json.Marshal(ciBuilderEvent)
 		if err != nil {

@@ -128,13 +128,13 @@ func (pr *pipelineRunnerImpl) handleStageFinish(ctx context.Context, depth int, 
 	parentStageName, stagePlaceholder, autoInjected := pr.initStageVariables(ctx, depth, runIndex, dir, envvars, parentStage, stage)
 
 	// finalize stage
-	finalStatus := contracts.StatusSucceeded
+	finalStatus := contracts.LogStatusSucceeded
 	if pr.canceled {
 		log.Info().Msgf("%v Stage canceled", stagePlaceholder)
-		finalStatus = contracts.StatusCanceled
+		finalStatus = contracts.LogStatusCanceled
 	} else if err != nil {
 		log.Warn().Err(err).Msgf("%v Stage failed", stagePlaceholder)
-		finalStatus = contracts.StatusFailed
+		finalStatus = contracts.LogStatusFailed
 	} else {
 		log.Info().Msgf("%v Stage succeeded", stagePlaceholder)
 	}
@@ -147,7 +147,7 @@ func (pr *pipelineRunnerImpl) handleStageFinish(ctx context.Context, depth int, 
 	runDurationValue := time.Since(dockerRunStart)
 	runDuration := &runDurationValue
 
-	pr.sendStatusMessage(stage.Name, parentStageName, contracts.LogTypeStage, depth, runIndex, autoInjected, nil, runDuration, finalStatus.ToLogStatus())
+	pr.sendStatusMessage(stage.Name, parentStageName, contracts.LogTypeStage, depth, runIndex, autoInjected, nil, runDuration, finalStatus)
 }
 
 func (pr *pipelineRunnerImpl) RunStageWithRetry(ctx context.Context, depth int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, stage manifest.EstafetteStage) (err error) {
@@ -255,13 +255,13 @@ func (pr *pipelineRunnerImpl) handleServiceFinish(ctx context.Context, envvars m
 	err := *errPointer
 
 	// finalize stage
-	finalStatus := contracts.StatusSucceeded
+	finalStatus := contracts.LogStatusSucceeded
 	if pr.canceled {
 		log.Info().Msgf("[%v] [%v] Service canceled", parentStage.Name, service.Name)
-		finalStatus = contracts.StatusCanceled
+		finalStatus = contracts.LogStatusCanceled
 	} else if err != nil {
 		log.Warn().Err(err).Msgf("[%v] [%v] Service failed", parentStage.Name, service.Name)
-		finalStatus = contracts.StatusFailed
+		finalStatus = contracts.LogStatusFailed
 	} else {
 		if skipSucceeded {
 			// no need to set a status, this service container remains in running status until the main stage - see RunStage - has finished
@@ -274,7 +274,7 @@ func (pr *pipelineRunnerImpl) handleServiceFinish(ctx context.Context, envvars m
 	runDurationValue := time.Since(dockerRunStart)
 	runDuration := &runDurationValue
 
-	pr.sendStatusMessage(service.Name, parentStage.Name, contracts.LogTypeService, 1, 0, nil, nil, runDuration, finalStatus.ToLogStatus())
+	pr.sendStatusMessage(service.Name, parentStage.Name, contracts.LogTypeService, 1, 0, nil, nil, runDuration, finalStatus)
 }
 
 func (pr *pipelineRunnerImpl) RunStages(ctx context.Context, depth int, stages []*manifest.EstafetteStage, dir string, envvars map[string]string) (buildLogSteps []*contracts.BuildLogStep, err error) {
