@@ -200,11 +200,11 @@ func (elh *endOfLifeHelperImpl) SendBuildJobLogEventCore(ctx context.Context, bu
 
 func (elh *endOfLifeHelperImpl) SendBuildStartedEvent(ctx context.Context) error {
 	buildStatus := contracts.LogStatusRunning
-	return elh.sendBuilderEvent(ctx, buildStatus, fmt.Sprintf("builder:%v", buildStatus))
+	return elh.sendBuilderEvent(ctx, buildStatus, fmt.Sprintf("builder:%v", buildStatus.ToStatus()))
 }
 
 func (elh *endOfLifeHelperImpl) SendBuildFinishedEvent(ctx context.Context, buildStatus contracts.LogStatus) error {
-	return elh.sendBuilderEvent(ctx, buildStatus, fmt.Sprintf("builder:%v", buildStatus))
+	return elh.sendBuilderEvent(ctx, buildStatus, fmt.Sprintf("builder:%v", buildStatus.ToStatus()))
 }
 
 func (elh *endOfLifeHelperImpl) SendBuildCleanEvent(ctx context.Context, buildStatus contracts.LogStatus) error {
@@ -215,7 +215,7 @@ func (elh *endOfLifeHelperImpl) sendBuilderEvent(ctx context.Context, buildStatu
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "SendBuildStatus")
 	defer span.Finish()
-	span.SetTag("build-status", buildStatus)
+	span.SetTag("build-status", buildStatus.ToStatus())
 	span.SetTag("event-type", event)
 
 	ciServerBuilderEventsURL := elh.config.CIServer.BuilderEventsURL
