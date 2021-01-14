@@ -540,13 +540,14 @@ func (pr *pipelineRunnerImpl) pullImageIfNeeded(ctx context.Context, stageName, 
 		isPulledImage = pr.dockerRunner.IsImagePulled(stageName, containerImage)
 		isTrustedImage = pr.dockerRunner.IsTrustedImage(stageName, containerImage)
 
-		if !pr.canceled && (!isPulledImage || runtime.GOOS == "windows") {
+		buildLogStepDockerImage = &contracts.BuildLogStepDockerImage{
+			Name:      getContainerImageName(containerImage),
+			Tag:       getContainerImageTag(containerImage),
+			IsTrusted: isTrustedImage,
+			IsPulled:  isPulledImage,
+		}
 
-			buildLogStepDockerImage = &contracts.BuildLogStepDockerImage{
-				Name:      getContainerImageName(containerImage),
-				Tag:       getContainerImageTag(containerImage),
-				IsTrusted: isTrustedImage,
-			}
+		if !pr.canceled && (!isPulledImage || runtime.GOOS == "windows") {
 
 			// start pulling stage
 			pr.sendStatusMessage(stageName, parentStageName, containerType, depth, runIndex, autoInjected, buildLogStepDockerImage, nil, contracts.StatusPending)
