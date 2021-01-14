@@ -838,6 +838,10 @@ func (dr *dockerRunnerImpl) HasInjectedCredentials(stageName string, containerIm
 
 	// check if image has injected credentials
 	trustedImage := dr.config.GetTrustedImage(containerImage)
+	if trustedImage == nil {
+		return false
+	}
+
 	credentialMap := dr.config.GetCredentialsForTrustedImage(*trustedImage)
 
 	return len(credentialMap) > 0
