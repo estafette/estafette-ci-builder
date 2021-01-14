@@ -117,7 +117,7 @@ func TestRunStage(t *testing.T) {
 		dockerRunnerMock.startStageContainerFunc = func(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, stage manifest.EstafetteStage) (containerID string, err error) {
 			return "abc", nil
 		}
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int, multiStage *bool) (err error) {
+		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
 			return fmt.Errorf("Failed tailing container logs")
 		}
 
@@ -161,7 +161,7 @@ func TestRunStage(t *testing.T) {
 			startStageContainerFuncCalled = true
 			return "abc", nil
 		}
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int, multiStage *bool) (err error) {
+		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
 			tailContainerLogsFuncCalled = true
 			return nil
 		}
@@ -199,7 +199,7 @@ func TestRunStage(t *testing.T) {
 		dockerRunnerMock.startStageContainerFunc = func(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, stage manifest.EstafetteStage) (containerID string, err error) {
 			return "abc", nil
 		}
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int, multiStage *bool) (err error) {
+		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
 			return nil
 		}
 
@@ -240,7 +240,7 @@ func TestRunStage(t *testing.T) {
 		dockerRunnerMock.startStageContainerFunc = func(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, stage manifest.EstafetteStage) (containerID string, err error) {
 			return "abc", nil
 		}
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int, multiStage *bool) (err error) {
+		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
 			return nil
 		}
 
@@ -285,7 +285,7 @@ func TestRunStage(t *testing.T) {
 		dockerRunnerMock.startStageContainerFunc = func(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, stage manifest.EstafetteStage) (containerID string, err error) {
 			return "abc", nil
 		}
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int, multiStage *bool) (err error) {
+		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
 			return fmt.Errorf("Failed tailing container logs")
 		}
 
@@ -330,7 +330,7 @@ func TestRunStage(t *testing.T) {
 		dockerRunnerMock.startStageContainerFunc = func(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, stage manifest.EstafetteStage) (containerID string, err error) {
 			return "abc", nil
 		}
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int, multiStage *bool) (err error) {
+		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
 			return nil
 		}
 
@@ -371,7 +371,7 @@ func TestRunStage(t *testing.T) {
 		dockerRunnerMock.startStageContainerFunc = func(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, stage manifest.EstafetteStage) (containerID string, err error) {
 			return "abc", nil
 		}
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int, multiStage *bool) (err error) {
+		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
 			return fmt.Errorf("Failed tailing container logs")
 		}
 
@@ -417,7 +417,7 @@ func TestRunStage(t *testing.T) {
 		dockerRunnerMock.startStageContainerFunc = func(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, stage manifest.EstafetteStage) (containerID string, err error) {
 			return "abc", nil
 		}
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int, multiStage *bool) (err error) {
+		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
 			return nil
 		}
 
@@ -461,7 +461,7 @@ func TestRunStageWithRetry(t *testing.T) {
 
 		// set mock responses
 		callCount := 0
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int, multiStage *bool) (err error) {
+		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
 			callCount++
 			return fmt.Errorf("Failed tailing container logs")
 		}
@@ -491,7 +491,7 @@ func TestRunStageWithRetry(t *testing.T) {
 		// set mock responses
 		iteration := 0
 		callCount := 0
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int, multiStage *bool) (err error) {
+		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
 
 			defer func() { iteration++ }()
 			callCount++
@@ -533,7 +533,7 @@ func TestRunStageWithRetry(t *testing.T) {
 		// set mock responses
 		iteration := 0
 		callCount := 0
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int, multiStage *bool) (err error) {
+		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
 
 			defer func() { iteration++ }()
 			callCount++
@@ -572,7 +572,7 @@ func TestRunStageWithRetry(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int, multiStage *bool) (err error) {
+		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
 			return fmt.Errorf("Failed tailing container logs")
 		}
 
@@ -605,7 +605,7 @@ func TestRunStageWithRetry(t *testing.T) {
 
 		// set mock responses
 		iteration := 0
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int, multiStage *bool) (err error) {
+		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
 
 			defer func() { iteration++ }()
 
@@ -754,7 +754,7 @@ func TestRunService(t *testing.T) {
 		}
 		var wg sync.WaitGroup
 		wg.Add(1)
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int, multiStage *bool) (err error) {
+		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
 			defer wg.Done()
 			return fmt.Errorf("Failed tailing container logs")
 		}
@@ -789,7 +789,7 @@ func TestRunService(t *testing.T) {
 		}
 		var wg sync.WaitGroup
 		wg.Add(1)
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int, multiStage *bool) (err error) {
+		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
 			defer wg.Done()
 			return nil
 		}
@@ -843,7 +843,7 @@ func TestRunService(t *testing.T) {
 		}
 		var wg sync.WaitGroup
 		wg.Add(1)
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int, multiStage *bool) (err error) {
+		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
 			defer wg.Done()
 			tailContainerLogsFuncCalled = true
 			return nil
@@ -891,7 +891,7 @@ func TestRunService(t *testing.T) {
 		}
 		var wg sync.WaitGroup
 		wg.Add(1)
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int, multiStage *bool) (err error) {
+		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
 			defer wg.Done()
 			return nil
 		}
@@ -935,7 +935,7 @@ func TestRunService(t *testing.T) {
 		}
 		var wg sync.WaitGroup
 		wg.Add(1)
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int, multiStage *bool) (err error) {
+		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
 			defer wg.Done()
 			return nil
 		}
@@ -985,7 +985,7 @@ func TestRunService(t *testing.T) {
 		}
 		var wg sync.WaitGroup
 		wg.Add(1)
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int, multiStage *bool) (err error) {
+		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
 			defer wg.Done()
 			// ensure tailing doesn't set status before the main routine does
 			time.Sleep(100 * time.Millisecond)
@@ -1337,9 +1337,9 @@ func TestRunStages(t *testing.T) {
 		assert.Equal(t, 2, callCount)
 
 		if assert.Equal(t, 3, len(buildLogSteps)) {
-			assert.Equal(t, contracts.StatusFailed, buildLogSteps[0].Status)
-			assert.Equal(t, contracts.StatusSkipped, buildLogSteps[1].Status)
-			assert.Equal(t, contracts.StatusSucceeded, buildLogSteps[2].Status)
+			assert.Equal(t, contracts.LogStatusFailed, buildLogSteps[0].Status)
+			assert.Equal(t, contracts.LogStatusSkipped, buildLogSteps[1].Status)
+			assert.Equal(t, contracts.LogStatusSucceeded, buildLogSteps[2].Status)
 		}
 
 		assert.Equal(t, contracts.StatusFailed, contracts.GetAggregatedStatus(buildLogSteps))
@@ -1365,7 +1365,7 @@ func TestRunStages(t *testing.T) {
 			time.Sleep(50 * time.Millisecond)
 			return nil
 		}
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int, multiStage *bool) (err error) {
+		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
 			time.Sleep(100 * time.Millisecond)
 			return nil
 		}
@@ -1542,8 +1542,8 @@ func TestRunStagesWithServices(t *testing.T) {
 		}
 		var wg sync.WaitGroup
 		wg.Add(1)
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int, multiStage *bool) (err error) {
-			if stageType == contracts.TypeService {
+		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
+			if stageType == contracts.LogTypeService {
 				wg.Wait()
 			}
 			return nil
@@ -1586,7 +1586,7 @@ func TestGetNestedBuildLogService(t *testing.T) {
 			Step:        "nested-service-0",
 			ParentStage: "stage-a",
 			Depth:       1,
-			Type:        contracts.TypeService,
+			Type:        contracts.LogTypeService,
 		}
 
 		// act
@@ -1608,7 +1608,7 @@ func TestGetNestedBuildLogService(t *testing.T) {
 			Step:        "nested-service-0",
 			ParentStage: "stage-a",
 			Depth:       0,
-			Type:        contracts.TypeService,
+			Type:        contracts.LogTypeService,
 		}
 
 		// act
@@ -1635,7 +1635,7 @@ func TestGetNestedBuildLogService(t *testing.T) {
 			Step:        "nested-service-0",
 			ParentStage: "stage-a",
 			Depth:       1,
-			Type:        contracts.TypeService,
+			Type:        contracts.LogTypeService,
 		}
 
 		// act
@@ -1667,7 +1667,7 @@ func TestGetNestedBuildLogService(t *testing.T) {
 			Step:        "nested-service-0",
 			ParentStage: "stage-a",
 			Depth:       1,
-			Type:        contracts.TypeService,
+			Type:        contracts.LogTypeService,
 		}
 
 		// act
@@ -1694,7 +1694,7 @@ func TestGetNestedBuildLogService(t *testing.T) {
 			Step:        "nested-service-0",
 			ParentStage: "stage-a",
 			Depth:       1,
-			Type:        contracts.TypeService,
+			Type:        contracts.LogTypeService,
 		}
 
 		// act
@@ -1776,7 +1776,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 		tailLogLine := contracts.TailLogLine{
 			Step:        "nested-stage-0",
 			ParentStage: "stage-a",
-			Type:        contracts.TypeStage,
+			Type:        contracts.LogTypeStage,
 		}
 
 		// act
@@ -1794,7 +1794,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 		tailLogLine := contracts.TailLogLine{
 			Step:        "nested-stage-0",
 			ParentStage: "stage-a",
-			Type:        contracts.TypeService,
+			Type:        contracts.LogTypeService,
 		}
 
 		// act
@@ -1812,7 +1812,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 		tailLogLine := contracts.TailLogLine{
 			Step:        "nested-stage-0",
 			ParentStage: "stage-a",
-			Type:        contracts.TypeService,
+			Type:        contracts.LogTypeService,
 			Depth:       1,
 		}
 
@@ -1832,7 +1832,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 		tailLogLine := contracts.TailLogLine{
 			Step:        "nested-stage-0",
 			ParentStage: "stage-a",
-			Type:        contracts.TypeStage,
+			Type:        contracts.LogTypeStage,
 		}
 
 		// act
@@ -1861,7 +1861,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 		tailLogLine := contracts.TailLogLine{
 			Step:        "nested-stage-0",
 			ParentStage: "stage-a",
-			Type:        contracts.TypeStage,
+			Type:        contracts.LogTypeStage,
 		}
 
 		// act
@@ -1881,7 +1881,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 		tailLogLine := contracts.TailLogLine{
 			Step:        "nested-service-0",
 			ParentStage: "stage-a",
-			Type:        contracts.TypeService,
+			Type:        contracts.LogTypeService,
 		}
 
 		// act
@@ -1910,7 +1910,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 		tailLogLine := contracts.TailLogLine{
 			Step:        "nested-service-0",
 			ParentStage: "stage-a",
-			Type:        contracts.TypeService,
+			Type:        contracts.LogTypeService,
 		}
 
 		// act
@@ -1976,7 +1976,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 		tailLogLine := contracts.TailLogLine{
 			Step:        "nested-stage-0",
 			ParentStage: "stage-a",
-			Type:        contracts.TypeStage,
+			Type:        contracts.LogTypeStage,
 			LogLine: &contracts.BuildLogLine{
 				LineNumber: 2,
 				Text:       "Hey I'd like to add a second line",
@@ -2014,7 +2014,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 		tailLogLine := contracts.TailLogLine{
 			Step:        "nested-service-0",
 			ParentStage: "stage-a",
-			Type:        contracts.TypeService,
+			Type:        contracts.LogTypeService,
 			LogLine: &contracts.BuildLogLine{
 				LineNumber: 2,
 				Text:       "Hey I'd like to add a second line",
@@ -2035,11 +2035,11 @@ func TestUpsertTailLogLine(t *testing.T) {
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step:   "stage-a",
-					Status: contracts.StatusPending,
+					Status: contracts.LogStatusPending,
 				},
 			},
 		}
-		status := "RUNNING"
+		status := contracts.LogStatusRunning
 		tailLogLine := contracts.TailLogLine{
 			Step:   "stage-a",
 			Status: &status,
@@ -2060,17 +2060,17 @@ func TestUpsertTailLogLine(t *testing.T) {
 					NestedSteps: []*contracts.BuildLogStep{
 						&contracts.BuildLogStep{
 							Step:   "nested-stage-0",
-							Status: contracts.StatusPending,
+							Status: contracts.LogStatusPending,
 						},
 					},
 				},
 			},
 		}
-		status := "RUNNING"
+		status := contracts.LogStatusRunning
 		tailLogLine := contracts.TailLogLine{
 			Step:        "nested-stage-0",
 			ParentStage: "stage-a",
-			Type:        contracts.TypeStage,
+			Type:        contracts.LogTypeStage,
 			Status:      &status,
 		}
 
@@ -2089,17 +2089,17 @@ func TestUpsertTailLogLine(t *testing.T) {
 					Services: []*contracts.BuildLogStep{
 						&contracts.BuildLogStep{
 							Step:   "nested-service-0",
-							Status: contracts.StatusPending,
+							Status: contracts.LogStatusPending,
 						},
 					},
 				},
 			},
 		}
-		status := "RUNNING"
+		status := contracts.LogStatusRunning
 		tailLogLine := contracts.TailLogLine{
 			Step:        "nested-service-0",
 			ParentStage: "stage-a",
-			Type:        contracts.TypeService,
+			Type:        contracts.LogTypeService,
 			Status:      &status,
 		}
 
@@ -2115,14 +2115,14 @@ func TestUpsertTailLogLine(t *testing.T) {
 			buildLogSteps: []*contracts.BuildLogStep{},
 		}
 
-		statusRunning := contracts.StatusRunning
-		statusPending := contracts.StatusPending
-		statusSucceeded := contracts.StatusSucceeded
+		statusRunning := contracts.LogStatusRunning
+		statusPending := contracts.LogStatusPending
+		statusSucceeded := contracts.LogStatusSucceeded
 
 		// stage-a start
 		tailLogLine := contracts.TailLogLine{
 			Step:   "stage-a",
-			Type:   contracts.TypeStage,
+			Type:   contracts.LogTypeStage,
 			Status: &statusRunning,
 		}
 		pipelineRunner.upsertTailLogLine(tailLogLine)
@@ -2132,7 +2132,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 			Step:        "nested-stage-1",
 			ParentStage: "stage-a",
 			Depth:       1,
-			Type:        contracts.TypeStage,
+			Type:        contracts.LogTypeStage,
 			Status:      &statusPending,
 		}
 		pipelineRunner.upsertTailLogLine(tailLogLine)
@@ -2141,7 +2141,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 			Step:        "nested-stage-1",
 			ParentStage: "stage-a",
 			Depth:       1,
-			Type:        contracts.TypeStage,
+			Type:        contracts.LogTypeStage,
 			Status:      &statusRunning,
 		}
 		pipelineRunner.upsertTailLogLine(tailLogLine)
@@ -2150,7 +2150,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 			Step:        "nested-stage-1",
 			ParentStage: "stage-a",
 			Depth:       1,
-			Type:        contracts.TypeStage,
+			Type:        contracts.LogTypeStage,
 			Status:      &statusSucceeded,
 		}
 		pipelineRunner.upsertTailLogLine(tailLogLine)
@@ -2160,7 +2160,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 			Step:        "nested-stage-0",
 			ParentStage: "stage-a",
 			Depth:       1,
-			Type:        contracts.TypeStage,
+			Type:        contracts.LogTypeStage,
 			Status:      &statusPending,
 		}
 		pipelineRunner.upsertTailLogLine(tailLogLine)
@@ -2169,7 +2169,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 			Step:        "nested-stage-0",
 			ParentStage: "stage-a",
 			Depth:       1,
-			Type:        contracts.TypeStage,
+			Type:        contracts.LogTypeStage,
 			Status:      &statusRunning,
 		}
 		pipelineRunner.upsertTailLogLine(tailLogLine)
@@ -2178,7 +2178,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 			Step:        "nested-stage-0",
 			ParentStage: "stage-a",
 			Depth:       1,
-			Type:        contracts.TypeStage,
+			Type:        contracts.LogTypeStage,
 			Status:      &statusSucceeded,
 		}
 		pipelineRunner.upsertTailLogLine(tailLogLine)
@@ -2186,7 +2186,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 		// stage-a finish
 		tailLogLine = contracts.TailLogLine{
 			Step:   "stage-a",
-			Type:   contracts.TypeStage,
+			Type:   contracts.LogTypeStage,
 			Status: &statusSucceeded,
 		}
 		pipelineRunner.upsertTailLogLine(tailLogLine)
@@ -2227,7 +2227,7 @@ func TestIsFinalStageComplete(t *testing.T) {
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step:   "last-stage",
-					Status: contracts.StatusRunning,
+					Status: contracts.LogStatusRunning,
 				},
 			},
 		}
@@ -2249,7 +2249,7 @@ func TestIsFinalStageComplete(t *testing.T) {
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step:   "last-stage",
-					Status: contracts.StatusPending,
+					Status: contracts.LogStatusPending,
 				},
 			},
 		}
@@ -2271,7 +2271,7 @@ func TestIsFinalStageComplete(t *testing.T) {
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step:   "last-stage",
-					Status: contracts.StatusSucceeded,
+					Status: contracts.LogStatusSucceeded,
 				},
 			},
 		}
@@ -2293,7 +2293,7 @@ func TestIsFinalStageComplete(t *testing.T) {
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step:   "last-stage",
-					Status: contracts.StatusFailed,
+					Status: contracts.LogStatusFailed,
 				},
 			},
 		}
@@ -2315,7 +2315,7 @@ func TestIsFinalStageComplete(t *testing.T) {
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step:   "last-stage",
-					Status: contracts.StatusSkipped,
+					Status: contracts.LogStatusSkipped,
 				},
 			},
 		}
@@ -2337,7 +2337,7 @@ func TestIsFinalStageComplete(t *testing.T) {
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step:   "last-stage",
-					Status: contracts.StatusCanceled,
+					Status: contracts.LogStatusCanceled,
 				},
 			},
 		}
@@ -2359,7 +2359,7 @@ func TestIsFinalStageComplete(t *testing.T) {
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step:   "first-stage",
-					Status: contracts.StatusSucceeded,
+					Status: contracts.LogStatusSucceeded,
 				},
 			},
 		}
@@ -2384,7 +2384,7 @@ func TestIsFinalStageComplete(t *testing.T) {
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step:   "first-stage",
-					Status: contracts.StatusFailed,
+					Status: contracts.LogStatusFailed,
 				},
 			},
 		}
@@ -2409,7 +2409,7 @@ func TestIsFinalStageComplete(t *testing.T) {
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step:   "first-stage",
-					Status: contracts.StatusSkipped,
+					Status: contracts.LogStatusSkipped,
 				},
 			},
 		}
@@ -2434,7 +2434,7 @@ func TestIsFinalStageComplete(t *testing.T) {
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step:   "first-stage",
-					Status: contracts.StatusCanceled,
+					Status: contracts.LogStatusCanceled,
 				},
 			},
 		}
@@ -2459,7 +2459,7 @@ func TestIsFinalStageComplete(t *testing.T) {
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step:   "last-stage",
-					Status: contracts.StatusSucceeded,
+					Status: contracts.LogStatusSucceeded,
 				},
 			},
 		}
@@ -2486,11 +2486,11 @@ func TestIsFinalStageComplete(t *testing.T) {
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step:   "last-stage",
-					Status: contracts.StatusSucceeded,
+					Status: contracts.LogStatusSucceeded,
 					NestedSteps: []*contracts.BuildLogStep{
 						&contracts.BuildLogStep{
 							Step:   "nested-stage",
-							Status: contracts.StatusRunning,
+							Status: contracts.LogStatusRunning,
 						},
 					},
 				},
@@ -2519,7 +2519,7 @@ func TestIsFinalStageComplete(t *testing.T) {
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step:   "last-stage",
-					Status: contracts.StatusSucceeded,
+					Status: contracts.LogStatusSucceeded,
 				},
 			},
 		}
@@ -2546,11 +2546,11 @@ func TestIsFinalStageComplete(t *testing.T) {
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step:   "last-stage",
-					Status: contracts.StatusSucceeded,
+					Status: contracts.LogStatusSucceeded,
 					Services: []*contracts.BuildLogStep{
 						&contracts.BuildLogStep{
 							Step:   "nested-service",
-							Status: contracts.StatusRunning,
+							Status: contracts.LogStatusRunning,
 						},
 					},
 				},
@@ -2579,17 +2579,17 @@ func TestIsFinalStageComplete(t *testing.T) {
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step:   "earlier-stage",
-					Status: contracts.StatusSucceeded,
+					Status: contracts.LogStatusSucceeded,
 					Services: []*contracts.BuildLogStep{
 						&contracts.BuildLogStep{
 							Step:   "nested-service-1",
-							Status: contracts.StatusRunning,
+							Status: contracts.LogStatusRunning,
 						},
 					},
 				},
 				&contracts.BuildLogStep{
 					Step:   "last-stage",
-					Status: contracts.StatusSucceeded,
+					Status: contracts.LogStatusSucceeded,
 				},
 			},
 		}
@@ -2611,17 +2611,17 @@ func TestIsFinalStageComplete(t *testing.T) {
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step:   "earlier-stage",
-					Status: contracts.StatusSucceeded,
+					Status: contracts.LogStatusSucceeded,
 					Services: []*contracts.BuildLogStep{
 						&contracts.BuildLogStep{
 							Step:   "nested-service-1",
-							Status: contracts.StatusRunning,
+							Status: contracts.LogStatusRunning,
 						},
 					},
 				},
 				&contracts.BuildLogStep{
 					Step:   "last-stage",
-					Status: contracts.StatusSucceeded,
+					Status: contracts.LogStatusSucceeded,
 				},
 			},
 		}
