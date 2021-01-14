@@ -1216,6 +1216,12 @@ func (dr *dockerRunnerImpl) generateCredentialsFiles(trustedImage *contracts.Tru
 			return
 		}
 
+		// set permissions on directory to avoid non-root containers not to be able to read from the mounted directory
+		err = os.Chmod(credentialsdir, 0777)
+		if err != nil {
+			return
+		}
+
 		credentialMap := dr.config.GetCredentialsForTrustedImage(*trustedImage)
 		if len(credentialMap) == 0 {
 			credentialsdir = ""
