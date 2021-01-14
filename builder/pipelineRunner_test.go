@@ -209,10 +209,10 @@ func TestRunStage(t *testing.T) {
 		assert.Nil(t, err)
 
 		runningStatusMessage := <-tailLogsChannel
-		assert.Equal(t, contracts.StatusRunning, *runningStatusMessage.Status)
+		assert.Equal(t, contracts.LogStatusRunning, *runningStatusMessage.Status)
 
 		succeededStatusMessage := <-tailLogsChannel
-		assert.Equal(t, contracts.StatusSucceeded, *succeededStatusMessage.Status)
+		assert.Equal(t, contracts.LogStatusSucceeded, *succeededStatusMessage.Status)
 	})
 
 	t.Run("SendsSequenceOfPendingAndRunningAndSucceededMessageToChannelForSuccessfulRun", func(t *testing.T) {
@@ -250,14 +250,14 @@ func TestRunStage(t *testing.T) {
 		assert.Nil(t, err)
 
 		pendingStatusAndImageInfoMessage := <-tailLogsChannel
-		assert.Equal(t, contracts.StatusPending, *pendingStatusAndImageInfoMessage.Status)
+		assert.Equal(t, contracts.LogStatusPending, *pendingStatusAndImageInfoMessage.Status)
 		assert.NotNil(t, pendingStatusAndImageInfoMessage.Image)
 
 		runningStatusMessage := <-tailLogsChannel
-		assert.Equal(t, contracts.StatusRunning, *runningStatusMessage.Status)
+		assert.Equal(t, contracts.LogStatusRunning, *runningStatusMessage.Status)
 
 		succeededStatusMessage := <-tailLogsChannel
-		assert.Equal(t, contracts.StatusSucceeded, *succeededStatusMessage.Status)
+		assert.Equal(t, contracts.LogStatusSucceeded, *succeededStatusMessage.Status)
 	})
 
 	t.Run("SendsSequenceOfPendingAndRunningAndFailedMessageToChannelForFailingRun", func(t *testing.T) {
@@ -295,14 +295,14 @@ func TestRunStage(t *testing.T) {
 		assert.NotNil(t, err)
 
 		pendingStatusAndImageInfoMessage := <-tailLogsChannel
-		assert.Equal(t, contracts.StatusPending, *pendingStatusAndImageInfoMessage.Status)
+		assert.Equal(t, contracts.LogStatusPending, *pendingStatusAndImageInfoMessage.Status)
 		assert.NotNil(t, pendingStatusAndImageInfoMessage.Image)
 
 		runningStatusMessage := <-tailLogsChannel
-		assert.Equal(t, contracts.StatusRunning, *runningStatusMessage.Status)
+		assert.Equal(t, contracts.LogStatusRunning, *runningStatusMessage.Status)
 
 		failedStatusMessage := <-tailLogsChannel
-		assert.Equal(t, contracts.StatusFailed, *failedStatusMessage.Status)
+		assert.Equal(t, contracts.LogStatusFailed, *failedStatusMessage.Status)
 	})
 
 	t.Run("SendsCanceledMessageToChannelForCanceledRun", func(t *testing.T) {
@@ -343,7 +343,7 @@ func TestRunStage(t *testing.T) {
 		assert.Nil(t, err)
 
 		canceledStatusMessage := <-tailLogsChannel
-		assert.Equal(t, contracts.StatusCanceled, *canceledStatusMessage.Status)
+		assert.Equal(t, contracts.LogStatusCanceled, *canceledStatusMessage.Status)
 	})
 
 	t.Run("SendsCanceledMessageToChannelForCanceledRunEvenWhenRunFails", func(t *testing.T) {
@@ -384,7 +384,7 @@ func TestRunStage(t *testing.T) {
 		assert.Nil(t, err)
 
 		canceledStatusMessage := <-tailLogsChannel
-		assert.Equal(t, contracts.StatusCanceled, *canceledStatusMessage.Status)
+		assert.Equal(t, contracts.LogStatusCanceled, *canceledStatusMessage.Status)
 	})
 
 	t.Run("SendsMessagesWithDepthAndParentStageSet", func(t *testing.T) {
@@ -905,7 +905,7 @@ func TestRunService(t *testing.T) {
 		assert.Nil(t, err)
 
 		runningStatusMessage := <-tailLogsChannel
-		assert.Equal(t, contracts.StatusRunning, *runningStatusMessage.Status)
+		assert.Equal(t, contracts.LogStatusRunning, *runningStatusMessage.Status)
 	})
 
 	t.Run("SendsSequenceOfPendingAndRunningMessageToChannelForSuccessfulStartAndReadiness", func(t *testing.T) {
@@ -952,10 +952,10 @@ func TestRunService(t *testing.T) {
 		assert.Nil(t, err)
 
 		pendingStatusMessage := <-tailLogsChannel
-		assert.Equal(t, contracts.StatusPending, *pendingStatusMessage.Status)
+		assert.Equal(t, contracts.LogStatusPending, *pendingStatusMessage.Status)
 
 		runningStatusMessage := <-tailLogsChannel
-		assert.Equal(t, contracts.StatusRunning, *runningStatusMessage.Status)
+		assert.Equal(t, contracts.LogStatusRunning, *runningStatusMessage.Status)
 	})
 
 	t.Run("SendsSequenceOfPendingAndRunningAndFailedMessageToChannelForFailingReadiness", func(t *testing.T) {
@@ -1004,13 +1004,13 @@ func TestRunService(t *testing.T) {
 		assert.NotNil(t, err)
 
 		pendingStatusMessage := <-tailLogsChannel
-		assert.Equal(t, contracts.StatusPending, *pendingStatusMessage.Status)
+		assert.Equal(t, contracts.LogStatusPending, *pendingStatusMessage.Status)
 
 		runningStatusMessage := <-tailLogsChannel
-		assert.Equal(t, contracts.StatusRunning, *runningStatusMessage.Status)
+		assert.Equal(t, contracts.LogStatusRunning, *runningStatusMessage.Status)
 
 		failedStatusMessage := <-tailLogsChannel
-		assert.Equal(t, contracts.StatusFailed, *failedStatusMessage.Status)
+		assert.Equal(t, contracts.LogStatusFailed, *failedStatusMessage.Status)
 	})
 
 	t.Run("SendsCanceledMessageToChannelForCanceledRun", func(t *testing.T) {
@@ -1043,7 +1043,7 @@ func TestRunService(t *testing.T) {
 		assert.Nil(t, err)
 
 		canceledStatusMessage := <-tailLogsChannel
-		assert.Equal(t, contracts.StatusCanceled, *canceledStatusMessage.Status)
+		assert.Equal(t, contracts.LogStatusCanceled, *canceledStatusMessage.Status)
 	})
 
 	t.Run("SendsCanceledMessageToChannelForCanceledRunEvenWhenReadinessFails", func(t *testing.T) {
@@ -1078,7 +1078,7 @@ func TestRunService(t *testing.T) {
 		assert.Nil(t, err)
 
 		canceledStatusMessage := <-tailLogsChannel
-		assert.Equal(t, contracts.StatusCanceled, *canceledStatusMessage.Status)
+		assert.Equal(t, contracts.LogStatusCanceled, *canceledStatusMessage.Status)
 	})
 }
 
@@ -1342,7 +1342,7 @@ func TestRunStages(t *testing.T) {
 			assert.Equal(t, contracts.LogStatusSucceeded, buildLogSteps[2].Status)
 		}
 
-		assert.Equal(t, contracts.StatusFailed, contracts.GetAggregatedStatus(buildLogSteps))
+		assert.Equal(t, contracts.LogStatusFailed, contracts.GetAggregatedStatus(buildLogSteps))
 	})
 
 	t.Run("SetsPullDurationAndRunDurationForStage", func(t *testing.T) {
@@ -1400,7 +1400,7 @@ func TestRunStages(t *testing.T) {
 
 		if assert.Equal(t, 2, len(buildLogSteps)) {
 			assert.Equal(t, "builder-info", buildLogSteps[0].Step)
-			assert.Equal(t, contracts.StatusSucceeded, buildLogSteps[0].Status)
+			assert.Equal(t, contracts.LogStatusSucceeded, buildLogSteps[0].Status)
 			assert.True(t, buildLogSteps[0].AutoInjected)
 			assert.Equal(t, 1, len(buildLogSteps[0].LogLines))
 		}
@@ -1438,12 +1438,12 @@ func TestRunStages(t *testing.T) {
 		buildLogSteps, _ := pipelineRunner.RunStages(context.Background(), depth, stages, dir, envvars)
 
 		if assert.Equal(t, 3, len(buildLogSteps)) {
-			assert.Equal(t, contracts.StatusCanceled, buildLogSteps[0].Status)
-			assert.Equal(t, contracts.StatusCanceled, buildLogSteps[1].Status)
-			assert.Equal(t, contracts.StatusCanceled, buildLogSteps[2].Status)
+			assert.Equal(t, contracts.LogStatusCanceled, buildLogSteps[0].Status)
+			assert.Equal(t, contracts.LogStatusCanceled, buildLogSteps[1].Status)
+			assert.Equal(t, contracts.LogStatusCanceled, buildLogSteps[2].Status)
 		}
 
-		assert.Equal(t, contracts.StatusCanceled, contracts.GetAggregatedStatus(buildLogSteps))
+		assert.Equal(t, contracts.LogStatusCanceled, contracts.GetAggregatedStatus(buildLogSteps))
 	})
 }
 
@@ -1489,19 +1489,19 @@ func TestRunStagesWithParallelStages(t *testing.T) {
 
 		if assert.Equal(t, 1, len(buildLogSteps)) {
 			assert.Equal(t, "stage-a", buildLogSteps[0].Step)
-			assert.Equal(t, contracts.StatusSucceeded, buildLogSteps[0].Status)
+			assert.Equal(t, contracts.LogStatusSucceeded, buildLogSteps[0].Status)
 			assert.Equal(t, 0, buildLogSteps[0].Depth)
 			if assert.Equal(t, 2, len(buildLogSteps[0].NestedSteps)) {
 				assert.Contains(t, []string{"nested-stage-0", "nested-stage-1"}, buildLogSteps[0].NestedSteps[0].Step)
-				assert.Equal(t, contracts.StatusSucceeded, buildLogSteps[0].NestedSteps[0].Status)
+				assert.Equal(t, contracts.LogStatusSucceeded, buildLogSteps[0].NestedSteps[0].Status)
 				assert.Equal(t, 1, buildLogSteps[0].NestedSteps[0].Depth)
 				assert.Contains(t, []string{"nested-stage-0", "nested-stage-1"}, buildLogSteps[0].NestedSteps[1].Step)
-				assert.Equal(t, contracts.StatusSucceeded, buildLogSteps[0].NestedSteps[1].Status)
+				assert.Equal(t, contracts.LogStatusSucceeded, buildLogSteps[0].NestedSteps[1].Status)
 				assert.Equal(t, 1, buildLogSteps[0].NestedSteps[1].Depth)
 			}
 		}
 
-		assert.Equal(t, contracts.StatusSucceeded, contracts.GetAggregatedStatus(buildLogSteps))
+		assert.Equal(t, contracts.LogStatusSucceeded, contracts.GetAggregatedStatus(buildLogSteps))
 	})
 }
 
@@ -1559,19 +1559,19 @@ func TestRunStagesWithServices(t *testing.T) {
 
 		if assert.Equal(t, 1, len(buildLogSteps)) {
 			assert.Equal(t, "stage-a", buildLogSteps[0].Step)
-			assert.Equal(t, contracts.StatusSucceeded, buildLogSteps[0].Status)
+			assert.Equal(t, contracts.LogStatusSucceeded, buildLogSteps[0].Status)
 			assert.Equal(t, 0, buildLogSteps[0].Depth)
 			if assert.Equal(t, 2, len(buildLogSteps[0].Services)) {
 				assert.Contains(t, []string{"nested-service-0", "nested-service-1"}, buildLogSteps[0].Services[0].Step)
-				assert.Equal(t, contracts.StatusSucceeded, buildLogSteps[0].Services[0].Status)
+				assert.Equal(t, contracts.LogStatusSucceeded, buildLogSteps[0].Services[0].Status)
 				assert.Equal(t, 1, buildLogSteps[0].Services[0].Depth)
 				assert.Contains(t, []string{"nested-service-0", "nested-service-1"}, buildLogSteps[0].Services[1].Step)
-				assert.Equal(t, contracts.StatusSucceeded, buildLogSteps[0].Services[1].Status)
+				assert.Equal(t, contracts.LogStatusSucceeded, buildLogSteps[0].Services[1].Status)
 				assert.Equal(t, 1, buildLogSteps[0].Services[1].Depth)
 			}
 		}
 
-		assert.Equal(t, contracts.StatusSucceeded, contracts.GetAggregatedStatus(buildLogSteps))
+		assert.Equal(t, contracts.LogStatusSucceeded, contracts.GetAggregatedStatus(buildLogSteps))
 	})
 }
 
@@ -2048,7 +2048,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 		// act
 		pipelineRunner.upsertTailLogLine(tailLogLine)
 
-		assert.Equal(t, "RUNNING", pipelineRunner.buildLogSteps[0].Status)
+		assert.Equal(t, contracts.LogStatusRunning, pipelineRunner.buildLogSteps[0].Status)
 	})
 
 	t.Run("SetStatusForNestedStage", func(t *testing.T) {
@@ -2077,7 +2077,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 		// act
 		pipelineRunner.upsertTailLogLine(tailLogLine)
 
-		assert.Equal(t, "RUNNING", pipelineRunner.buildLogSteps[0].NestedSteps[0].Status)
+		assert.Equal(t, contracts.LogStatusRunning, pipelineRunner.buildLogSteps[0].NestedSteps[0].Status)
 	})
 
 	t.Run("SetStatusForNestedService", func(t *testing.T) {
@@ -2106,7 +2106,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 		// act
 		pipelineRunner.upsertTailLogLine(tailLogLine)
 
-		assert.Equal(t, "RUNNING", pipelineRunner.buildLogSteps[0].Services[0].Status)
+		assert.Equal(t, contracts.LogStatusRunning, pipelineRunner.buildLogSteps[0].Services[0].Status)
 	})
 
 	t.Run("NestsParallelStageMessages", func(t *testing.T) {
@@ -2193,15 +2193,15 @@ func TestUpsertTailLogLine(t *testing.T) {
 
 		if assert.Equal(t, 1, len(pipelineRunner.buildLogSteps)) {
 			assert.Equal(t, "stage-a", pipelineRunner.buildLogSteps[0].Step)
-			assert.Equal(t, contracts.StatusSucceeded, pipelineRunner.buildLogSteps[0].Status)
+			assert.Equal(t, contracts.LogStatusSucceeded, pipelineRunner.buildLogSteps[0].Status)
 
 			assert.Equal(t, 2, len(pipelineRunner.buildLogSteps[0].NestedSteps))
 
 			assert.Equal(t, "nested-stage-1", pipelineRunner.buildLogSteps[0].NestedSteps[0].Step)
-			assert.Equal(t, contracts.StatusSucceeded, pipelineRunner.buildLogSteps[0].NestedSteps[0].Status)
+			assert.Equal(t, contracts.LogStatusSucceeded, pipelineRunner.buildLogSteps[0].NestedSteps[0].Status)
 
 			assert.Equal(t, "nested-stage-0", pipelineRunner.buildLogSteps[0].NestedSteps[1].Step)
-			assert.Equal(t, contracts.StatusSucceeded, pipelineRunner.buildLogSteps[0].NestedSteps[1].Status)
+			assert.Equal(t, contracts.LogStatusSucceeded, pipelineRunner.buildLogSteps[0].NestedSteps[1].Status)
 		}
 	})
 }

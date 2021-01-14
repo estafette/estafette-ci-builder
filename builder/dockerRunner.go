@@ -834,11 +834,10 @@ func (dr *dockerRunnerImpl) IsTrustedImage(stageName string, containerImage stri
 
 func (dr *dockerRunnerImpl) HasInjectedCredentials(stageName string, containerImage string) bool {
 
-	log.Info().Msgf("[%v] Checking if docker image '%v' is trusted...", stageName, containerImage)
+	log.Info().Msgf("[%v] Checking if docker image '%v' has injected credentials...", stageName, containerImage)
 
-	// check if image is trusted image
+	// check if image has injected credentials
 	trustedImage := dr.config.GetTrustedImage(containerImage)
-
 	credentialMap := dr.config.GetCredentialsForTrustedImage(*trustedImage)
 
 	return len(credentialMap) > 0
