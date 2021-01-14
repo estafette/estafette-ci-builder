@@ -67,7 +67,7 @@ func (pr *pipelineRunnerImpl) RunStage(ctx context.Context, depth int, runIndex 
 	log.Info().Msgf("%v Starting stage", stagePlaceholder)
 
 	// pull image, get size and send pending/running status messages
-	err = pr.pullImageIfNeeded(ctx, stage.Name, parentStageName, stage.ContainerImage, contracts.TypeStage, depth, runIndex, autoInjected)
+	err = pr.pullImageIfNeeded(ctx, stage.Name, parentStageName, stage.ContainerImage, contracts.LogTypeStage, depth, runIndex, autoInjected)
 	defer pr.handleStageFinish(ctx, depth, runIndex, dir, envvars, parentStage, stage, time.Now(), &err)
 	if pr.canceled || err != nil {
 		return
@@ -97,7 +97,7 @@ func (pr *pipelineRunnerImpl) RunStage(ctx context.Context, depth int, runIndex 
 			return
 		}
 
-		err = pr.dockerRunner.TailContainerLogs(ctx, containerID, parentStageName, stage.Name, contracts.TypeStage, depth, runIndex, nil)
+		err = pr.dockerRunner.TailContainerLogs(ctx, containerID, parentStageName, stage.Name, contracts.LogTypeStage, depth, runIndex, nil)
 		if pr.canceled || err != nil {
 			return
 		}
@@ -128,13 +128,13 @@ func (pr *pipelineRunnerImpl) handleStageFinish(ctx context.Context, depth int, 
 	parentStageName, stagePlaceholder, autoInjected := pr.initStageVariables(ctx, depth, runIndex, dir, envvars, parentStage, stage)
 
 	// finalize stage
-	finalStatus := contracts.StatusSucceeded
+	finalStatus := contracts.LogStatusSucceeded
 	if pr.canceled {
 		log.Info().Msgf("%v Stage canceled", stagePlaceholder)
-		finalStatus = contracts.StatusCanceled
+		finalStatus = contracts.LogStatusCanceled
 	} else if err != nil {
 		log.Warn().Err(err).Msgf("%v Stage failed", stagePlaceholder)
-		finalStatus = contracts.StatusFailed
+		finalStatus = contracts.LogStatusFailed
 	} else {
 		log.Info().Msgf("%v Stage succeeded", stagePlaceholder)
 	}
@@ -147,7 +147,7 @@ func (pr *pipelineRunnerImpl) handleStageFinish(ctx context.Context, depth int, 
 	runDurationValue := time.Since(dockerRunStart)
 	runDuration := &runDurationValue
 
-	pr.sendStatusMessage(stage.Name, parentStageName, contracts.TypeStage, depth, runIndex, autoInjected, nil, runDuration, finalStatus)
+	pr.sendStatusMessage(stage.Name, parentStageName, contracts.LogTypeStage, depth, runIndex, autoInjected, nil, runDuration, finalStatus)
 }
 
 func (pr *pipelineRunnerImpl) RunStageWithRetry(ctx context.Context, depth int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, stage manifest.EstafetteStage) (err error) {
@@ -188,7 +188,7 @@ func (pr *pipelineRunnerImpl) RunStageWithRetry(ctx context.Context, depth int, 
 		pr.tailLogsChannel <- contracts.TailLogLine{
 			Step:        stage.Name,
 			ParentStage: parentStageName,
-			Type:        contracts.TypeStage,
+			Type:        contracts.LogTypeStage,
 			Depth:       depth,
 			RunIndex:    runIndex,
 			LogLine:     &logLineObject,
@@ -218,7 +218,7 @@ func (pr *pipelineRunnerImpl) RunService(ctx context.Context, envvars map[string
 	log.Info().Msgf("[%v] [%v] Starting service", parentStage.Name, service.Name)
 
 	// pull image, get size and send pending/running status messages
-	err = pr.pullImageIfNeeded(ctx, service.Name, parentStage.Name, service.ContainerImage, contracts.TypeService, depth, runIndex, nil)
+	err = pr.pullImageIfNeeded(ctx, service.Name, parentStage.Name, service.ContainerImage, contracts.LogTypeService, depth, runIndex, nil)
 	dockerRunStart := time.Now()
 	defer pr.handleServiceFinish(ctx, envvars, parentStage, service, true, dockerRunStart, &err)
 	if pr.canceled || err != nil {
@@ -235,7 +235,7 @@ func (pr *pipelineRunnerImpl) RunService(ctx context.Context, envvars map[string
 	go func(ctx context.Context, envvars map[string]string, parentStage manifest.EstafetteStage, service manifest.EstafetteService, containerID string) {
 		var err error
 		defer pr.handleServiceFinish(ctx, envvars, parentStage, service, false, dockerRunStart, &err)
-		err = pr.dockerRunner.TailContainerLogs(ctx, containerID, parentStage.Name, service.Name, contracts.TypeService, 1, 0, service.MultiStage)
+		err = pr.dockerRunner.TailContainerLogs(ctx, containerID, parentStage.Name, service.Name, contracts.LogTypeService, 1, 0, service.MultiStage)
 	}(ctx, envvars, parentStage, service, containerID)
 
 	// wait for service to be ready if readiness probe is defined
@@ -255,13 +255,13 @@ func (pr *pipelineRunnerImpl) handleServiceFinish(ctx context.Context, envvars m
 	err := *errPointer
 
 	// finalize stage
-	finalStatus := contracts.StatusSucceeded
+	finalStatus := contracts.LogStatusSucceeded
 	if pr.canceled {
 		log.Info().Msgf("[%v] [%v] Service canceled", parentStage.Name, service.Name)
-		finalStatus = contracts.StatusCanceled
+		finalStatus = contracts.LogStatusCanceled
 	} else if err != nil {
 		log.Warn().Err(err).Msgf("[%v] [%v] Service failed", parentStage.Name, service.Name)
-		finalStatus = contracts.StatusFailed
+		finalStatus = contracts.LogStatusFailed
 	} else {
 		if skipSucceeded {
 			// no need to set a status, this service container remains in running status until the main stage - see RunStage - has finished
@@ -274,7 +274,7 @@ func (pr *pipelineRunnerImpl) handleServiceFinish(ctx context.Context, envvars m
 	runDurationValue := time.Since(dockerRunStart)
 	runDuration := &runDurationValue
 
-	pr.sendStatusMessage(service.Name, parentStage.Name, contracts.TypeService, 1, 0, nil, nil, runDuration, finalStatus)
+	pr.sendStatusMessage(service.Name, parentStage.Name, contracts.LogTypeService, 1, 0, nil, nil, runDuration, finalStatus)
 }
 
 func (pr *pipelineRunnerImpl) RunStages(ctx context.Context, depth int, stages []*manifest.EstafetteStage, dir string, envvars map[string]string) (buildLogSteps []*contracts.BuildLogStep, err error) {
@@ -319,7 +319,7 @@ func (pr *pipelineRunnerImpl) RunStages(ctx context.Context, depth int, stages [
 				// handle cancellation happening in between stages
 				if pr.canceled {
 					// set canceled status for all the next stages
-					pr.forceStatusForStage(*stage, contracts.StatusCanceled)
+					pr.forceStatusForStage(*stage, contracts.LogStatusCanceled)
 				}
 			}(stage)
 
@@ -350,7 +350,7 @@ func (pr *pipelineRunnerImpl) RunStages(ctx context.Context, depth int, stages [
 				}
 			} else {
 				// if an error has happened in one of the previous steps or the when expression evaluates to false we still want to render the following steps in the result table
-				pr.forceStatusForStage(*stage, contracts.StatusSkipped)
+				pr.forceStatusForStage(*stage, contracts.LogStatusSkipped)
 			}
 		}(s)
 	}
@@ -409,11 +409,11 @@ func (pr *pipelineRunnerImpl) RunParallelStages(ctx context.Context, depth int, 
 			} else {
 
 				// if an error has happened in one of the previous steps or the when expression evaluates to false we still want to render the following steps in the result table
-				status := contracts.StatusSkipped
+				status := contracts.LogStatusSkipped
 				pr.tailLogsChannel <- contracts.TailLogLine{
 					Step:         stage.Name,
 					ParentStage:  parentStage.Name,
-					Type:         contracts.TypeStage,
+					Type:         contracts.LogTypeStage,
 					Depth:        depth,
 					RunIndex:     0,
 					AutoInjected: &stage.AutoInjected,
@@ -485,7 +485,7 @@ func (pr *pipelineRunnerImpl) RunServices(ctx context.Context, envvars map[strin
 					pr.tailLogsChannel <- contracts.TailLogLine{
 						Step:        service.Name,
 						ParentStage: parentStage.Name,
-						Type:        contracts.TypeService,
+						Type:        contracts.LogTypeService,
 						Depth:       1,
 						LogLine:     &logLineObject,
 					}
@@ -527,10 +527,11 @@ func (pr *pipelineRunnerImpl) resetCancellation() {
 	pr.canceled = false
 }
 
-func (pr *pipelineRunnerImpl) pullImageIfNeeded(ctx context.Context, stageName, parentStageName, containerImage, containerType string, depth int, runIndex int, autoInjected *bool) (err error) {
+func (pr *pipelineRunnerImpl) pullImageIfNeeded(ctx context.Context, stageName, parentStageName, containerImage string, containerType contracts.LogType, depth int, runIndex int, autoInjected *bool) (err error) {
 
 	var isPulledImage bool
 	var isTrustedImage bool
+	var hasInjectedCredentials bool
 	var imagePullDuration time.Duration
 	var imageSize int64
 	var buildLogStepDockerImage *contracts.BuildLogStepDockerImage
@@ -539,18 +540,20 @@ func (pr *pipelineRunnerImpl) pullImageIfNeeded(ctx context.Context, stageName, 
 
 		isPulledImage = pr.dockerRunner.IsImagePulled(stageName, containerImage)
 		isTrustedImage = pr.dockerRunner.IsTrustedImage(stageName, containerImage)
+		hasInjectedCredentials = pr.dockerRunner.HasInjectedCredentials(stageName, containerImage)
 
 		buildLogStepDockerImage = &contracts.BuildLogStepDockerImage{
-			Name:      getContainerImageName(containerImage),
-			Tag:       getContainerImageTag(containerImage),
-			IsTrusted: isTrustedImage,
-			IsPulled:  isPulledImage,
+			Name:                   getContainerImageName(containerImage),
+			Tag:                    getContainerImageTag(containerImage),
+			IsTrusted:              isTrustedImage,
+			HasInjectedCredentials: hasInjectedCredentials,
+			IsPulled:               isPulledImage,
 		}
 
 		if !pr.canceled && (!isPulledImage || runtime.GOOS == "windows") {
 
 			// start pulling stage
-			pr.sendStatusMessage(stageName, parentStageName, containerType, depth, runIndex, autoInjected, buildLogStepDockerImage, nil, contracts.StatusPending)
+			pr.sendStatusMessage(stageName, parentStageName, containerType, depth, runIndex, autoInjected, buildLogStepDockerImage, nil, contracts.LogStatusPending)
 
 			// pull docker image
 			dockerPullStart := time.Now()
@@ -564,12 +567,13 @@ func (pr *pipelineRunnerImpl) pullImageIfNeeded(ctx context.Context, stageName, 
 
 			if !pr.canceled && err == nil {
 				buildLogStepDockerImage = &contracts.BuildLogStepDockerImage{
-					Name:         getContainerImageName(containerImage),
-					Tag:          getContainerImageTag(containerImage),
-					IsTrusted:    isTrustedImage,
-					IsPulled:     isPulledImage,
-					ImageSize:    imageSize,
-					PullDuration: imagePullDuration,
+					Name:                   getContainerImageName(containerImage),
+					Tag:                    getContainerImageTag(containerImage),
+					IsTrusted:              isTrustedImage,
+					HasInjectedCredentials: hasInjectedCredentials,
+					IsPulled:               isPulledImage,
+					ImageSize:              imageSize,
+					PullDuration:           imagePullDuration,
 				}
 			}
 		}
@@ -577,13 +581,13 @@ func (pr *pipelineRunnerImpl) pullImageIfNeeded(ctx context.Context, stageName, 
 
 	if !pr.canceled && err == nil {
 		// start running stage
-		pr.sendStatusMessage(stageName, parentStageName, containerType, depth, runIndex, autoInjected, buildLogStepDockerImage, nil, contracts.StatusRunning)
+		pr.sendStatusMessage(stageName, parentStageName, containerType, depth, runIndex, autoInjected, buildLogStepDockerImage, nil, contracts.LogStatusRunning)
 	}
 
 	return
 }
 
-func (pr *pipelineRunnerImpl) sendStatusMessage(step, parentStageName, containerType string, depth int, runIndex int, autoInjected *bool, image *contracts.BuildLogStepDockerImage, runDuration *time.Duration, status string) {
+func (pr *pipelineRunnerImpl) sendStatusMessage(step, parentStageName string, containerType contracts.LogType, depth int, runIndex int, autoInjected *bool, image *contracts.BuildLogStepDockerImage, runDuration *time.Duration, status contracts.LogStatus) {
 
 	tailLogLine := contracts.TailLogLine{
 		Step:         step,
@@ -600,23 +604,25 @@ func (pr *pipelineRunnerImpl) sendStatusMessage(step, parentStageName, container
 	pr.tailLogsChannel <- tailLogLine
 }
 
-func (pr *pipelineRunnerImpl) forceStatusForStage(stage manifest.EstafetteStage, status string) {
+func (pr *pipelineRunnerImpl) forceStatusForStage(stage manifest.EstafetteStage, status contracts.LogStatus) {
 
 	var autoInjected *bool
 	var image *contracts.BuildLogStepDockerImage
 	if stage.ContainerImage != "" {
 		isTrustedImage := pr.dockerRunner.IsTrustedImage(stage.Name, stage.ContainerImage)
+		hasInjectedCredentials := pr.dockerRunner.HasInjectedCredentials(stage.Name, stage.ContainerImage)
 		image = &contracts.BuildLogStepDockerImage{
-			Name:      getContainerImageName(stage.ContainerImage),
-			Tag:       getContainerImageTag(stage.ContainerImage),
-			IsTrusted: isTrustedImage,
+			Name:                   getContainerImageName(stage.ContainerImage),
+			Tag:                    getContainerImageTag(stage.ContainerImage),
+			IsTrusted:              isTrustedImage,
+			HasInjectedCredentials: hasInjectedCredentials,
 		}
 	}
 	if stage.AutoInjected {
 		autoInjected = &stage.AutoInjected
 	}
 
-	pr.sendStatusMessage(stage.Name, "", contracts.TypeStage, 0, 0, autoInjected, image, nil, status)
+	pr.sendStatusMessage(stage.Name, "", contracts.LogTypeStage, 0, 0, autoInjected, image, nil, status)
 
 	// loop through all parallel stages and set status
 	for _, ps := range stage.ParallelStages {
@@ -624,17 +630,19 @@ func (pr *pipelineRunnerImpl) forceStatusForStage(stage manifest.EstafetteStage,
 		var image *contracts.BuildLogStepDockerImage
 		if ps.ContainerImage != "" {
 			isTrustedImage := pr.dockerRunner.IsTrustedImage(ps.Name, ps.ContainerImage)
+			hasInjectedCredentials := pr.dockerRunner.HasInjectedCredentials(ps.Name, ps.ContainerImage)
 			image = &contracts.BuildLogStepDockerImage{
-				Name:      getContainerImageName(ps.ContainerImage),
-				Tag:       getContainerImageTag(ps.ContainerImage),
-				IsTrusted: isTrustedImage,
+				Name:                   getContainerImageName(ps.ContainerImage),
+				Tag:                    getContainerImageTag(ps.ContainerImage),
+				IsTrusted:              isTrustedImage,
+				HasInjectedCredentials: hasInjectedCredentials,
 			}
 		}
 		if ps.AutoInjected {
 			autoInjected = &ps.AutoInjected
 		}
 
-		pr.sendStatusMessage(ps.Name, stage.Name, contracts.TypeStage, 1, 0, autoInjected, image, nil, status)
+		pr.sendStatusMessage(ps.Name, stage.Name, contracts.LogTypeStage, 1, 0, autoInjected, image, nil, status)
 	}
 
 	// loop through all services and set status
@@ -642,14 +650,16 @@ func (pr *pipelineRunnerImpl) forceStatusForStage(stage manifest.EstafetteStage,
 		var image *contracts.BuildLogStepDockerImage
 		if s.ContainerImage != "" {
 			isTrustedImage := pr.dockerRunner.IsTrustedImage(s.Name, s.ContainerImage)
+			hasInjectedCredentials := pr.dockerRunner.HasInjectedCredentials(s.Name, s.ContainerImage)
 			image = &contracts.BuildLogStepDockerImage{
-				Name:      getContainerImageName(s.ContainerImage),
-				Tag:       getContainerImageTag(s.ContainerImage),
-				IsTrusted: isTrustedImage,
+				Name:                   getContainerImageName(s.ContainerImage),
+				Tag:                    getContainerImageTag(s.ContainerImage),
+				IsTrusted:              isTrustedImage,
+				HasInjectedCredentials: hasInjectedCredentials,
 			}
 		}
 
-		pr.sendStatusMessage(s.Name, stage.Name, contracts.TypeService, 1, 0, nil, image, nil, status)
+		pr.sendStatusMessage(s.Name, stage.Name, contracts.LogTypeService, 1, 0, nil, image, nil, status)
 	}
 }
 
@@ -698,11 +708,11 @@ func (pr *pipelineRunnerImpl) logBuilderInfo(applicationInfo foundation.Applicat
 		Text:       builderVersionMessage,
 	}
 
-	status := contracts.StatusSucceeded
+	status := contracts.LogStatusSucceeded
 	trueValue := true
 	pr.tailLogsChannel <- contracts.TailLogLine{
 		Step:         "builder-info",
-		Type:         contracts.TypeStage,
+		Type:         contracts.LogTypeStage,
 		LogLine:      &logLineObject,
 		Status:       &status,
 		AutoInjected: &trueValue,
@@ -736,7 +746,7 @@ func (pr *pipelineRunnerImpl) upsertTailLogLine(tailLogLine contracts.TailLogLin
 	}
 
 	if tailLogLine.ParentStage != "" {
-		if tailLogLine.Type == contracts.TypeStage {
+		if tailLogLine.Type == contracts.LogTypeStage {
 			nestedStage := pr.getNestedBuildLogStep(tailLogLine)
 			if nestedStage == nil {
 				nestedStage = &contracts.BuildLogStep{
@@ -767,7 +777,7 @@ func (pr *pipelineRunnerImpl) upsertTailLogLine(tailLogLine contracts.TailLogLin
 				nestedStage.AutoInjected = *tailLogLine.AutoInjected
 			}
 
-		} else if tailLogLine.Type == contracts.TypeService {
+		} else if tailLogLine.Type == contracts.LogTypeService {
 			nestedService := pr.getNestedBuildLogService(tailLogLine)
 			if nestedService == nil {
 				nestedService = &contracts.BuildLogStep{
@@ -842,7 +852,7 @@ func (pr *pipelineRunnerImpl) getMainBuildLogStep(tailLogLine contracts.TailLogL
 
 func (pr *pipelineRunnerImpl) getNestedBuildLogStep(tailLogLine contracts.TailLogLine) *contracts.BuildLogStep {
 
-	if tailLogLine.ParentStage == "" || tailLogLine.Type != contracts.TypeStage {
+	if tailLogLine.ParentStage == "" || tailLogLine.Type != contracts.LogTypeStage {
 		return nil
 	}
 
@@ -850,7 +860,7 @@ func (pr *pipelineRunnerImpl) getNestedBuildLogStep(tailLogLine contracts.TailLo
 		if bls.Step == tailLogLine.ParentStage {
 			if tailLogLine.ParentStage != "" {
 				// we have to look deeper
-				if tailLogLine.Type == contracts.TypeStage {
+				if tailLogLine.Type == contracts.LogTypeStage {
 					// look inside the parallel stages
 					for _, ns := range bls.NestedSteps {
 						if ns.Step == tailLogLine.Step && ns.RunIndex == tailLogLine.RunIndex {
@@ -867,7 +877,7 @@ func (pr *pipelineRunnerImpl) getNestedBuildLogStep(tailLogLine contracts.TailLo
 
 func (pr *pipelineRunnerImpl) getNestedBuildLogService(tailLogLine contracts.TailLogLine) *contracts.BuildLogStep {
 
-	if tailLogLine.ParentStage == "" || tailLogLine.Type != contracts.TypeService {
+	if tailLogLine.ParentStage == "" || tailLogLine.Type != contracts.LogTypeService {
 		return nil
 	}
 
@@ -875,7 +885,7 @@ func (pr *pipelineRunnerImpl) getNestedBuildLogService(tailLogLine contracts.Tai
 		if bls.Step == tailLogLine.ParentStage {
 			if tailLogLine.ParentStage != "" {
 				// we have to look deeper
-				if tailLogLine.Type == contracts.TypeService {
+				if tailLogLine.Type == contracts.LogTypeService {
 					// look inside the services
 					for _, s := range bls.Services {
 						if s.Step == tailLogLine.Step {
@@ -913,10 +923,10 @@ func (pr *pipelineRunnerImpl) isFinalStageComplete(stages []*manifest.EstafetteS
 		allNestedStepsAreDone := true
 		for _, ns := range lastBuildLogsStep.NestedSteps {
 			switch ns.Status {
-			case contracts.StatusSucceeded,
-				contracts.StatusFailed,
-				contracts.StatusSkipped,
-				contracts.StatusCanceled:
+			case contracts.LogStatusSucceeded,
+				contracts.LogStatusFailed,
+				contracts.LogStatusSkipped,
+				contracts.LogStatusCanceled:
 
 			default:
 				allNestedStepsAreDone = false
@@ -931,10 +941,10 @@ func (pr *pipelineRunnerImpl) isFinalStageComplete(stages []*manifest.EstafetteS
 		for _, st := range pr.buildLogSteps {
 			for _, s := range st.Services {
 				switch s.Status {
-				case contracts.StatusSucceeded,
-					contracts.StatusFailed,
-					contracts.StatusSkipped,
-					contracts.StatusCanceled:
+				case contracts.LogStatusSucceeded,
+					contracts.LogStatusFailed,
+					contracts.LogStatusSkipped,
+					contracts.LogStatusCanceled:
 
 				default:
 					allNestedServicesAreDone = false
@@ -946,10 +956,10 @@ func (pr *pipelineRunnerImpl) isFinalStageComplete(stages []*manifest.EstafetteS
 		}
 
 		switch lastBuildLogsStep.Status {
-		case contracts.StatusSucceeded,
-			contracts.StatusFailed,
-			contracts.StatusSkipped,
-			contracts.StatusCanceled:
+		case contracts.LogStatusSucceeded,
+			contracts.LogStatusFailed,
+			contracts.LogStatusSkipped,
+			contracts.LogStatusCanceled:
 
 			return true
 		}

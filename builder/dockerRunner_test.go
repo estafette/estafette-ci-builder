@@ -20,13 +20,14 @@ type dockerRunnerMockImpl struct {
 	startStageContainerFunc              func(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, stage manifest.EstafetteStage) (containerID string, err error)
 	startServiceContainerFunc            func(ctx context.Context, envvars map[string]string, service manifest.EstafetteService) (containerID string, err error)
 	runReadinessProbeContainerFunc       func(ctx context.Context, parentStage manifest.EstafetteStage, service manifest.EstafetteService, readiness manifest.ReadinessProbe) (err error)
-	tailContainerLogsFunc                func(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int, multiStage *bool) (err error)
+	tailContainerLogsFunc                func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error)
 	stopSingleStageServiceContainersFunc func(ctx context.Context, parentStage manifest.EstafetteStage)
 	stopMultiStageServiceContainersFunc  func(ctx context.Context)
 	startDockerDaemonFunc                func() error
 	waitForDockerDaemonFunc              func()
 	createDockerClientFunc               func() (*client.Client, error)
 	isTrustedImageFunc                   func(stageName string, containerImage string) bool
+	hasInjectedCredentialsFunc           func(stageName string, containerImage string) bool
 	stopAllContainersFunc                func()
 	createBridgeNetworkFunc              func(ctx context.Context) error
 	deleteBridgeNetworkFunc              func(ctx context.Context) error
@@ -74,7 +75,7 @@ func (d *dockerRunnerMockImpl) RunReadinessProbeContainer(ctx context.Context, p
 	return d.runReadinessProbeContainerFunc(ctx, parentStage, service, readiness)
 }
 
-func (d *dockerRunnerMockImpl) TailContainerLogs(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int, multiStage *bool) (err error) {
+func (d *dockerRunnerMockImpl) TailContainerLogs(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
 	if d.tailContainerLogsFunc == nil {
 		return nil
 	}
@@ -118,6 +119,13 @@ func (d *dockerRunnerMockImpl) IsTrustedImage(stageName string, containerImage s
 		return false
 	}
 	return d.isTrustedImageFunc(stageName, containerImage)
+}
+
+func (d *dockerRunnerMockImpl) HasInjectedCredentials(stageName string, containerImage string) bool {
+	if d.hasInjectedCredentialsFunc == nil {
+		return false
+	}
+	return d.hasInjectedCredentialsFunc(stageName, containerImage)
 }
 
 func (d *dockerRunnerMockImpl) StopAllContainers() {

@@ -38,12 +38,13 @@ import (
 type DockerRunner interface {
 	IsImagePulled(stageName string, containerImage string) bool
 	IsTrustedImage(stageName string, containerImage string) bool
+	HasInjectedCredentials(stageName string, containerImage string) bool
 	PullImage(ctx context.Context, stageName string, containerImage string) error
 	GetImageSize(containerImage string) (int64, error)
 	StartStageContainer(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, stage manifest.EstafetteStage) (containerID string, err error)
 	StartServiceContainer(ctx context.Context, envvars map[string]string, service manifest.EstafetteService) (containerID string, err error)
 	RunReadinessProbeContainer(ctx context.Context, parentStage manifest.EstafetteStage, service manifest.EstafetteService, readiness manifest.ReadinessProbe) (err error)
-	TailContainerLogs(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int, multiStage *bool) (err error)
+	TailContainerLogs(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error)
 	StopSingleStageServiceContainers(ctx context.Context, parentStage manifest.EstafetteStage)
 	StopMultiStageServiceContainers(ctx context.Context)
 	StartDockerDaemon() error
@@ -566,7 +567,7 @@ func (dr *dockerRunnerImpl) RunReadinessProbeContainer(ctx context.Context, pare
 	return
 }
 
-func (dr *dockerRunnerImpl) TailContainerLogs(ctx context.Context, containerID, parentStageName, stageName, stageType string, depth, runIndex int, multiStage *bool) (err error) {
+func (dr *dockerRunnerImpl) TailContainerLogs(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
 
 	lineNumber := 1
 
@@ -663,9 +664,9 @@ func (dr *dockerRunnerImpl) TailContainerLogs(ctx context.Context, containerID, 
 	}
 
 	// clear container id
-	if stageType == contracts.TypeStage {
+	if stageType == contracts.LogTypeStage {
 		dr.runningStageContainerIDs = dr.removeRunningContainerID(dr.runningStageContainerIDs, containerID)
-	} else if stageType == contracts.TypeService && multiStage != nil {
+	} else if stageType == contracts.LogTypeService && multiStage != nil {
 		if *multiStage {
 			dr.runningMultiStageServiceContainerIDs = dr.removeRunningContainerID(dr.runningMultiStageServiceContainerIDs, containerID)
 		} else {
@@ -829,6 +830,21 @@ func (dr *dockerRunnerImpl) IsTrustedImage(stageName string, containerImage stri
 	trustedImage := dr.config.GetTrustedImage(containerImage)
 
 	return trustedImage != nil
+}
+
+func (dr *dockerRunnerImpl) HasInjectedCredentials(stageName string, containerImage string) bool {
+
+	log.Info().Msgf("[%v] Checking if docker image '%v' has injected credentials...", stageName, containerImage)
+
+	// check if image has injected credentials
+	trustedImage := dr.config.GetTrustedImage(containerImage)
+	if trustedImage == nil {
+		return false
+	}
+
+	credentialMap := dr.config.GetCredentialsForTrustedImage(*trustedImage)
+
+	return len(credentialMap) > 0
 }
 
 func (dr *dockerRunnerImpl) stopContainer(containerID string) error {

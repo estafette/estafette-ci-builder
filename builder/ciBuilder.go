@@ -8,7 +8,6 @@ import (
 	"os"
 	"runtime"
 	"strconv"
-	"strings"
 
 	contracts "github.com/estafette/estafette-ci-contracts"
 	manifest "github.com/estafette/estafette-ci-manifest"
@@ -193,7 +192,7 @@ func (b *ciBuilderImpl) RunEstafetteBuildJob(pipelineRunner PipelineRunner, dock
 	}
 
 	// send result to ci-api
-	buildStatus := strings.ToLower(contracts.GetAggregatedStatus(buildLog.Steps))
+	buildStatus := contracts.GetAggregatedStatus(buildLog.Steps)
 	_ = endOfLifeHelper.SendBuildFinishedEvent(ctx, buildStatus)
 	_ = endOfLifeHelper.SendBuildJobLogEvent(ctx, buildLog)
 	_ = endOfLifeHelper.SendBuildCleanEvent(ctx, buildStatus)
