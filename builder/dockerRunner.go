@@ -165,9 +165,6 @@ func (dr *dockerRunnerImpl) StartStageContainer(ctx context.Context, depth int, 
 	// add custom properties as ESTAFETTE_EXTENSION_... envvar
 	extensionEnvVars := dr.generateExtensionEnvvars(stage.CustomProperties, stage.EnvVars)
 
-	// add credentials if trusted image with injectedCredentialTypes
-	credentialEnvVars := dr.generateCredentialsEnvvars(trustedImage)
-
 	// mount injected credentials as files
 	credentialsdir, err := dr.generateCredentialsFiles(trustedImage)
 	if err != nil {
@@ -188,7 +185,7 @@ func (dr *dockerRunnerImpl) StartStageContainer(ctx context.Context, depth int, 
 	stage.EnvVars["ESTAFETTE_STAGE_NAME"] = stage.Name
 
 	// combine and override estafette and global envvars with stage envvars
-	combinedEnvVars := dr.envvarHelper.OverrideEnvvars(envvars, stage.EnvVars, extensionEnvVars, credentialEnvVars)
+	combinedEnvVars := dr.envvarHelper.OverrideEnvvars(envvars, stage.EnvVars, extensionEnvVars)
 
 	// decrypt secrets in all envvars
 	combinedEnvVars = dr.envvarHelper.decryptSecrets(combinedEnvVars, dr.envvarHelper.GetPipelineName())
@@ -304,9 +301,6 @@ func (dr *dockerRunnerImpl) StartServiceContainer(ctx context.Context, envvars m
 	// add custom properties as ESTAFETTE_EXTENSION_... envvar
 	extensionEnvVars := dr.generateExtensionEnvvars(service.CustomProperties, service.EnvVars)
 
-	// add credentials if trusted image with injectedCredentialTypes
-	credentialEnvVars := dr.generateCredentialsEnvvars(trustedImage)
-
 	// mount injected credentials as files
 	credentialsdir, err := dr.generateCredentialsFiles(trustedImage)
 	if err != nil {
@@ -327,7 +321,7 @@ func (dr *dockerRunnerImpl) StartServiceContainer(ctx context.Context, envvars m
 	service.EnvVars["ESTAFETTE_SERVICE_NAME"] = service.Name
 
 	// combine and override estafette and global envvars with pipeline envvars
-	combinedEnvVars := dr.envvarHelper.OverrideEnvvars(envvars, service.EnvVars, extensionEnvVars, credentialEnvVars)
+	combinedEnvVars := dr.envvarHelper.OverrideEnvvars(envvars, service.EnvVars, extensionEnvVars)
 
 	// decrypt secrets in all envvars
 	combinedEnvVars = dr.envvarHelper.decryptSecrets(combinedEnvVars, dr.envvarHelper.GetPipelineName())
@@ -1176,32 +1170,6 @@ func (dr *dockerRunnerImpl) generateExtensionEnvvars(customProperties map[string
 		extensionEnvVars["ESTAFETTE_EXTENSION_CUSTOM_PROPERTIES_YAML"] = string(customPropertiesYamlBytes)
 	} else {
 		log.Warn().Err(err).Interface("customProperty", customProperties).Msg("Cannot marshal custom properties for ESTAFETTE_EXTENSION_CUSTOM_PROPERTIES_YAML envvar")
-	}
-
-	return
-}
-
-func (dr *dockerRunnerImpl) generateCredentialsEnvvars(trustedImage *contracts.TrustedImageConfig) (credentialEnvVars map[string]string) {
-	credentialEnvVars = map[string]string{}
-	if trustedImage != nil {
-		// add credentials as ESTAFETTE_CREDENTIALS_... envvar with snake cased credential type so they can be unmarshalled separately in the image
-
-		credentialMap := dr.config.GetCredentialsForTrustedImage(*trustedImage)
-		for credentialType, credentialsForType := range credentialMap {
-
-			credentialkey := dr.envvarHelper.getEstafetteEnvvarName(fmt.Sprintf("ESTAFETTE_CREDENTIALS_%v", foundation.ToUpperSnakeCase(credentialType)))
-
-			// convert credentialsForType to json string
-			credentialsForTypeBytes, err := json.Marshal(credentialsForType)
-			if err != nil {
-				log.Warn().Err(err).Msgf("Failed to marshal credentials of type %v for envvar %v", credentialType, credentialkey)
-			}
-
-			// set envvar
-			credentialEnvVars[credentialkey] = string(credentialsForTypeBytes)
-
-			log.Debug().Msgf("Set envvar %v to credentials of type %v", credentialkey, credentialType)
-		}
 	}
 
 	return
