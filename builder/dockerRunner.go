@@ -58,12 +58,6 @@ type DockerRunner interface {
 // NewDockerRunner returns a new DockerRunner
 func NewDockerRunner(envvarHelper EnvvarHelper, obfuscator Obfuscator, config contracts.BuilderConfig, tailLogsChannel chan contracts.TailLogLine) DockerRunner {
 
-	networkBridge := "estafette"
-
-	if runtime.GOOS == "windows" {
-		networkBridge += "-" + generateRandomString(5)
-	}
-
 	return &dockerRunnerImpl{
 		envvarHelper:                          envvarHelper,
 		obfuscator:                            obfuscator,
@@ -73,7 +67,7 @@ func NewDockerRunner(envvarHelper EnvvarHelper, obfuscator Obfuscator, config co
 		runningSingleStageServiceContainerIDs: make([]string, 0),
 		runningMultiStageServiceContainerIDs:  make([]string, 0),
 		runningReadinessProbeContainerIDs:     make([]string, 0),
-		networkBridge:                         networkBridge,
+		networkBridge:                         "estafette",
 		entrypointTemplateDir:                 "/entrypoint-templates",
 		entrypointTargetDir:                   "/estafette-entrypoints",
 	}
@@ -915,19 +909,19 @@ func (dr *dockerRunnerImpl) removeRunningContainerID(containerIDs []string, cont
 func (dr *dockerRunnerImpl) CreateBridgeNetwork(ctx context.Context) error {
 
 	if dr.networkBridgeID == "" {
-		log.Info().Msgf("Creating docker network %v...", dr.networkBridge)
-
-		networkConfig := []network.IPAMConfig{}
-		if runtime.GOOS != "windows" {
-			networkConfig = append(networkConfig, network.IPAMConfig{
-				Subnet:  dr.config.DockerNetwork.Subnet,
-				Gateway: dr.config.DockerNetwork.Gateway,
-			})
-		}
 
 		name := dr.networkBridge
 		options := types.NetworkCreate{}
 		if dr.config.DockerNetwork != nil {
+
+			networkConfig := []network.IPAMConfig{}
+			if runtime.GOOS != "windows" {
+				networkConfig = append(networkConfig, network.IPAMConfig{
+					Subnet:  dr.config.DockerNetwork.Subnet,
+					Gateway: dr.config.DockerNetwork.Gateway,
+				})
+			}
+
 			name = dr.config.DockerNetwork.Name
 			options.IPAM = &network.IPAM{
 				Driver: "default",
@@ -935,16 +929,22 @@ func (dr *dockerRunnerImpl) CreateBridgeNetwork(ctx context.Context) error {
 			}
 		}
 
+		if runtime.GOOS == "windows" {
+			name += "-" + generateRandomString(5)
+		}
+
+		log.Info().Msgf("Creating docker network %v...", name)
+
 		resp, err := dr.dockerClient.NetworkCreate(ctx, name, options)
 
 		if err != nil {
-			log.Error().Err(err).Msgf("Failed creating docker network %v", dr.networkBridge)
+			log.Error().Err(err).Msgf("Failed creating docker network %v", name)
 			return err
 		}
 
 		dr.networkBridgeID = resp.ID
 
-		log.Info().Msgf("Succesfully created docker network %v", dr.networkBridge)
+		log.Info().Msgf("Succesfully created docker network %v", name)
 
 	} else {
 		log.Info().Msgf("Docker network %v already exists with id %v...", dr.networkBridge, dr.networkBridgeID)
