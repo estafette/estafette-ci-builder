@@ -264,6 +264,7 @@ func (dr *dockerRunnerImpl) StartStageContainer(ctx context.Context, depth int, 
 	resp, err := dr.dockerClient.ContainerCreate(ctx, &config, &container.HostConfig{
 		Binds:      binds,
 		Privileged: privileged,
+		AutoRemove: true,
 	}, &network.NetworkingConfig{}, "")
 	if err != nil {
 		return "", err
@@ -477,7 +478,8 @@ func (dr *dockerRunnerImpl) RunReadinessProbeContainer(ctx context.Context, pare
 
 	// create container
 	resp, err := dr.dockerClient.ContainerCreate(ctx, &config, &container.HostConfig{
-		Binds: binds,
+		Binds:      binds,
+		AutoRemove: true,
 	}, &network.NetworkingConfig{}, "")
 	if err != nil {
 		return
@@ -915,18 +917,21 @@ func (dr *dockerRunnerImpl) CreateBridgeNetwork(ctx context.Context) error {
 	if dr.networkBridgeID == "" {
 		log.Info().Msgf("Creating docker network %v...", dr.networkBridge)
 
+		networkConfig := []network.IPAMConfig{}
+		if runtime.GOOS != "windows" {
+			networkConfig = append(networkConfig, network.IPAMConfig{
+				Subnet:  dr.config.DockerNetwork.Subnet,
+				Gateway: dr.config.DockerNetwork.Gateway,
+			})
+		}
+
 		name := dr.networkBridge
 		options := types.NetworkCreate{}
 		if dr.config.DockerNetwork != nil {
 			name = dr.config.DockerNetwork.Name
 			options.IPAM = &network.IPAM{
 				Driver: "default",
-				Config: []network.IPAMConfig{
-					network.IPAMConfig{
-						Subnet:  dr.config.DockerNetwork.Subnet,
-						Gateway: dr.config.DockerNetwork.Gateway,
-					},
-				},
+				Config: networkConfig,
 			}
 		}
 
