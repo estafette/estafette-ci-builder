@@ -1,5 +1,6 @@
 builder:
   track: stable
+  medium: memory
 
 labels:
   app-group: estafette-ci
