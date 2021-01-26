@@ -38,6 +38,8 @@ github.com/estafette/estafette-ci-crypt v0.0.39 h1:YC8ya5gmX0eCe7wRkcV538p8OyIMs
 github.com/estafette/estafette-ci-crypt v0.0.39/go.mod h1:yODzGbzW7Jj0xEFjAv1Is+FHcYaugHUtrPdkJdHV8/c=
 github.com/estafette/estafette-ci-manifest v0.1.167 h1:Za3r3IONdU/9yl/+D3fnmCjYoJq4dvFTdxgq0E9fl0Y=
 github.com/estafette/estafette-ci-manifest v0.1.167/go.mod h1:LnMJ94yqznApbGsziLINydioe2z7rqAl9C1D78idVwc=
+github.com/estafette/estafette-ci-manifest v0.1.172 h1:DxpW2fSVn+X5Srvo38Mryo+RDg5rZeYCsvQQTjUppjo=
+github.com/estafette/estafette-ci-manifest v0.1.172/go.mod h1:LnMJ94yqznApbGsziLINydioe2z7rqAl9C1D78idVwc=
 github.com/estafette/estafette-foundation v0.0.54 h1:EYiKInvQg0B4wtvb6gAvQuMOEvf7Y3Td2+Fx2/asxGU=
 github.com/estafette/estafette-foundation v0.0.54/go.mod h1:3tosAek4nyGDaWbi9dz2jSb2Wa4dAtLw/7c7mDWwaLA=
 github.com/estafette/estafette-foundation v0.0.69 h1:KzAOoFy6IEBibs8NGDV15jeyWrEf0F5szerjCsPizNQ=
