@@ -211,7 +211,6 @@ func (h *envvarHelperImpl) setEstafetteEventEnvvars(events []*manifest.Estafette
 
 	if events != nil {
 		for _, e := range events {
-
 			if e == nil {
 				continue
 			}
@@ -252,11 +251,13 @@ func (h *envvarHelperImpl) setEstafetteEventEnvvars(events []*manifest.Estafette
 						envvarValue = strings.Trim(envvarValue, "\"")
 					}
 
-					h.setEstafetteEnv(envvarName, envvarValue)
+					if e.Fired {
+						h.setEstafetteEnv(envvarName, envvarValue)
+					}
 
 					if e.Name != "" {
 						// set envvar for named trigger/event, in order to have upstream pipelines and release when they're not fired as well
-						envvarName := "ESTAFETTE_" + foundation.ToUpperSnakeCase(e.Name) + "_" + foundation.ToUpperSnakeCase(triggerPropertyField)
+						envvarName := "ESTAFETTE_TRIGGER_" + foundation.ToUpperSnakeCase(e.Name) + "_" + foundation.ToUpperSnakeCase(triggerPropertyField)
 						h.setEstafetteEnv(envvarName, envvarValue)
 					}
 				}

@@ -457,6 +457,7 @@ func TestSetEstafetteEventEnvvars(t *testing.T) {
 
 		envvarHelper.UnsetEstafetteEnvvars()
 		event := manifest.EstafetteEvent{
+			Fired: true,
 			Pipeline: &manifest.EstafettePipelineEvent{
 				BuildVersion: "1.0.50-some-branch",
 				RepoSource:   "github.com",
@@ -486,7 +487,8 @@ func TestSetEstafetteEventEnvvars(t *testing.T) {
 
 		envvarHelper.UnsetEstafetteEnvvars()
 		event := manifest.EstafetteEvent{
-			Name: "upstream",
+			Name:  "upstream",
+			Fired: false,
 			Pipeline: &manifest.EstafettePipelineEvent{
 				BuildVersion: "1.0.50-some-branch",
 				RepoSource:   "github.com",
@@ -502,20 +504,20 @@ func TestSetEstafetteEventEnvvars(t *testing.T) {
 		envvarHelper.setEstafetteEventEnvvars([]*manifest.EstafetteEvent{&event})
 
 		_ = envvarHelper.collectEstafetteEnvvars()
-
-		assert.Equal(t, "1.0.50-some-branch", envvarHelper.getEstafetteEnv("ESTAFETTE_UPSTREAM_BUILD_VERSION"))
-		assert.Equal(t, "github.com", envvarHelper.getEstafetteEnv("ESTAFETTE_UPSTREAM_REPO_SOURCE"))
-		assert.Equal(t, "estafette", envvarHelper.getEstafetteEnv("ESTAFETTE_UPSTREAM_REPO_OWNER"))
-		assert.Equal(t, "estafette-ci-api", envvarHelper.getEstafetteEnv("ESTAFETTE_UPSTREAM_REPO_NAME"))
-		assert.Equal(t, "master", envvarHelper.getEstafetteEnv("ESTAFETTE_UPSTREAM_BRANCH"))
-		assert.Equal(t, "succeeded", envvarHelper.getEstafetteEnv("ESTAFETTE_UPSTREAM_STATUS"))
-		assert.Equal(t, "finished", envvarHelper.getEstafetteEnv("ESTAFETTE_UPSTREAM_EVENT"))
+		assert.Equal(t, "1.0.50-some-branch", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_UPSTREAM_BUILD_VERSION"))
+		assert.Equal(t, "github.com", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_UPSTREAM_REPO_SOURCE"))
+		assert.Equal(t, "estafette", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_UPSTREAM_REPO_OWNER"))
+		assert.Equal(t, "estafette-ci-api", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_UPSTREAM_REPO_NAME"))
+		assert.Equal(t, "master", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_UPSTREAM_BRANCH"))
+		assert.Equal(t, "succeeded", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_UPSTREAM_STATUS"))
+		assert.Equal(t, "finished", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_UPSTREAM_EVENT"))
 	})
 
 	t.Run("ReturnsReleaseEventPropertiesAsEnvvars", func(t *testing.T) {
 
 		envvarHelper.UnsetEstafetteEnvvars()
 		event := manifest.EstafetteEvent{
+			Fired: true,
 			Release: &manifest.EstafetteReleaseEvent{
 				ReleaseVersion: "1.0.50-some-branch",
 				RepoSource:     "github.com",
@@ -545,6 +547,7 @@ func TestSetEstafetteEventEnvvars(t *testing.T) {
 
 		envvarHelper.UnsetEstafetteEnvvars()
 		event := manifest.EstafetteEvent{
+			Fired: true,
 			Git: &manifest.EstafetteGitEvent{
 				Event:      "push",
 				Repository: "github.com/estafette/estafette-ci-api",
@@ -566,6 +569,7 @@ func TestSetEstafetteEventEnvvars(t *testing.T) {
 
 		envvarHelper.UnsetEstafetteEnvvars()
 		event := manifest.EstafetteEvent{
+			Fired: true,
 			Cron: &manifest.EstafetteCronEvent{
 				Time: time.Date(2009, 11, 17, 20, 34, 58, 651387237, time.UTC),
 			},
@@ -583,6 +587,7 @@ func TestSetEstafetteEventEnvvars(t *testing.T) {
 
 		envvarHelper.UnsetEstafetteEnvvars()
 		event := manifest.EstafetteEvent{
+			Fired: true,
 			Manual: &manifest.EstafetteManualEvent{
 				UserID: "user@server.com",
 			},
