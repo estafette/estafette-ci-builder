@@ -23,7 +23,6 @@ import (
 type EnvvarHelper interface {
 	getCommandOutput(string, ...string) (string, error)
 	SetEstafetteGlobalEnvvars() error
-	SetEstafetteStagesEnvvar([]*manifest.EstafetteStage) error
 	SetEstafetteBuilderConfigEnvvars(builderConfig contracts.BuilderConfig) error
 	setEstafetteEventEnvvars(events []*manifest.EstafetteEvent) error
 	initGitSource() error
@@ -139,20 +138,6 @@ func (h *envvarHelperImpl) SetEstafetteGlobalEnvvars() (err error) {
 	if err != nil {
 		return err
 	}
-
-	return
-}
-
-func (h *envvarHelperImpl) SetEstafetteStagesEnvvar(stages []*manifest.EstafetteStage) (err error) {
-
-	stagesJSONBytes, err := json.Marshal(stages)
-	if err != nil {
-		return err
-	}
-
-	stagesJSON := h.obfuscator.ObfuscateSecrets(string(stagesJSONBytes))
-
-	h.setEstafetteEnv("ESTAFETTE_STAGES", stagesJSON)
 
 	return
 }
