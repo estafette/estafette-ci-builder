@@ -167,11 +167,6 @@ func (b *ciBuilderImpl) RunEstafetteBuildJob(pipelineRunner PipelineRunner, dock
 		log.Info().Msgf("Starting build version %v...", builderConfig.BuildVersion.Version)
 	}
 
-	err = envvarHelper.SetEstafetteStagesEnvvar(stages)
-	if err != nil {
-		endOfLifeHelper.HandleFatal(ctx, buildLog, err, "Setting ESTAFETTE_STAGES environment variable failed")
-	}
-
 	// create docker client
 	_, err = dockerRunner.CreateDockerClient()
 	if err != nil {
@@ -262,10 +257,6 @@ func (b *ciBuilderImpl) RunGocdAgentBuild(pipelineRunner PipelineRunner, dockerR
 	err = envvarHelper.SetEstafetteGlobalEnvvars()
 	if err != nil {
 		fatalHandler.HandleGocdFatal(err, "Setting global environment variables failed")
-	}
-	err = envvarHelper.SetEstafetteStagesEnvvar(stages)
-	if err != nil {
-		fatalHandler.HandleGocdFatal(err, "Setting ESTAFETTE_STAGES environment variable failed")
 	}
 
 	// collect estafette and 'global' envvars from manifest
