@@ -1091,7 +1091,7 @@ func (dr *dockerRunnerImpl) initContainerStartVariables(shell string, commands [
 				if dr.config.DockerDaemonMTU != nil && *dr.config.DockerDaemonMTU != "" {
 					mtu, err := strconv.Atoi(*dr.config.DockerDaemonMTU)
 					if err == nil {
-						// mtu -= 50
+						mtu -= 50
 						cmdStopOnErrorFlag += fmt.Sprintf("Write-Host 'Updating MTU to %v...'; Get-NetAdapter | Where-Object Name -like \"*Ethernet*\" | ForEach-Object { & netsh interface ipv4 set subinterface $_.InterfaceIndex mtu=%v store=persistent }; ", mtu, mtu)
 					}
 				}
