@@ -265,6 +265,9 @@ func (dr *dockerRunnerImpl) StartStageContainer(ctx context.Context, depth int, 
 		Binds:      binds,
 		Privileged: privileged,
 		AutoRemove: true,
+		LogConfig: container.LogConfig{
+			Type: "local",
+		},
 	}, &network.NetworkingConfig{}, "")
 	if err != nil {
 		return "", err
@@ -400,6 +403,9 @@ func (dr *dockerRunnerImpl) StartServiceContainer(ctx context.Context, envvars m
 		Binds:      binds,
 		Privileged: privileged,
 		AutoRemove: true,
+		LogConfig: container.LogConfig{
+			Type: "local",
+		},
 	}, &network.NetworkingConfig{}, service.Name)
 	if err != nil {
 		return
@@ -480,6 +486,9 @@ func (dr *dockerRunnerImpl) RunReadinessProbeContainer(ctx context.Context, pare
 	resp, err := dr.dockerClient.ContainerCreate(ctx, &config, &container.HostConfig{
 		Binds:      binds,
 		AutoRemove: true,
+		LogConfig: container.LogConfig{
+			Type: "local",
+		},
 	}, &network.NetworkingConfig{}, "")
 	if err != nil {
 		return
