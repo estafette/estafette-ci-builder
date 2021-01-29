@@ -271,6 +271,7 @@ func (dr *dockerRunnerImpl) StartStageContainer(ctx context.Context, depth int, 
 				"max-size": "20m",
 				"max-file": "5",
 				"compress": "true",
+				"mode":     "non-blocking",
 			},
 		},
 	}, &network.NetworkingConfig{}, "")
@@ -414,6 +415,7 @@ func (dr *dockerRunnerImpl) StartServiceContainer(ctx context.Context, envvars m
 				"max-size": "20m",
 				"max-file": "5",
 				"compress": "true",
+				"mode":     "non-blocking",
 			},
 		},
 	}, &network.NetworkingConfig{}, service.Name)
@@ -502,6 +504,7 @@ func (dr *dockerRunnerImpl) RunReadinessProbeContainer(ctx context.Context, pare
 				"max-size": "20m",
 				"max-file": "5",
 				"compress": "true",
+				"mode":     "non-blocking",
 			},
 		},
 	}, &network.NetworkingConfig{}, "")
