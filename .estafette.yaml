@@ -15,7 +15,7 @@ version:
 
 stages:
   build:
-    image: golang:1.15.6-alpine3.12
+    image: golang:1.15.7-alpine3.13
     env:
       CGO_ENABLED: 0
       GOOS: linux
@@ -79,7 +79,7 @@ stages:
         - estafette
 
   clean-working-directory:
-    image: golang:1.15.6-alpine3.12
+    image: golang:1.15.7-alpine3.13
     commands:
     - rm -rf ..?* .[!.]* *
 
@@ -336,7 +336,7 @@ releases:
     clone: true
     stages:
       build:
-        image: estafette/golang:1.15.6-windowsservercore-ltsc2019
+        image: estafette/golang:1.15.7-windowsservercore-ltsc2019
         env:
           CGO_ENABLED: 0
           GOOS: windows
