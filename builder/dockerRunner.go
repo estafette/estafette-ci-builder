@@ -267,6 +267,11 @@ func (dr *dockerRunnerImpl) StartStageContainer(ctx context.Context, depth int, 
 		AutoRemove: true,
 		LogConfig: container.LogConfig{
 			Type: "local",
+			Config: map[string]string{
+				"max-size": "20m",
+				"max-file": "5",
+				"compress": "true",
+			},
 		},
 	}, &network.NetworkingConfig{}, "")
 	if err != nil {
@@ -405,6 +410,11 @@ func (dr *dockerRunnerImpl) StartServiceContainer(ctx context.Context, envvars m
 		AutoRemove: true,
 		LogConfig: container.LogConfig{
 			Type: "local",
+			Config: map[string]string{
+				"max-size": "20m",
+				"max-file": "5",
+				"compress": "true",
+			},
 		},
 	}, &network.NetworkingConfig{}, service.Name)
 	if err != nil {
@@ -488,6 +498,11 @@ func (dr *dockerRunnerImpl) RunReadinessProbeContainer(ctx context.Context, pare
 		AutoRemove: true,
 		LogConfig: container.LogConfig{
 			Type: "local",
+			Config: map[string]string{
+				"max-size": "20m",
+				"max-file": "5",
+				"compress": "true",
+			},
 		},
 	}, &network.NetworkingConfig{}, "")
 	if err != nil {
