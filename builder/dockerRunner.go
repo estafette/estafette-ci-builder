@@ -160,7 +160,7 @@ func (dr *dockerRunnerImpl) StartStageContainer(ctx context.Context, depth int, 
 	// check if image is trusted image
 	trustedImage := dr.config.GetTrustedImage(stage.ContainerImage)
 
-	entrypoint, cmds, binds := dr.initContainerStartVariables(stage.Shell, stage.Commands, stage.RunCommandsInForeground)
+	entrypoint, cmds, binds := dr.initContainerStartVariables(stage.Shell, stage.Commands, stage.RunCommandsInForeground, stage.CustomProperties)
 
 	// add custom properties as ESTAFETTE_EXTENSION_... envvar
 	extensionEnvVars := dr.generateExtensionEnvvars(stage.CustomProperties, stage.EnvVars)
@@ -306,7 +306,7 @@ func (dr *dockerRunnerImpl) StartServiceContainer(ctx context.Context, envvars m
 	// check if image is trusted image
 	trustedImage := dr.config.GetTrustedImage(service.ContainerImage)
 
-	entrypoint, cmds, binds := dr.initContainerStartVariables(service.Shell, service.Commands, service.RunCommandsInForeground)
+	entrypoint, cmds, binds := dr.initContainerStartVariables(service.Shell, service.Commands, service.RunCommandsInForeground, service.CustomProperties)
 
 	// add custom properties as ESTAFETTE_EXTENSION_... envvar
 	extensionEnvVars := dr.generateExtensionEnvvars(service.CustomProperties, service.EnvVars)
@@ -1083,7 +1083,7 @@ func (dr *dockerRunnerImpl) generateEntrypointScript(shell string, commands []st
 	return path, extension, nil
 }
 
-func (dr *dockerRunnerImpl) initContainerStartVariables(shell string, commands []string, runCommandsInForeground bool) (entrypoint []string, cmds []string, binds []string) {
+func (dr *dockerRunnerImpl) initContainerStartVariables(shell string, commands []string, runCommandsInForeground bool, customProperties map[string]interface{}) (entrypoint []string, cmds []string, binds []string) {
 	entrypoint = make([]string, 0)
 	cmds = make([]string, 0)
 	binds = make([]string, 0)
@@ -1115,13 +1115,27 @@ func (dr *dockerRunnerImpl) initContainerStartVariables(shell string, commands [
 			cmdSeparator := ";"
 			if runtime.GOOS == "windows" && shell == "powershell" {
 				cmdStopOnErrorFlag = "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue'; "
+				mtu := 0
+
+				// set mtu from config
 				if dr.config.DockerDaemonMTU != nil && *dr.config.DockerDaemonMTU != "" {
-					mtu, err := strconv.Atoi(*dr.config.DockerDaemonMTU)
+					mtu, err = strconv.Atoi(*dr.config.DockerDaemonMTU)
 					if err == nil {
 						mtu -= 50
-						cmdStopOnErrorFlag += fmt.Sprintf("Write-Host 'Updating MTU to %v...'; Get-NetAdapter | Where-Object Name -like \"*Ethernet*\" | ForEach-Object { & netsh interface ipv4 set subinterface $_.InterfaceIndex mtu=%v store=persistent }; ", mtu, mtu)
 					}
 				}
+
+				// allow mtu to be overriden by a param on the stage
+				if val, ok := customProperties["mtu"]; ok {
+					if s, isInt := val.(int); isInt {
+						mtu = s
+					}
+				}
+
+				if mtu > 0 {
+					cmdStopOnErrorFlag += fmt.Sprintf("Write-Host 'Updating MTU to %v...'; Get-NetAdapter | Where-Object Name -like \"*Ethernet*\" | ForEach-Object { & netsh interface ipv4 set subinterface $_.InterfaceIndex mtu=%v store=persistent }; ", mtu, mtu)
+				}
+
 				cmdSeparator = ";"
 			} else if runtime.GOOS == "windows" && shell == "cmd" {
 				cmdStopOnErrorFlag = ""
