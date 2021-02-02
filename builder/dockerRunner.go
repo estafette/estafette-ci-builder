@@ -1133,7 +1133,7 @@ func (dr *dockerRunnerImpl) initContainerStartVariables(shell string, commands [
 				}
 
 				if mtu > 0 {
-					cmdStopOnErrorFlag += fmt.Sprintf("Write-Host 'Updating MTU to %v...'; Get-NetAdapter | Where-Object Name -like \"*Ethernet*\" | ForEach-Object { & netsh interface ipv4 set subinterface $_.InterfaceIndex mtu=%v store=persistent }; ", mtu, mtu)
+					cmdStopOnErrorFlag += fmt.Sprintf("netsh interface ipv4 show interfaces; Write-Host 'Updating MTU to %v...'; Get-NetAdapter | Where-Object Name -like \"*Ethernet*\" | ForEach-Object { & netsh interface ipv4 set subinterface $_.InterfaceIndex mtu=%v store=persistent }; netsh interface ipv4 show interfaces; ", mtu, mtu)
 				}
 
 				cmdSeparator = ";"
