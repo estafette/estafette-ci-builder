@@ -1127,13 +1127,19 @@ func (dr *dockerRunnerImpl) initContainerStartVariables(shell string, commands [
 
 				// allow mtu to be overriden by a param on the stage
 				if val, ok := customProperties["mtu"]; ok {
+					if s, isString := val.(string); isString {
+						mtuVal, err := strconv.Atoi(s)
+						if err == nil {
+							mtu = mtuVal
+						}
+					}
 					if s, isInt := val.(int); isInt {
 						mtu = s
 					}
 				}
 
 				if mtu > 0 {
-					cmdStopOnErrorFlag += fmt.Sprintf("netsh interface ipv4 show interfaces; Write-Host 'Updating MTU to %v...'; Get-NetAdapter | Where-Object Name -like \"*Ethernet*\" | ForEach-Object { & netsh interface ipv4 set subinterface $_.InterfaceIndex mtu=%v store=persistent }; netsh interface ipv4 show interfaces; Write-Host 'customProperties: %v'", mtu, mtu, customProperties)
+					cmdStopOnErrorFlag += fmt.Sprintf("netsh interface ipv4 show interfaces; Write-Host 'Updating MTU to %v...'; Get-NetAdapter | Where-Object Name -like \"*Ethernet*\" | ForEach-Object { & netsh interface ipv4 set subinterface $_.InterfaceIndex mtu=%v store=persistent }; netsh interface ipv4 show interfaces; ", mtu, mtu)
 				}
 
 				cmdSeparator = ";"
