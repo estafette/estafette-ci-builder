@@ -1127,6 +1127,7 @@ func (dr *dockerRunnerImpl) initContainerStartVariables(shell string, commands [
 
 				// allow mtu to be overriden by a param on the stage
 				if val, ok := customProperties["mtu"]; ok {
+					log.Debug().Msgf("mtu property is of type %T", val)
 					if s, isString := val.(string); isString {
 						mtuVal, err := strconv.Atoi(s)
 						if err == nil {
