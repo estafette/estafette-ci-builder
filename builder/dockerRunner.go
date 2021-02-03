@@ -160,7 +160,7 @@ func (dr *dockerRunnerImpl) StartStageContainer(ctx context.Context, depth int, 
 	// check if image is trusted image
 	trustedImage := dr.config.GetTrustedImage(stage.ContainerImage)
 
-	entrypoint, cmds, binds := dr.initContainerStartVariables(stage.Shell, stage.Commands, stage.RunCommandsInForeground, stage.CustomProperties)
+	entrypoint, cmds, argsEscaped, binds := dr.initContainerStartVariables(stage.Shell, stage.Commands, stage.RunCommandsInForeground, stage.CustomProperties)
 
 	// add custom properties as ESTAFETTE_EXTENSION_... envvar
 	extensionEnvVars := dr.generateExtensionEnvvars(stage.CustomProperties, stage.EnvVars)
@@ -239,6 +239,8 @@ func (dr *dockerRunnerImpl) StartStageContainer(ctx context.Context, depth int, 
 		config.Entrypoint = entrypoint
 		// only pass commands when they are set, so extensions can work without
 		config.Cmd = cmds
+		// if args have already been escaped - in case of shell: cmd - don't let docker do this again
+		config.ArgsEscaped = argsEscaped
 	}
 	if trustedImage != nil && trustedImage.RunDocker {
 		if runtime.GOOS != "windows" {
@@ -306,7 +308,7 @@ func (dr *dockerRunnerImpl) StartServiceContainer(ctx context.Context, envvars m
 	// check if image is trusted image
 	trustedImage := dr.config.GetTrustedImage(service.ContainerImage)
 
-	entrypoint, cmds, binds := dr.initContainerStartVariables(service.Shell, service.Commands, service.RunCommandsInForeground, service.CustomProperties)
+	entrypoint, cmds, argsEscaped, binds := dr.initContainerStartVariables(service.Shell, service.Commands, service.RunCommandsInForeground, service.CustomProperties)
 
 	// add custom properties as ESTAFETTE_EXTENSION_... envvar
 	extensionEnvVars := dr.generateExtensionEnvvars(service.CustomProperties, service.EnvVars)
@@ -382,6 +384,8 @@ func (dr *dockerRunnerImpl) StartServiceContainer(ctx context.Context, envvars m
 		config.Cmd = cmds
 		// only override entrypoint when commands are set, so extensions can work without commands
 		config.Entrypoint = entrypoint
+		// if args have already been escaped - in case of shell: cmd - don't let docker do this again
+		config.ArgsEscaped = argsEscaped
 	}
 
 	if trustedImage != nil && trustedImage.RunDocker {
@@ -1083,7 +1087,7 @@ func (dr *dockerRunnerImpl) generateEntrypointScript(shell string, commands []st
 	return path, extension, nil
 }
 
-func (dr *dockerRunnerImpl) initContainerStartVariables(shell string, commands []string, runCommandsInForeground bool, customProperties map[string]interface{}) (entrypoint []string, cmds []string, binds []string) {
+func (dr *dockerRunnerImpl) initContainerStartVariables(shell string, commands []string, runCommandsInForeground bool, customProperties map[string]interface{}) (entrypoint []string, cmds []string, argsEscaped bool, binds []string) {
 	entrypoint = make([]string, 0)
 	cmds = make([]string, 0)
 	binds = make([]string, 0)
@@ -1132,7 +1136,8 @@ func (dr *dockerRunnerImpl) initContainerStartVariables(shell string, commands [
 			} else if runtime.GOOS == "windows" && shell == "cmd" {
 				cmdStopOnErrorFlag = ""
 				cmdSeparator = " && "
-				// wrapJoinedCommandsInQuotes = true
+				wrapJoinedCommandsInQuotes = true
+				argsEscaped = true
 			}
 
 			joinedCommands := strings.Join(commands, cmdSeparator)
