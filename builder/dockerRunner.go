@@ -1113,6 +1113,7 @@ func (dr *dockerRunnerImpl) initContainerStartVariables(shell string, commands [
 			// define commands
 			cmdStopOnErrorFlag := ""
 			cmdSeparator := ";"
+			wrapJoinedCommandsInQuotes := false
 			if runtime.GOOS == "windows" && shell == "powershell" {
 				cmdStopOnErrorFlag = "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue'; "
 				mtu := 0
@@ -1144,11 +1145,16 @@ func (dr *dockerRunnerImpl) initContainerStartVariables(shell string, commands [
 			} else if runtime.GOOS == "windows" && shell == "cmd" {
 				cmdStopOnErrorFlag = ""
 				cmdSeparator = " && "
+				wrapJoinedCommandsInQuotes = true
 			} else {
 				cmdStopOnErrorFlag = "set -e; "
 				cmdSeparator = ";"
 			}
-			cmds = append(cmds, cmdStopOnErrorFlag+strings.Join(commands, cmdSeparator))
+			joinedCommands := strings.Join(commands, cmdSeparator)
+			if wrapJoinedCommandsInQuotes {
+				joinedCommands = fmt.Sprintf("\"%v\"", joinedCommands)
+			}
+			cmds = append(cmds, cmdStopOnErrorFlag+joinedCommands)
 		}
 	}
 
