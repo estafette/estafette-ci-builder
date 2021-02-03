@@ -1136,7 +1136,7 @@ func (dr *dockerRunnerImpl) initContainerStartVariables(shell string, commands [
 			} else if runtime.GOOS == "windows" && shell == "cmd" {
 				cmdStopOnErrorFlag = ""
 				cmdSeparator = " && "
-				wrapJoinedCommandsInQuotes = true
+				// wrapJoinedCommandsInQuotes = true
 				argsEscaped = true
 			}
 
