@@ -1116,29 +1116,16 @@ func (dr *dockerRunnerImpl) initContainerStartVariables(shell string, commands [
 			wrapJoinedCommandsInQuotes := false
 			if runtime.GOOS == "windows" && shell == "powershell" {
 				cmdStopOnErrorFlag = "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue'; "
-				mtu := 0
-
-				// set mtu from config
-				if dr.config.DockerDaemonMTU != nil && *dr.config.DockerDaemonMTU != "" {
-					mtu, err = strconv.Atoi(*dr.config.DockerDaemonMTU)
-					if err == nil {
-						mtu -= 50
-					}
-				}
 
 				// allow mtu to be overriden by a param on the stage
 				if val, ok := customProperties["mtu"]; ok {
 					switch s := val.(type) {
 					case float64:
-						mtu = int(s)
-						log.Debug().Msgf("Set mtu to %v from mtu property of type %T", mtu, val)
-					default:
-						log.Warn().Msgf("Can't set mtu from property of type %T", val)
+						mtu := int(s)
+						if mtu > 0 {
+							cmdStopOnErrorFlag += fmt.Sprintf("netsh interface ipv4 show interfaces; Write-Host 'Updating MTU to %v...'; Get-NetAdapter | Where-Object Name -like \"*Ethernet*\" | ForEach-Object { & netsh interface ipv4 set subinterface $_.InterfaceIndex mtu=%v store=persistent }; netsh interface ipv4 show interfaces; ", mtu, mtu)
+						}
 					}
-				}
-
-				if mtu > 0 {
-					cmdStopOnErrorFlag += fmt.Sprintf("netsh interface ipv4 show interfaces; Write-Host 'Updating MTU to %v...'; Get-NetAdapter | Where-Object Name -like \"*Ethernet*\" | ForEach-Object { & netsh interface ipv4 set subinterface $_.InterfaceIndex mtu=%v store=persistent }; netsh interface ipv4 show interfaces; ", mtu, mtu)
 				}
 
 				cmdSeparator = ";"
