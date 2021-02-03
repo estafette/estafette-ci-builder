@@ -1111,7 +1111,7 @@ func (dr *dockerRunnerImpl) initContainerStartVariables(shell string, commands [
 			}
 
 			// define commands
-			cmdStopOnErrorFlag := ""
+			cmdStopOnErrorFlag := "set -e; "
 			cmdSeparator := ";"
 			wrapJoinedCommandsInQuotes := false
 			if runtime.GOOS == "windows" && shell == "powershell" {
@@ -1132,11 +1132,9 @@ func (dr *dockerRunnerImpl) initContainerStartVariables(shell string, commands [
 			} else if runtime.GOOS == "windows" && shell == "cmd" {
 				cmdStopOnErrorFlag = ""
 				cmdSeparator = " && "
-				wrapJoinedCommandsInQuotes = true
-			} else {
-				cmdStopOnErrorFlag = "set -e; "
-				cmdSeparator = ";"
+				// wrapJoinedCommandsInQuotes = true
 			}
+
 			joinedCommands := strings.Join(commands, cmdSeparator)
 			if wrapJoinedCommandsInQuotes {
 				joinedCommands = fmt.Sprintf("\" %v \"", joinedCommands)
