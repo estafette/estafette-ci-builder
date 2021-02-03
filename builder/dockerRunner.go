@@ -1139,7 +1139,7 @@ func (dr *dockerRunnerImpl) initContainerStartVariables(shell string, commands [
 			}
 			joinedCommands := strings.Join(commands, cmdSeparator)
 			if wrapJoinedCommandsInQuotes {
-				joinedCommands = fmt.Sprintf("\"%v\"", joinedCommands)
+				joinedCommands = fmt.Sprintf("\" %v \"", joinedCommands)
 			}
 			cmds = append(cmds, cmdStopOnErrorFlag+joinedCommands)
 		}
