@@ -276,7 +276,7 @@ func (dr *dockerRunnerImpl) StartStageContainer(ctx context.Context, depth int, 
 				"mode":     "non-blocking",
 			},
 		},
-	}, &network.NetworkingConfig{}, "")
+	}, &network.NetworkingConfig{}, nil, "")
 	if err != nil {
 		return "", err
 	}
@@ -422,7 +422,7 @@ func (dr *dockerRunnerImpl) StartServiceContainer(ctx context.Context, envvars m
 				"mode":     "non-blocking",
 			},
 		},
-	}, &network.NetworkingConfig{}, service.Name)
+	}, &network.NetworkingConfig{}, nil, service.Name)
 	if err != nil {
 		return
 	}
@@ -511,7 +511,7 @@ func (dr *dockerRunnerImpl) RunReadinessProbeContainer(ctx context.Context, pare
 				"mode":     "non-blocking",
 			},
 		},
-	}, &network.NetworkingConfig{}, "")
+	}, &network.NetworkingConfig{}, nil, "")
 	if err != nil {
 		return
 	}
