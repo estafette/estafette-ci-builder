@@ -13,5 +13,4 @@ COPY ${ESTAFETTE_GIT_NAME} /usr/bin/
 COPY templates /entrypoint-templates
 
 ENV ESTAFETTE_CI_SERVER="gocd" \
-    DOCKER_API_VERSION="1.38" \
     ESTAFETTE_LOG_FORMAT="console"
