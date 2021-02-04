@@ -715,7 +715,9 @@ func (dr *dockerRunnerImpl) StartDockerDaemon() error {
 	args := []string{"--host=unix:///var/run/docker.sock", "--host=tcp://0.0.0.0:2375"}
 
 	// if an mtu is configured pass it to the docker daemon
-	if dr.config.DockerDaemonMTU != nil && *dr.config.DockerDaemonMTU != "" {
+	if dr.config.Manifest != nil && dr.config.Manifest.Builder.MTU > 0 {
+		args = append(args, fmt.Sprintf("--mtu=%v", dr.config.Manifest.Builder.MTU))
+	} else if dr.config.DockerDaemonMTU != nil && *dr.config.DockerDaemonMTU != "" {
 		args = append(args, fmt.Sprintf("--mtu=%v", *dr.config.DockerDaemonMTU))
 	}
 
@@ -941,19 +943,6 @@ func (dr *dockerRunnerImpl) CreateBridgeNetwork(ctx context.Context) error {
 					},
 				},
 			}
-			// } else if runtime.GOOS == "windows" {
-			// 	if options.Options == nil {
-			// 		options.Options = map[string]string{}
-			// 	}
-			// 	if dr.config.DockerDaemonMTU != nil {
-			// 		// mtu, err := strconv.Atoi(*dr.config.DockerDaemonMTU)
-			// 		// if err != nil {
-			// 		// 	log.Warn().Err(err).Msgf("Failed to parse mtu %v from config", *dr.config.DockerDaemonMTU)
-			// 		options.Options["com.docker.network.driver.mtu"] = *dr.config.DockerDaemonMTU
-			// 		// } else {
-			// 		// 	options.Options["com.docker.network.driver.mtu"] = strconv.Itoa(mtu - 50)
-			// 		// }
-			// 	}
 		}
 
 		resp, err := dr.dockerClient.NetworkCreate(ctx, name, options)
@@ -995,8 +984,12 @@ func (dr *dockerRunnerImpl) DeleteBridgeNetwork(ctx context.Context) error {
 
 func (dr *dockerRunnerImpl) generateEntrypointScript(shell string, commands []string, runCommandsInForeground bool) (hostPath, mountPath, entrypointFile string, err error) {
 
-	if runtime.GOOS == "windows" {
-		commands = append([]string{"netsh interface ipv4 show interfaces"}, commands...)
+	if dr.config.Manifest != nil && dr.config.Manifest.Builder.MTU > 0 {
+		if runtime.GOOS == "windows" && shell == "powershell" {
+			commands = append([]string{fmt.Sprintf("Get-NetAdapter | Where-Object Name -like \"*Ethernet*\" | ForEach-Object { & netsh interface ipv4 set subinterface $_.InterfaceIndex mtu=%v store=persistent }", dr.config.Manifest.Builder.MTU)}, commands...)
+		} else if runtime.GOOS == "windows" && shell == "cmd" {
+			commands = append([]string{fmt.Sprintf("netsh interface ipv4 set subinterface 31 mtu=%v", dr.config.Manifest.Builder.MTU)}, commands...)
+		}
 	}
 
 	r, _ := regexp.Compile("[a-zA-Z0-9_]+=|export|shopt|;|cd |\\||&&|\\|\\|")
