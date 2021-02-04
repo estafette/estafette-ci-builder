@@ -4,10 +4,8 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"net"
 	"os"
 	"runtime"
-	"strconv"
 
 	contracts "github.com/estafette/estafette-ci-contracts"
 	manifest "github.com/estafette/estafette-ci-manifest"
@@ -72,32 +70,6 @@ func (b *ciBuilderImpl) RunEstafetteBuildJob(pipelineRunner PipelineRunner, dock
 			Str("jobName", *builderConfig.JobName).
 			Interface("git", builderConfig.Git).
 			Logger()
-	}
-
-	if runtime.GOOS == "windows" {
-		if builderConfig.DockerDaemonMTU != nil && *builderConfig.DockerDaemonMTU != "" {
-			mtu, err := strconv.Atoi(*builderConfig.DockerDaemonMTU)
-			if err != nil {
-				log.Warn().Err(err).Msgf("Failed to parse mtu %v from config", *builderConfig.DockerDaemonMTU)
-			} else {
-				mtu -= 50
-				// update any ethernet interfaces to this mtu
-				interfaces, err := net.Interfaces()
-				if err != nil {
-					log.Warn().Err(err).Msg("Failed to retrieve network interfaces")
-				} else {
-					log.Info().Interface("interfaces", interfaces).Msg("Retrieved network interfaces")
-					for _, i := range interfaces {
-						if i.MTU > mtu && i.Flags&net.FlagLoopback == 0 {
-							log.Info().Interface("interface", i).Msgf("Updating MTU for interface '%v' with flags %v from %v to %v", i.Name, i.Flags.String(), i.MTU, mtu)
-							i.MTU = mtu
-						} else {
-							log.Info().Interface("interface", i).Msgf("MTU for interface '%v' with flags %v is set to %v, no need to update...", i.Name, i.Flags.String(), i.MTU)
-						}
-					}
-				}
-			}
-		}
 	}
 
 	rootSpanName := "RunBuildJob"
