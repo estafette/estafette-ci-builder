@@ -1082,13 +1082,17 @@ func (dr *dockerRunnerImpl) initContainerStartVariables(shell string, commands [
 			return entrypoint, cmds, binds, innerErr
 		}
 
-		entrypoint = []string{}
-		if runtime.GOOS == "windows" {
-			entrypoint = append(entrypoint, shell)
+		// use generated entrypoint script for executing commands
+		if runtime.GOOS == "windows" && shell == "powershell" {
+			entrypoint = []string{"powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"}
+			cmds = []string{path.Join(entrypointMountPath, entrypointFile)}
+		} else if runtime.GOOS == "windows" && shell == "cmd" {
+			entrypoint = []string{"cmd", "/S", "/C"}
+			cmds = []string{path.Join(entrypointMountPath, entrypointFile)}
+		} else {
+			entrypoint = []string{path.Join(entrypointMountPath, entrypointFile)}
 		}
 
-		// use generated entrypoint script for executing commands
-		entrypoint = append(entrypoint, path.Join(entrypointMountPath, entrypointFile))
 		binds = append(binds, fmt.Sprintf("%v:%v", entrypointHostPath, entrypointMountPath))
 	}
 
