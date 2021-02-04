@@ -1089,6 +1089,7 @@ func (dr *dockerRunnerImpl) generateEntrypointScript(shell string, commands []st
 		hostPath = strings.TrimPrefix(hostPath, "C:\\Windows\\TEMP")
 		hostPath = strings.ReplaceAll(hostPath, "\\", "/")
 		hostPath = fmt.Sprintf("%v/%v", dr.envvarHelper.GetTempDir(), hostPath)
+		hostPath = strings.ReplaceAll(hostPath, "//", "/")
 		mountPath = "C:" + mountPath
 	}
 
@@ -1255,6 +1256,7 @@ func (dr *dockerRunnerImpl) generateCredentialsFiles(trustedImage *contracts.Tru
 			hostPath = strings.TrimPrefix(hostPath, "C:\\Windows\\TEMP")
 			hostPath = strings.ReplaceAll(hostPath, "\\", "/")
 			hostPath = fmt.Sprintf("%v/%v", dr.envvarHelper.GetTempDir(), hostPath)
+			hostPath = strings.ReplaceAll(hostPath, "//", "/")
 			mountPath = "C:" + mountPath
 		}
 	}
