@@ -3,7 +3,10 @@ $ProgressPreference = 'SilentlyContinue';
 
 $esc = "$([char]27)";
 
-{{range .Commands}}
+{{- range .Commands }}
 Write-Host "$esc[38;5;250m> {{.EscapedCommand}}$esc[0m";
-    {{- .Command}};
+{{.Command}};
 {{end}}
+
+Write-Host "$esc[38;5;250m> {{.EscapedFinalCommand}}$esc[0m";
+{{.FinalCommand}}
