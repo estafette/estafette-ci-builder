@@ -287,13 +287,15 @@ func (pr *pipelineRunnerImpl) RunStages(ctx context.Context, depth int, stages [
 	tailLogsDone := make(chan struct{}, 1)
 	go pr.tailLogs(ctx, tailLogsDone, stages)
 
-	err = pr.dockerRunner.CreateBridgeNetwork(ctx)
-	if err != nil {
-		return
+	if runtime.GOOS != "windows" {
+		err = pr.dockerRunner.CreateBridgeNetwork(ctx)
+		if err != nil {
+			return
+		}
+		defer func(ctx context.Context) {
+			_ = pr.dockerRunner.DeleteBridgeNetwork(ctx)
+		}(ctx)
 	}
-	defer func(ctx context.Context) {
-		_ = pr.dockerRunner.DeleteBridgeNetwork(ctx)
-	}(ctx)
 
 	// set default build status at the start
 	err = pr.envvarHelper.initBuildStatus()

@@ -268,10 +268,12 @@ func (dr *dockerRunnerImpl) StartStageContainer(ctx context.Context, depth int, 
 	}
 
 	// connect to user-defined network
-	err = dr.dockerClient.NetworkConnect(ctx, dr.networkBridgeID, resp.ID, nil)
-	if err != nil {
-		log.Error().Err(err).Msgf("Failed connecting container %v to network %v", resp.ID, dr.networkBridgeID)
-		return
+	if runtime.GOOS != "windows" {
+		err = dr.dockerClient.NetworkConnect(ctx, dr.networkBridgeID, resp.ID, nil)
+		if err != nil {
+			log.Error().Err(err).Msgf("Failed connecting container %v to network %v", resp.ID, dr.networkBridgeID)
+			return
+		}
 	}
 
 	containerID = resp.ID
@@ -402,10 +404,12 @@ func (dr *dockerRunnerImpl) StartServiceContainer(ctx context.Context, envvars m
 	}
 
 	// connect to user-defined network
-	err = dr.dockerClient.NetworkConnect(ctx, dr.networkBridgeID, resp.ID, nil)
-	if err != nil {
-		log.Error().Err(err).Msgf("Failed connecting container %v to network %v", resp.ID, dr.networkBridgeID)
-		return
+	if runtime.GOOS != "windows" {
+		err = dr.dockerClient.NetworkConnect(ctx, dr.networkBridgeID, resp.ID, nil)
+		if err != nil {
+			log.Error().Err(err).Msgf("Failed connecting container %v to network %v", resp.ID, dr.networkBridgeID)
+			return
+		}
 	}
 
 	containerID = resp.ID
@@ -491,10 +495,12 @@ func (dr *dockerRunnerImpl) RunReadinessProbeContainer(ctx context.Context, pare
 	}
 
 	// connect to user-defined network
-	err = dr.dockerClient.NetworkConnect(ctx, dr.networkBridgeID, resp.ID, nil)
-	if err != nil {
-		log.Error().Err(err).Msgf("Failed connecting container %v to network %v", resp.ID, dr.networkBridgeID)
-		return
+	if runtime.GOOS != "windows" {
+		err = dr.dockerClient.NetworkConnect(ctx, dr.networkBridgeID, resp.ID, nil)
+		if err != nil {
+			log.Error().Err(err).Msgf("Failed connecting container %v to network %v", resp.ID, dr.networkBridgeID)
+			return
+		}
 	}
 
 	containerID := resp.ID
