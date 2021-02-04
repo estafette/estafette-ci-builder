@@ -1083,14 +1083,13 @@ func (dr *dockerRunnerImpl) initContainerStartVariables(shell string, commands [
 		}
 
 		// use generated entrypoint script for executing commands
+		entrypointFilePath := path.Join(entrypointMountPath, entrypointFile)
 		if runtime.GOOS == "windows" && shell == "powershell" {
-			entrypoint = []string{"powershell", "-File"}
-			cmds = []string{path.Join(entrypointMountPath, entrypointFile)}
+			entrypoint = []string{"powershell", "-File", entrypointFilePath}
 		} else if runtime.GOOS == "windows" && shell == "cmd" {
-			entrypoint = []string{"cmd", "/C"}
-			cmds = []string{path.Join(entrypointMountPath, entrypointFile)}
+			entrypoint = []string{"cmd", "/C", entrypointFilePath}
 		} else {
-			entrypoint = []string{path.Join(entrypointMountPath, entrypointFile)}
+			entrypoint = []string{entrypointFilePath}
 		}
 
 		binds = append(binds, fmt.Sprintf("%v:%v", entrypointHostPath, entrypointMountPath))
