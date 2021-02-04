@@ -1082,8 +1082,13 @@ func (dr *dockerRunnerImpl) initContainerStartVariables(shell string, commands [
 			return entrypoint, cmds, binds, innerErr
 		}
 
+		entrypoint = []string{}
+		if runtime.GOOS == "windows"  {
+			entrypoint = append(entrypoint, shell)
+		}
+
 		// use generated entrypoint script for executing commands
-		entrypoint = []string{path.Join(entrypointMountPath, entrypointFile)}
+		entrypoint = append(entrypoint, path.Join(entrypointMountPath, entrypointFile)}
 		binds = append(binds, fmt.Sprintf("%v:%v", entrypointHostPath, entrypointMountPath))
 	}
 
