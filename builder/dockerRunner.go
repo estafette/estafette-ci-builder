@@ -1072,7 +1072,10 @@ func (dr *dockerRunnerImpl) generateEntrypointScript(shell string, commands []st
 	hostPath = entrypointdir
 	mountPath = "/entrypoint"
 	if runtime.GOOS == "windows" {
-		hostPath = filepath.Join(dr.envvarHelper.GetTempDir(), strings.TrimPrefix(hostPath, "C:\\Users\\ContainerAdministrator\\AppData\\Local\\Temp"))
+		trimmedHostPath := strings.TrimPrefix(hostPath, os.TempDir())
+		trimmedHostPath = strings.TrimPrefix(trimmedHostPath, "C:\\Users\\ContainerAdministrator\\AppData\\Local\\Temp")
+		trimmedHostPath = strings.TrimPrefix(trimmedHostPath, "C:\\Windows\\TEMP")
+		hostPath = filepath.Join(dr.envvarHelper.GetTempDir(), trimmedHostPath)
 		mountPath = "C:" + mountPath
 	}
 
@@ -1234,7 +1237,10 @@ func (dr *dockerRunnerImpl) generateCredentialsFiles(trustedImage *contracts.Tru
 		hostPath = credentialsdir
 		mountPath = "/credentials"
 		if runtime.GOOS == "windows" {
-			hostPath = filepath.Join(dr.envvarHelper.GetTempDir(), strings.TrimPrefix(hostPath, "C:\\Users\\ContainerAdministrator\\AppData\\Local\\Temp"))
+			trimmedHostPath := strings.TrimPrefix(hostPath, os.TempDir())
+			trimmedHostPath = strings.TrimPrefix(trimmedHostPath, "C:\\Users\\ContainerAdministrator\\AppData\\Local\\Temp")
+			trimmedHostPath = strings.TrimPrefix(trimmedHostPath, "C:\\Windows\\TEMP")
+			hostPath = filepath.Join(dr.envvarHelper.GetTempDir(), trimmedHostPath)
 			mountPath = "C:" + mountPath
 		}
 	}
