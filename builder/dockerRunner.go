@@ -935,6 +935,7 @@ func (dr *dockerRunnerImpl) CreateBridgeNetwork(ctx context.Context) error {
 					},
 				},
 			}
+		} else if runtime.GOOS == "windows" {
 			if options.Options == nil {
 				options.Options = map[string]string{}
 			}
