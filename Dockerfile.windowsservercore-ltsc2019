@@ -1,7 +1,7 @@
 FROM mcr.microsoft.com/windows/servercore:ltsc2019
 
-COPY estafette-ci-builder.exe C:/estafette-ci-builder.exe
-COPY templates C:/entrypoint-templates
+COPY ./estafette-ci-builder.exe C:/estafette-ci-builder.exe
+COPY ./templates C:/entrypoint-templates
 
 ENV ESTAFETTE_CI_SERVER="estafette" \
     ESTAFETTE_WORKDIR="C:/estafette-work" \
