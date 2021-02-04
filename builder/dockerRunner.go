@@ -1085,8 +1085,10 @@ func (dr *dockerRunnerImpl) initContainerStartVariables(shell string, commands [
 		// use generated entrypoint script for executing commands
 		entrypointFilePath := path.Join(entrypointMountPath, entrypointFile)
 		if runtime.GOOS == "windows" && shell == "powershell" {
-			entrypoint = []string{"powershell", "-File", entrypointFilePath}
+			entrypointFilePath = fmt.Sprintf("C:\\entrypoint\\%v", entrypointFile)
+			entrypoint = []string{"powershell", entrypointFilePath}
 		} else if runtime.GOOS == "windows" && shell == "cmd" {
+			entrypointFilePath = fmt.Sprintf("C:\\entrypoint\\%v", entrypointFile)
 			entrypoint = []string{"cmd", "/C", entrypointFilePath}
 		} else {
 			entrypoint = []string{entrypointFilePath}
