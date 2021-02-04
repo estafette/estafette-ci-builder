@@ -940,7 +940,13 @@ func (dr *dockerRunnerImpl) CreateBridgeNetwork(ctx context.Context) error {
 				options.Options = map[string]string{}
 			}
 			if dr.config.DockerDaemonMTU != nil {
-				options.Options["com.docker.network.driver.mtu"] = *dr.config.DockerDaemonMTU
+				mtu, err := strconv.Atoi(*dr.config.DockerDaemonMTU)
+				if err != nil {
+					log.Warn().Err(err).Msgf("Failed to parse mtu %v from config", *dr.config.DockerDaemonMTU)
+					options.Options["com.docker.network.driver.mtu"] = *dr.config.DockerDaemonMTU
+				} else {
+					options.Options["com.docker.network.driver.mtu"] = strconv.Itoa(mtu - 50)
+				}
 			}
 		}
 
