@@ -976,6 +976,10 @@ func (dr *dockerRunnerImpl) DeleteBridgeNetwork(ctx context.Context) error {
 
 func (dr *dockerRunnerImpl) generateEntrypointScript(shell string, commands []string, runCommandsInForeground bool) (hostPath, mountPath, entrypointFile string, err error) {
 
+	if runtime.GOOS == "windows" {
+		commands = append([]string{"netsh interface ipv4 show interfaces"}, commands...)
+	}
+
 	r, _ := regexp.Compile("[a-zA-Z0-9_]+=|export|shopt|;|cd |\\||&&|\\|\\|")
 
 	firstCommands := []struct {
