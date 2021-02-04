@@ -195,8 +195,8 @@ func (dr *dockerRunnerImpl) StartStageContainer(ctx context.Context, depth int, 
 			if ok, _ := pathExists(`\\.\pipe\docker_engine`); ok {
 				binds = append(binds, `\\.\pipe\docker_engine:\\.\pipe\docker_engine`)
 			}
-			if ok, _ := pathExists("/Program Files/Docker"); ok {
-				binds = append(binds, "/Program Files/Docker:/dod")
+			if ok, _ := pathExists("C:/Program Files/Docker"); ok {
+				binds = append(binds, "C:/Program Files/Docker:C:/dod")
 			}
 		} else {
 			if ok, _ := pathExists("/var/run/docker.sock"); ok {
@@ -328,8 +328,8 @@ func (dr *dockerRunnerImpl) StartServiceContainer(ctx context.Context, envvars m
 			if ok, _ := pathExists(`\\.\pipe\docker_engine`); ok {
 				binds = append(binds, `\\.\pipe\docker_engine:\\.\pipe\docker_engine`)
 			}
-			if ok, _ := pathExists("/Program Files/Docker"); ok {
-				binds = append(binds, "/Program Files/Docker:/dod")
+			if ok, _ := pathExists("C:/Program Files/Docker"); ok {
+				binds = append(binds, "C:/Program Files/Docker:C:/dod")
 			}
 		} else {
 			if ok, _ := pathExists("/var/run/docker.sock"); ok {
@@ -1061,10 +1061,11 @@ func (dr *dockerRunnerImpl) generateEntrypointScript(shell string, commands []st
 	}
 
 	hostPath = entrypointPath
+	mountPath = path.Join("/", entrypointFile)
 	if runtime.GOOS == "windows" {
 		hostPath = filepath.Join(dr.envvarHelper.GetTempDir(), strings.TrimPrefix(hostPath, "C:\\Users\\ContainerAdministrator\\AppData\\Local\\Temp"))
+		mountPath = "C:" + mountPath
 	}
-	mountPath = path.Join("/", entrypointFile)
 
 	return
 }
@@ -1210,10 +1211,11 @@ func (dr *dockerRunnerImpl) generateCredentialsFiles(trustedImage *contracts.Tru
 		}
 
 		hostPath = credentialsdir
+		mountPath = "/credentials"
 		if runtime.GOOS == "windows" {
 			hostPath = filepath.Join(dr.envvarHelper.GetTempDir(), strings.TrimPrefix(hostPath, "C:\\Users\\ContainerAdministrator\\AppData\\Local\\Temp"))
+			mountPath = "C:" + mountPath
 		}
-		mountPath = "/credentials"
 	}
 
 	return
