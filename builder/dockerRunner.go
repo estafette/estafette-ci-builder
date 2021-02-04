@@ -1060,6 +1060,11 @@ func (dr *dockerRunnerImpl) generateEntrypointScript(shell string, commands []st
 		return
 	}
 
+	entryPointBytes, innerErr := ioutil.ReadFile(entrypointPath)
+	if innerErr == nil {
+		log.Debug().Str("entrypoint", string(entryPointBytes)).Msgf("Inspecting entrypoint script at %v", entrypointPath)
+	}
+
 	hostPath = entrypointdir
 	mountPath = "/entrypoint"
 	if runtime.GOOS == "windows" {
@@ -1086,13 +1091,15 @@ func (dr *dockerRunnerImpl) initContainerStartVariables(shell string, commands [
 		entrypointFilePath := path.Join(entrypointMountPath, entrypointFile)
 		if runtime.GOOS == "windows" && shell == "powershell" {
 			entrypointFilePath = fmt.Sprintf("C:\\entrypoint\\%v", entrypointFile)
-			entrypoint = []string{"powershell", entrypointFilePath}
+			entrypoint = []string{"powershell.exe", entrypointFilePath}
 		} else if runtime.GOOS == "windows" && shell == "cmd" {
 			entrypointFilePath = fmt.Sprintf("C:\\entrypoint\\%v", entrypointFile)
-			entrypoint = []string{"cmd", "/C", entrypointFilePath}
+			entrypoint = []string{"cmd.exe", "/C", entrypointFilePath}
 		} else {
 			entrypoint = []string{entrypointFilePath}
 		}
+
+		log.Debug().Interface("entrypoint", entrypoint).Msg("Inspecting entrypoint array")
 
 		binds = append(binds, fmt.Sprintf("%v:%v", entrypointHostPath, entrypointMountPath))
 	}
