@@ -75,7 +75,6 @@ func NewDockerRunner(envvarHelper EnvvarHelper, obfuscator Obfuscator, config co
 		runningReadinessProbeContainerIDs:     make([]string, 0),
 		networkBridge:                         networkBridge,
 		entrypointTemplateDir:                 "/entrypoint-templates",
-		entrypointTargetDir:                   "/estafette-entrypoints",
 	}
 }
 
@@ -93,7 +92,6 @@ type dockerRunnerImpl struct {
 	networkBridge                         string
 	networkBridgeID                       string
 	entrypointTemplateDir                 string
-	entrypointTargetDir                   string
 }
 
 func (dr *dockerRunnerImpl) IsImagePulled(stageName string, containerImage string) bool {
@@ -160,23 +158,13 @@ func (dr *dockerRunnerImpl) StartStageContainer(ctx context.Context, depth int, 
 	// check if image is trusted image
 	trustedImage := dr.config.GetTrustedImage(stage.ContainerImage)
 
-	entrypoint, cmds, argsEscaped, binds := dr.initContainerStartVariables(stage.Shell, stage.Commands, stage.RunCommandsInForeground, stage.CustomProperties)
-
-	// add custom properties as ESTAFETTE_EXTENSION_... envvar
-	extensionEnvVars := dr.generateExtensionEnvvars(stage.CustomProperties, stage.EnvVars)
-
-	// mount injected credentials as files
-	credentialsdir, err := dr.generateCredentialsFiles(trustedImage)
+	entrypoint, cmds, binds, err := dr.initContainerStartVariables(stage.Shell, stage.Commands, stage.RunCommandsInForeground, stage.CustomProperties, trustedImage)
 	if err != nil {
 		return
 	}
-	if credentialsdir != "" {
-		if runtime.GOOS == "windows" {
-			binds = append(binds, fmt.Sprintf("%v:C:/credentials", credentialsdir))
-		} else {
-			binds = append(binds, fmt.Sprintf("%v:/credentials", credentialsdir))
-		}
-	}
+
+	// add custom properties as ESTAFETTE_EXTENSION_... envvar
+	extensionEnvVars := dr.generateExtensionEnvvars(stage.CustomProperties, stage.EnvVars)
 
 	// add stage name to envvars
 	if stage.EnvVars == nil {
@@ -207,8 +195,8 @@ func (dr *dockerRunnerImpl) StartStageContainer(ctx context.Context, depth int, 
 			if ok, _ := pathExists(`\\.\pipe\docker_engine`); ok {
 				binds = append(binds, `\\.\pipe\docker_engine:\\.\pipe\docker_engine`)
 			}
-			if ok, _ := pathExists("C:/Program Files/Docker"); ok {
-				binds = append(binds, "C:/Program Files/Docker:C:/dod")
+			if ok, _ := pathExists("/Program Files/Docker"); ok {
+				binds = append(binds, "/Program Files/Docker:/dod")
 			}
 		} else {
 			if ok, _ := pathExists("/var/run/docker.sock"); ok {
@@ -239,8 +227,6 @@ func (dr *dockerRunnerImpl) StartStageContainer(ctx context.Context, depth int, 
 		config.Entrypoint = entrypoint
 		// only pass commands when they are set, so extensions can work without
 		config.Cmd = cmds
-		// if args have already been escaped - in case of shell: cmd - don't let docker do this again
-		config.ArgsEscaped = argsEscaped
 	}
 	if trustedImage != nil && trustedImage.RunDocker {
 		if runtime.GOOS != "windows" {
@@ -308,23 +294,13 @@ func (dr *dockerRunnerImpl) StartServiceContainer(ctx context.Context, envvars m
 	// check if image is trusted image
 	trustedImage := dr.config.GetTrustedImage(service.ContainerImage)
 
-	entrypoint, cmds, argsEscaped, binds := dr.initContainerStartVariables(service.Shell, service.Commands, service.RunCommandsInForeground, service.CustomProperties)
-
-	// add custom properties as ESTAFETTE_EXTENSION_... envvar
-	extensionEnvVars := dr.generateExtensionEnvvars(service.CustomProperties, service.EnvVars)
-
-	// mount injected credentials as files
-	credentialsdir, err := dr.generateCredentialsFiles(trustedImage)
+	entrypoint, cmds, binds, err := dr.initContainerStartVariables(service.Shell, service.Commands, service.RunCommandsInForeground, service.CustomProperties, trustedImage)
 	if err != nil {
 		return
 	}
-	if credentialsdir != "" {
-		if runtime.GOOS == "windows" {
-			binds = append(binds, fmt.Sprintf("%v:C:/credentials", credentialsdir))
-		} else {
-			binds = append(binds, fmt.Sprintf("%v:/credentials", credentialsdir))
-		}
-	}
+
+	// add custom properties as ESTAFETTE_EXTENSION_... envvar
+	extensionEnvVars := dr.generateExtensionEnvvars(service.CustomProperties, service.EnvVars)
 
 	// add service name to envvars
 	if service.EnvVars == nil {
@@ -352,8 +328,8 @@ func (dr *dockerRunnerImpl) StartServiceContainer(ctx context.Context, envvars m
 			if ok, _ := pathExists(`\\.\pipe\docker_engine`); ok {
 				binds = append(binds, `\\.\pipe\docker_engine:\\.\pipe\docker_engine`)
 			}
-			if ok, _ := pathExists("C:/Program Files/Docker"); ok {
-				binds = append(binds, "C:/Program Files/Docker:C:/dod")
+			if ok, _ := pathExists("/Program Files/Docker"); ok {
+				binds = append(binds, "/Program Files/Docker:/dod")
 			}
 		} else {
 			if ok, _ := pathExists("/var/run/docker.sock"); ok {
@@ -384,8 +360,6 @@ func (dr *dockerRunnerImpl) StartServiceContainer(ctx context.Context, envvars m
 		config.Cmd = cmds
 		// only override entrypoint when commands are set, so extensions can work without commands
 		config.Entrypoint = entrypoint
-		// if args have already been escaped - in case of shell: cmd - don't let docker do this again
-		config.ArgsEscaped = argsEscaped
 	}
 
 	if trustedImage != nil && trustedImage.RunDocker {
@@ -1000,7 +974,7 @@ func (dr *dockerRunnerImpl) DeleteBridgeNetwork(ctx context.Context) error {
 	return nil
 }
 
-func (dr *dockerRunnerImpl) generateEntrypointScript(shell string, commands []string, runCommandsInForeground bool) (path string, extension string, err error) {
+func (dr *dockerRunnerImpl) generateEntrypointScript(shell string, commands []string, runCommandsInForeground bool) (hostPath, mountPath string, err error) {
 
 	r, _ := regexp.Compile("[a-zA-Z0-9_]+=|export|shopt|;|cd |\\||&&|\\|\\|")
 
@@ -1043,109 +1017,82 @@ func (dr *dockerRunnerImpl) generateEntrypointScript(shell string, commands []st
 		runFinalCommandWithExec,
 	}
 
-	extension = "sh"
+	entrypointFile := "entrypoint.sh"
 	if runtime.GOOS == "windows" && shell == "powershell" {
-		extension = "ps"
+		entrypointFile = "entrypoint.ps1"
 	} else if runtime.GOOS == "windows" && shell == "cmd" {
-		extension = "cmd"
+		entrypointFile = "entrypoint.bat"
 	}
 
-	templatePath := fmt.Sprintf("%v/estafette-entrypoint.%v", dr.entrypointTemplateDir, extension)
-
-	// create target file to render template to
-	targetFile, err := ioutil.TempFile(dr.entrypointTargetDir, "estafette-entrypoint-*.sh")
+	entrypointdir, err := ioutil.TempDir("", "*-entrypoint")
 	if err != nil {
-		return "", extension, err
+		return
 	}
-	defer targetFile.Close()
-	path = targetFile.Name()
+
+	// set permissions on directory to avoid non-root containers not to be able to read from the mounted directory
+	err = os.Chmod(entrypointdir, 0777)
+	if err != nil {
+		return
+	}
+
+	entrypointPath := path.Join(entrypointdir, entrypointFile)
 
 	// read and parse template
+	templatePath := path.Join(dr.entrypointTemplateDir, entrypointFile)
 	entrypointTemplate, err := template.ParseFiles(templatePath)
 	if err != nil {
-		return "", extension, err
+		return
 	}
+
+	targetFile, err := os.Create(entrypointPath)
+	if err != nil {
+		return
+	}
+	defer targetFile.Close()
 
 	err = entrypointTemplate.Execute(targetFile, data)
 	if err != nil {
-		return "", extension, err
+		return
 	}
 
-	if runtime.GOOS != "windows" {
-		err = os.Chmod(path, 0755)
-		if err != nil {
-			return "", extension, err
-		}
-	}
-
-	bytes, err := ioutil.ReadFile(path)
+	err = os.Chmod(entrypointPath, 0666)
 	if err != nil {
-		return "", extension, err
+		return
 	}
-	log.Debug().Str("entrypoint", string(bytes)).Msgf("Inspecting entrypoint script at %v", path)
 
-	return path, extension, nil
+	hostPath = entrypointPath
+	if runtime.GOOS == "windows" {
+		hostPath = filepath.Join(dr.envvarHelper.GetTempDir(), strings.TrimPrefix(hostPath, "C:\\Users\\ContainerAdministrator\\AppData\\Local\\Temp"))
+	}
+	mountPath = path.Join("/entrypoint", entrypointFile)
+
+	return
 }
 
-func (dr *dockerRunnerImpl) initContainerStartVariables(shell string, commands []string, runCommandsInForeground bool, customProperties map[string]interface{}) (entrypoint []string, cmds []string, argsEscaped bool, binds []string) {
+func (dr *dockerRunnerImpl) initContainerStartVariables(shell string, commands []string, runCommandsInForeground bool, customProperties map[string]interface{}, trustedImage *contracts.TrustedImageConfig) (entrypoint []string, cmds []string, binds []string, err error) {
 	entrypoint = make([]string, 0)
 	cmds = make([]string, 0)
 	binds = make([]string, 0)
 
 	if len(commands) > 0 {
 		// generate entrypoint script
-		path, extension, err := dr.generateEntrypointScript(shell, commands, runCommandsInForeground)
-		if runtime.GOOS != "windows" && err == nil {
-			// use generated entrypoint script for executing commands
-			entrypointScriptPath := fmt.Sprintf("/estafette-entrypoint.%v", extension)
-			entrypoint = []string{entrypointScriptPath}
-			binds = append(binds, fmt.Sprintf("%v:%v", path, entrypointScriptPath))
-		} else {
-			// generating entrypoint script failed, do it in the old way
-			log.Warn().Err(err).Msgf("Generating entrypoint script failed, setting up entrypoint and command in old style")
-
-			// define entrypoint
-			entrypoint = []string{shell}
-			if runtime.GOOS == "windows" && shell == "powershell" {
-				entrypoint = append(entrypoint, "-Command")
-			} else if runtime.GOOS == "windows" && shell == "cmd" {
-				entrypoint = append(entrypoint, "/S", "/C")
-			} else {
-				entrypoint = append(entrypoint, "-c")
-			}
-
-			// define commands
-			cmdStopOnErrorFlag := "set -e; "
-			cmdSeparator := ";"
-			wrapJoinedCommandsInQuotes := false
-			if runtime.GOOS == "windows" && shell == "powershell" {
-				cmdStopOnErrorFlag = "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue'; "
-
-				// allow mtu to be overriden by a param on the stage
-				if val, ok := customProperties["mtu"]; ok {
-					switch s := val.(type) {
-					case float64:
-						mtu := int(s)
-						if mtu > 0 {
-							cmdStopOnErrorFlag += fmt.Sprintf("netsh interface ipv4 show interfaces; Write-Host 'Updating MTU to %v...'; Get-NetAdapter | Where-Object Name -like \"*Ethernet*\" | ForEach-Object { & netsh interface ipv4 set subinterface $_.InterfaceIndex mtu=%v store=persistent }; netsh interface ipv4 show interfaces; ", mtu, mtu)
-						}
-					}
-				}
-
-				cmdSeparator = ";"
-			} else if runtime.GOOS == "windows" && shell == "cmd" {
-				cmdStopOnErrorFlag = ""
-				cmdSeparator = " && "
-				// wrapJoinedCommandsInQuotes = true
-				argsEscaped = true
-			}
-
-			joinedCommands := strings.Join(commands, cmdSeparator)
-			if wrapJoinedCommandsInQuotes {
-				joinedCommands = fmt.Sprintf("\" %v \"", joinedCommands)
-			}
-			cmds = append(cmds, cmdStopOnErrorFlag+joinedCommands)
+		entrypointHostPath, entrypointMountPath, innerErr := dr.generateEntrypointScript(shell, commands, runCommandsInForeground)
+		if innerErr != nil {
+			return entrypoint, cmds, binds, innerErr
 		}
+
+		// use generated entrypoint script for executing commands
+		entrypoint = []string{entrypointMountPath}
+		binds = append(binds, fmt.Sprintf("%v:%v", entrypointHostPath, entrypointMountPath))
+	}
+
+	// mount injected credentials as files
+	credentialsHostPath, credentialsMountPath, err := dr.generateCredentialsFiles(trustedImage)
+	if err != nil {
+		return
+	}
+	if credentialsHostPath != "" && credentialsMountPath != "" {
+		binds = append(binds, fmt.Sprintf("%v:%v", credentialsHostPath, credentialsMountPath))
 	}
 
 	return
@@ -1218,13 +1165,13 @@ func (dr *dockerRunnerImpl) generateExtensionEnvvars(customProperties map[string
 	return
 }
 
-func (dr *dockerRunnerImpl) generateCredentialsFiles(trustedImage *contracts.TrustedImageConfig) (credentialsdir string, err error) {
+func (dr *dockerRunnerImpl) generateCredentialsFiles(trustedImage *contracts.TrustedImageConfig) (hostPath, mountPath string, err error) {
 
 	if trustedImage != nil {
 		// create a tempdir to store credential files in and mount into container
-		credentialsdir, err = ioutil.TempDir("", "*-credentials")
-		if err != nil {
-			return
+		credentialsdir, innerErr := ioutil.TempDir("", "*-credentials")
+		if innerErr != nil {
+			return hostPath, mountPath, innerErr
 		}
 
 		// set permissions on directory to avoid non-root containers not to be able to read from the mounted directory
@@ -1246,7 +1193,7 @@ func (dr *dockerRunnerImpl) generateCredentialsFiles(trustedImage *contracts.Tru
 			// convert credentialsForType to json string
 			credentialsForTypeBytes, innerErr := json.Marshal(credentialsForType)
 			if innerErr != nil {
-				return credentialsdir, innerErr
+				return hostPath, mountPath, innerErr
 			}
 
 			// expand estafette variables in json file
@@ -1262,11 +1209,11 @@ func (dr *dockerRunnerImpl) generateCredentialsFiles(trustedImage *contracts.Tru
 			log.Debug().Msgf("Stored credentials of type %v in file %v", credentialType, filepath)
 		}
 
+		hostPath = credentialsdir
 		if runtime.GOOS == "windows" {
-			log.Debug().Msgf("Joining %v and %v to create credentials dir hostpath for mounting credentials", dr.envvarHelper.GetTempDir(), credentialsdir)
-			// create full path to credentials dir on host (inside the emptydir representing the workdir) to able to bind it using docker-outside-docker
-			credentialsdir = filepath.Join(dr.envvarHelper.GetTempDir(), strings.TrimPrefix(credentialsdir, "C:\\Users\\ContainerAdministrator\\AppData\\Local\\Temp"))
+			hostPath = filepath.Join(dr.envvarHelper.GetTempDir(), strings.TrimPrefix(hostPath, "C:\\Users\\ContainerAdministrator\\AppData\\Local\\Temp"))
 		}
+		mountPath = "/credentials"
 	}
 
 	return
