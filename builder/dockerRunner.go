@@ -1055,7 +1055,7 @@ func (dr *dockerRunnerImpl) generateEntrypointScript(shell string, commands []st
 		return
 	}
 
-	err = os.Chmod(entrypointPath, 0666)
+	err = os.Chmod(entrypointPath, 0777)
 	if err != nil {
 		return
 	}
@@ -1064,7 +1064,7 @@ func (dr *dockerRunnerImpl) generateEntrypointScript(shell string, commands []st
 	if runtime.GOOS == "windows" {
 		hostPath = filepath.Join(dr.envvarHelper.GetTempDir(), strings.TrimPrefix(hostPath, "C:\\Users\\ContainerAdministrator\\AppData\\Local\\Temp"))
 	}
-	mountPath = path.Join("/entrypoint", entrypointFile)
+	mountPath = path.Join("/", entrypointFile)
 
 	return
 }
