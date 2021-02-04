@@ -974,7 +974,7 @@ func (dr *dockerRunnerImpl) DeleteBridgeNetwork(ctx context.Context) error {
 	return nil
 }
 
-func (dr *dockerRunnerImpl) generateEntrypointScript(shell string, commands []string, runCommandsInForeground bool) (hostPath, mountPath string, err error) {
+func (dr *dockerRunnerImpl) generateEntrypointScript(shell string, commands []string, runCommandsInForeground bool) (hostPath, mountPath, entrypointFile string, err error) {
 
 	r, _ := regexp.Compile("[a-zA-Z0-9_]+=|export|shopt|;|cd |\\||&&|\\|\\|")
 
@@ -1017,7 +1017,7 @@ func (dr *dockerRunnerImpl) generateEntrypointScript(shell string, commands []st
 		runFinalCommandWithExec,
 	}
 
-	entrypointFile := "entrypoint.sh"
+	entrypointFile = "entrypoint.sh"
 	if runtime.GOOS == "windows" && shell == "powershell" {
 		entrypointFile = "entrypoint.ps1"
 	} else if runtime.GOOS == "windows" && shell == "cmd" {
@@ -1060,8 +1060,8 @@ func (dr *dockerRunnerImpl) generateEntrypointScript(shell string, commands []st
 		return
 	}
 
-	hostPath = entrypointPath
-	mountPath = path.Join("/", entrypointFile)
+	hostPath = entrypointdir
+	mountPath = "/entrypoint"
 	if runtime.GOOS == "windows" {
 		hostPath = filepath.Join(dr.envvarHelper.GetTempDir(), strings.TrimPrefix(hostPath, "C:\\Users\\ContainerAdministrator\\AppData\\Local\\Temp"))
 		mountPath = "C:" + mountPath
@@ -1077,13 +1077,13 @@ func (dr *dockerRunnerImpl) initContainerStartVariables(shell string, commands [
 
 	if len(commands) > 0 {
 		// generate entrypoint script
-		entrypointHostPath, entrypointMountPath, innerErr := dr.generateEntrypointScript(shell, commands, runCommandsInForeground)
+		entrypointHostPath, entrypointMountPath, entrypointFile, innerErr := dr.generateEntrypointScript(shell, commands, runCommandsInForeground)
 		if innerErr != nil {
 			return entrypoint, cmds, binds, innerErr
 		}
 
 		// use generated entrypoint script for executing commands
-		entrypoint = []string{entrypointMountPath}
+		entrypoint = []string{path.Join(entrypointMountPath, entrypointFile)}
 		binds = append(binds, fmt.Sprintf("%v:%v", entrypointHostPath, entrypointMountPath))
 	}
 
