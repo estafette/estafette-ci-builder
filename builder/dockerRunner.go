@@ -935,6 +935,12 @@ func (dr *dockerRunnerImpl) CreateBridgeNetwork(ctx context.Context) error {
 					},
 				},
 			}
+			if options.Options == nil {
+				options.Options = map[string]string{}
+			}
+			if dr.config.DockerDaemonMTU != nil {
+				options.Options["com.docker.network.driver.mtu"] = *dr.config.DockerDaemonMTU
+			}
 		}
 
 		resp, err := dr.dockerClient.NetworkCreate(ctx, name, options)
