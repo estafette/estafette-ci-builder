@@ -984,13 +984,13 @@ func (dr *dockerRunnerImpl) DeleteBridgeNetwork(ctx context.Context) error {
 
 func (dr *dockerRunnerImpl) generateEntrypointScript(shell string, commands []string, runCommandsInForeground bool) (hostPath, mountPath, entrypointFile string, err error) {
 
-	if dr.config.Manifest != nil && dr.config.Manifest.Builder.MTU > 0 {
-		if runtime.GOOS == "windows" && shell == "powershell" {
-			commands = append([]string{fmt.Sprintf("Get-NetAdapter | Where-Object Name -like \"*Ethernet*\" | ForEach-Object { & netsh interface ipv4 set subinterface $_.InterfaceIndex mtu=%v store=persistent }", dr.config.Manifest.Builder.MTU)}, commands...)
-		} else if runtime.GOOS == "windows" && shell == "cmd" {
-			commands = append([]string{fmt.Sprintf("netsh interface ipv4 set subinterface 31 mtu=%v", dr.config.Manifest.Builder.MTU)}, commands...)
-		}
-	}
+	// if dr.config.Manifest != nil && dr.config.Manifest.Builder.MTU > 0 {
+	// 	if runtime.GOOS == "windows" && shell == "powershell" {
+	// 		commands = append([]string{fmt.Sprintf("Get-NetAdapter | Where-Object Name -like \"*Ethernet*\" | ForEach-Object { & netsh interface ipv4 set subinterface $_.InterfaceIndex mtu=%v store=persistent }", dr.config.Manifest.Builder.MTU)}, commands...)
+	// 	} else if runtime.GOOS == "windows" && shell == "cmd" {
+	// 		commands = append([]string{fmt.Sprintf("netsh interface ipv4 set subinterface 31 mtu=%v", dr.config.Manifest.Builder.MTU)}, commands...)
+	// 	}
+	// }
 
 	r, _ := regexp.Compile("[a-zA-Z0-9_]+=|export|shopt|;|cd |\\||&&|\\|\\|")
 
