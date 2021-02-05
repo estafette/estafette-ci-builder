@@ -90,12 +90,15 @@ stages:
         '{
           "action":"build",
           "track":"dev",
-          "dindMtu":"1460",
-          "dindBip":"192.168.3.1/24",
-          "dindNetwork":{
-            "name":"estafette-integration",
-            "subnet":"192.168.4.1/24",
-            "gateway":"192.168.4.1"
+          "dockerConfig":{
+            "runType":"dind",
+            "mtu":1460,
+            "bip":"192.168.3.1/24",
+            "networks":[{
+              "name":"estafette-integration",
+              "subnet":"192.168.4.1/24",
+              "gateway":"192.168.4.1"
+            }]
           },
           "manifest":{
             "Builder":{
