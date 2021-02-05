@@ -715,22 +715,16 @@ func (dr *dockerRunnerImpl) StartDockerDaemon() error {
 	// if an mtu is configured pass it to the docker daemon
 	if dr.config.DockerConfig != nil && dr.config.DockerConfig.RunType == contracts.DockerRunTypeDinD && dr.config.DockerConfig.MTU > 0 {
 		args = append(args, fmt.Sprintf("--mtu=%v", dr.config.DockerConfig.MTU))
-	} else if dr.config.DockerDaemonMTU != nil && *dr.config.DockerDaemonMTU != "" {
-		args = append(args, fmt.Sprintf("--mtu=%v", *dr.config.DockerDaemonMTU))
 	}
 
 	// if a bip is configured pass it to the docker daemon
 	if dr.config.DockerConfig != nil && dr.config.DockerConfig.RunType == contracts.DockerRunTypeDinD && dr.config.DockerConfig.BIP != "" {
 		args = append(args, fmt.Sprintf("--bip=%v", dr.config.DockerConfig.BIP))
-	} else if dr.config.DockerDaemonBIP != nil && *dr.config.DockerDaemonBIP != "" {
-		args = append(args, fmt.Sprintf("--bip=%v", *dr.config.DockerDaemonBIP))
 	}
 
 	// if a registry mirror is configured pass it to the docker daemon
 	if dr.config.DockerConfig != nil && dr.config.DockerConfig.RunType == contracts.DockerRunTypeDinD && dr.config.DockerConfig.RegistryMirror != "" {
-		args = append(args, fmt.Sprintf("--registry-mirror=%v", *dr.config.RegistryMirror))
-	} else if dr.config.RegistryMirror != nil && *dr.config.RegistryMirror != "" {
-		args = append(args, fmt.Sprintf("--registry-mirror=%v", *dr.config.RegistryMirror))
+		args = append(args, fmt.Sprintf("--registry-mirror=%v", dr.config.DockerConfig.RegistryMirror))
 	}
 
 	dockerDaemonCommand := exec.Command("dockerd", args...)
