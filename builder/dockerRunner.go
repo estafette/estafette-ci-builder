@@ -933,18 +933,45 @@ func (dr *dockerRunnerImpl) removeRunningContainerID(containerIDs []string, cont
 func (dr *dockerRunnerImpl) CreateNetworks(ctx context.Context) error {
 
 	if dr.config.DockerConfig != nil {
+
+		// fetch existing networks, so we're not creating ones that already exist
+		currentNetworks, err := dr.dockerClient.NetworkList(ctx, types.NetworkListOptions{})
+		if err != nil {
+			return err
+		}
+
 		for _, nw := range dr.config.DockerConfig.Networks {
 
-			options := types.NetworkCreate{
-				IPAM: &network.IPAM{
-					Driver: "default",
-					Config: []network.IPAMConfig{
+			// check if network already exists
+			networkExists := false
+			for _, cnw := range currentNetworks {
+				if cnw.Name == nw.Name {
+					networkExists = true
+					break
+				}
+			}
+
+			if networkExists {
+				log.Info().Msgf("Docker network %v already exists, no need to create it", nw.Name)
+				continue
+			}
+
+			log.Info().Msgf("Creating docker network %v with values %v", nw.Name, nw)
+
+			options := types.NetworkCreate{}
+			if nw.Driver != "" {
+				options.IPAM = &network.IPAM{
+					Driver: nw.Driver,
+				}
+
+				if nw.Subnet != "" && nw.Gateway != "" {
+					options.IPAM.Config = []network.IPAMConfig{
 						{
 							Subnet:  nw.Subnet,
 							Gateway: nw.Gateway,
 						},
-					},
-				},
+					}
+				}
 			}
 
 			resp, err := dr.dockerClient.NetworkCreate(ctx, nw.Name, options)
@@ -956,7 +983,7 @@ func (dr *dockerRunnerImpl) CreateNetworks(ctx context.Context) error {
 
 			dr.networks[nw.Name] = resp.ID
 
-			log.Info().Msgf("Succesfully created docker network %v with id %v", nw, resp.ID)
+			log.Info().Msgf("Succesfully created docker network %v with id %v", nw.Name, resp.ID)
 		}
 	}
 
@@ -965,13 +992,15 @@ func (dr *dockerRunnerImpl) CreateNetworks(ctx context.Context) error {
 
 func (dr *dockerRunnerImpl) DeleteNetworks(ctx context.Context) error {
 
-	for networkName, networkID := range dr.networks {
-		log.Info().Msgf("Deleting docker network %v with id %v...", networkName, networkID)
+	for _, nw := range dr.config.DockerConfig.Networks {
+		if networkID, ok := dr.networks[nw.Name]; ok && !nw.Durable {
+			log.Info().Msgf("Deleting docker network %v with id %v...", nw.Name, networkID)
 
-		err := dr.dockerClient.NetworkRemove(ctx, networkID)
-		if err != nil {
-			log.Error().Err(err).Msgf("Failed deleting docker network %v with id %v", networkName, networkID)
-			return err
+			err := dr.dockerClient.NetworkRemove(ctx, networkID)
+			if err != nil {
+				log.Error().Err(err).Msgf("Failed deleting docker network %v with id %v", nw.Name, networkID)
+				return err
+			}
 		}
 	}
 
