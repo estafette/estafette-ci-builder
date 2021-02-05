@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"runtime"
 
 	contracts "github.com/estafette/estafette-ci-contracts"
 	manifest "github.com/estafette/estafette-ci-manifest"
@@ -87,17 +86,15 @@ func (b *ciBuilderImpl) RunEstafetteBuildJob(pipelineRunner PipelineRunner, dock
 	_ = endOfLifeHelper.SendBuildStartedEvent(ctx)
 
 	// start docker daemon
-	if runtime.GOOS != "windows" {
-		dockerDaemonStartSpan, _ := opentracing.StartSpanFromContext(ctx, "StartDockerDaemon")
-		err := dockerRunner.StartDockerDaemon()
-		if err != nil {
-			endOfLifeHelper.HandleFatal(ctx, buildLog, err, "Error starting docker daemon")
-		}
-
-		// wait for docker daemon to be ready for usage
-		dockerRunner.WaitForDockerDaemon()
-		dockerDaemonStartSpan.Finish()
+	dockerDaemonStartSpan, _ := opentracing.StartSpanFromContext(ctx, "StartDockerDaemon")
+	err := dockerRunner.StartDockerDaemon()
+	if err != nil {
+		endOfLifeHelper.HandleFatal(ctx, buildLog, err, "Error starting docker daemon")
 	}
+
+	// wait for docker daemon to be ready for usage
+	dockerRunner.WaitForDockerDaemon()
+	dockerDaemonStartSpan.Finish()
 
 	// listen to cancellation in order to stop any running pipeline or container
 	go pipelineRunner.StopPipelineOnCancellation()
@@ -109,7 +106,7 @@ func (b *ciBuilderImpl) RunEstafetteBuildJob(pipelineRunner PipelineRunner, dock
 	}
 
 	// set some envvars
-	err := envvarHelper.SetEstafetteGlobalEnvvars()
+	err = envvarHelper.SetEstafetteGlobalEnvvars()
 	if err != nil {
 		endOfLifeHelper.HandleFatal(ctx, buildLog, err, "Setting global environment variables failed")
 	}

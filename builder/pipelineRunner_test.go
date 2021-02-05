@@ -1101,7 +1101,7 @@ func TestRunStages(t *testing.T) {
 
 		// set mock responses
 		createBridgeNetworkFuncCalled := false
-		dockerRunnerMock.createBridgeNetworkFunc = func(ctx context.Context) error {
+		dockerRunnerMock.createNetworksFunc = func(ctx context.Context) error {
 			createBridgeNetworkFuncCalled = true
 			return nil
 		}
@@ -1129,7 +1129,7 @@ func TestRunStages(t *testing.T) {
 
 		// set mock responses
 		deleteBridgeNetworkFuncCalled := false
-		dockerRunnerMock.deleteBridgeNetworkFunc = func(ctx context.Context) error {
+		dockerRunnerMock.deleteNetworksFunc = func(ctx context.Context) error {
 			deleteBridgeNetworkFuncCalled = true
 			return nil
 		}

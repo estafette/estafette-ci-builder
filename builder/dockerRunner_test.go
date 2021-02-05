@@ -31,8 +31,8 @@ type dockerRunnerMockImpl struct {
 	isTrustedImageFunc                   func(stageName string, containerImage string) bool
 	hasInjectedCredentialsFunc           func(stageName string, containerImage string) bool
 	stopAllContainersFunc                func()
-	createBridgeNetworkFunc              func(ctx context.Context) error
-	deleteBridgeNetworkFunc              func(ctx context.Context) error
+	createNetworksFunc                   func(ctx context.Context) error
+	deleteNetworksFunc                   func(ctx context.Context) error
 }
 
 func (d *dockerRunnerMockImpl) IsImagePulled(stageName string, containerImage string) bool {
@@ -136,18 +136,18 @@ func (d *dockerRunnerMockImpl) StopAllContainers() {
 	}
 }
 
-func (d *dockerRunnerMockImpl) CreateBridgeNetwork(ctx context.Context) error {
-	if d.createBridgeNetworkFunc == nil {
+func (d *dockerRunnerMockImpl) CreateNetworks(ctx context.Context) error {
+	if d.createNetworksFunc == nil {
 		return nil
 	}
-	return d.createBridgeNetworkFunc(ctx)
+	return d.createNetworksFunc(ctx)
 }
 
-func (d *dockerRunnerMockImpl) DeleteBridgeNetwork(ctx context.Context) error {
-	if d.deleteBridgeNetworkFunc == nil {
+func (d *dockerRunnerMockImpl) DeleteNetworks(ctx context.Context) error {
+	if d.deleteNetworksFunc == nil {
 		return nil
 	}
-	return d.deleteBridgeNetworkFunc(ctx)
+	return d.deleteNetworksFunc(ctx)
 }
 
 func TestGenerateEntrypointScript(t *testing.T) {

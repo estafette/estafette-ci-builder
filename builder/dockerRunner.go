@@ -50,19 +50,13 @@ type DockerRunner interface {
 	StartDockerDaemon() error
 	WaitForDockerDaemon()
 	CreateDockerClient() (*client.Client, error)
-	CreateBridgeNetwork(ctx context.Context) error
-	DeleteBridgeNetwork(ctx context.Context) error
+	CreateNetworks(ctx context.Context) error
+	DeleteNetworks(ctx context.Context) error
 	StopAllContainers()
 }
 
 // NewDockerRunner returns a new DockerRunner
 func NewDockerRunner(envvarHelper EnvvarHelper, obfuscator Obfuscator, config contracts.BuilderConfig, tailLogsChannel chan contracts.TailLogLine) DockerRunner {
-
-	networkBridge := "estafette"
-
-	if runtime.GOOS == "windows" {
-		networkBridge += "-" + generateRandomString(5)
-	}
 
 	return &dockerRunnerImpl{
 		envvarHelper:                          envvarHelper,
@@ -73,7 +67,7 @@ func NewDockerRunner(envvarHelper EnvvarHelper, obfuscator Obfuscator, config co
 		runningSingleStageServiceContainerIDs: make([]string, 0),
 		runningMultiStageServiceContainerIDs:  make([]string, 0),
 		runningReadinessProbeContainerIDs:     make([]string, 0),
-		networkBridge:                         networkBridge,
+		networks:                              map[string]string{},
 		entrypointTemplateDir:                 "/entrypoint-templates",
 	}
 }
@@ -89,9 +83,10 @@ type dockerRunnerImpl struct {
 	runningSingleStageServiceContainerIDs []string
 	runningMultiStageServiceContainerIDs  []string
 	runningReadinessProbeContainerIDs     []string
-	networkBridge                         string
-	networkBridgeID                       string
-	entrypointTemplateDir                 string
+	// networkBridge                         string
+	// networkBridgeID                       string
+	networks              map[string]string
+	entrypointTemplateDir string
 }
 
 func (dr *dockerRunnerImpl) IsImagePulled(stageName string, containerImage string) bool {
@@ -267,17 +262,11 @@ func (dr *dockerRunnerImpl) StartStageContainer(ctx context.Context, depth int, 
 		return "", err
 	}
 
-	// connect to user-defined network
-	if runtime.GOOS == "windows" {
-		err = dr.dockerClient.NetworkConnect(ctx, "nat", resp.ID, nil)
+	// connect to any configured networks
+	for networkName, networkID := range dr.networks {
+		err = dr.dockerClient.NetworkConnect(ctx, networkID, resp.ID, nil)
 		if err != nil {
-			log.Error().Err(err).Msgf("Failed connecting container %v to network %v", resp.ID, "nat")
-			return
-		}
-	} else {
-		err = dr.dockerClient.NetworkConnect(ctx, dr.networkBridgeID, resp.ID, nil)
-		if err != nil {
-			log.Error().Err(err).Msgf("Failed connecting container %v to network %v", resp.ID, dr.networkBridgeID)
+			log.Error().Err(err).Msgf("Failed connecting container %v to network %v with id %v", resp.ID, networkName, networkID)
 			return
 		}
 	}
@@ -409,17 +398,11 @@ func (dr *dockerRunnerImpl) StartServiceContainer(ctx context.Context, envvars m
 		return
 	}
 
-	// connect to user-defined network
-	if runtime.GOOS == "windows" {
-		err = dr.dockerClient.NetworkConnect(ctx, "nat", resp.ID, nil)
+	// connect to any configured networks
+	for networkName, networkID := range dr.networks {
+		err = dr.dockerClient.NetworkConnect(ctx, networkID, resp.ID, nil)
 		if err != nil {
-			log.Error().Err(err).Msgf("Failed connecting container %v to network %v", resp.ID, "nat")
-			return
-		}
-	} else {
-		err = dr.dockerClient.NetworkConnect(ctx, dr.networkBridgeID, resp.ID, nil)
-		if err != nil {
-			log.Error().Err(err).Msgf("Failed connecting container %v to network %v", resp.ID, dr.networkBridgeID)
+			log.Error().Err(err).Msgf("Failed connecting container %v to network %v with id %v", resp.ID, networkName, networkID)
 			return
 		}
 	}
@@ -506,17 +489,11 @@ func (dr *dockerRunnerImpl) RunReadinessProbeContainer(ctx context.Context, pare
 		return
 	}
 
-	// connect to user-defined network
-	if runtime.GOOS == "windows" {
-		err = dr.dockerClient.NetworkConnect(ctx, "nat", resp.ID, nil)
+	// connect to any configured networks
+	for networkName, networkID := range dr.networks {
+		err = dr.dockerClient.NetworkConnect(ctx, networkID, resp.ID, nil)
 		if err != nil {
-			log.Error().Err(err).Msgf("Failed connecting container %v to network %v", resp.ID, "nat")
-			return
-		}
-	} else {
-		err = dr.dockerClient.NetworkConnect(ctx, dr.networkBridgeID, resp.ID, nil)
-		if err != nil {
-			log.Error().Err(err).Msgf("Failed connecting container %v to network %v", resp.ID, dr.networkBridgeID)
+			log.Error().Err(err).Msgf("Failed connecting container %v to network %v with id %v", resp.ID, networkName, networkID)
 			return
 		}
 	}
@@ -727,25 +704,32 @@ func (dr *dockerRunnerImpl) StopMultiStageServiceContainers(ctx context.Context)
 }
 
 func (dr *dockerRunnerImpl) StartDockerDaemon() error {
+	if dr.config.DockerConfig != nil && dr.config.DockerConfig.RunType != contracts.DockerRunTypeDinD {
+		return nil
+	}
 
 	// dockerd --host=unix:///var/run/docker.sock --host=tcp://0.0.0.0:2375 --mtu=1500 &
 	log.Debug().Msg("Starting docker daemon...")
 	args := []string{"--host=unix:///var/run/docker.sock", "--host=tcp://0.0.0.0:2375"}
 
 	// if an mtu is configured pass it to the docker daemon
-	if dr.config.Manifest != nil && dr.config.Manifest.Builder.MTU > 0 {
-		args = append(args, fmt.Sprintf("--mtu=%v", dr.config.Manifest.Builder.MTU))
+	if dr.config.DockerConfig != nil && dr.config.DockerConfig.RunType == contracts.DockerRunTypeDinD && dr.config.DockerConfig.MTU > 0 {
+		args = append(args, fmt.Sprintf("--mtu=%v", dr.config.DockerConfig.MTU))
 	} else if dr.config.DockerDaemonMTU != nil && *dr.config.DockerDaemonMTU != "" {
 		args = append(args, fmt.Sprintf("--mtu=%v", *dr.config.DockerDaemonMTU))
 	}
 
 	// if a bip is configured pass it to the docker daemon
-	if dr.config.DockerDaemonBIP != nil && *dr.config.DockerDaemonBIP != "" {
+	if dr.config.DockerConfig != nil && dr.config.DockerConfig.RunType == contracts.DockerRunTypeDinD && dr.config.DockerConfig.BIP != "" {
+		args = append(args, fmt.Sprintf("--bip=%v", dr.config.DockerConfig.BIP))
+	} else if dr.config.DockerDaemonBIP != nil && *dr.config.DockerDaemonBIP != "" {
 		args = append(args, fmt.Sprintf("--bip=%v", *dr.config.DockerDaemonBIP))
 	}
 
 	// if a registry mirror is configured pass it to the docker daemon
-	if dr.config.RegistryMirror != nil && *dr.config.RegistryMirror != "" {
+	if dr.config.DockerConfig != nil && dr.config.DockerConfig.RunType == contracts.DockerRunTypeDinD && dr.config.DockerConfig.RegistryMirror != "" {
+		args = append(args, fmt.Sprintf("--registry-mirror=%v", *dr.config.RegistryMirror))
+	} else if dr.config.RegistryMirror != nil && *dr.config.RegistryMirror != "" {
 		args = append(args, fmt.Sprintf("--registry-mirror=%v", *dr.config.RegistryMirror))
 	}
 
@@ -761,6 +745,9 @@ func (dr *dockerRunnerImpl) StartDockerDaemon() error {
 }
 
 func (dr *dockerRunnerImpl) WaitForDockerDaemon() {
+	if dr.config.DockerConfig != nil && dr.config.DockerConfig.RunType != contracts.DockerRunTypeDinD {
+		return
+	}
 
 	// wait until /var/run/docker.sock exists
 	log.Debug().Msg("Waiting for docker daemon to be ready for use...")
@@ -943,76 +930,55 @@ func (dr *dockerRunnerImpl) removeRunningContainerID(containerIDs []string, cont
 	return purgedContainerIDs
 }
 
-func (dr *dockerRunnerImpl) CreateBridgeNetwork(ctx context.Context) error {
+func (dr *dockerRunnerImpl) CreateNetworks(ctx context.Context) error {
 
-	if dr.networkBridgeID == "" {
-		log.Info().Msgf("Creating docker network %v...", dr.networkBridge)
+	if dr.config.DockerConfig != nil {
+		for _, nw := range dr.config.DockerConfig.Networks {
 
-		name := dr.networkBridge
-		options := types.NetworkCreate{}
-		if dr.config.DockerNetwork != nil && runtime.GOOS != "windows" {
-			name = dr.config.DockerNetwork.Name
-			options.IPAM = &network.IPAM{
-				Driver: "default",
-				Config: []network.IPAMConfig{
-					{
-						Subnet:  dr.config.DockerNetwork.Subnet,
-						Gateway: dr.config.DockerNetwork.Gateway,
+			options := types.NetworkCreate{
+				IPAM: &network.IPAM{
+					Driver: "default",
+					Config: []network.IPAMConfig{
+						{
+							Subnet:  nw.Subnet,
+							Gateway: nw.Gateway,
+						},
 					},
 				},
 			}
+
+			resp, err := dr.dockerClient.NetworkCreate(ctx, nw.Name, options)
+
+			if err != nil {
+				log.Error().Err(err).Msgf("Failed creating docker network %v", nw.Name)
+				return err
+			}
+
+			dr.networks[nw.Name] = resp.ID
+
+			log.Info().Msgf("Succesfully created docker network %v with id %v", nw, resp.ID)
 		}
-
-		resp, err := dr.dockerClient.NetworkCreate(ctx, name, options)
-
-		if err != nil {
-			log.Error().Err(err).Msgf("Failed creating docker network %v", dr.networkBridge)
-			return err
-		}
-
-		dr.networkBridgeID = resp.ID
-
-		log.Info().Msgf("Succesfully created docker network %v", dr.networkBridge)
-
-	} else {
-		log.Info().Msgf("Docker network %v already exists with id %v...", dr.networkBridge, dr.networkBridgeID)
 	}
+
 	return nil
 }
 
-func (dr *dockerRunnerImpl) DeleteBridgeNetwork(ctx context.Context) error {
+func (dr *dockerRunnerImpl) DeleteNetworks(ctx context.Context) error {
 
-	if dr.networkBridgeID != "" {
-		log.Info().Msgf("Deleting docker network %v with id %v...", dr.networkBridge, dr.networkBridgeID)
+	for networkName, networkID := range dr.networks {
+		log.Info().Msgf("Deleting docker network %v with id %v...", networkName, networkID)
 
-		err := dr.dockerClient.NetworkRemove(ctx, dr.networkBridgeID)
-
+		err := dr.dockerClient.NetworkRemove(ctx, networkID)
 		if err != nil {
-			log.Error().Err(err).Msgf("Failed deleting docker network %v with id %v", dr.networkBridge, dr.networkBridgeID)
+			log.Error().Err(err).Msgf("Failed deleting docker network %v with id %v", networkName, networkID)
 			return err
 		}
-
-		dr.networkBridgeID = ""
-
-		log.Info().Msgf("Succesfully deleted docker network %v with id %v", dr.networkBridge, dr.networkBridgeID)
 	}
 
 	return nil
 }
 
 func (dr *dockerRunnerImpl) generateEntrypointScript(shell string, commands []string, runCommandsInForeground bool) (hostPath, mountPath, entrypointFile string, err error) {
-
-	if runtime.GOOS == "windows" {
-		commands = append([]string{"netsh interface ipv4 show subinterfaces"}, commands...)
-	}
-
-	// if dr.config.Manifest != nil && dr.config.Manifest.Builder.MTU > 0 {
-	// 	if runtime.GOOS == "windows" && shell == "powershell" {
-	// 		commands = append([]string{fmt.Sprintf("Get-NetAdapter | Where-Object Name -like \"*Ethernet*\" | ForEach-Object { & netsh interface ipv4 set subinterface $_.InterfaceIndex mtu=%v store=persistent }", dr.config.Manifest.Builder.MTU)}, commands...)
-	// 	} else if runtime.GOOS == "windows" && shell == "cmd" {
-	// 		commands = append([]string{fmt.Sprintf("netsh interface ipv4 set subinterface 31 mtu=%v", dr.config.Manifest.Builder.MTU)}, commands...)
-	// 	}
-	// }
 
 	r, _ := regexp.Compile("[a-zA-Z0-9_]+=|export|shopt|;|cd |\\||&&|\\|\\|")
 
