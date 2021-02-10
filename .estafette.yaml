@@ -530,6 +530,5 @@ releases:
         repositories:
         - estafette
         tags:
-        - nanoserver-1809
         - nanoserver-1809-stable
         pushVersionTag: false
