@@ -1,4 +1,4 @@
-package builder
+package obfuscation
 
 import (
 	"encoding/base64"

@@ -1,4 +1,4 @@
-package builder
+package envvar
 
 import (
 	"os"
@@ -13,12 +13,17 @@ import (
 
 var (
 	secretHelper = crypt.NewSecretHelper("SazbwMf3NZxVVbBqQHebPcXCqrVn3DDp", false)
-	envvarHelper = NewEnvvarHelper("TESTPREFIX_", secretHelper, obfuscator)
+	envvarHelper = NewClient("TESTPREFIX_", secretHelper, obfuscator)
 )
 
 func TestOverrideEnvvars(t *testing.T) {
 
 	t.Run("CombinesAllEnvvarsFromPassedMaps", func(t *testing.T) {
+
+		secretHelper = crypt.NewSecretHelper("SazbwMf3NZxVVbBqQHebPcXCqrVn3DDp", false)
+		obfuscationClient = 
+		envvarHelper = NewClient("TESTPREFIX_", secretHelper, obfuscator)
+	
 
 		envvarHelper.UnsetEstafetteEnvvars()
 		outerMap := map[string]string{

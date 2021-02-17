@@ -1,4 +1,4 @@
-package builder
+package obfuscation
 
 import (
 	"encoding/base64"
@@ -12,26 +12,27 @@ import (
 
 const maxLengthToSkipObfuscation = 3
 
-// Obfuscator hides secret values and other sensitive stuff from the logs
-type Obfuscator interface {
+// Client hides secret values and other sensitive stuff from the logs
+//go:generate mockgen -package=obfuscation -destination ./mock.go -source=client.go
+type Client interface {
 	CollectSecrets(manifest manifest.EstafetteManifest, credentialsBytes []byte, pipeline string) (err error)
 	Obfuscate(input string) string
 	ObfuscateSecrets(input string) string
 }
 
-type obfuscatorImpl struct {
+// NewClient returns a new Client
+func NewClient(secretHelper crypt.SecretHelper) (Client, error) {
+	return &client{
+		secretHelper: secretHelper,
+	}, nil
+}
+
+type client struct {
 	secretHelper crypt.SecretHelper
 	replacer     *strings.Replacer
 }
 
-// NewObfuscator returns a new Obfuscator
-func NewObfuscator(secretHelper crypt.SecretHelper) Obfuscator {
-	return &obfuscatorImpl{
-		secretHelper: secretHelper,
-	}
-}
-
-func (ob *obfuscatorImpl) CollectSecrets(manifest manifest.EstafetteManifest, credentialsBytes []byte, pipeline string) (err error) {
+func (ob *client) CollectSecrets(manifest manifest.EstafetteManifest, credentialsBytes []byte, pipeline string) (err error) {
 
 	replacerStrings := []string{}
 
@@ -61,7 +62,7 @@ func (ob *obfuscatorImpl) CollectSecrets(manifest manifest.EstafetteManifest, cr
 	return nil
 }
 
-func (ob *obfuscatorImpl) getReplacerStrings(values []string) (replacerStrings []string) {
+func (ob *client) getReplacerStrings(values []string) (replacerStrings []string) {
 
 	replacerStrings = []string{}
 
@@ -106,11 +107,11 @@ func (ob *obfuscatorImpl) getReplacerStrings(values []string) (replacerStrings [
 	return replacerStrings
 }
 
-func (ob *obfuscatorImpl) Obfuscate(input string) string {
+func (ob *client) Obfuscate(input string) string {
 	return ob.replacer.Replace(input)
 }
 
-func (ob *obfuscatorImpl) ObfuscateSecrets(input string) string {
+func (ob *client) ObfuscateSecrets(input string) string {
 
 	r, err := regexp.Compile(`estafette\.secret\(([a-zA-Z0-9.=_-]+)\)`)
 	if err != nil {

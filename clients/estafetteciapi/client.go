@@ -1,4 +1,4 @@
-package builder
+package estafetteciapi
 
 import (
 	"bytes"
@@ -19,8 +19,9 @@ import (
 	"github.com/sethgrid/pester"
 )
 
-// EndOfLifeHelper has methods to shutdown the runner after a fatal or successful run
-type EndOfLifeHelper interface {
+// Client has methods to shutdown the runner after a fatal or successful run
+//go:generate mockgen -package=estafetteciapi -destination ./mock.go -source=client.go
+type Client interface {
 	HandleFatal(context.Context, contracts.BuildLog, error, string)
 	SendBuildStartedEvent(ctx context.Context) error
 	SendBuildFinishedEvent(ctx context.Context, buildStatus contracts.LogStatus) error
@@ -28,22 +29,22 @@ type EndOfLifeHelper interface {
 	SendBuildJobLogEvent(ctx context.Context, buildLog contracts.BuildLog) error
 }
 
-type endOfLifeHelperImpl struct {
+// NewClient returns a new Client
+func NewClient(runAsJob bool, config contracts.BuilderConfig, podName string) (Client, error) {
+	return &client{
+		runAsJob: runAsJob,
+		config:   config,
+		podName:  podName,
+	}, nil
+}
+
+type client struct {
 	runAsJob bool
 	config   contracts.BuilderConfig
 	podName  string
 }
 
-// NewEndOfLifeHelper returns a new EndOfLifeHelper
-func NewEndOfLifeHelper(runAsJob bool, config contracts.BuilderConfig, podName string) EndOfLifeHelper {
-	return &endOfLifeHelperImpl{
-		runAsJob: runAsJob,
-		config:   config,
-		podName:  podName,
-	}
-}
-
-func (elh *endOfLifeHelperImpl) HandleFatal(ctx context.Context, buildLog contracts.BuildLog, err error, message string) {
+func (elh *client) HandleFatal(ctx context.Context, buildLog contracts.BuildLog, err error, message string) {
 
 	// add error messages as step to show in logs
 	fatalStep := contracts.BuildLogStep{
@@ -87,7 +88,7 @@ func (elh *endOfLifeHelperImpl) HandleFatal(ctx context.Context, buildLog contra
 	}
 }
 
-func (elh *endOfLifeHelperImpl) SendBuildJobLogEvent(ctx context.Context, buildLog contracts.BuildLog) (err error) {
+func (elh *client) SendBuildJobLogEvent(ctx context.Context, buildLog contracts.BuildLog) (err error) {
 
 	err = elh.SendBuildJobLogEventCore(ctx, buildLog)
 
@@ -119,7 +120,7 @@ func (elh *endOfLifeHelperImpl) SendBuildJobLogEvent(ctx context.Context, buildL
 	return elh.SendBuildJobLogEventCore(ctx, slimBuildLog)
 }
 
-func (elh *endOfLifeHelperImpl) SendBuildJobLogEventCore(ctx context.Context, buildLog contracts.BuildLog) (err error) {
+func (elh *client) SendBuildJobLogEventCore(ctx context.Context, buildLog contracts.BuildLog) (err error) {
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "SendLog")
 	defer span.Finish()
@@ -198,20 +199,20 @@ func (elh *endOfLifeHelperImpl) SendBuildJobLogEventCore(ctx context.Context, bu
 	return nil
 }
 
-func (elh *endOfLifeHelperImpl) SendBuildStartedEvent(ctx context.Context) error {
+func (elh *client) SendBuildStartedEvent(ctx context.Context) error {
 	buildStatus := contracts.LogStatusRunning
 	return elh.sendBuilderEvent(ctx, buildStatus, fmt.Sprintf("builder:%v", buildStatus.ToStatus()))
 }
 
-func (elh *endOfLifeHelperImpl) SendBuildFinishedEvent(ctx context.Context, buildStatus contracts.LogStatus) error {
+func (elh *client) SendBuildFinishedEvent(ctx context.Context, buildStatus contracts.LogStatus) error {
 	return elh.sendBuilderEvent(ctx, buildStatus, fmt.Sprintf("builder:%v", buildStatus.ToStatus()))
 }
 
-func (elh *endOfLifeHelperImpl) SendBuildCleanEvent(ctx context.Context, buildStatus contracts.LogStatus) error {
+func (elh *client) SendBuildCleanEvent(ctx context.Context, buildStatus contracts.LogStatus) error {
 	return elh.sendBuilderEvent(ctx, buildStatus, "builder:clean")
 }
 
-func (elh *endOfLifeHelperImpl) sendBuilderEvent(ctx context.Context, buildStatus contracts.LogStatus, event string) (err error) {
+func (elh *client) sendBuilderEvent(ctx context.Context, buildStatus contracts.LogStatus, event string) (err error) {
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "SendBuildStatus")
 	defer span.Finish()

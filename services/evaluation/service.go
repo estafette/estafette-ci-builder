@@ -1,4 +1,4 @@
-package builder
+package evaluation
 
 import (
 	"errors"
@@ -9,23 +9,24 @@ import (
 )
 
 // WhenEvaluator evaluates when clauses from the manifest
-type WhenEvaluator interface {
+//go:generate mockgen -package=evaluation -destination ./mock.go -source=service.go
+type Service interface {
 	Evaluate(string, string, map[string]interface{}) (bool, error)
 	GetParameters() map[string]interface{}
 }
 
-type whenEvaluatorImpl struct {
-	envvarHelper EnvvarHelper
-}
-
 // NewWhenEvaluator returns a new WhenEvaluator
-func NewWhenEvaluator(envvarHelper EnvvarHelper) WhenEvaluator {
-	return &whenEvaluatorImpl{
+func NewWhenEvaluator(envvarHelper EnvvarHelper) Service {
+	return &service{
 		envvarHelper: envvarHelper,
 	}
 }
 
-func (we *whenEvaluatorImpl) Evaluate(pipelineName, input string, parameters map[string]interface{}) (result bool, err error) {
+type service struct {
+	envvarHelper EnvvarHelper
+}
+
+func (we *service) Evaluate(pipelineName, input string, parameters map[string]interface{}) (result bool, err error) {
 
 	if input == "" {
 		return false, errors.New("When expression is empty")
@@ -52,7 +53,7 @@ func (we *whenEvaluatorImpl) Evaluate(pipelineName, input string, parameters map
 	return false, errors.New("Result of evaluating when expression is not of type boolean")
 }
 
-func (we *whenEvaluatorImpl) GetParameters() map[string]interface{} {
+func (we *service) GetParameters() map[string]interface{} {
 
 	parameters := make(map[string]interface{}, 3)
 	parameters["branch"] = we.envvarHelper.getEstafetteEnv("ESTAFETTE_GIT_BRANCH")

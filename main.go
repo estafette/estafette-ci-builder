@@ -75,17 +75,8 @@ func main() {
 	builderConfig, originalEncryptedCredentials := loadBuilderConfig(secretHelper, envvarHelper)
 	dockerRunner := builder.NewDockerRunner(envvarHelper, obfuscator, builderConfig, tailLogsChannel)
 	pipelineRunner := builder.NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner, *runAsJob, cancellationChannel, tailLogsChannel, applicationInfo)
-
-	// detect controlling server
-	ciServer := envvarHelper.GetCiServer()
-	if ciServer == "gocd" {
-		ciBuilder.RunGocdAgentBuild(pipelineRunner, dockerRunner, envvarHelper, obfuscator, builderConfig, originalEncryptedCredentials)
-	} else if ciServer == "estafette" {
-		endOfLifeHelper := builder.NewEndOfLifeHelper(*runAsJob, builderConfig, *podName)
-		ciBuilder.RunEstafetteBuildJob(pipelineRunner, dockerRunner, envvarHelper, obfuscator, endOfLifeHelper, builderConfig, originalEncryptedCredentials, *runAsJob)
-	} else {
-		log.Warn().Msgf("The CI Server (\"%s\") is not recognized, exiting.", ciServer)
-	}
+	endOfLifeHelper := builder.NewEndOfLifeHelper(*runAsJob, builderConfig, *podName)
+	ciBuilder.RunEstafetteBuildJob(pipelineRunner, dockerRunner, envvarHelper, obfuscator, endOfLifeHelper, builderConfig, originalEncryptedCredentials, *runAsJob)
 }
 
 func loadBuilderConfig(secretHelper crypt.SecretHelper, envvarHelper builder.EnvvarHelper) (builderConfig contracts.BuilderConfig, credentialsBytes []byte) {

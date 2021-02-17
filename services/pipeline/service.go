@@ -1,4 +1,4 @@
-package builder
+package pipeline
 
 import (
 	"context"
@@ -15,8 +15,9 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// PipelineRunner is the interface for running the pipeline steps
-type PipelineRunner interface {
+// Service is the interface for running the pipeline steps
+//go:generate mockgen -package=pipeline -destination ./mock.go -source=service.go
+type Service interface {
 	RunStage(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, stage manifest.EstafetteStage) (err error)
 	RunStageWithRetry(ctx context.Context, depth int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, stage manifest.EstafetteStage) (err error)
 	RunService(ctx context.Context, envvars map[string]string, parentStage manifest.EstafetteStage, service manifest.EstafetteService) (err error)
@@ -27,7 +28,21 @@ type PipelineRunner interface {
 	EnableBuilderInfoStageInjection()
 }
 
-type pipelineRunnerImpl struct {
+// NewPipelineRunner returns a new PipelineRunner
+func NewPipelineRunner(envvarHelper EnvvarHelper, whenEvaluator WhenEvaluator, dockerRunner DockerRunner, runAsJob bool, cancellationChannel chan struct{}, tailLogsChannel chan contracts.TailLogLine, applicationInfo foundation.ApplicationInfo) Service {
+	return &service{
+		envvarHelper:        envvarHelper,
+		whenEvaluator:       whenEvaluator,
+		dockerRunner:        dockerRunner,
+		runAsJob:            runAsJob,
+		cancellationChannel: cancellationChannel,
+		tailLogsChannel:     tailLogsChannel,
+		buildLogSteps:       make([]*contracts.BuildLogStep, 0),
+		applicationInfo:     applicationInfo,
+	}
+}
+
+type service struct {
 	envvarHelper           EnvvarHelper
 	whenEvaluator          WhenEvaluator
 	dockerRunner           DockerRunner
@@ -40,21 +55,7 @@ type pipelineRunnerImpl struct {
 	applicationInfo        foundation.ApplicationInfo
 }
 
-// NewPipelineRunner returns a new PipelineRunner
-func NewPipelineRunner(envvarHelper EnvvarHelper, whenEvaluator WhenEvaluator, dockerRunner DockerRunner, runAsJob bool, cancellationChannel chan struct{}, tailLogsChannel chan contracts.TailLogLine, applicationInfo foundation.ApplicationInfo) PipelineRunner {
-	return &pipelineRunnerImpl{
-		envvarHelper:        envvarHelper,
-		whenEvaluator:       whenEvaluator,
-		dockerRunner:        dockerRunner,
-		runAsJob:            runAsJob,
-		cancellationChannel: cancellationChannel,
-		tailLogsChannel:     tailLogsChannel,
-		buildLogSteps:       make([]*contracts.BuildLogStep, 0),
-		applicationInfo:     applicationInfo,
-	}
-}
-
-func (pr *pipelineRunnerImpl) RunStage(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, stage manifest.EstafetteStage) (err error) {
+func (pr *service) RunStage(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, stage manifest.EstafetteStage) (err error) {
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "RunStage")
 	defer span.Finish()
@@ -106,7 +107,7 @@ func (pr *pipelineRunnerImpl) RunStage(ctx context.Context, depth int, runIndex 
 	return
 }
 
-func (pr *pipelineRunnerImpl) initStageVariables(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, stage manifest.EstafetteStage) (parentStageName string, stagePlaceholder string, autoInjected *bool) {
+func (pr *service) initStageVariables(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, stage manifest.EstafetteStage) (parentStageName string, stagePlaceholder string, autoInjected *bool) {
 
 	stagePlaceholder = fmt.Sprintf("[%v]", stage.Name)
 	if parentStage != nil {
@@ -120,7 +121,7 @@ func (pr *pipelineRunnerImpl) initStageVariables(ctx context.Context, depth int,
 	return
 }
 
-func (pr *pipelineRunnerImpl) handleStageFinish(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, stage manifest.EstafetteStage, dockerRunStart time.Time, errPointer *error) {
+func (pr *service) handleStageFinish(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, stage manifest.EstafetteStage, dockerRunStart time.Time, errPointer *error) {
 
 	err := *errPointer
 
@@ -150,7 +151,7 @@ func (pr *pipelineRunnerImpl) handleStageFinish(ctx context.Context, depth int, 
 	pr.sendStatusMessage(stage.Name, parentStageName, contracts.LogTypeStage, depth, runIndex, autoInjected, nil, runDuration, finalStatus)
 }
 
-func (pr *pipelineRunnerImpl) RunStageWithRetry(ctx context.Context, depth int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, stage manifest.EstafetteStage) (err error) {
+func (pr *service) RunStageWithRetry(ctx context.Context, depth int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, stage manifest.EstafetteStage) (err error) {
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "RunStageWithRetry")
 	defer span.Finish()
@@ -204,7 +205,7 @@ func (pr *pipelineRunnerImpl) RunStageWithRetry(ctx context.Context, depth int, 
 	return
 }
 
-func (pr *pipelineRunnerImpl) RunService(ctx context.Context, envvars map[string]string, parentStage manifest.EstafetteStage, service manifest.EstafetteService) (err error) {
+func (pr *service) RunService(ctx context.Context, envvars map[string]string, parentStage manifest.EstafetteStage, service manifest.EstafetteService) (err error) {
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "RunService")
 	defer span.Finish()
@@ -250,7 +251,7 @@ func (pr *pipelineRunnerImpl) RunService(ctx context.Context, envvars map[string
 	return
 }
 
-func (pr *pipelineRunnerImpl) handleServiceFinish(ctx context.Context, envvars map[string]string, parentStage manifest.EstafetteStage, service manifest.EstafetteService, skipSucceeded bool, dockerRunStart time.Time, errPointer *error) {
+func (pr *service) handleServiceFinish(ctx context.Context, envvars map[string]string, parentStage manifest.EstafetteStage, service manifest.EstafetteService, skipSucceeded bool, dockerRunStart time.Time, errPointer *error) {
 
 	err := *errPointer
 
@@ -277,7 +278,7 @@ func (pr *pipelineRunnerImpl) handleServiceFinish(ctx context.Context, envvars m
 	pr.sendStatusMessage(service.Name, parentStage.Name, contracts.LogTypeService, 1, 0, nil, nil, runDuration, finalStatus)
 }
 
-func (pr *pipelineRunnerImpl) RunStages(ctx context.Context, depth int, stages []*manifest.EstafetteStage, dir string, envvars map[string]string) (buildLogSteps []*contracts.BuildLogStep, err error) {
+func (pr *service) RunStages(ctx context.Context, depth int, stages []*manifest.EstafetteStage, dir string, envvars map[string]string) (buildLogSteps []*contracts.BuildLogStep, err error) {
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "RunStages")
 	defer span.Finish()
@@ -362,7 +363,7 @@ func (pr *pipelineRunnerImpl) RunStages(ctx context.Context, depth int, stages [
 	return pr.getLogs(ctx), finalErr
 }
 
-func (pr *pipelineRunnerImpl) RunParallelStages(ctx context.Context, depth int, dir string, envvars map[string]string, parentStage manifest.EstafetteStage, parallelStages []*manifest.EstafetteStage) (err error) {
+func (pr *service) RunParallelStages(ctx context.Context, depth int, dir string, envvars map[string]string, parentStage manifest.EstafetteStage, parallelStages []*manifest.EstafetteStage) (err error) {
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "RunParallelStages")
 	defer span.Finish()
@@ -436,7 +437,7 @@ func (pr *pipelineRunnerImpl) RunParallelStages(ctx context.Context, depth int, 
 	return
 }
 
-func (pr *pipelineRunnerImpl) RunServices(ctx context.Context, envvars map[string]string, parentStage manifest.EstafetteStage, services []*manifest.EstafetteService) (err error) {
+func (pr *service) RunServices(ctx context.Context, envvars map[string]string, parentStage manifest.EstafetteStage, services []*manifest.EstafetteService) (err error) {
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "RunServices")
 	defer span.Finish()
@@ -510,7 +511,7 @@ func (pr *pipelineRunnerImpl) RunServices(ctx context.Context, envvars map[strin
 	return
 }
 
-func (pr *pipelineRunnerImpl) StopPipelineOnCancellation() {
+func (pr *service) StopPipelineOnCancellation() {
 	// wait for cancellation
 	<-pr.cancellationChannel
 
@@ -519,15 +520,15 @@ func (pr *pipelineRunnerImpl) StopPipelineOnCancellation() {
 	pr.dockerRunner.StopAllContainers()
 }
 
-func (pr *pipelineRunnerImpl) EnableBuilderInfoStageInjection() {
+func (pr *service) EnableBuilderInfoStageInjection() {
 	pr.injectBuilderInfoStage = true
 }
 
-func (pr *pipelineRunnerImpl) resetCancellation() {
+func (pr *service) resetCancellation() {
 	pr.canceled = false
 }
 
-func (pr *pipelineRunnerImpl) pullImageIfNeeded(ctx context.Context, stageName, parentStageName, containerImage string, containerType contracts.LogType, depth int, runIndex int, autoInjected *bool) (err error) {
+func (pr *service) pullImageIfNeeded(ctx context.Context, stageName, parentStageName, containerImage string, containerType contracts.LogType, depth int, runIndex int, autoInjected *bool) (err error) {
 
 	var isPulledImage bool
 	var isTrustedImage bool
@@ -587,7 +588,7 @@ func (pr *pipelineRunnerImpl) pullImageIfNeeded(ctx context.Context, stageName, 
 	return
 }
 
-func (pr *pipelineRunnerImpl) sendStatusMessage(step, parentStageName string, containerType contracts.LogType, depth int, runIndex int, autoInjected *bool, image *contracts.BuildLogStepDockerImage, runDuration *time.Duration, status contracts.LogStatus) {
+func (pr *service) sendStatusMessage(step, parentStageName string, containerType contracts.LogType, depth int, runIndex int, autoInjected *bool, image *contracts.BuildLogStepDockerImage, runDuration *time.Duration, status contracts.LogStatus) {
 
 	tailLogLine := contracts.TailLogLine{
 		Step:         step,
@@ -604,7 +605,7 @@ func (pr *pipelineRunnerImpl) sendStatusMessage(step, parentStageName string, co
 	pr.tailLogsChannel <- tailLogLine
 }
 
-func (pr *pipelineRunnerImpl) forceStatusForStage(stage manifest.EstafetteStage, status contracts.LogStatus) {
+func (pr *service) forceStatusForStage(stage manifest.EstafetteStage, status contracts.LogStatus) {
 
 	var autoInjected *bool
 	var image *contracts.BuildLogStepDockerImage
@@ -663,7 +664,7 @@ func (pr *pipelineRunnerImpl) forceStatusForStage(stage manifest.EstafetteStage,
 	}
 }
 
-func (pr *pipelineRunnerImpl) tailLogs(ctx context.Context, tailLogsDone chan struct{}, stages []*manifest.EstafetteStage) {
+func (pr *service) tailLogs(ctx context.Context, tailLogsDone chan struct{}, stages []*manifest.EstafetteStage) {
 
 	allLogsReceived := make(chan struct{}, 1)
 
@@ -697,7 +698,7 @@ func (pr *pipelineRunnerImpl) tailLogs(ctx context.Context, tailLogsDone chan st
 	}
 }
 
-func (pr *pipelineRunnerImpl) logBuilderInfo(applicationInfo foundation.ApplicationInfo) {
+func (pr *service) logBuilderInfo(applicationInfo foundation.ApplicationInfo) {
 
 	builderVersionMessage := fmt.Sprintf("Starting \x1b[1m%v\x1b[0m version \x1b[1m%v\x1b[0m... \x1b[36mbranch=\x1b[0m%v \x1b[36mbuildDate=\x1b[0m%v \x1b[36mgoVersion=\x1b[0m%v \x1b[36mos=\x1b[0m%v \x1b[36mrevision=\x1b[0m%v", applicationInfo.App, applicationInfo.Version, applicationInfo.Branch, applicationInfo.BuildDate, applicationInfo.GoVersion(), applicationInfo.OperatingSystem(), applicationInfo.Revision)
 
@@ -719,11 +720,11 @@ func (pr *pipelineRunnerImpl) logBuilderInfo(applicationInfo foundation.Applicat
 	}
 }
 
-func (pr *pipelineRunnerImpl) getLogs(ctx context.Context) []*contracts.BuildLogStep {
+func (pr *service) getLogs(ctx context.Context) []*contracts.BuildLogStep {
 	return pr.buildLogSteps
 }
 
-func (pr *pipelineRunnerImpl) upsertTailLogLine(tailLogLine contracts.TailLogLine) {
+func (pr *service) upsertTailLogLine(tailLogLine contracts.TailLogLine) {
 
 	// check if tailLogLine.Step (in combination with parentstage and type if applicable) already exists in pr.buildLogSteps
 	mainStage := pr.getMainBuildLogStep(tailLogLine)
@@ -832,7 +833,7 @@ func (pr *pipelineRunnerImpl) upsertTailLogLine(tailLogLine contracts.TailLogLin
 	}
 }
 
-func (pr *pipelineRunnerImpl) getMainBuildLogStep(tailLogLine contracts.TailLogLine) *contracts.BuildLogStep {
+func (pr *service) getMainBuildLogStep(tailLogLine contracts.TailLogLine) *contracts.BuildLogStep {
 
 	stepToFind := tailLogLine.Step
 	if tailLogLine.ParentStage != "" {
@@ -850,7 +851,7 @@ func (pr *pipelineRunnerImpl) getMainBuildLogStep(tailLogLine contracts.TailLogL
 	return nil
 }
 
-func (pr *pipelineRunnerImpl) getNestedBuildLogStep(tailLogLine contracts.TailLogLine) *contracts.BuildLogStep {
+func (pr *service) getNestedBuildLogStep(tailLogLine contracts.TailLogLine) *contracts.BuildLogStep {
 
 	if tailLogLine.ParentStage == "" || tailLogLine.Type != contracts.LogTypeStage {
 		return nil
@@ -875,7 +876,7 @@ func (pr *pipelineRunnerImpl) getNestedBuildLogStep(tailLogLine contracts.TailLo
 	return nil
 }
 
-func (pr *pipelineRunnerImpl) getNestedBuildLogService(tailLogLine contracts.TailLogLine) *contracts.BuildLogStep {
+func (pr *service) getNestedBuildLogService(tailLogLine contracts.TailLogLine) *contracts.BuildLogStep {
 
 	if tailLogLine.ParentStage == "" || tailLogLine.Type != contracts.LogTypeService {
 		return nil
@@ -900,7 +901,7 @@ func (pr *pipelineRunnerImpl) getNestedBuildLogService(tailLogLine contracts.Tai
 	return nil
 }
 
-func (pr *pipelineRunnerImpl) isFinalStageComplete(stages []*manifest.EstafetteStage) bool {
+func (pr *service) isFinalStageComplete(stages []*manifest.EstafetteStage) bool {
 
 	// pr.buildLogSteps
 	if len(pr.buildLogSteps) > 0 && len(stages) > 0 {

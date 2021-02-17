@@ -7,7 +7,6 @@ import (
 	"os"
 
 	contracts "github.com/estafette/estafette-ci-contracts"
-	manifest "github.com/estafette/estafette-ci-manifest"
 	foundation "github.com/estafette/estafette-foundation"
 	"github.com/opentracing/opentracing-go"
 	"github.com/rs/zerolog/log"
@@ -15,26 +14,25 @@ import (
 	jaegercfg "github.com/uber/jaeger-client-go/config"
 )
 
-// CIBuilder runs builds for different types of integrations
-type CIBuilder interface {
+// Service runs builds for different types of integrations
+//go:generate mockgen -package=builder -destination ./mock.go -source=service.go
+type Service interface {
 	RunReadinessProbe(protocol, host string, port int, path, hostname string, timeoutSeconds int)
 	RunEstafetteBuildJob(pipelineRunner PipelineRunner, dockerRunner DockerRunner, envvarHelper EnvvarHelper, obfuscator Obfuscator, endOfLifeHelper EndOfLifeHelper, builderConfig contracts.BuilderConfig, credentialsBytes []byte, runAsJob bool)
-	RunGocdAgentBuild(pipelineRunner PipelineRunner, dockerRunner DockerRunner, envvarHelper EnvvarHelper, obfuscator Obfuscator, builderConfig contracts.BuilderConfig, credentialsBytes []byte)
-	RunEstafetteCLIBuild() error
 }
 
-type ciBuilderImpl struct {
+type service struct {
 	applicationInfo foundation.ApplicationInfo
 }
 
 // NewCIBuilder returns a new CIBuilder
 func NewCIBuilder(applicationInfo foundation.ApplicationInfo) CIBuilder {
-	return &ciBuilderImpl{
+	return &service{
 		applicationInfo: applicationInfo,
 	}
 }
 
-func (b *ciBuilderImpl) RunReadinessProbe(protocol, host string, port int, path, hostname string, timeoutSeconds int) {
+func (b *service) RunReadinessProbe(protocol, host string, port int, path, hostname string, timeoutSeconds int) {
 	err := WaitForReadiness(protocol, host, port, path, hostname, timeoutSeconds)
 	if err != nil {
 		log.Fatal().Err(err).Msgf("Readiness probe failed")
@@ -44,7 +42,7 @@ func (b *ciBuilderImpl) RunReadinessProbe(protocol, host string, port int, path,
 	os.Exit(0)
 }
 
-func (b *ciBuilderImpl) RunEstafetteBuildJob(pipelineRunner PipelineRunner, dockerRunner DockerRunner, envvarHelper EnvvarHelper, obfuscator Obfuscator, endOfLifeHelper EndOfLifeHelper, builderConfig contracts.BuilderConfig, credentialsBytes []byte, runAsJob bool) {
+func (b *service) RunEstafetteBuildJob(pipelineRunner PipelineRunner, dockerRunner DockerRunner, envvarHelper EnvvarHelper, obfuscator Obfuscator, endOfLifeHelper EndOfLifeHelper, builderConfig contracts.BuilderConfig, credentialsBytes []byte, runAsJob bool) {
 
 	closer := b.initJaeger(b.applicationInfo.App)
 	defer closer.Close()
@@ -172,87 +170,9 @@ func (b *ciBuilderImpl) RunEstafetteBuildJob(pipelineRunner PipelineRunner, dock
 	}
 }
 
-func (b *ciBuilderImpl) RunGocdAgentBuild(pipelineRunner PipelineRunner, dockerRunner DockerRunner, envvarHelper EnvvarHelper, obfuscator Obfuscator, builderConfig contracts.BuilderConfig, credentialsBytes []byte) {
-
-	fatalHandler := NewGocdFatalHandler()
-
-	// create docker client
-	_, err := dockerRunner.CreateDockerClient()
-	if err != nil {
-		fatalHandler.HandleGocdFatal(err, "Failed creating a docker client")
-	}
-
-	// read yaml
-	manifest, err := manifest.ReadManifestFromFile(builderConfig.ManifestPreferences, ".estafette.yaml", true)
-	if err != nil {
-		fatalHandler.HandleGocdFatal(err, "Reading .estafette.yaml manifest failed")
-	}
-
-	// initialize obfuscator
-	err = obfuscator.CollectSecrets(manifest, credentialsBytes, envvarHelper.GetPipelineName())
-	if err != nil {
-		fatalHandler.HandleGocdFatal(err, "Collecting secrets to obfuscate failed")
-	}
-
-	// get current working directory
-	dir, err := os.Getwd()
-	if err != nil {
-		fatalHandler.HandleGocdFatal(err, "Getting current working directory failed")
-	}
-
-	// check whether this is a regular build or a release
-	stages := manifest.Stages
-	releaseName := os.Getenv("ESTAFETTE_RELEASE_NAME")
-	buildVersion := os.Getenv("ESTAFETTE_BUILD_VERSION")
-	if releaseName != "" {
-		// check if the release is defined
-		releaseExists := false
-		for _, r := range manifest.Releases {
-			if r.Name == releaseName {
-				releaseExists = true
-				stages = r.Stages
-			}
-		}
-		if !releaseExists {
-			fatalHandler.HandleGocdFatal(fmt.Errorf("Release %v does not exist", releaseName), "")
-		}
-		log.Info().Msgf("Starting release %v at version %v...", releaseName, buildVersion)
-	} else {
-		log.Info().Msgf("Starting build version %v...", buildVersion)
-	}
-
-	log.Info().Msgf("Running %v stages", len(stages))
-
-	err = envvarHelper.SetEstafetteGlobalEnvvars()
-	if err != nil {
-		fatalHandler.HandleGocdFatal(err, "Setting global environment variables failed")
-	}
-
-	// collect estafette and 'global' envvars from manifest
-	estafetteEnvvars := envvarHelper.CollectEstafetteEnvvarsAndLabels(manifest)
-	globalEnvvars := envvarHelper.CollectGlobalEnvvars(manifest)
-
-	// merge estafette and global envvars
-	envvars := envvarHelper.OverrideEnvvars(estafetteEnvvars, globalEnvvars)
-
-	// run stages
-	buildLogSteps, err := pipelineRunner.RunStages(context.Background(), 0, stages, dir, envvars)
-	if err != nil {
-		fatalHandler.HandleGocdFatal(err, "Executing stages from manifest failed")
-	}
-
-	RenderStats(buildLogSteps)
-
-	HandleExit(buildLogSteps)
-}
-
-func (b *ciBuilderImpl) RunEstafetteCLIBuild() error {
-	return nil
-}
-
 // initJaeger returns an instance of Jaeger Tracer that can be configured with environment variables
 // https://github.com/jaegertracing/jaeger-client-go#environment-variables
-func (b *ciBuilderImpl) initJaeger(service string) io.Closer {
+func (b *service) initJaeger(service string) io.Closer {
 
 	cfg, err := jaegercfg.FromEnv()
 	if err != nil {
