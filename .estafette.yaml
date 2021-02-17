@@ -75,6 +75,7 @@ stages:
         image: extensions/docker:dev
         action: trivy
         versionTagSuffix: gocd
+        severity: low
         repositories:
         - estafette
 
