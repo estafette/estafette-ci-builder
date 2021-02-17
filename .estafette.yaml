@@ -15,7 +15,7 @@ version:
 
 stages:
   build:
-    image: golang:1.15.7-alpine3.13
+    image: golang:1.16.0-alpine
     env:
       CGO_ENABLED: 0
       GOOS: linux
@@ -79,7 +79,7 @@ stages:
         - estafette
 
   clean-working-directory:
-    image: golang:1.15.7-alpine3.13
+    image: golang:1.16.0-alpine
     commands:
     - rm -rf ..?* .[!.]* *
 
@@ -429,7 +429,7 @@ releases:
     clone: true
     stages:
       build:
-        image: estafette/golang:1.15.7-nanoserver-1809
+        image: estafette/golang:1.16.0-nanoserver-1809
         shell: cmd
         env:
           CGO_ENABLED: 0
@@ -466,7 +466,7 @@ releases:
     clone: true
     stages:
       build:
-        image: estafette/golang:1.15.7-nanoserver-1809
+        image: estafette/golang:1.16.0-nanoserver-1809
         shell: cmd
         env:
           CGO_ENABLED: 0
@@ -503,7 +503,7 @@ releases:
     clone: true
     stages:
       build:
-        image: estafette/golang:1.15.7-nanoserver-1809
+        image: estafette/golang:1.16.0-nanoserver-1809
         shell: cmd
         env:
           CGO_ENABLED: 0
