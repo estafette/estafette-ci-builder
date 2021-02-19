@@ -65,6 +65,21 @@ func main() {
 	})
 	ctx := foundation.InitCancellationContext(context.Background())
 
+	// this builder binary is mounted inside a scratch container to run as a readiness probe against service containers
+	if *runAsReadinessProbe {
+		readinessClient, err := readiness.NewClient(ctx)
+		if err != nil {
+			log.Fatal().Err(err).Msg("Failed creating readiness.Client")
+		}
+
+		builderService, err := builder.NewService(ctx, applicationInfo, nil, nil, nil, nil, nil, readinessClient, contracts.BuilderConfig{}, []byte{})
+		if err != nil {
+			log.Fatal().Err(err).Msg("Failed creating builder.Service")
+		}
+
+		builderService.RunReadinessProbe(*readinessProtocol, *readinessHost, *readinessPort, *readinessPath, *readinessHostname, *readinessTimeoutSeconds)
+	}
+
 	// init secret helper
 	decryptionKey := getDecryptionKey()
 	secretHelper := crypt.NewSecretHelper(decryptionKey, false)
@@ -106,11 +121,6 @@ func main() {
 	builderService, err := builder.NewService(ctx, applicationInfo, pipelineService, dockerClient, envvarClient, obfuscationClient, estafetteciapiClient, readinessClient, builderConfig, originalEncryptedCredentials)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed creating builder.Service")
-	}
-
-	// this builder binary is mounted inside a scratch container to run as a readiness probe against service containers
-	if *runAsReadinessProbe {
-		builderService.RunReadinessProbe(*readinessProtocol, *readinessHost, *readinessPort, *readinessPath, *readinessHostname, *readinessTimeoutSeconds)
 	}
 
 	// run the build/release job
