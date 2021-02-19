@@ -1,6 +1,7 @@
 package obfuscation
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"regexp"
@@ -21,7 +22,7 @@ type Client interface {
 }
 
 // NewClient returns a new Client
-func NewClient(secretHelper crypt.SecretHelper) (Client, error) {
+func NewClient(ctx context.Context, secretHelper crypt.SecretHelper) (Client, error) {
 	return &client{
 		secretHelper: secretHelper,
 	}, nil

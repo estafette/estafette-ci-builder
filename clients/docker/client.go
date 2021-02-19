@@ -25,6 +25,10 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
+	dockerclient "github.com/docker/docker/client"
+
+	"github.com/estafette/estafette-ci-builder/clients/envvar"
+	"github.com/estafette/estafette-ci-builder/clients/obfuscation"
 	contracts "github.com/estafette/estafette-ci-contracts"
 	manifest "github.com/estafette/estafette-ci-manifest"
 	foundation "github.com/estafette/estafette-foundation"
@@ -49,18 +53,17 @@ type Client interface {
 	StopMultiStageServiceContainers(ctx context.Context)
 	StartDockerDaemon() error
 	WaitForDockerDaemon()
-	CreateDockerClient() (*client.Client, error)
+	CreateDockerClient() (*dockerclient.Client, error)
 	CreateNetworks(ctx context.Context) error
 	DeleteNetworks(ctx context.Context) error
 	StopAllContainers()
 }
 
 // NewClient returns a new Client
-func NewClient(envvarHelper EnvvarHelper, obfuscator Obfuscator, config contracts.BuilderConfig, tailLogsChannel chan contracts.TailLogLine) (Client, error) {
-
+func NewClient(ctx context.Context, envvarClient envvar.Client, obfuscationClient obfuscation.Client, config contracts.BuilderConfig, tailLogsChannel chan contracts.TailLogLine) (Client, error) {
 	return &client{
-		envvarHelper:                          envvarHelper,
-		obfuscator:                            obfuscator,
+		envvarClient:                          envvarClient,
+		obfuscationClient:                     obfuscationClient,
 		config:                                config,
 		tailLogsChannel:                       tailLogsChannel,
 		runningStageContainerIDs:              make([]string, 0),
@@ -73,11 +76,11 @@ func NewClient(envvarHelper EnvvarHelper, obfuscator Obfuscator, config contract
 }
 
 type client struct {
-	envvarHelper    EnvvarHelper
-	obfuscator      Obfuscator
-	dockerClient    *client.Client
-	config          contracts.BuilderConfig
-	tailLogsChannel chan contracts.TailLogLine
+	envvarClient      envvar.Client
+	obfuscationClient obfuscation.Client
+	dockerClient      *dockerclient.Client
+	config            contracts.BuilderConfig
+	tailLogsChannel   chan contracts.TailLogLine
 
 	runningStageContainerIDs              []string
 	runningSingleStageServiceContainerIDs []string
@@ -93,13 +96,13 @@ func (c *client) IsImagePulled(stageName string, containerImage string) bool {
 
 	log.Info().Msgf("[%v] Checking if docker image '%v' exists locally...", stageName, containerImage)
 
-	imageSummaries, err := dr.dockerClient.ImageList(context.Background(), types.ImageListOptions{})
+	imageSummaries, err := c.dockerClient.ImageList(context.Background(), types.ImageListOptions{})
 	if err != nil {
 		return false
 	}
 
 	for _, summary := range imageSummaries {
-		if contains(summary.RepoTags, containerImage) {
+		if foundation.StringArrayContains(summary.RepoTags, containerImage) {
 			return true
 		}
 	}
@@ -115,7 +118,7 @@ func (c *client) PullImage(ctx context.Context, stageName string, containerImage
 
 	log.Info().Msgf("[%v] Pulling docker image '%v'", stageName, containerImage)
 
-	rc, err := dr.dockerClient.ImagePull(context.Background(), containerImage, dr.getImagePullOptions(containerImage))
+	rc, err := c.dockerClient.ImagePull(context.Background(), containerImage, c.getImagePullOptions(containerImage))
 	if err != nil {
 		return err
 	}
@@ -132,7 +135,7 @@ func (c *client) PullImage(ctx context.Context, stageName string, containerImage
 
 func (c *client) GetImageSize(containerImage string) (totalSize int64, err error) {
 
-	items, err := dr.dockerClient.ImageHistory(context.Background(), containerImage)
+	items, err := c.dockerClient.ImageHistory(context.Background(), containerImage)
 	if err != nil {
 		return totalSize, err
 	}
@@ -151,15 +154,15 @@ func (c *client) StartStageContainer(ctx context.Context, depth int, runIndex in
 	span.SetTag("docker-image", stage.ContainerImage)
 
 	// check if image is trusted image
-	trustedImage := dr.config.GetTrustedImage(stage.ContainerImage)
+	trustedImage := c.config.GetTrustedImage(stage.ContainerImage)
 
-	entrypoint, cmds, binds, err := dr.initContainerStartVariables(stage.Shell, stage.Commands, stage.RunCommandsInForeground, stage.CustomProperties, trustedImage)
+	entrypoint, cmds, binds, err := c.initContainerStartVariables(stage.Shell, stage.Commands, stage.RunCommandsInForeground, stage.CustomProperties, trustedImage)
 	if err != nil {
 		return
 	}
 
 	// add custom properties as ESTAFETTE_EXTENSION_... envvar
-	extensionEnvVars := dr.generateExtensionEnvvars(stage.CustomProperties, stage.EnvVars)
+	extensionEnvVars := c.generateExtensionEnvvars(stage.CustomProperties, stage.EnvVars)
 
 	// add stage name to envvars
 	if stage.EnvVars == nil {
@@ -168,36 +171,36 @@ func (c *client) StartStageContainer(ctx context.Context, depth int, runIndex in
 	stage.EnvVars["ESTAFETTE_STAGE_NAME"] = stage.Name
 
 	// combine and override estafette and global envvars with stage envvars
-	combinedEnvVars := dr.envvarHelper.OverrideEnvvars(envvars, stage.EnvVars, extensionEnvVars)
+	combinedEnvVars := c.envvarClient.OverrideEnvvars(envvars, stage.EnvVars, extensionEnvVars)
 
 	// decrypt secrets in all envvars
-	combinedEnvVars = dr.envvarHelper.decryptSecrets(combinedEnvVars, dr.envvarHelper.GetPipelineName())
+	combinedEnvVars = c.envvarClient.DecryptSecrets(combinedEnvVars, c.envvarClient.GetPipelineName())
 
 	// define docker envvars and expand ESTAFETTE_ variables
 	dockerEnvVars := make([]string, 0)
 	if combinedEnvVars != nil && len(combinedEnvVars) > 0 {
 		for k, v := range combinedEnvVars {
-			dockerEnvVars = append(dockerEnvVars, fmt.Sprintf("%v=%v", k, os.Expand(v, dr.envvarHelper.getEstafetteEnv)))
+			dockerEnvVars = append(dockerEnvVars, fmt.Sprintf("%v=%v", k, os.Expand(v, c.envvarClient.GetEstafetteEnv)))
 		}
 	}
 
 	// define binds
-	binds = append(binds, fmt.Sprintf("%v:%v", dir, os.Expand(stage.WorkingDirectory, dr.envvarHelper.getEstafetteEnv)))
+	binds = append(binds, fmt.Sprintf("%v:%v", dir, os.Expand(stage.WorkingDirectory, c.envvarClient.GetEstafetteEnv)))
 
 	// check if this is a trusted image with RunDocker set to true
 	if trustedImage != nil && trustedImage.RunDocker {
 		if runtime.GOOS == "windows" {
-			if ok, _ := pathExists(`\\.\pipe\docker_engine`); ok {
+			if foundation.PathExists(`\\.\pipe\docker_engine`) {
 				binds = append(binds, `\\.\pipe\docker_engine:\\.\pipe\docker_engine`)
 			}
-			if ok, _ := pathExists("C:/Program Files/Docker"); ok {
+			if foundation.PathExists("C:/Program Files/Docker") {
 				binds = append(binds, "C:/Program Files/Docker:C:/dod")
 			}
 		} else {
-			if ok, _ := pathExists("/var/run/docker.sock"); ok {
+			if foundation.PathExists("/var/run/docker.sock") {
 				binds = append(binds, "/var/run/docker.sock:/var/run/docker.sock")
 			}
-			if ok, _ := pathExists("/usr/local/bin/docker"); ok {
+			if foundation.PathExists("/usr/local/bin/docker") {
 				binds = append(binds, "/usr/local/bin/docker:/dod/docker")
 			}
 		}
@@ -209,7 +212,7 @@ func (c *client) StartStageContainer(ctx context.Context, depth int, runIndex in
 		AttachStderr: true,
 		Env:          dockerEnvVars,
 		Image:        stage.ContainerImage,
-		WorkingDir:   os.Expand(stage.WorkingDirectory, dr.envvarHelper.getEstafetteEnv),
+		WorkingDir:   os.Expand(stage.WorkingDirectory, c.envvarClient.GetEstafetteEnv),
 	}
 	if len(stage.Commands) > 0 {
 		if trustedImage != nil && !trustedImage.AllowCommands && len(trustedImage.InjectedCredentialTypes) > 0 {
@@ -244,7 +247,7 @@ func (c *client) StartStageContainer(ctx context.Context, depth int, runIndex in
 	}
 
 	// create container
-	resp, err := dr.dockerClient.ContainerCreate(ctx, &config, &container.HostConfig{
+	resp, err := c.dockerClient.ContainerCreate(ctx, &config, &container.HostConfig{
 		Binds:      binds,
 		Privileged: privileged,
 		AutoRemove: true,
@@ -263,8 +266,8 @@ func (c *client) StartStageContainer(ctx context.Context, depth int, runIndex in
 	}
 
 	// connect to any configured networks
-	for networkName, networkID := range dr.networks {
-		err = dr.dockerClient.NetworkConnect(ctx, networkID, resp.ID, nil)
+	for networkName, networkID := range c.networks {
+		err = c.dockerClient.NetworkConnect(ctx, networkID, resp.ID, nil)
 		if err != nil {
 			log.Error().Err(err).Msgf("Failed connecting container %v to network %v with id %v", resp.ID, networkName, networkID)
 			return
@@ -272,10 +275,10 @@ func (c *client) StartStageContainer(ctx context.Context, depth int, runIndex in
 	}
 
 	containerID = resp.ID
-	dr.runningStageContainerIDs = dr.addRunningContainerID(dr.runningStageContainerIDs, containerID)
+	c.runningStageContainerIDs = c.addRunningContainerID(c.runningStageContainerIDs, containerID)
 
 	// start container
-	if err = dr.dockerClient.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{}); err != nil {
+	if err = c.dockerClient.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{}); err != nil {
 		return
 	}
 
@@ -289,15 +292,15 @@ func (c *client) StartServiceContainer(ctx context.Context, envvars map[string]s
 	span.SetTag("docker-image", service.ContainerImage)
 
 	// check if image is trusted image
-	trustedImage := dr.config.GetTrustedImage(service.ContainerImage)
+	trustedImage := c.config.GetTrustedImage(service.ContainerImage)
 
-	entrypoint, cmds, binds, err := dr.initContainerStartVariables(service.Shell, service.Commands, service.RunCommandsInForeground, service.CustomProperties, trustedImage)
+	entrypoint, cmds, binds, err := c.initContainerStartVariables(service.Shell, service.Commands, service.RunCommandsInForeground, service.CustomProperties, trustedImage)
 	if err != nil {
 		return
 	}
 
 	// add custom properties as ESTAFETTE_EXTENSION_... envvar
-	extensionEnvVars := dr.generateExtensionEnvvars(service.CustomProperties, service.EnvVars)
+	extensionEnvVars := c.generateExtensionEnvvars(service.CustomProperties, service.EnvVars)
 
 	// add service name to envvars
 	if service.EnvVars == nil {
@@ -306,33 +309,33 @@ func (c *client) StartServiceContainer(ctx context.Context, envvars map[string]s
 	service.EnvVars["ESTAFETTE_SERVICE_NAME"] = service.Name
 
 	// combine and override estafette and global envvars with pipeline envvars
-	combinedEnvVars := dr.envvarHelper.OverrideEnvvars(envvars, service.EnvVars, extensionEnvVars)
+	combinedEnvVars := c.envvarClient.OverrideEnvvars(envvars, service.EnvVars, extensionEnvVars)
 
 	// decrypt secrets in all envvars
-	combinedEnvVars = dr.envvarHelper.decryptSecrets(combinedEnvVars, dr.envvarHelper.GetPipelineName())
+	combinedEnvVars = c.envvarClient.DecryptSecrets(combinedEnvVars, c.envvarClient.GetPipelineName())
 
 	// define docker envvars and expand ESTAFETTE_ variables
 	dockerEnvVars := make([]string, 0)
 	if combinedEnvVars != nil && len(combinedEnvVars) > 0 {
 		for k, v := range combinedEnvVars {
-			dockerEnvVars = append(dockerEnvVars, fmt.Sprintf("%v=%v", k, os.Expand(v, dr.envvarHelper.getEstafetteEnv)))
+			dockerEnvVars = append(dockerEnvVars, fmt.Sprintf("%v=%v", k, os.Expand(v, c.envvarClient.GetEstafetteEnv)))
 		}
 	}
 
 	// check if this is a trusted image with RunDocker set to true
 	if trustedImage != nil && trustedImage.RunDocker {
 		if runtime.GOOS == "windows" {
-			if ok, _ := pathExists(`\\.\pipe\docker_engine`); ok {
+			if foundation.PathExists(`\\.\pipe\docker_engine`) {
 				binds = append(binds, `\\.\pipe\docker_engine:\\.\pipe\docker_engine`)
 			}
-			if ok, _ := pathExists("C:/Program Files/Docker"); ok {
+			if foundation.PathExists("C:/Program Files/Docker") {
 				binds = append(binds, "C:/Program Files/Docker:C:/dod")
 			}
 		} else {
-			if ok, _ := pathExists("/var/run/docker.sock"); ok {
+			if foundation.PathExists("/var/run/docker.sock") {
 				binds = append(binds, "/var/run/docker.sock:/var/run/docker.sock")
 			}
-			if ok, _ := pathExists("/usr/local/bin/docker"); ok {
+			if foundation.PathExists("/usr/local/bin/docker") {
 				binds = append(binds, "/usr/local/bin/docker:/dod/docker")
 			}
 		}
@@ -380,7 +383,7 @@ func (c *client) StartServiceContainer(ctx context.Context, envvars map[string]s
 	}
 
 	// create container
-	resp, err := dr.dockerClient.ContainerCreate(ctx, &config, &container.HostConfig{
+	resp, err := c.dockerClient.ContainerCreate(ctx, &config, &container.HostConfig{
 		Binds:      binds,
 		Privileged: privileged,
 		AutoRemove: true,
@@ -399,8 +402,8 @@ func (c *client) StartServiceContainer(ctx context.Context, envvars map[string]s
 	}
 
 	// connect to any configured networks
-	for networkName, networkID := range dr.networks {
-		err = dr.dockerClient.NetworkConnect(ctx, networkID, resp.ID, nil)
+	for networkName, networkID := range c.networks {
+		err = c.dockerClient.NetworkConnect(ctx, networkID, resp.ID, nil)
 		if err != nil {
 			log.Error().Err(err).Msgf("Failed connecting container %v to network %v with id %v", resp.ID, networkName, networkID)
 			return
@@ -409,13 +412,13 @@ func (c *client) StartServiceContainer(ctx context.Context, envvars map[string]s
 
 	containerID = resp.ID
 	if service.MultiStage != nil && *service.MultiStage {
-		dr.runningMultiStageServiceContainerIDs = dr.addRunningContainerID(dr.runningMultiStageServiceContainerIDs, containerID)
+		c.runningMultiStageServiceContainerIDs = c.addRunningContainerID(c.runningMultiStageServiceContainerIDs, containerID)
 	} else {
-		dr.runningSingleStageServiceContainerIDs = dr.addRunningContainerID(dr.runningSingleStageServiceContainerIDs, containerID)
+		c.runningSingleStageServiceContainerIDs = c.addRunningContainerID(c.runningSingleStageServiceContainerIDs, containerID)
 	}
 
 	// start container
-	if err = dr.dockerClient.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{}); err != nil {
+	if err = c.dockerClient.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{}); err != nil {
 		return
 	}
 
@@ -427,9 +430,9 @@ func (c *client) RunReadinessProbeContainer(ctx context.Context, parentStage man
 	defer span.Finish()
 
 	readinessProberImage := "estafette/scratch:latest"
-	isPulled := dr.IsImagePulled(service.Name+"-prober", readinessProberImage)
+	isPulled := c.IsImagePulled(service.Name+"-prober", readinessProberImage)
 	if !isPulled {
-		err = dr.PullImage(ctx, service.Name+"-prober", readinessProberImage)
+		err = c.PullImage(ctx, service.Name+"-prober", readinessProberImage)
 		if err != nil {
 			return err
 		}
@@ -447,13 +450,13 @@ func (c *client) RunReadinessProbeContainer(ctx context.Context, parentStage man
 	}
 
 	// decrypt secrets in all envvars
-	envvars = dr.envvarHelper.decryptSecrets(envvars, dr.envvarHelper.GetPipelineName())
+	envvars = c.envvarClient.DecryptSecrets(envvars, c.envvarClient.GetPipelineName())
 
 	// define docker envvars and expand ESTAFETTE_ variables
 	dockerEnvVars := make([]string, 0)
 	if envvars != nil && len(envvars) > 0 {
 		for k, v := range envvars {
-			dockerEnvVars = append(dockerEnvVars, fmt.Sprintf("%v=%v", k, os.Expand(v, dr.envvarHelper.getEstafetteEnv)))
+			dockerEnvVars = append(dockerEnvVars, fmt.Sprintf("%v=%v", k, os.Expand(v, c.envvarClient.GetEstafetteEnv)))
 		}
 	}
 
@@ -472,7 +475,7 @@ func (c *client) RunReadinessProbeContainer(ctx context.Context, parentStage man
 	}
 
 	// create container
-	resp, err := dr.dockerClient.ContainerCreate(ctx, &config, &container.HostConfig{
+	resp, err := c.dockerClient.ContainerCreate(ctx, &config, &container.HostConfig{
 		Binds:      binds,
 		AutoRemove: true,
 		LogConfig: container.LogConfig{
@@ -490,8 +493,8 @@ func (c *client) RunReadinessProbeContainer(ctx context.Context, parentStage man
 	}
 
 	// connect to any configured networks
-	for networkName, networkID := range dr.networks {
-		err = dr.dockerClient.NetworkConnect(ctx, networkID, resp.ID, nil)
+	for networkName, networkID := range c.networks {
+		err = c.dockerClient.NetworkConnect(ctx, networkID, resp.ID, nil)
 		if err != nil {
 			log.Error().Err(err).Msgf("Failed connecting container %v to network %v with id %v", resp.ID, networkName, networkID)
 			return
@@ -499,15 +502,15 @@ func (c *client) RunReadinessProbeContainer(ctx context.Context, parentStage man
 	}
 
 	containerID := resp.ID
-	dr.runningReadinessProbeContainerIDs = dr.addRunningContainerID(dr.runningReadinessProbeContainerIDs, containerID)
+	c.runningReadinessProbeContainerIDs = c.addRunningContainerID(c.runningReadinessProbeContainerIDs, containerID)
 
 	// start container
-	if err = dr.dockerClient.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{}); err != nil {
+	if err = c.dockerClient.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{}); err != nil {
 		return
 	}
 
 	// follow logs
-	rc, err := dr.dockerClient.ContainerLogs(ctx, containerID, types.ContainerLogsOptions{
+	rc, err := c.dockerClient.ContainerLogs(ctx, containerID, types.ContainerLogsOptions{
 		ShowStdout: true,
 		ShowStderr: true,
 		Timestamps: false,
@@ -549,7 +552,7 @@ func (c *client) RunReadinessProbeContainer(ctx context.Context, parentStage man
 	}
 
 	// wait for container to stop running
-	resultC, errC := dr.dockerClient.ContainerWait(ctx, containerID, container.WaitConditionNotRunning)
+	resultC, errC := c.dockerClient.ContainerWait(ctx, containerID, container.WaitConditionNotRunning)
 
 	var exitCode int64
 	select {
@@ -560,7 +563,7 @@ func (c *client) RunReadinessProbeContainer(ctx context.Context, parentStage man
 	}
 
 	// clear container id
-	dr.runningReadinessProbeContainerIDs = dr.removeRunningContainerID(dr.runningReadinessProbeContainerIDs, containerID)
+	c.runningReadinessProbeContainerIDs = c.removeRunningContainerID(c.runningReadinessProbeContainerIDs, containerID)
 
 	if exitCode != 0 {
 		return fmt.Errorf("Failed with exit code: %v", exitCode)
@@ -574,7 +577,7 @@ func (c *client) TailContainerLogs(ctx context.Context, containerID, parentStage
 	lineNumber := 1
 
 	// follow logs
-	rc, err := dr.dockerClient.ContainerLogs(ctx, containerID, types.ContainerLogsOptions{
+	rc, err := c.dockerClient.ContainerLogs(ctx, containerID, types.ContainerLogsOptions{
 		ShowStdout: true,
 		ShowStderr: true,
 		Timestamps: false,
@@ -626,7 +629,7 @@ func (c *client) TailContainerLogs(ctx context.Context, containerID, parentStage
 		}
 
 		// strip headers and obfuscate secret values
-		logLineString := dr.obfuscator.Obfuscate(string(logLine))
+		logLineString := c.obfuscationClient.Obfuscate(string(logLine))
 
 		// create object for tailing logs and storing in the db when done
 		logLineObject := contracts.BuildLogLine{
@@ -638,7 +641,7 @@ func (c *client) TailContainerLogs(ctx context.Context, containerID, parentStage
 		lineNumber++
 
 		// log as json, to be tailed when looking at live logs from gui
-		dr.tailLogsChannel <- contracts.TailLogLine{
+		c.tailLogsChannel <- contracts.TailLogLine{
 			Step:        stageName,
 			ParentStage: parentStageName,
 			Type:        stageType,
@@ -654,7 +657,7 @@ func (c *client) TailContainerLogs(ctx context.Context, containerID, parentStage
 	}
 
 	// wait for container to stop running
-	resultC, errC := dr.dockerClient.ContainerWait(ctx, containerID, container.WaitConditionNotRunning)
+	resultC, errC := c.dockerClient.ContainerWait(ctx, containerID, container.WaitConditionNotRunning)
 
 	var exitCode int64
 	select {
@@ -667,12 +670,12 @@ func (c *client) TailContainerLogs(ctx context.Context, containerID, parentStage
 
 	// clear container id
 	if stageType == contracts.LogTypeStage {
-		dr.runningStageContainerIDs = dr.removeRunningContainerID(dr.runningStageContainerIDs, containerID)
+		c.runningStageContainerIDs = c.removeRunningContainerID(c.runningStageContainerIDs, containerID)
 	} else if stageType == contracts.LogTypeService && multiStage != nil {
 		if *multiStage {
-			dr.runningMultiStageServiceContainerIDs = dr.removeRunningContainerID(dr.runningMultiStageServiceContainerIDs, containerID)
+			c.runningMultiStageServiceContainerIDs = c.removeRunningContainerID(c.runningMultiStageServiceContainerIDs, containerID)
 		} else {
-			dr.runningSingleStageServiceContainerIDs = dr.removeRunningContainerID(dr.runningSingleStageServiceContainerIDs, containerID)
+			c.runningSingleStageServiceContainerIDs = c.removeRunningContainerID(c.runningSingleStageServiceContainerIDs, containerID)
 		}
 	}
 
@@ -688,7 +691,7 @@ func (c *client) StopSingleStageServiceContainers(ctx context.Context, parentSta
 	log.Info().Msgf("[%v] Stopping single-stage service containers...", parentStage.Name)
 
 	// the service containers should be the only ones running, so just stop all containers
-	dr.stopContainers(dr.runningSingleStageServiceContainerIDs)
+	c.stopContainers(c.runningSingleStageServiceContainerIDs)
 
 	log.Info().Msgf("[%v] Stopped single-stage service containers...", parentStage.Name)
 }
@@ -698,13 +701,13 @@ func (c *client) StopMultiStageServiceContainers(ctx context.Context) {
 	log.Info().Msg("Stopping multi-stage service containers...")
 
 	// the service containers should be the only ones running, so just stop all containers
-	dr.stopContainers(dr.runningMultiStageServiceContainerIDs)
+	c.stopContainers(c.runningMultiStageServiceContainerIDs)
 
 	log.Info().Msg("Stopped multi-stage service containers...")
 }
 
 func (c *client) StartDockerDaemon() error {
-	if dr.config.DockerConfig != nil && dr.config.DockerConfig.RunType != contracts.DockerRunTypeDinD {
+	if c.config.DockerConfig != nil && c.config.DockerConfig.RunType != contracts.DockerRunTypeDinD {
 		return nil
 	}
 
@@ -713,18 +716,18 @@ func (c *client) StartDockerDaemon() error {
 	args := []string{"--host=unix:///var/run/docker.sock", "--host=tcp://0.0.0.0:2375"}
 
 	// if an mtu is configured pass it to the docker daemon
-	if dr.config.DockerConfig != nil && dr.config.DockerConfig.RunType == contracts.DockerRunTypeDinD && dr.config.DockerConfig.MTU > 0 {
-		args = append(args, fmt.Sprintf("--mtu=%v", dr.config.DockerConfig.MTU))
+	if c.config.DockerConfig != nil && c.config.DockerConfig.RunType == contracts.DockerRunTypeDinD && c.config.DockerConfig.MTU > 0 {
+		args = append(args, fmt.Sprintf("--mtu=%v", c.config.DockerConfig.MTU))
 	}
 
 	// if a bip is configured pass it to the docker daemon
-	if dr.config.DockerConfig != nil && dr.config.DockerConfig.RunType == contracts.DockerRunTypeDinD && dr.config.DockerConfig.BIP != "" {
-		args = append(args, fmt.Sprintf("--bip=%v", dr.config.DockerConfig.BIP))
+	if c.config.DockerConfig != nil && c.config.DockerConfig.RunType == contracts.DockerRunTypeDinD && c.config.DockerConfig.BIP != "" {
+		args = append(args, fmt.Sprintf("--bip=%v", c.config.DockerConfig.BIP))
 	}
 
 	// if a registry mirror is configured pass it to the docker daemon
-	if dr.config.DockerConfig != nil && dr.config.DockerConfig.RunType == contracts.DockerRunTypeDinD && dr.config.DockerConfig.RegistryMirror != "" {
-		args = append(args, fmt.Sprintf("--registry-mirror=%v", dr.config.DockerConfig.RegistryMirror))
+	if c.config.DockerConfig != nil && c.config.DockerConfig.RunType == contracts.DockerRunTypeDinD && c.config.DockerConfig.RegistryMirror != "" {
+		args = append(args, fmt.Sprintf("--registry-mirror=%v", c.config.DockerConfig.RegistryMirror))
 	}
 
 	dockerDaemonCommand := exec.Command("dockerd", args...)
@@ -739,7 +742,7 @@ func (c *client) StartDockerDaemon() error {
 }
 
 func (c *client) WaitForDockerDaemon() {
-	if dr.config.DockerConfig != nil && dr.config.DockerConfig.RunType != contracts.DockerRunTypeDinD {
+	if c.config.DockerConfig != nil && c.config.DockerConfig.RunType != contracts.DockerRunTypeDinD {
 		return
 	}
 
@@ -757,20 +760,20 @@ func (c *client) WaitForDockerDaemon() {
 	log.Debug().Msg("Docker daemon is ready for use")
 }
 
-func (c *client) CreateDockerClient() (*client.Client, error) {
+func (c *client) CreateDockerClient() (*dockerclient.Client, error) {
 
-	dockerClient, err := client.NewEnvClient()
+	dockerClient, err := dockerclient.NewEnvClient()
 	if err != nil {
 		return dockerClient, err
 	}
-	dr.dockerClient = dockerClient
+	c.dockerClient = dockerClient
 
 	return dockerClient, err
 }
 
 func (c *client) getImagePullOptions(containerImage string) types.ImagePullOptions {
 
-	containerRegistryCredentials := dr.config.GetCredentialsByType("container-registry")
+	containerRegistryCredentials := c.config.GetCredentialsByType("container-registry")
 
 	if len(containerRegistryCredentials) > 0 {
 		for _, credential := range containerRegistryCredentials {
@@ -801,7 +804,7 @@ func (c *client) getImagePullOptions(containerImage string) types.ImagePullOptio
 	}
 
 	// when no container-registry credentials apply use container-registry-pull as fallback to avoid docker hub rate limiting issues
-	containerRegistryPullCredentials := dr.config.GetCredentialsByType("container-registry-pull")
+	containerRegistryPullCredentials := c.config.GetCredentialsByType("container-registry-pull")
 
 	if len(containerRegistryPullCredentials) > 0 {
 		// no real need to loop, since we only need one of these, but works anyway
@@ -835,7 +838,7 @@ func (c *client) IsTrustedImage(stageName string, containerImage string) bool {
 	log.Info().Msgf("[%v] Checking if docker image '%v' is trusted...", stageName, containerImage)
 
 	// check if image is trusted image
-	trustedImage := dr.config.GetTrustedImage(containerImage)
+	trustedImage := c.config.GetTrustedImage(containerImage)
 
 	return trustedImage != nil
 }
@@ -845,12 +848,12 @@ func (c *client) HasInjectedCredentials(stageName string, containerImage string)
 	log.Info().Msgf("[%v] Checking if docker image '%v' has injected credentials...", stageName, containerImage)
 
 	// check if image has injected credentials
-	trustedImage := dr.config.GetTrustedImage(containerImage)
+	trustedImage := c.config.GetTrustedImage(containerImage)
 	if trustedImage == nil {
 		return false
 	}
 
-	credentialMap := dr.config.GetCredentialsForTrustedImage(*trustedImage)
+	credentialMap := c.config.GetCredentialsForTrustedImage(*trustedImage)
 
 	return len(credentialMap) > 0
 }
@@ -860,7 +863,7 @@ func (c *client) stopContainer(containerID string) error {
 	log.Debug().Msgf("Stopping container with id %v", containerID)
 
 	timeout := 20 * time.Second
-	err := dr.dockerClient.ContainerStop(context.Background(), containerID, &timeout)
+	err := c.dockerClient.ContainerStop(context.Background(), containerID, &timeout)
 	if err != nil {
 		log.Warn().Err(err).Msgf("Failed stopping container with id %v", containerID)
 		return err
@@ -881,7 +884,7 @@ func (c *client) stopContainers(containerIDs []string) {
 		for _, id := range containerIDs {
 			go func(id string) {
 				defer wg.Done()
-				dr.stopContainer(id)
+				c.stopContainer(id)
 			}(id)
 		}
 
@@ -895,11 +898,11 @@ func (c *client) stopContainers(containerIDs []string) {
 
 func (c *client) StopAllContainers() {
 
-	allRunningContainerIDs := append(dr.runningStageContainerIDs, dr.runningSingleStageServiceContainerIDs...)
-	allRunningContainerIDs = append(allRunningContainerIDs, dr.runningMultiStageServiceContainerIDs...)
-	allRunningContainerIDs = append(allRunningContainerIDs, dr.runningReadinessProbeContainerIDs...)
+	allRunningContainerIDs := append(c.runningStageContainerIDs, c.runningSingleStageServiceContainerIDs...)
+	allRunningContainerIDs = append(allRunningContainerIDs, c.runningMultiStageServiceContainerIDs...)
+	allRunningContainerIDs = append(allRunningContainerIDs, c.runningReadinessProbeContainerIDs...)
 
-	dr.stopContainers(allRunningContainerIDs)
+	c.stopContainers(allRunningContainerIDs)
 }
 
 func (c *client) addRunningContainerID(containerIDs []string, containerID string) []string {
@@ -926,15 +929,15 @@ func (c *client) removeRunningContainerID(containerIDs []string, containerID str
 
 func (c *client) CreateNetworks(ctx context.Context) error {
 
-	if dr.config.DockerConfig != nil {
+	if c.config.DockerConfig != nil {
 
 		// fetch existing networks, so we're not creating ones that already exist
-		currentNetworks, err := dr.dockerClient.NetworkList(ctx, types.NetworkListOptions{})
+		currentNetworks, err := c.dockerClient.NetworkList(ctx, types.NetworkListOptions{})
 		if err != nil {
 			return err
 		}
 
-		for _, nw := range dr.config.DockerConfig.Networks {
+		for _, nw := range c.config.DockerConfig.Networks {
 
 			// check if network already exists
 			networkExists := false
@@ -968,14 +971,14 @@ func (c *client) CreateNetworks(ctx context.Context) error {
 				}
 			}
 
-			resp, err := dr.dockerClient.NetworkCreate(ctx, nw.Name, options)
+			resp, err := c.dockerClient.NetworkCreate(ctx, nw.Name, options)
 
 			if err != nil {
 				log.Error().Err(err).Msgf("Failed creating docker network %v", nw.Name)
 				return err
 			}
 
-			dr.networks[nw.Name] = resp.ID
+			c.networks[nw.Name] = resp.ID
 
 			log.Info().Msgf("Succesfully created docker network %v with id %v", nw.Name, resp.ID)
 		}
@@ -986,11 +989,11 @@ func (c *client) CreateNetworks(ctx context.Context) error {
 
 func (c *client) DeleteNetworks(ctx context.Context) error {
 
-	for _, nw := range dr.config.DockerConfig.Networks {
-		if networkID, ok := dr.networks[nw.Name]; ok && !nw.Durable {
+	for _, nw := range c.config.DockerConfig.Networks {
+		if networkID, ok := c.networks[nw.Name]; ok && !nw.Durable {
 			log.Info().Msgf("Deleting docker network %v with id %v...", nw.Name, networkID)
 
-			err := dr.dockerClient.NetworkRemove(ctx, networkID)
+			err := c.dockerClient.NetworkRemove(ctx, networkID)
 			if err != nil {
 				log.Error().Err(err).Msgf("Failed deleting docker network %v with id %v", nw.Name, networkID)
 				return err
@@ -1065,7 +1068,7 @@ func (c *client) generateEntrypointScript(shell string, commands []string, runCo
 	entrypointPath := path.Join(entrypointdir, entrypointFile)
 
 	// read and parse template
-	templatePath := path.Join(dr.entrypointTemplateDir, entrypointFile)
+	templatePath := path.Join(c.entrypointTemplateDir, entrypointFile)
 	entrypointTemplate, err := template.ParseFiles(templatePath)
 	if err != nil {
 		return
@@ -1095,7 +1098,7 @@ func (c *client) generateEntrypointScript(shell string, commands []string, runCo
 	hostPath = entrypointdir
 	mountPath = "/entrypoint"
 	if runtime.GOOS == "windows" {
-		hostPath = filepath.Join(dr.envvarHelper.GetTempDir(), strings.TrimPrefix(hostPath, "C:\\Windows\\TEMP"))
+		hostPath = filepath.Join(c.envvarClient.GetTempDir(), strings.TrimPrefix(hostPath, "C:\\Windows\\TEMP"))
 		mountPath = "C:" + mountPath
 	}
 
@@ -1109,7 +1112,7 @@ func (c *client) initContainerStartVariables(shell string, commands []string, ru
 
 	if len(commands) > 0 {
 		// generate entrypoint script
-		entrypointHostPath, entrypointMountPath, entrypointFile, innerErr := dr.generateEntrypointScript(shell, commands, runCommandsInForeground)
+		entrypointHostPath, entrypointMountPath, entrypointFile, innerErr := c.generateEntrypointScript(shell, commands, runCommandsInForeground)
 		if innerErr != nil {
 			return entrypoint, cmds, binds, innerErr
 		}
@@ -1132,7 +1135,7 @@ func (c *client) initContainerStartVariables(shell string, commands []string, ru
 	}
 
 	// mount injected credentials as files
-	credentialsHostPath, credentialsMountPath, err := dr.generateCredentialsFiles(trustedImage)
+	credentialsHostPath, credentialsMountPath, err := c.generateCredentialsFiles(trustedImage)
 	if err != nil {
 		return
 	}
@@ -1147,7 +1150,7 @@ func (c *client) generateExtensionEnvvars(customProperties map[string]interface{
 	extensionEnvVars = map[string]string{}
 	if customProperties != nil && len(customProperties) > 0 {
 		for k, v := range customProperties {
-			extensionkey := dr.envvarHelper.getEstafetteEnvvarName(fmt.Sprintf("ESTAFETTE_EXTENSION_%v", foundation.ToUpperSnakeCase(k)))
+			extensionkey := c.envvarClient.GetEstafetteEnvvarName(fmt.Sprintf("ESTAFETTE_EXTENSION_%v", foundation.ToUpperSnakeCase(k)))
 
 			if s, isString := v.(string); isString {
 				// if custom property is of type string add the envvar
@@ -1225,7 +1228,7 @@ func (c *client) generateCredentialsFiles(trustedImage *contracts.TrustedImageCo
 			return
 		}
 
-		credentialMap := dr.config.GetCredentialsForTrustedImage(*trustedImage)
+		credentialMap := c.config.GetCredentialsForTrustedImage(*trustedImage)
 		if len(credentialMap) == 0 {
 			credentialsdir = ""
 			return
@@ -1243,7 +1246,7 @@ func (c *client) generateCredentialsFiles(trustedImage *contracts.TrustedImageCo
 
 			// expand estafette variables in json file
 			credentialsForTypeString := string(credentialsForTypeBytes)
-			credentialsForTypeString = os.Expand(credentialsForTypeString, dr.envvarHelper.getEstafetteEnv)
+			credentialsForTypeString = os.Expand(credentialsForTypeString, c.envvarClient.GetEstafetteEnv)
 
 			// write to file
 			err = ioutil.WriteFile(filepath, []byte(credentialsForTypeString), 0666)
@@ -1257,7 +1260,7 @@ func (c *client) generateCredentialsFiles(trustedImage *contracts.TrustedImageCo
 		hostPath = credentialsdir
 		mountPath = "/credentials"
 		if runtime.GOOS == "windows" {
-			hostPath = filepath.Join(dr.envvarHelper.GetTempDir(), strings.TrimPrefix(hostPath, "C:\\Windows\\TEMP"))
+			hostPath = filepath.Join(c.envvarClient.GetTempDir(), strings.TrimPrefix(hostPath, "C:\\Windows\\TEMP"))
 			mountPath = "C:" + mountPath
 		}
 	}

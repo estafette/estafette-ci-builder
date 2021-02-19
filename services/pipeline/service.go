@@ -8,6 +8,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/estafette/estafette-ci-builder/api"
+	"github.com/estafette/estafette-ci-builder/clients/docker"
+	"github.com/estafette/estafette-ci-builder/clients/envvar"
+	"github.com/estafette/estafette-ci-builder/services/evaluation"
 	contracts "github.com/estafette/estafette-ci-contracts"
 	manifest "github.com/estafette/estafette-ci-manifest"
 	foundation "github.com/estafette/estafette-foundation"
@@ -28,24 +32,24 @@ type Service interface {
 	EnableBuilderInfoStageInjection()
 }
 
-// NewPipelineRunner returns a new PipelineRunner
-func NewPipelineRunner(envvarHelper EnvvarHelper, whenEvaluator WhenEvaluator, dockerRunner DockerRunner, runAsJob bool, cancellationChannel chan struct{}, tailLogsChannel chan contracts.TailLogLine, applicationInfo foundation.ApplicationInfo) Service {
+// NewService returns a new pipeline.Service
+func NewService(ctx context.Context, envvarClient envvar.Client, evaluationService evaluation.Service, dockerClient docker.Client, runAsJob bool, cancellationChannel chan struct{}, tailLogsChannel chan contracts.TailLogLine, applicationInfo foundation.ApplicationInfo) (Service, error) {
 	return &service{
-		envvarHelper:        envvarHelper,
-		whenEvaluator:       whenEvaluator,
-		dockerRunner:        dockerRunner,
+		envvarClient:        envvarClient,
+		evaluationService:   evaluationService,
+		dockerClient:        dockerClient,
 		runAsJob:            runAsJob,
 		cancellationChannel: cancellationChannel,
 		tailLogsChannel:     tailLogsChannel,
 		buildLogSteps:       make([]*contracts.BuildLogStep, 0),
 		applicationInfo:     applicationInfo,
-	}
+	}, nil
 }
 
 type service struct {
-	envvarHelper           EnvvarHelper
-	whenEvaluator          WhenEvaluator
-	dockerRunner           DockerRunner
+	envvarClient           envvar.Client
+	evaluationService      evaluation.Service
+	dockerClient           docker.Client
 	runAsJob               bool
 	cancellationChannel    chan struct{}
 	tailLogsChannel        chan contracts.TailLogLine
@@ -55,37 +59,37 @@ type service struct {
 	applicationInfo        foundation.ApplicationInfo
 }
 
-func (pr *service) RunStage(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, stage manifest.EstafetteStage) (err error) {
+func (s *service) RunStage(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, stage manifest.EstafetteStage) (err error) {
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "RunStage")
 	defer span.Finish()
 	span.SetTag("stage", stage.Name)
 
 	// init some variables
-	parentStageName, stagePlaceholder, autoInjected := pr.initStageVariables(ctx, depth, runIndex, dir, envvars, parentStage, stage)
-	stage.ContainerImage = os.Expand(stage.ContainerImage, pr.envvarHelper.getEstafetteEnv)
+	parentStageName, stagePlaceholder, autoInjected := s.initStageVariables(ctx, depth, runIndex, dir, envvars, parentStage, stage)
+	stage.ContainerImage = os.Expand(stage.ContainerImage, s.envvarClient.GetEstafetteEnv)
 
 	log.Info().Msgf("%v Starting stage", stagePlaceholder)
 
 	// pull image, get size and send pending/running status messages
-	err = pr.pullImageIfNeeded(ctx, stage.Name, parentStageName, stage.ContainerImage, contracts.LogTypeStage, depth, runIndex, autoInjected)
-	defer pr.handleStageFinish(ctx, depth, runIndex, dir, envvars, parentStage, stage, time.Now(), &err)
-	if pr.canceled || err != nil {
+	err = s.pullImageIfNeeded(ctx, stage.Name, parentStageName, stage.ContainerImage, contracts.LogTypeStage, depth, runIndex, autoInjected)
+	defer s.handleStageFinish(ctx, depth, runIndex, dir, envvars, parentStage, stage, time.Now(), &err)
+	if s.canceled || err != nil {
 		return
 	}
 
 	if len(stage.Services) > 0 {
 		// this stage has service containers, start them first
-		err = pr.RunServices(ctx, envvars, stage, stage.Services)
-		if pr.canceled || err != nil {
+		err = s.RunServices(ctx, envvars, stage, stage.Services)
+		if s.canceled || err != nil {
 			return
 		}
 	}
 
 	if len(stage.ParallelStages) > 0 {
 		if depth == 0 {
-			err = pr.RunParallelStages(ctx, depth+1, dir, envvars, stage, stage.ParallelStages)
-			if pr.canceled || err != nil {
+			err = s.RunParallelStages(ctx, depth+1, dir, envvars, stage, stage.ParallelStages)
+			if s.canceled || err != nil {
 				return
 			}
 		} else {
@@ -93,13 +97,13 @@ func (pr *service) RunStage(ctx context.Context, depth int, runIndex int, dir st
 		}
 	} else if stage.ContainerImage != "" {
 		var containerID string
-		containerID, err = pr.dockerRunner.StartStageContainer(ctx, depth, runIndex, dir, envvars, stage)
-		if pr.canceled || err != nil {
+		containerID, err = s.dockerClient.StartStageContainer(ctx, depth, runIndex, dir, envvars, stage)
+		if s.canceled || err != nil {
 			return
 		}
 
-		err = pr.dockerRunner.TailContainerLogs(ctx, containerID, parentStageName, stage.Name, contracts.LogTypeStage, depth, runIndex, nil)
-		if pr.canceled || err != nil {
+		err = s.dockerClient.TailContainerLogs(ctx, containerID, parentStageName, stage.Name, contracts.LogTypeStage, depth, runIndex, nil)
+		if s.canceled || err != nil {
 			return
 		}
 	}
@@ -107,7 +111,7 @@ func (pr *service) RunStage(ctx context.Context, depth int, runIndex int, dir st
 	return
 }
 
-func (pr *service) initStageVariables(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, stage manifest.EstafetteStage) (parentStageName string, stagePlaceholder string, autoInjected *bool) {
+func (s *service) initStageVariables(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, stage manifest.EstafetteStage) (parentStageName string, stagePlaceholder string, autoInjected *bool) {
 
 	stagePlaceholder = fmt.Sprintf("[%v]", stage.Name)
 	if parentStage != nil {
@@ -121,16 +125,16 @@ func (pr *service) initStageVariables(ctx context.Context, depth int, runIndex i
 	return
 }
 
-func (pr *service) handleStageFinish(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, stage manifest.EstafetteStage, dockerRunStart time.Time, errPointer *error) {
+func (s *service) handleStageFinish(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, stage manifest.EstafetteStage, dockerRunStart time.Time, errPointer *error) {
 
 	err := *errPointer
 
 	// init some variables
-	parentStageName, stagePlaceholder, autoInjected := pr.initStageVariables(ctx, depth, runIndex, dir, envvars, parentStage, stage)
+	parentStageName, stagePlaceholder, autoInjected := s.initStageVariables(ctx, depth, runIndex, dir, envvars, parentStage, stage)
 
 	// finalize stage
 	finalStatus := contracts.LogStatusSucceeded
-	if pr.canceled {
+	if s.canceled {
 		log.Info().Msgf("%v Stage canceled", stagePlaceholder)
 		finalStatus = contracts.LogStatusCanceled
 	} else if err != nil {
@@ -142,16 +146,16 @@ func (pr *service) handleStageFinish(ctx context.Context, depth int, runIndex in
 
 	if len(stage.Services) > 0 {
 		// this stage has service containers, stop them now that the stage has finished
-		pr.dockerRunner.StopSingleStageServiceContainers(ctx, stage)
+		s.dockerClient.StopSingleStageServiceContainers(ctx, stage)
 	}
 
 	runDurationValue := time.Since(dockerRunStart)
 	runDuration := &runDurationValue
 
-	pr.sendStatusMessage(stage.Name, parentStageName, contracts.LogTypeStage, depth, runIndex, autoInjected, nil, runDuration, finalStatus)
+	s.sendStatusMessage(stage.Name, parentStageName, contracts.LogTypeStage, depth, runIndex, autoInjected, nil, runDuration, finalStatus)
 }
 
-func (pr *service) RunStageWithRetry(ctx context.Context, depth int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, stage manifest.EstafetteStage) (err error) {
+func (s *service) RunStageWithRetry(ctx context.Context, depth int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, stage manifest.EstafetteStage) (err error) {
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "RunStageWithRetry")
 	defer span.Finish()
@@ -171,10 +175,10 @@ func (pr *service) RunStageWithRetry(ctx context.Context, depth int, dir string,
 
 	// retry until successful or number of retries is maxed out
 	for runIndex <= retries {
-		err = pr.RunStage(ctx, depth, runIndex, dir, envvars, parentStage, stage)
+		err = s.RunStage(ctx, depth, runIndex, dir, envvars, parentStage, stage)
 
 		// if execution is successful, we're done
-		if pr.canceled || err == nil {
+		if s.canceled || err == nil {
 			return
 		}
 
@@ -186,7 +190,7 @@ func (pr *service) RunStageWithRetry(ctx context.Context, depth int, dir string,
 			Text:       err.Error(),
 		}
 
-		pr.tailLogsChannel <- contracts.TailLogLine{
+		s.tailLogsChannel <- contracts.TailLogLine{
 			Step:        stage.Name,
 			ParentStage: parentStageName,
 			Type:        contracts.LogTypeStage,
@@ -198,52 +202,52 @@ func (pr *service) RunStageWithRetry(ctx context.Context, depth int, dir string,
 		runIndex++
 	}
 
-	if pr.canceled || err != nil {
+	if s.canceled || err != nil {
 		return
 	}
 
 	return
 }
 
-func (pr *service) RunService(ctx context.Context, envvars map[string]string, parentStage manifest.EstafetteStage, service manifest.EstafetteService) (err error) {
+func (s *service) RunService(ctx context.Context, envvars map[string]string, parentStage manifest.EstafetteStage, service manifest.EstafetteService) (err error) {
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "RunService")
 	defer span.Finish()
 	span.SetTag("service", service.Name)
 
 	// init some variables
-	service.ContainerImage = os.Expand(service.ContainerImage, pr.envvarHelper.getEstafetteEnv)
+	service.ContainerImage = os.Expand(service.ContainerImage, s.envvarClient.GetEstafetteEnv)
 	depth := 1
 	runIndex := 0
 
 	log.Info().Msgf("[%v] [%v] Starting service", parentStage.Name, service.Name)
 
 	// pull image, get size and send pending/running status messages
-	err = pr.pullImageIfNeeded(ctx, service.Name, parentStage.Name, service.ContainerImage, contracts.LogTypeService, depth, runIndex, nil)
+	err = s.pullImageIfNeeded(ctx, service.Name, parentStage.Name, service.ContainerImage, contracts.LogTypeService, depth, runIndex, nil)
 	dockerRunStart := time.Now()
-	defer pr.handleServiceFinish(ctx, envvars, parentStage, service, true, dockerRunStart, &err)
-	if pr.canceled || err != nil {
+	defer s.handleServiceFinish(ctx, envvars, parentStage, service, true, dockerRunStart, &err)
+	if s.canceled || err != nil {
 		return
 	}
 
 	var containerID string
-	containerID, err = pr.dockerRunner.StartServiceContainer(ctx, envvars, service)
-	if pr.canceled || err != nil {
+	containerID, err = s.dockerClient.StartServiceContainer(ctx, envvars, service)
+	if s.canceled || err != nil {
 		return
 	}
 
 	// start log tailing in background
 	go func(ctx context.Context, envvars map[string]string, parentStage manifest.EstafetteStage, service manifest.EstafetteService, containerID string) {
 		var err error
-		defer pr.handleServiceFinish(ctx, envvars, parentStage, service, false, dockerRunStart, &err)
-		err = pr.dockerRunner.TailContainerLogs(ctx, containerID, parentStage.Name, service.Name, contracts.LogTypeService, 1, 0, service.MultiStage)
+		defer s.handleServiceFinish(ctx, envvars, parentStage, service, false, dockerRunStart, &err)
+		err = s.dockerClient.TailContainerLogs(ctx, containerID, parentStage.Name, service.Name, contracts.LogTypeService, 1, 0, service.MultiStage)
 	}(ctx, envvars, parentStage, service, containerID)
 
 	// wait for service to be ready if readiness probe is defined
 	if service.Readiness != nil {
 		log.Info().Msgf("[%v] Starting readiness probe...", parentStage.Name)
-		err = pr.dockerRunner.RunReadinessProbeContainer(ctx, parentStage, service, *service.Readiness)
-		if pr.canceled || err != nil {
+		err = s.dockerClient.RunReadinessProbeContainer(ctx, parentStage, service, *service.Readiness)
+		if s.canceled || err != nil {
 			return
 		}
 	}
@@ -251,13 +255,13 @@ func (pr *service) RunService(ctx context.Context, envvars map[string]string, pa
 	return
 }
 
-func (pr *service) handleServiceFinish(ctx context.Context, envvars map[string]string, parentStage manifest.EstafetteStage, service manifest.EstafetteService, skipSucceeded bool, dockerRunStart time.Time, errPointer *error) {
+func (s *service) handleServiceFinish(ctx context.Context, envvars map[string]string, parentStage manifest.EstafetteStage, service manifest.EstafetteService, skipSucceeded bool, dockerRunStart time.Time, errPointer *error) {
 
 	err := *errPointer
 
 	// finalize stage
 	finalStatus := contracts.LogStatusSucceeded
-	if pr.canceled {
+	if s.canceled {
 		log.Info().Msgf("[%v] [%v] Service canceled", parentStage.Name, service.Name)
 		finalStatus = contracts.LogStatusCanceled
 	} else if err != nil {
@@ -275,29 +279,29 @@ func (pr *service) handleServiceFinish(ctx context.Context, envvars map[string]s
 	runDurationValue := time.Since(dockerRunStart)
 	runDuration := &runDurationValue
 
-	pr.sendStatusMessage(service.Name, parentStage.Name, contracts.LogTypeService, 1, 0, nil, nil, runDuration, finalStatus)
+	s.sendStatusMessage(service.Name, parentStage.Name, contracts.LogTypeService, 1, 0, nil, nil, runDuration, finalStatus)
 }
 
-func (pr *service) RunStages(ctx context.Context, depth int, stages []*manifest.EstafetteStage, dir string, envvars map[string]string) (buildLogSteps []*contracts.BuildLogStep, err error) {
+func (s *service) RunStages(ctx context.Context, depth int, stages []*manifest.EstafetteStage, dir string, envvars map[string]string) (buildLogSteps []*contracts.BuildLogStep, err error) {
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "RunStages")
 	defer span.Finish()
 
 	// start log tailing
-	pr.buildLogSteps = make([]*contracts.BuildLogStep, 0)
+	s.buildLogSteps = make([]*contracts.BuildLogStep, 0)
 	tailLogsDone := make(chan struct{}, 1)
-	go pr.tailLogs(ctx, tailLogsDone, stages)
+	go s.tailLogs(ctx, tailLogsDone, stages)
 
-	err = pr.dockerRunner.CreateNetworks(ctx)
+	err = s.dockerClient.CreateNetworks(ctx)
 	if err != nil {
 		return
 	}
 	defer func(ctx context.Context) {
-		_ = pr.dockerRunner.DeleteNetworks(ctx)
+		_ = s.dockerClient.DeleteNetworks(ctx)
 	}(ctx)
 
 	// set default build status at the start
-	err = pr.envvarHelper.initBuildStatus()
+	err = s.envvarClient.InitBuildStatus()
 	if err != nil {
 		return
 	}
@@ -307,63 +311,63 @@ func (pr *service) RunStages(ctx context.Context, depth int, stages []*manifest.
 	}
 
 	// creates first injected stage with builder info
-	if pr.injectBuilderInfoStage {
-		pr.logBuilderInfo(pr.applicationInfo)
+	if s.injectBuilderInfoStage {
+		s.logBuilderInfo(s.applicationInfo)
 	}
 
 	log.Info().Msgf("Running %v stages", len(stages))
 
 	var finalErr error
-	for _, s := range stages {
+	for _, st := range stages {
 		func(stage *manifest.EstafetteStage) {
 			defer func(stage *manifest.EstafetteStage) {
 				// handle cancellation happening in between stages
-				if pr.canceled {
+				if s.canceled {
 					// set canceled status for all the next stages
-					pr.forceStatusForStage(*stage, contracts.LogStatusCanceled)
+					s.forceStatusForStage(*stage, contracts.LogStatusCanceled)
 				}
 			}(stage)
 
 			var whenEvaluationResult bool
-			whenEvaluationResult, err = pr.whenEvaluator.Evaluate(stage.Name, stage.When, pr.whenEvaluator.GetParameters())
+			whenEvaluationResult, err = s.evaluationService.Evaluate(stage.Name, stage.When, s.evaluationService.GetParameters())
 			if err != nil {
 				// set 'failed' build status
-				pr.envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "failed")
-				envvars[pr.envvarHelper.getEstafetteEnvvarName("ESTAFETTE_BUILD_STATUS")] = "failed"
+				s.envvarClient.SetEstafetteEnv("ESTAFETTE_BUILD_STATUS", "failed")
+				envvars[s.envvarClient.GetEstafetteEnvvarName("ESTAFETTE_BUILD_STATUS")] = "failed"
 				finalErr = err
 
 				return
 			}
 
-			if pr.canceled {
+			if s.canceled {
 				return
 			}
 			if whenEvaluationResult {
-				err = pr.RunStageWithRetry(ctx, depth, dir, envvars, nil, *stage)
-				if pr.canceled {
+				err = s.RunStageWithRetry(ctx, depth, dir, envvars, nil, *stage)
+				if s.canceled {
 					return
 				}
 				if err != nil {
 					// set 'failed' build status
-					pr.envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "failed")
-					envvars[pr.envvarHelper.getEstafetteEnvvarName("ESTAFETTE_BUILD_STATUS")] = "failed"
+					s.envvarClient.SetEstafetteEnv("ESTAFETTE_BUILD_STATUS", "failed")
+					envvars[s.envvarClient.GetEstafetteEnvvarName("ESTAFETTE_BUILD_STATUS")] = "failed"
 					finalErr = err
 				}
 			} else {
 				// if an error has happened in one of the previous steps or the when expression evaluates to false we still want to render the following steps in the result table
-				pr.forceStatusForStage(*stage, contracts.LogStatusSkipped)
+				s.forceStatusForStage(*stage, contracts.LogStatusSkipped)
 			}
-		}(s)
+		}(st)
 	}
 
-	pr.dockerRunner.StopMultiStageServiceContainers(ctx)
+	s.dockerClient.StopMultiStageServiceContainers(ctx)
 
 	<-tailLogsDone
 
-	return pr.getLogs(ctx), finalErr
+	return s.getLogs(ctx), finalErr
 }
 
-func (pr *service) RunParallelStages(ctx context.Context, depth int, dir string, envvars map[string]string, parentStage manifest.EstafetteStage, parallelStages []*manifest.EstafetteStage) (err error) {
+func (s *service) RunParallelStages(ctx context.Context, depth int, dir string, envvars map[string]string, parentStage manifest.EstafetteStage, parallelStages []*manifest.EstafetteStage) (err error) {
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "RunParallelStages")
 	defer span.Finish()
@@ -384,12 +388,12 @@ func (pr *service) RunParallelStages(ctx context.Context, depth int, dir string,
 			defer wg.Done()
 
 			// handle cancellation happening in between stages
-			if pr.canceled {
+			if s.canceled {
 				return
 			}
 
-			whenEvaluationResult, err := pr.whenEvaluator.Evaluate(stage.Name, stage.When, pr.whenEvaluator.GetParameters())
-			if pr.canceled || err != nil {
+			whenEvaluationResult, err := s.evaluationService.Evaluate(stage.Name, stage.When, s.evaluationService.GetParameters())
+			if s.canceled || err != nil {
 				if err != nil {
 					errors <- err
 				}
@@ -398,9 +402,9 @@ func (pr *service) RunParallelStages(ctx context.Context, depth int, dir string,
 
 			if whenEvaluationResult {
 
-				err = pr.RunStageWithRetry(ctx, depth, dir, envvars, &parentStage, stage)
+				err = s.RunStageWithRetry(ctx, depth, dir, envvars, &parentStage, stage)
 
-				if pr.canceled || err != nil {
+				if s.canceled || err != nil {
 					if err != nil {
 						errors <- err
 					}
@@ -411,7 +415,7 @@ func (pr *service) RunParallelStages(ctx context.Context, depth int, dir string,
 
 				// if an error has happened in one of the previous steps or the when expression evaluates to false we still want to render the following steps in the result table
 				status := contracts.LogStatusSkipped
-				pr.tailLogsChannel <- contracts.TailLogLine{
+				s.tailLogsChannel <- contracts.TailLogLine{
 					Step:         stage.Name,
 					ParentStage:  parentStage.Name,
 					Type:         contracts.LogTypeStage,
@@ -437,7 +441,7 @@ func (pr *service) RunParallelStages(ctx context.Context, depth int, dir string,
 	return
 }
 
-func (pr *service) RunServices(ctx context.Context, envvars map[string]string, parentStage manifest.EstafetteStage, services []*manifest.EstafetteService) (err error) {
+func (s *service) RunServices(ctx context.Context, envvars map[string]string, parentStage manifest.EstafetteStage, services []*manifest.EstafetteService) (err error) {
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "RunServices")
 	defer span.Finish()
@@ -447,7 +451,7 @@ func (pr *service) RunServices(ctx context.Context, envvars map[string]string, p
 
 	errors := make(chan error, len(services))
 
-	for _, s := range services {
+	for _, se := range services {
 		go func(ctx context.Context, envvars map[string]string, parentStage manifest.EstafetteStage, service manifest.EstafetteService) {
 			defer wg.Done()
 
@@ -461,9 +465,9 @@ func (pr *service) RunServices(ctx context.Context, envvars map[string]string, p
 				service.Shell = "/bin/sh"
 			}
 
-			whenEvaluationResult, err := pr.whenEvaluator.Evaluate(service.Name, service.When, pr.whenEvaluator.GetParameters())
+			whenEvaluationResult, err := s.evaluationService.Evaluate(service.Name, service.When, s.evaluationService.GetParameters())
 
-			if pr.canceled || err != nil {
+			if s.canceled || err != nil {
 				if err != nil {
 					errors <- err
 				}
@@ -471,8 +475,8 @@ func (pr *service) RunServices(ctx context.Context, envvars map[string]string, p
 			}
 
 			if whenEvaluationResult {
-				err := pr.RunService(ctx, envvars, parentStage, service)
-				if pr.canceled {
+				err := s.RunService(ctx, envvars, parentStage, service)
+				if s.canceled {
 					return
 				} else if err != nil {
 
@@ -483,7 +487,7 @@ func (pr *service) RunServices(ctx context.Context, envvars map[string]string, p
 						StreamType: "stderr",
 						Text:       err.Error(),
 					}
-					pr.tailLogsChannel <- contracts.TailLogLine{
+					s.tailLogsChannel <- contracts.TailLogLine{
 						Step:        service.Name,
 						ParentStage: parentStage.Name,
 						Type:        contracts.LogTypeService,
@@ -496,7 +500,7 @@ func (pr *service) RunServices(ctx context.Context, envvars map[string]string, p
 			} else {
 				// TODO send taillogline for skipped
 			}
-		}(ctx, envvars, parentStage, *s)
+		}(ctx, envvars, parentStage, *se)
 	}
 
 	// wait for readiness for all services
@@ -511,24 +515,24 @@ func (pr *service) RunServices(ctx context.Context, envvars map[string]string, p
 	return
 }
 
-func (pr *service) StopPipelineOnCancellation() {
+func (s *service) StopPipelineOnCancellation() {
 	// wait for cancellation
-	<-pr.cancellationChannel
+	<-s.cancellationChannel
 
-	pr.canceled = true
+	s.canceled = true
 
-	pr.dockerRunner.StopAllContainers()
+	s.dockerClient.StopAllContainers()
 }
 
-func (pr *service) EnableBuilderInfoStageInjection() {
-	pr.injectBuilderInfoStage = true
+func (s *service) EnableBuilderInfoStageInjection() {
+	s.injectBuilderInfoStage = true
 }
 
-func (pr *service) resetCancellation() {
-	pr.canceled = false
+func (s *service) resetCancellation() {
+	s.canceled = false
 }
 
-func (pr *service) pullImageIfNeeded(ctx context.Context, stageName, parentStageName, containerImage string, containerType contracts.LogType, depth int, runIndex int, autoInjected *bool) (err error) {
+func (s *service) pullImageIfNeeded(ctx context.Context, stageName, parentStageName, containerImage string, containerType contracts.LogType, depth int, runIndex int, autoInjected *bool) (err error) {
 
 	var isPulledImage bool
 	var isTrustedImage bool
@@ -537,39 +541,39 @@ func (pr *service) pullImageIfNeeded(ctx context.Context, stageName, parentStage
 	var imageSize int64
 	var buildLogStepDockerImage *contracts.BuildLogStepDockerImage
 
-	if !pr.canceled && containerImage != "" {
+	if !s.canceled && containerImage != "" {
 
-		isPulledImage = pr.dockerRunner.IsImagePulled(stageName, containerImage)
-		isTrustedImage = pr.dockerRunner.IsTrustedImage(stageName, containerImage)
-		hasInjectedCredentials = pr.dockerRunner.HasInjectedCredentials(stageName, containerImage)
+		isPulledImage = s.dockerClient.IsImagePulled(stageName, containerImage)
+		isTrustedImage = s.dockerClient.IsTrustedImage(stageName, containerImage)
+		hasInjectedCredentials = s.dockerClient.HasInjectedCredentials(stageName, containerImage)
 
 		buildLogStepDockerImage = &contracts.BuildLogStepDockerImage{
-			Name:                   getContainerImageName(containerImage),
-			Tag:                    getContainerImageTag(containerImage),
+			Name:                   api.GetContainerImageName(containerImage),
+			Tag:                    api.GetContainerImageTag(containerImage),
 			IsTrusted:              isTrustedImage,
 			HasInjectedCredentials: hasInjectedCredentials,
 			IsPulled:               isPulledImage,
 		}
 
-		if !pr.canceled && (!isPulledImage || runtime.GOOS == "windows") {
+		if !s.canceled && (!isPulledImage || runtime.GOOS == "windows") {
 
 			// start pulling stage
-			pr.sendStatusMessage(stageName, parentStageName, containerType, depth, runIndex, autoInjected, buildLogStepDockerImage, nil, contracts.LogStatusPending)
+			s.sendStatusMessage(stageName, parentStageName, containerType, depth, runIndex, autoInjected, buildLogStepDockerImage, nil, contracts.LogStatusPending)
 
 			// pull docker image
 			dockerPullStart := time.Now()
-			err = pr.dockerRunner.PullImage(ctx, stageName, containerImage)
+			err = s.dockerClient.PullImage(ctx, stageName, containerImage)
 			imagePullDuration = time.Since(dockerPullStart)
 
 			// set docker image size
-			if !pr.canceled && err == nil {
-				imageSize, err = pr.dockerRunner.GetImageSize(containerImage)
+			if !s.canceled && err == nil {
+				imageSize, err = s.dockerClient.GetImageSize(containerImage)
 			}
 
-			if !pr.canceled && err == nil {
+			if !s.canceled && err == nil {
 				buildLogStepDockerImage = &contracts.BuildLogStepDockerImage{
-					Name:                   getContainerImageName(containerImage),
-					Tag:                    getContainerImageTag(containerImage),
+					Name:                   api.GetContainerImageName(containerImage),
+					Tag:                    api.GetContainerImageTag(containerImage),
 					IsTrusted:              isTrustedImage,
 					HasInjectedCredentials: hasInjectedCredentials,
 					IsPulled:               isPulledImage,
@@ -580,15 +584,15 @@ func (pr *service) pullImageIfNeeded(ctx context.Context, stageName, parentStage
 		}
 	}
 
-	if !pr.canceled && err == nil {
+	if !s.canceled && err == nil {
 		// start running stage
-		pr.sendStatusMessage(stageName, parentStageName, containerType, depth, runIndex, autoInjected, buildLogStepDockerImage, nil, contracts.LogStatusRunning)
+		s.sendStatusMessage(stageName, parentStageName, containerType, depth, runIndex, autoInjected, buildLogStepDockerImage, nil, contracts.LogStatusRunning)
 	}
 
 	return
 }
 
-func (pr *service) sendStatusMessage(step, parentStageName string, containerType contracts.LogType, depth int, runIndex int, autoInjected *bool, image *contracts.BuildLogStepDockerImage, runDuration *time.Duration, status contracts.LogStatus) {
+func (s *service) sendStatusMessage(step, parentStageName string, containerType contracts.LogType, depth int, runIndex int, autoInjected *bool, image *contracts.BuildLogStepDockerImage, runDuration *time.Duration, status contracts.LogStatus) {
 
 	tailLogLine := contracts.TailLogLine{
 		Step:         step,
@@ -602,19 +606,19 @@ func (pr *service) sendStatusMessage(step, parentStageName string, containerType
 		AutoInjected: autoInjected,
 	}
 
-	pr.tailLogsChannel <- tailLogLine
+	s.tailLogsChannel <- tailLogLine
 }
 
-func (pr *service) forceStatusForStage(stage manifest.EstafetteStage, status contracts.LogStatus) {
+func (s *service) forceStatusForStage(stage manifest.EstafetteStage, status contracts.LogStatus) {
 
 	var autoInjected *bool
 	var image *contracts.BuildLogStepDockerImage
 	if stage.ContainerImage != "" {
-		isTrustedImage := pr.dockerRunner.IsTrustedImage(stage.Name, stage.ContainerImage)
-		hasInjectedCredentials := pr.dockerRunner.HasInjectedCredentials(stage.Name, stage.ContainerImage)
+		isTrustedImage := s.dockerClient.IsTrustedImage(stage.Name, stage.ContainerImage)
+		hasInjectedCredentials := s.dockerClient.HasInjectedCredentials(stage.Name, stage.ContainerImage)
 		image = &contracts.BuildLogStepDockerImage{
-			Name:                   getContainerImageName(stage.ContainerImage),
-			Tag:                    getContainerImageTag(stage.ContainerImage),
+			Name:                   api.GetContainerImageName(stage.ContainerImage),
+			Tag:                    api.GetContainerImageTag(stage.ContainerImage),
 			IsTrusted:              isTrustedImage,
 			HasInjectedCredentials: hasInjectedCredentials,
 		}
@@ -623,18 +627,18 @@ func (pr *service) forceStatusForStage(stage manifest.EstafetteStage, status con
 		autoInjected = &stage.AutoInjected
 	}
 
-	pr.sendStatusMessage(stage.Name, "", contracts.LogTypeStage, 0, 0, autoInjected, image, nil, status)
+	s.sendStatusMessage(stage.Name, "", contracts.LogTypeStage, 0, 0, autoInjected, image, nil, status)
 
 	// loop through all parallel stages and set status
 	for _, ps := range stage.ParallelStages {
 		var autoInjected *bool
 		var image *contracts.BuildLogStepDockerImage
 		if ps.ContainerImage != "" {
-			isTrustedImage := pr.dockerRunner.IsTrustedImage(ps.Name, ps.ContainerImage)
-			hasInjectedCredentials := pr.dockerRunner.HasInjectedCredentials(ps.Name, ps.ContainerImage)
+			isTrustedImage := s.dockerClient.IsTrustedImage(ps.Name, ps.ContainerImage)
+			hasInjectedCredentials := s.dockerClient.HasInjectedCredentials(ps.Name, ps.ContainerImage)
 			image = &contracts.BuildLogStepDockerImage{
-				Name:                   getContainerImageName(ps.ContainerImage),
-				Tag:                    getContainerImageTag(ps.ContainerImage),
+				Name:                   api.GetContainerImageName(ps.ContainerImage),
+				Tag:                    api.GetContainerImageTag(ps.ContainerImage),
 				IsTrusted:              isTrustedImage,
 				HasInjectedCredentials: hasInjectedCredentials,
 			}
@@ -643,35 +647,35 @@ func (pr *service) forceStatusForStage(stage manifest.EstafetteStage, status con
 			autoInjected = &ps.AutoInjected
 		}
 
-		pr.sendStatusMessage(ps.Name, stage.Name, contracts.LogTypeStage, 1, 0, autoInjected, image, nil, status)
+		s.sendStatusMessage(ps.Name, stage.Name, contracts.LogTypeStage, 1, 0, autoInjected, image, nil, status)
 	}
 
 	// loop through all services and set status
-	for _, s := range stage.Services {
+	for _, se := range stage.Services {
 		var image *contracts.BuildLogStepDockerImage
-		if s.ContainerImage != "" {
-			isTrustedImage := pr.dockerRunner.IsTrustedImage(s.Name, s.ContainerImage)
-			hasInjectedCredentials := pr.dockerRunner.HasInjectedCredentials(s.Name, s.ContainerImage)
+		if se.ContainerImage != "" {
+			isTrustedImage := s.dockerClient.IsTrustedImage(se.Name, se.ContainerImage)
+			hasInjectedCredentials := s.dockerClient.HasInjectedCredentials(se.Name, se.ContainerImage)
 			image = &contracts.BuildLogStepDockerImage{
-				Name:                   getContainerImageName(s.ContainerImage),
-				Tag:                    getContainerImageTag(s.ContainerImage),
+				Name:                   api.GetContainerImageName(se.ContainerImage),
+				Tag:                    api.GetContainerImageTag(se.ContainerImage),
 				IsTrusted:              isTrustedImage,
 				HasInjectedCredentials: hasInjectedCredentials,
 			}
 		}
 
-		pr.sendStatusMessage(s.Name, stage.Name, contracts.LogTypeService, 1, 0, nil, image, nil, status)
+		s.sendStatusMessage(se.Name, stage.Name, contracts.LogTypeService, 1, 0, nil, image, nil, status)
 	}
 }
 
-func (pr *service) tailLogs(ctx context.Context, tailLogsDone chan struct{}, stages []*manifest.EstafetteStage) {
+func (s *service) tailLogs(ctx context.Context, tailLogsDone chan struct{}, stages []*manifest.EstafetteStage) {
 
 	allLogsReceived := make(chan struct{}, 1)
 
 	for {
 		select {
-		case tailLogLine := <-pr.tailLogsChannel:
-			if pr.runAsJob {
+		case tailLogLine := <-s.tailLogsChannel:
+			if s.runAsJob {
 				// this provides log streaming capabilities in the web interface
 				log.Info().Interface("tailLogLine", tailLogLine).Msg("")
 			} else if tailLogLine.LogLine != nil {
@@ -683,9 +687,9 @@ func (pr *service) tailLogs(ctx context.Context, tailLogsDone chan struct{}, sta
 				}
 			}
 
-			pr.upsertTailLogLine(tailLogLine)
+			s.upsertTailLogLine(tailLogLine)
 
-			if tailLogLine.Status != nil && pr.isFinalStageComplete(stages) {
+			if tailLogLine.Status != nil && s.isFinalStageComplete(stages) {
 				// signal that running stages have finished so taillogs can stop
 				allLogsReceived <- struct{}{}
 			}
@@ -698,7 +702,7 @@ func (pr *service) tailLogs(ctx context.Context, tailLogsDone chan struct{}, sta
 	}
 }
 
-func (pr *service) logBuilderInfo(applicationInfo foundation.ApplicationInfo) {
+func (s *service) logBuilderInfo(applicationInfo foundation.ApplicationInfo) {
 
 	builderVersionMessage := fmt.Sprintf("Starting \x1b[1m%v\x1b[0m version \x1b[1m%v\x1b[0m... \x1b[36mbranch=\x1b[0m%v \x1b[36mbuildDate=\x1b[0m%v \x1b[36mgoVersion=\x1b[0m%v \x1b[36mos=\x1b[0m%v \x1b[36mrevision=\x1b[0m%v", applicationInfo.App, applicationInfo.Version, applicationInfo.Branch, applicationInfo.BuildDate, applicationInfo.GoVersion(), applicationInfo.OperatingSystem(), applicationInfo.Revision)
 
@@ -711,7 +715,7 @@ func (pr *service) logBuilderInfo(applicationInfo foundation.ApplicationInfo) {
 
 	status := contracts.LogStatusSucceeded
 	trueValue := true
-	pr.tailLogsChannel <- contracts.TailLogLine{
+	s.tailLogsChannel <- contracts.TailLogLine{
 		Step:         "builder-info",
 		Type:         contracts.LogTypeStage,
 		LogLine:      &logLineObject,
@@ -720,14 +724,14 @@ func (pr *service) logBuilderInfo(applicationInfo foundation.ApplicationInfo) {
 	}
 }
 
-func (pr *service) getLogs(ctx context.Context) []*contracts.BuildLogStep {
-	return pr.buildLogSteps
+func (s *service) getLogs(ctx context.Context) []*contracts.BuildLogStep {
+	return s.buildLogSteps
 }
 
-func (pr *service) upsertTailLogLine(tailLogLine contracts.TailLogLine) {
+func (s *service) upsertTailLogLine(tailLogLine contracts.TailLogLine) {
 
-	// check if tailLogLine.Step (in combination with parentstage and type if applicable) already exists in pr.buildLogSteps
-	mainStage := pr.getMainBuildLogStep(tailLogLine)
+	// check if tailLogLine.Step (in combination with parentstage and type if applicable) already exists in s.buildLogSteps
+	mainStage := s.getMainBuildLogStep(tailLogLine)
 	if mainStage == nil {
 		if tailLogLine.ParentStage != "" {
 			mainStage = &contracts.BuildLogStep{
@@ -735,20 +739,20 @@ func (pr *service) upsertTailLogLine(tailLogLine contracts.TailLogLine) {
 				Depth:    0,
 				RunIndex: tailLogLine.RunIndex,
 			}
-			pr.buildLogSteps = append(pr.buildLogSteps, mainStage)
+			s.buildLogSteps = append(s.buildLogSteps, mainStage)
 		} else {
 			mainStage = &contracts.BuildLogStep{
 				Step:     tailLogLine.Step,
 				Depth:    0,
 				RunIndex: tailLogLine.RunIndex,
 			}
-			pr.buildLogSteps = append(pr.buildLogSteps, mainStage)
+			s.buildLogSteps = append(s.buildLogSteps, mainStage)
 		}
 	}
 
 	if tailLogLine.ParentStage != "" {
 		if tailLogLine.Type == contracts.LogTypeStage {
-			nestedStage := pr.getNestedBuildLogStep(tailLogLine)
+			nestedStage := s.getNestedBuildLogStep(tailLogLine)
 			if nestedStage == nil {
 				nestedStage = &contracts.BuildLogStep{
 					Step:     tailLogLine.Step,
@@ -779,7 +783,7 @@ func (pr *service) upsertTailLogLine(tailLogLine contracts.TailLogLine) {
 			}
 
 		} else if tailLogLine.Type == contracts.LogTypeService {
-			nestedService := pr.getNestedBuildLogService(tailLogLine)
+			nestedService := s.getNestedBuildLogService(tailLogLine)
 			if nestedService == nil {
 				nestedService = &contracts.BuildLogStep{
 					Step:     tailLogLine.Step,
@@ -833,14 +837,14 @@ func (pr *service) upsertTailLogLine(tailLogLine contracts.TailLogLine) {
 	}
 }
 
-func (pr *service) getMainBuildLogStep(tailLogLine contracts.TailLogLine) *contracts.BuildLogStep {
+func (s *service) getMainBuildLogStep(tailLogLine contracts.TailLogLine) *contracts.BuildLogStep {
 
 	stepToFind := tailLogLine.Step
 	if tailLogLine.ParentStage != "" {
 		stepToFind = tailLogLine.ParentStage
 	}
 
-	for _, bls := range pr.buildLogSteps {
+	for _, bls := range s.buildLogSteps {
 		if bls.Step == stepToFind {
 			if bls.RunIndex == tailLogLine.RunIndex {
 				return bls
@@ -851,13 +855,13 @@ func (pr *service) getMainBuildLogStep(tailLogLine contracts.TailLogLine) *contr
 	return nil
 }
 
-func (pr *service) getNestedBuildLogStep(tailLogLine contracts.TailLogLine) *contracts.BuildLogStep {
+func (s *service) getNestedBuildLogStep(tailLogLine contracts.TailLogLine) *contracts.BuildLogStep {
 
 	if tailLogLine.ParentStage == "" || tailLogLine.Type != contracts.LogTypeStage {
 		return nil
 	}
 
-	for _, bls := range pr.buildLogSteps {
+	for _, bls := range s.buildLogSteps {
 		if bls.Step == tailLogLine.ParentStage {
 			if tailLogLine.ParentStage != "" {
 				// we have to look deeper
@@ -876,13 +880,13 @@ func (pr *service) getNestedBuildLogStep(tailLogLine contracts.TailLogLine) *con
 	return nil
 }
 
-func (pr *service) getNestedBuildLogService(tailLogLine contracts.TailLogLine) *contracts.BuildLogStep {
+func (s *service) getNestedBuildLogService(tailLogLine contracts.TailLogLine) *contracts.BuildLogStep {
 
 	if tailLogLine.ParentStage == "" || tailLogLine.Type != contracts.LogTypeService {
 		return nil
 	}
 
-	for _, bls := range pr.buildLogSteps {
+	for _, bls := range s.buildLogSteps {
 		if bls.Step == tailLogLine.ParentStage {
 			if tailLogLine.ParentStage != "" {
 				// we have to look deeper
@@ -901,12 +905,12 @@ func (pr *service) getNestedBuildLogService(tailLogLine contracts.TailLogLine) *
 	return nil
 }
 
-func (pr *service) isFinalStageComplete(stages []*manifest.EstafetteStage) bool {
+func (s *service) isFinalStageComplete(stages []*manifest.EstafetteStage) bool {
 
-	// pr.buildLogSteps
-	if len(pr.buildLogSteps) > 0 && len(stages) > 0 {
+	// s.buildLogSteps
+	if len(s.buildLogSteps) > 0 && len(stages) > 0 {
 
-		lastBuildLogsStep := pr.buildLogSteps[len(pr.buildLogSteps)-1]
+		lastBuildLogsStep := s.buildLogSteps[len(s.buildLogSteps)-1]
 		lastStage := stages[len(stages)-1]
 
 		// check if the last tracked step is actually the last stage
@@ -939,7 +943,7 @@ func (pr *service) isFinalStageComplete(stages []*manifest.EstafetteStage) bool 
 
 		// check that all service containers are done
 		allNestedServicesAreDone := true
-		for _, st := range pr.buildLogSteps {
+		for _, st := range s.buildLogSteps {
 			for _, s := range st.Services {
 				switch s.Status {
 				case contracts.LogStatusSucceeded,

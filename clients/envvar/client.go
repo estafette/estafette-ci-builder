@@ -1,6 +1,7 @@
 package envvar
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -61,24 +62,24 @@ type Client interface {
 }
 
 // NewClient returns a new envvar
-func NewClient(prefix string, secretHelper crypt.SecretHelper, obfuscationService obfuscation.Service) (Client, error) {
+func NewClient(ctx context.Context, prefix string, secretHelper crypt.SecretHelper, obfuscationClient obfuscation.Client) (Client, error) {
 	return &client{
-		prefix:             prefix,
-		ciServer:           os.Getenv("ESTAFETTE_CI_SERVER"),
-		workDir:            os.Getenv("ESTAFETTE_WORKDIR"),
-		tempDir:            os.Getenv("ESTAFETTE_TEMPDIR"),
-		secretHelper:       secretHelper,
-		obfuscationService: obfuscationService,
+		prefix:            prefix,
+		ciServer:          os.Getenv("ESTAFETTE_CI_SERVER"),
+		workDir:           os.Getenv("ESTAFETTE_WORKDIR"),
+		tempDir:           os.Getenv("ESTAFETTE_TEMPDIR"),
+		secretHelper:      secretHelper,
+		obfuscationClient: obfuscationClient,
 	}, nil
 }
 
 type client struct {
-	prefix             string
-	ciServer           string
-	workDir            string
-	tempDir            string
-	secretHelper       crypt.SecretHelper
-	obfuscationService obfuscation.Service
+	prefix            string
+	ciServer          string
+	workDir           string
+	tempDir           string
+	secretHelper      crypt.SecretHelper
+	obfuscationClient obfuscation.Client
 }
 
 func (c *client) GetCommandOutput(name string, arg ...string) (string, error) {

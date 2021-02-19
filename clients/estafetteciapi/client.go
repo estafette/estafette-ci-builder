@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/estafette/estafette-ci-builder/api"
 	contracts "github.com/estafette/estafette-ci-contracts"
 	"github.com/opentracing-contrib/go-stdlib/nethttp"
 	"github.com/opentracing/opentracing-go"
@@ -30,7 +31,7 @@ type Client interface {
 }
 
 // NewClient returns a new Client
-func NewClient(runAsJob bool, config contracts.BuilderConfig, podName string) (Client, error) {
+func NewClient(ctx context.Context, runAsJob bool, config contracts.BuilderConfig, podName string) (Client, error) {
 	return &client{
 		runAsJob: runAsJob,
 		config:   config,
@@ -237,7 +238,7 @@ func (elh *client) sendBuilderEvent(ctx context.Context, buildStatus contracts.L
 			releaseID = strconv.Itoa(elh.config.ReleaseParams.ReleaseID)
 		}
 
-		ciBuilderEvent := EstafetteCiBuilderEvent{
+		ciBuilderEvent := api.EstafetteCiBuilderEvent{
 			JobName:      jobName,
 			PodName:      elh.podName,
 			RepoSource:   elh.config.Git.RepoSource,

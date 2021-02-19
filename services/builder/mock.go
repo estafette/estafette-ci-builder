@@ -5,7 +5,6 @@
 package builder
 
 import (
-	estafette_ci_contracts "github.com/estafette/estafette-ci-contracts"
 	gomock "github.com/golang/mock/gomock"
 	reflect "reflect"
 )
@@ -46,13 +45,13 @@ func (mr *MockServiceMockRecorder) RunReadinessProbe(protocol, host, port, path,
 }
 
 // RunEstafetteBuildJob mocks base method
-func (m *MockService) RunEstafetteBuildJob(pipelineRunner PipelineRunner, dockerRunner DockerRunner, envvarHelper EnvvarHelper, obfuscator Obfuscator, endOfLifeHelper EndOfLifeHelper, builderConfig estafette_ci_contracts.BuilderConfig, credentialsBytes []byte, runAsJob bool) {
+func (m *MockService) RunEstafetteBuildJob(runAsJob bool) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "RunEstafetteBuildJob", pipelineRunner, dockerRunner, envvarHelper, obfuscator, endOfLifeHelper, builderConfig, credentialsBytes, runAsJob)
+	m.ctrl.Call(m, "RunEstafetteBuildJob", runAsJob)
 }
 
 // RunEstafetteBuildJob indicates an expected call of RunEstafetteBuildJob
-func (mr *MockServiceMockRecorder) RunEstafetteBuildJob(pipelineRunner, dockerRunner, envvarHelper, obfuscator, endOfLifeHelper, builderConfig, credentialsBytes, runAsJob interface{}) *gomock.Call {
+func (mr *MockServiceMockRecorder) RunEstafetteBuildJob(runAsJob interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RunEstafetteBuildJob", reflect.TypeOf((*MockService)(nil).RunEstafetteBuildJob), pipelineRunner, dockerRunner, envvarHelper, obfuscator, endOfLifeHelper, builderConfig, credentialsBytes, runAsJob)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RunEstafetteBuildJob", reflect.TypeOf((*MockService)(nil).RunEstafetteBuildJob), runAsJob)
 }

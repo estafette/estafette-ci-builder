@@ -1,4 +1,4 @@
-package builder
+package pipeline
 
 import (
 	"context"
@@ -7,10 +7,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/estafette/estafette-ci-builder/clients/docker"
+	"github.com/estafette/estafette-ci-builder/clients/envvar"
+	"github.com/estafette/estafette-ci-builder/clients/obfuscation"
+	"github.com/estafette/estafette-ci-builder/services/evaluation"
 	contracts "github.com/estafette/estafette-ci-contracts"
 	crypt "github.com/estafette/estafette-ci-crypt"
 	manifest "github.com/estafette/estafette-ci-manifest"
 	foundation "github.com/estafette/estafette-foundation"
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -18,7 +23,11 @@ func TestRunStage(t *testing.T) {
 
 	t.Run("ReturnsErrorWhenPullImageFails", func(t *testing.T) {
 
-		dockerRunnerMock, _, _, pipelineRunner := getPipelineRunnerAndMocks()
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		dockerClient := docker.NewMockClient(ctrl)
+		_, _, pipelineRunner := getPipelineRunnerAndMocks(dockerClient)
 
 		depth := 0
 		runIndex := 0
@@ -31,10 +40,10 @@ func TestRunStage(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerRunnerMock.isImagePulledFunc = func(stageName string, containerImage string) bool { return false }
-		dockerRunnerMock.pullImageFunc = func(ctx context.Context, stageName string, containerImage string) error {
-			return fmt.Errorf("Failed pulling image")
-		}
+		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false)
+		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false)
+		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false)
+		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("Failed pulling image"))
 
 		// act
 		err := pipelineRunner.RunStage(context.Background(), depth, runIndex, dir, envvars, parentStage, stage)
@@ -45,7 +54,11 @@ func TestRunStage(t *testing.T) {
 
 	t.Run("ReturnsErrorWhenGetImageSizeFails", func(t *testing.T) {
 
-		dockerRunnerMock, _, _, pipelineRunner := getPipelineRunnerAndMocks()
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		dockerClient := docker.NewMockClient(ctrl)
+		_, _, pipelineRunner := getPipelineRunnerAndMocks(dockerClient)
 
 		depth := 0
 		runIndex := 0
@@ -58,11 +71,11 @@ func TestRunStage(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerRunnerMock.isImagePulledFunc = func(stageName string, containerImage string) bool { return false }
-		dockerRunnerMock.pullImageFunc = func(ctx context.Context, stageName string, containerImage string) error { return nil }
-		dockerRunnerMock.getImageSizeFunc = func(containerImage string) (int64, error) {
-			return 0, fmt.Errorf("Failed getting image size")
-		}
+		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false)
+		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false)
+		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false)
+		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), fmt.Errorf("Failed getting image size"))
 
 		// act
 		err := pipelineRunner.RunStage(context.Background(), depth, runIndex, dir, envvars, parentStage, stage)
@@ -73,7 +86,11 @@ func TestRunStage(t *testing.T) {
 
 	t.Run("ReturnsErrorWhenStartStageContainerFails", func(t *testing.T) {
 
-		dockerRunnerMock, _, _, pipelineRunner := getPipelineRunnerAndMocks()
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		dockerClient := docker.NewMockClient(ctrl)
+		_, _, pipelineRunner := getPipelineRunnerAndMocks(dockerClient)
 
 		depth := 0
 		runIndex := 0
@@ -86,10 +103,10 @@ func TestRunStage(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerRunnerMock.isImagePulledFunc = func(stageName string, containerImage string) bool { return true }
-		dockerRunnerMock.startStageContainerFunc = func(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, stage manifest.EstafetteStage) (containerID string, err error) {
-			return "", fmt.Errorf("Failed starting container")
-		}
+		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(true)
+		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false)
+		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false)
+		dockerClient.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("", fmt.Errorf("Failed starting container"))
 
 		// act
 		err := pipelineRunner.RunStage(context.Background(), depth, runIndex, dir, envvars, parentStage, stage)
@@ -100,7 +117,11 @@ func TestRunStage(t *testing.T) {
 
 	t.Run("ReturnsErrorWhenTailContainerLogsFails", func(t *testing.T) {
 
-		dockerRunnerMock, _, _, pipelineRunner := getPipelineRunnerAndMocks()
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		dockerClient := docker.NewMockClient(ctrl)
+		_, _, pipelineRunner := getPipelineRunnerAndMocks(dockerClient)
 
 		depth := 0
 		runIndex := 0
@@ -113,13 +134,11 @@ func TestRunStage(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerRunnerMock.isImagePulledFunc = func(stageName string, containerImage string) bool { return true }
-		dockerRunnerMock.startStageContainerFunc = func(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, stage manifest.EstafetteStage) (containerID string, err error) {
-			return "abc", nil
-		}
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
-			return fmt.Errorf("Failed tailing container logs")
-		}
+		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(true)
+		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false)
+		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false)
+		dockerClient.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil)
+		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("Failed tailing container logs"))
 
 		// act
 		err := pipelineRunner.RunStage(context.Background(), depth, runIndex, dir, envvars, parentStage, stage)
@@ -130,7 +149,11 @@ func TestRunStage(t *testing.T) {
 
 	t.Run("ReturnsNoErrorWhenContainerPullsStartsAndLogs", func(t *testing.T) {
 
-		dockerRunnerMock, _, _, pipelineRunner := getPipelineRunnerAndMocks()
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		dockerClient := docker.NewMockClient(ctrl)
+		_, _, pipelineRunner := getPipelineRunnerAndMocks(dockerClient)
 
 		depth := 0
 		runIndex := 0
@@ -143,43 +166,27 @@ func TestRunStage(t *testing.T) {
 		}
 
 		// set mock responses
-		isImagePulledFuncCalled := false
-		pullImageFuncCalled := false
-		getImageSizeFuncCalled := false
-		startStageContainerFuncCalled := false
-		tailContainerLogsFuncCalled := false
-		dockerRunnerMock.isImagePulledFunc = func(stageName string, containerImage string) bool { isImagePulledFuncCalled = true; return false }
-		dockerRunnerMock.pullImageFunc = func(ctx context.Context, stageName string, containerImage string) error {
-			pullImageFuncCalled = true
-			return nil
-		}
-		dockerRunnerMock.getImageSizeFunc = func(containerImage string) (int64, error) {
-			getImageSizeFuncCalled = true
-			return 0, nil
-		}
-		dockerRunnerMock.startStageContainerFunc = func(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, stage manifest.EstafetteStage) (containerID string, err error) {
-			startStageContainerFuncCalled = true
-			return "abc", nil
-		}
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
-			tailContainerLogsFuncCalled = true
-			return nil
-		}
+		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false)
+		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false)
+		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false)
+		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil)
+		dockerClient.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil)
+		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 
 		// act
 		err := pipelineRunner.RunStage(context.Background(), depth, runIndex, dir, envvars, parentStage, stage)
 
 		assert.Nil(t, err)
-		assert.True(t, isImagePulledFuncCalled)
-		assert.True(t, pullImageFuncCalled)
-		assert.True(t, getImageSizeFuncCalled)
-		assert.True(t, startStageContainerFuncCalled)
-		assert.True(t, tailContainerLogsFuncCalled)
 	})
 
 	t.Run("SendsSequenceOfRunningAndSucceededMessageToChannelForSuccessfulRunWhenImageIsAlreadyPulled", func(t *testing.T) {
 
-		dockerRunnerMock, tailLogsChannel, _, pipelineRunner := getPipelineRunnerAndMocks()
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		dockerClient := docker.NewMockClient(ctrl)
+		tailLogsChannel, _, pipelineRunner := getPipelineRunnerAndMocks(dockerClient)
 
 		depth := 0
 		runIndex := 0
@@ -192,16 +199,11 @@ func TestRunStage(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerRunnerMock.isImagePulledFunc = func(stageName string, containerImage string) bool { return true }
-		dockerRunnerMock.getImageSizeFunc = func(containerImage string) (int64, error) {
-			return 0, nil
-		}
-		dockerRunnerMock.startStageContainerFunc = func(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, stage manifest.EstafetteStage) (containerID string, err error) {
-			return "abc", nil
-		}
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
-			return nil
-		}
+		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(true)
+		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false)
+		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false)
+		dockerClient.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil)
+		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 
 		// act
 		err := pipelineRunner.RunStage(context.Background(), depth, runIndex, dir, envvars, parentStage, stage)
@@ -217,7 +219,11 @@ func TestRunStage(t *testing.T) {
 
 	t.Run("SendsSequenceOfPendingAndRunningAndSucceededMessageToChannelForSuccessfulRun", func(t *testing.T) {
 
-		dockerRunnerMock, tailLogsChannel, _, pipelineRunner := getPipelineRunnerAndMocks()
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		dockerClient := docker.NewMockClient(ctrl)
+		tailLogsChannel, _, pipelineRunner := getPipelineRunnerAndMocks(dockerClient)
 
 		depth := 0
 		runIndex := 0
@@ -230,19 +236,13 @@ func TestRunStage(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerRunnerMock.isImagePulledFunc = func(stageName string, containerImage string) bool { return false }
-		dockerRunnerMock.pullImageFunc = func(ctx context.Context, stageName string, containerImage string) error {
-			return nil
-		}
-		dockerRunnerMock.getImageSizeFunc = func(containerImage string) (int64, error) {
-			return 0, nil
-		}
-		dockerRunnerMock.startStageContainerFunc = func(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, stage manifest.EstafetteStage) (containerID string, err error) {
-			return "abc", nil
-		}
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
-			return nil
-		}
+		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false)
+		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false)
+		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false)
+		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil)
+		dockerClient.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil)
+		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 
 		// act
 		err := pipelineRunner.RunStage(context.Background(), depth, runIndex, dir, envvars, parentStage, stage)
@@ -262,7 +262,11 @@ func TestRunStage(t *testing.T) {
 
 	t.Run("SendsSequenceOfPendingAndRunningAndFailedMessageToChannelForFailingRun", func(t *testing.T) {
 
-		dockerRunnerMock, tailLogsChannel, _, pipelineRunner := getPipelineRunnerAndMocks()
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		dockerClient := docker.NewMockClient(ctrl)
+		tailLogsChannel, _, pipelineRunner := getPipelineRunnerAndMocks(dockerClient)
 
 		depth := 0
 		runIndex := 0
@@ -275,19 +279,13 @@ func TestRunStage(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerRunnerMock.isImagePulledFunc = func(stageName string, containerImage string) bool { return false }
-		dockerRunnerMock.pullImageFunc = func(ctx context.Context, stageName string, containerImage string) error {
-			return nil
-		}
-		dockerRunnerMock.getImageSizeFunc = func(containerImage string) (int64, error) {
-			return 0, nil
-		}
-		dockerRunnerMock.startStageContainerFunc = func(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, stage manifest.EstafetteStage) (containerID string, err error) {
-			return "abc", nil
-		}
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
-			return fmt.Errorf("Failed tailing container logs")
-		}
+		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false)
+		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false)
+		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false)
+		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil)
+		dockerClient.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil)
+		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("Failed tailing container logs"))
 
 		// act
 		err := pipelineRunner.RunStage(context.Background(), depth, runIndex, dir, envvars, parentStage, stage)
@@ -307,7 +305,11 @@ func TestRunStage(t *testing.T) {
 
 	t.Run("SendsCanceledMessageToChannelForCanceledRun", func(t *testing.T) {
 
-		dockerRunnerMock, tailLogsChannel, cancellationChannel, pipelineRunner := getPipelineRunnerAndMocks()
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		dockerClient := docker.NewMockClient(ctrl)
+		tailLogsChannel, cancellationChannel, pipelineRunner := getPipelineRunnerAndMocks(dockerClient)
 
 		depth := 0
 		runIndex := 0
@@ -320,19 +322,14 @@ func TestRunStage(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerRunnerMock.isImagePulledFunc = func(stageName string, containerImage string) bool { return false }
-		dockerRunnerMock.pullImageFunc = func(ctx context.Context, stageName string, containerImage string) error {
-			return nil
-		}
-		dockerRunnerMock.getImageSizeFunc = func(containerImage string) (int64, error) {
-			return 0, nil
-		}
-		dockerRunnerMock.startStageContainerFunc = func(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, stage manifest.EstafetteStage) (containerID string, err error) {
-			return "abc", nil
-		}
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
-			return nil
-		}
+		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil).AnyTimes()
+		dockerClient.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil).AnyTimes()
+		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+		dockerClient.EXPECT().StopAllContainers().AnyTimes()
 
 		// act
 		go pipelineRunner.StopPipelineOnCancellation()
@@ -348,7 +345,11 @@ func TestRunStage(t *testing.T) {
 
 	t.Run("SendsCanceledMessageToChannelForCanceledRunEvenWhenRunFails", func(t *testing.T) {
 
-		dockerRunnerMock, tailLogsChannel, cancellationChannel, pipelineRunner := getPipelineRunnerAndMocks()
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		dockerClient := docker.NewMockClient(ctrl)
+		tailLogsChannel, cancellationChannel, pipelineRunner := getPipelineRunnerAndMocks(dockerClient)
 
 		depth := 0
 		runIndex := 0
@@ -361,19 +362,14 @@ func TestRunStage(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerRunnerMock.isImagePulledFunc = func(stageName string, containerImage string) bool { return false }
-		dockerRunnerMock.pullImageFunc = func(ctx context.Context, stageName string, containerImage string) error {
-			return nil
-		}
-		dockerRunnerMock.getImageSizeFunc = func(containerImage string) (int64, error) {
-			return 0, nil
-		}
-		dockerRunnerMock.startStageContainerFunc = func(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, stage manifest.EstafetteStage) (containerID string, err error) {
-			return "abc", nil
-		}
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
-			return fmt.Errorf("Failed tailing container logs")
-		}
+		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil).AnyTimes()
+		dockerClient.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil).AnyTimes()
+		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("Failed tailing container logs")).AnyTimes()
+		dockerClient.EXPECT().StopAllContainers().AnyTimes()
 
 		// act
 		go pipelineRunner.StopPipelineOnCancellation()
@@ -389,7 +385,11 @@ func TestRunStage(t *testing.T) {
 
 	t.Run("SendsMessagesWithDepthAndParentStageSet", func(t *testing.T) {
 
-		dockerRunnerMock, tailLogsChannel, _, pipelineRunner := getPipelineRunnerAndMocks()
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		dockerClient := docker.NewMockClient(ctrl)
+		tailLogsChannel, _, pipelineRunner := getPipelineRunnerAndMocks(dockerClient)
 
 		depth := 1
 		runIndex := 0
@@ -407,19 +407,13 @@ func TestRunStage(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerRunnerMock.isImagePulledFunc = func(stageName string, containerImage string) bool { return false }
-		dockerRunnerMock.pullImageFunc = func(ctx context.Context, stageName string, containerImage string) error {
-			return nil
-		}
-		dockerRunnerMock.getImageSizeFunc = func(containerImage string) (int64, error) {
-			return 0, nil
-		}
-		dockerRunnerMock.startStageContainerFunc = func(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, stage manifest.EstafetteStage) (containerID string, err error) {
-			return "abc", nil
-		}
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
-			return nil
-		}
+		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false)
+		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false)
+		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false)
+		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil)
+		dockerClient.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil)
+		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 
 		// act
 		err := pipelineRunner.RunStage(context.Background(), depth, runIndex, dir, envvars, parentStage, stage)
@@ -447,7 +441,11 @@ func TestRunStageWithRetry(t *testing.T) {
 
 	t.Run("ReturnsErrorWhenRunStageFailsWithZeroRetries", func(t *testing.T) {
 
-		dockerRunnerMock, _, _, pipelineRunner := getPipelineRunnerAndMocks()
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		dockerClient := docker.NewMockClient(ctrl)
+		_, _, pipelineRunner := getPipelineRunnerAndMocks(dockerClient)
 
 		depth := 0
 		dir := "/estafette-work"
@@ -460,23 +458,28 @@ func TestRunStageWithRetry(t *testing.T) {
 		}
 
 		// set mock responses
-		callCount := 0
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
-			callCount++
-			return fmt.Errorf("Failed tailing container logs")
-		}
+		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false)
+		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false)
+		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false)
+		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil)
+		dockerClient.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil)
+		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("Failed tailing container logs")).Times(1)
 
 		// act
 		err := pipelineRunner.RunStageWithRetry(context.Background(), depth, dir, envvars, parentStage, stage)
 
 		assert.NotNil(t, err)
 		assert.Equal(t, "Failed tailing container logs", err.Error())
-		assert.Equal(t, 1, callCount)
 	})
 
 	t.Run("ReturnsErrorWhenRunStageFailsWithAllRetries", func(t *testing.T) {
 
-		dockerRunnerMock, _, _, pipelineRunner := getPipelineRunnerAndMocks()
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		dockerClient := docker.NewMockClient(ctrl)
+		_, _, pipelineRunner := getPipelineRunnerAndMocks(dockerClient)
 
 		depth := 0
 		dir := "/estafette-work"
@@ -490,11 +493,15 @@ func TestRunStageWithRetry(t *testing.T) {
 
 		// set mock responses
 		iteration := 0
-		callCount := 0
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
 
+		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false).MinTimes(1)
+		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false).MinTimes(1)
+		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false).MinTimes(1)
+		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).MinTimes(1)
+		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil).MinTimes(1)
+		dockerClient.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil).MinTimes(1)
+		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
 			defer func() { iteration++ }()
-			callCount++
 
 			switch iteration {
 			case 0:
@@ -506,19 +513,22 @@ func TestRunStageWithRetry(t *testing.T) {
 			}
 
 			return fmt.Errorf("Shouldn't call it this often")
-		}
+		}).Times(3)
 
 		// act
 		err := pipelineRunner.RunStageWithRetry(context.Background(), depth, dir, envvars, parentStage, stage)
 
 		assert.NotNil(t, err)
 		assert.Equal(t, "Failed tailing container logs", err.Error())
-		assert.Equal(t, 3, callCount)
 	})
 
 	t.Run("ReturnsErrorWhenRunStageFailsWithAllRetries", func(t *testing.T) {
 
-		dockerRunnerMock, _, _, pipelineRunner := getPipelineRunnerAndMocks()
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		dockerClient := docker.NewMockClient(ctrl)
+		_, _, pipelineRunner := getPipelineRunnerAndMocks(dockerClient)
 
 		depth := 0
 		dir := "/estafette-work"
@@ -532,11 +542,14 @@ func TestRunStageWithRetry(t *testing.T) {
 
 		// set mock responses
 		iteration := 0
-		callCount := 0
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
-
+		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false).MinTimes(1)
+		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false).MinTimes(1)
+		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false).MinTimes(1)
+		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).MinTimes(1)
+		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil).MinTimes(1)
+		dockerClient.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil).MinTimes(1)
+		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
 			defer func() { iteration++ }()
-			callCount++
 
 			switch iteration {
 			case 0:
@@ -548,18 +561,21 @@ func TestRunStageWithRetry(t *testing.T) {
 			}
 
 			return fmt.Errorf("Shouldn't call it this often")
-		}
+		}).Times(3)
 
 		// act
 		err := pipelineRunner.RunStageWithRetry(context.Background(), depth, dir, envvars, parentStage, stage)
 
 		assert.Nil(t, err)
-		assert.Equal(t, 3, callCount)
 	})
 
 	t.Run("SendsMessageWithErrorAsLogLineForFailingStage", func(t *testing.T) {
 
-		dockerRunnerMock, tailLogsChannel, _, pipelineRunner := getPipelineRunnerAndMocks()
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		dockerClient := docker.NewMockClient(ctrl)
+		tailLogsChannel, _, pipelineRunner := getPipelineRunnerAndMocks(dockerClient)
 
 		depth := 0
 		dir := "/estafette-work"
@@ -572,9 +588,13 @@ func TestRunStageWithRetry(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
-			return fmt.Errorf("Failed tailing container logs")
-		}
+		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false)
+		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false)
+		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false)
+		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil)
+		dockerClient.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil)
+		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("Failed tailing container logs"))
 
 		// act
 		_ = pipelineRunner.RunStageWithRetry(context.Background(), depth, dir, envvars, parentStage, stage)
@@ -591,7 +611,11 @@ func TestRunStageWithRetry(t *testing.T) {
 
 	t.Run("SendsMessageWithErrorAsLogLineForEachFailingAttempt", func(t *testing.T) {
 
-		dockerRunnerMock, tailLogsChannel, _, pipelineRunner := getPipelineRunnerAndMocks()
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		dockerClient := docker.NewMockClient(ctrl)
+		tailLogsChannel, _, pipelineRunner := getPipelineRunnerAndMocks(dockerClient)
 
 		depth := 0
 		dir := "/estafette-work"
@@ -605,8 +629,13 @@ func TestRunStageWithRetry(t *testing.T) {
 
 		// set mock responses
 		iteration := 0
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
-
+		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false).MinTimes(1)
+		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false).MinTimes(1)
+		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false).MinTimes(1)
+		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).MinTimes(1)
+		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil).MinTimes(1)
+		dockerClient.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil).MinTimes(1)
+		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
 			defer func() { iteration++ }()
 
 			switch iteration {
@@ -619,7 +648,7 @@ func TestRunStageWithRetry(t *testing.T) {
 			}
 
 			return fmt.Errorf("Shouldn't call it this often")
-		}
+		}).Times(3)
 
 		// act
 		_ = pipelineRunner.RunStageWithRetry(context.Background(), depth, dir, envvars, parentStage, stage)
@@ -657,7 +686,11 @@ func TestRunService(t *testing.T) {
 
 	t.Run("ReturnsErrorWhenPullImageFails", func(t *testing.T) {
 
-		dockerRunnerMock, _, _, pipelineRunner := getPipelineRunnerAndMocks()
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		dockerClient := docker.NewMockClient(ctrl)
+		_, _, pipelineRunner := getPipelineRunnerAndMocks(dockerClient)
 
 		envvars := map[string]string{}
 		parentStage := manifest.EstafetteStage{
@@ -669,10 +702,10 @@ func TestRunService(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerRunnerMock.isImagePulledFunc = func(stageName string, containerImage string) bool { return false }
-		dockerRunnerMock.pullImageFunc = func(ctx context.Context, stageName string, containerImage string) error {
-			return fmt.Errorf("Failed pulling image")
-		}
+		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false)
+		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false)
+		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false)
+		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("Failed pulling image"))
 
 		// act
 		err := pipelineRunner.RunService(context.Background(), envvars, parentStage, service)
@@ -683,7 +716,11 @@ func TestRunService(t *testing.T) {
 
 	t.Run("ReturnsErrorWhenGetImageSizeFails", func(t *testing.T) {
 
-		dockerRunnerMock, _, _, pipelineRunner := getPipelineRunnerAndMocks()
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		dockerClient := docker.NewMockClient(ctrl)
+		_, _, pipelineRunner := getPipelineRunnerAndMocks(dockerClient)
 
 		envvars := map[string]string{}
 		parentStage := manifest.EstafetteStage{
@@ -695,11 +732,11 @@ func TestRunService(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerRunnerMock.isImagePulledFunc = func(stageName string, containerImage string) bool { return false }
-		dockerRunnerMock.pullImageFunc = func(ctx context.Context, stageName string, containerImage string) error { return nil }
-		dockerRunnerMock.getImageSizeFunc = func(containerImage string) (int64, error) {
-			return 0, fmt.Errorf("Failed getting image size")
-		}
+		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false)
+		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false)
+		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false)
+		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), fmt.Errorf("Failed getting image size"))
 
 		// act
 		err := pipelineRunner.RunService(context.Background(), envvars, parentStage, service)
@@ -710,7 +747,11 @@ func TestRunService(t *testing.T) {
 
 	t.Run("ReturnsErrorWhenStartStageContainerFails", func(t *testing.T) {
 
-		dockerRunnerMock, _, _, pipelineRunner := getPipelineRunnerAndMocks()
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		dockerClient := docker.NewMockClient(ctrl)
+		_, _, pipelineRunner := getPipelineRunnerAndMocks(dockerClient)
 
 		envvars := map[string]string{}
 		parentStage := manifest.EstafetteStage{
@@ -722,10 +763,10 @@ func TestRunService(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerRunnerMock.isImagePulledFunc = func(stageName string, containerImage string) bool { return true }
-		dockerRunnerMock.startServiceContainerFunc = func(ctx context.Context, envvars map[string]string, service manifest.EstafetteService) (containerID string, err error) {
-			return "", fmt.Errorf("Failed starting container")
-		}
+		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(true)
+		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false)
+		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false)
+		dockerClient.EXPECT().StartServiceContainer(gomock.Any(), gomock.Any(), gomock.Any()).Return("", fmt.Errorf("Failed starting container"))
 
 		// act
 		err := pipelineRunner.RunService(context.Background(), envvars, parentStage, service)
@@ -736,7 +777,11 @@ func TestRunService(t *testing.T) {
 
 	t.Run("ReturnsNoErrorWhenTailContainerLogsFailsSinceItRunsInTheBackground", func(t *testing.T) {
 
-		dockerRunnerMock, _, _, pipelineRunner := getPipelineRunnerAndMocks()
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		dockerClient := docker.NewMockClient(ctrl)
+		_, _, pipelineRunner := getPipelineRunnerAndMocks(dockerClient)
 
 		envvars := map[string]string{}
 		parentStage := manifest.EstafetteStage{
@@ -748,16 +793,17 @@ func TestRunService(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerRunnerMock.isImagePulledFunc = func(stageName string, containerImage string) bool { return true }
-		dockerRunnerMock.startServiceContainerFunc = func(ctx context.Context, envvars map[string]string, service manifest.EstafetteService) (containerID string, err error) {
-			return "abc", nil
-		}
+		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(true)
+		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false)
+		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false)
+		dockerClient.EXPECT().StartServiceContainer(gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil)
+
 		var wg sync.WaitGroup
 		wg.Add(1)
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
+		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
 			defer wg.Done()
 			return fmt.Errorf("Failed tailing container logs")
-		}
+		})
 
 		// act
 		err := pipelineRunner.RunService(context.Background(), envvars, parentStage, service)
@@ -770,7 +816,11 @@ func TestRunService(t *testing.T) {
 
 	t.Run("ReturnsErrorWhenRunReadinessProbeContainerFails", func(t *testing.T) {
 
-		dockerRunnerMock, _, _, pipelineRunner := getPipelineRunnerAndMocks()
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		dockerClient := docker.NewMockClient(ctrl)
+		_, _, pipelineRunner := getPipelineRunnerAndMocks(dockerClient)
 
 		envvars := map[string]string{}
 		parentStage := manifest.EstafetteStage{
@@ -783,19 +833,18 @@ func TestRunService(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerRunnerMock.isImagePulledFunc = func(stageName string, containerImage string) bool { return true }
-		dockerRunnerMock.startServiceContainerFunc = func(ctx context.Context, envvars map[string]string, service manifest.EstafetteService) (containerID string, err error) {
-			return "abc", nil
-		}
+		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(true)
+		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false)
+		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false)
+		dockerClient.EXPECT().StartServiceContainer(gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil)
+
 		var wg sync.WaitGroup
 		wg.Add(1)
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
+		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
 			defer wg.Done()
 			return nil
-		}
-		dockerRunnerMock.runReadinessProbeContainerFunc = func(ctx context.Context, parentStage manifest.EstafetteStage, service manifest.EstafetteService, readiness manifest.ReadinessProbe) (err error) {
-			return fmt.Errorf("Failed readiness probe")
-		}
+		})
+		dockerClient.EXPECT().RunReadinessProbeContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("Failed readiness probe"))
 
 		// act
 		err := pipelineRunner.RunService(context.Background(), envvars, parentStage, service)
@@ -809,7 +858,11 @@ func TestRunService(t *testing.T) {
 
 	t.Run("ReturnsNoErrorWhenContainerPullsStartsAndLogs", func(t *testing.T) {
 
-		dockerRunnerMock, _, _, pipelineRunner := getPipelineRunnerAndMocks()
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		dockerClient := docker.NewMockClient(ctrl)
+		_, _, pipelineRunner := getPipelineRunnerAndMocks(dockerClient)
 
 		envvars := map[string]string{}
 		parentStage := manifest.EstafetteStage{
@@ -822,36 +875,18 @@ func TestRunService(t *testing.T) {
 		}
 
 		// set mock responses
-		isImagePulledFuncCalled := false
-		pullImageFuncCalled := false
-		getImageSizeFuncCalled := false
-		startServiceContainerFuncCalled := false
-		tailContainerLogsFuncCalled := false
-		runReadinessProbeContainerFuncCalled := false
-		dockerRunnerMock.isImagePulledFunc = func(stageName string, containerImage string) bool { isImagePulledFuncCalled = true; return false }
-		dockerRunnerMock.pullImageFunc = func(ctx context.Context, stageName string, containerImage string) error {
-			pullImageFuncCalled = true
-			return nil
-		}
-		dockerRunnerMock.getImageSizeFunc = func(containerImage string) (int64, error) {
-			getImageSizeFuncCalled = true
-			return 0, nil
-		}
-		dockerRunnerMock.startServiceContainerFunc = func(ctx context.Context, envvars map[string]string, service manifest.EstafetteService) (containerID string, err error) {
-			startServiceContainerFuncCalled = true
-			return "abc", nil
-		}
+		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(true)
+		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false)
+		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false)
+		dockerClient.EXPECT().StartServiceContainer(gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil)
+
 		var wg sync.WaitGroup
 		wg.Add(1)
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
+		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
 			defer wg.Done()
-			tailContainerLogsFuncCalled = true
 			return nil
-		}
-		dockerRunnerMock.runReadinessProbeContainerFunc = func(ctx context.Context, parentStage manifest.EstafetteStage, service manifest.EstafetteService, readiness manifest.ReadinessProbe) (err error) {
-			runReadinessProbeContainerFuncCalled = true
-			return nil
-		}
+		})
+		dockerClient.EXPECT().RunReadinessProbeContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 
 		// act
 		err := pipelineRunner.RunService(context.Background(), envvars, parentStage, service)
@@ -860,17 +895,15 @@ func TestRunService(t *testing.T) {
 		wg.Wait()
 
 		assert.Nil(t, err)
-		assert.True(t, isImagePulledFuncCalled)
-		assert.True(t, pullImageFuncCalled)
-		assert.True(t, getImageSizeFuncCalled)
-		assert.True(t, startServiceContainerFuncCalled)
-		assert.True(t, tailContainerLogsFuncCalled)
-		assert.True(t, runReadinessProbeContainerFuncCalled)
 	})
 
 	t.Run("SendsRunningMessageToChannelForSuccessfulRunWhenImageIsAlreadyPulled", func(t *testing.T) {
 
-		dockerRunnerMock, tailLogsChannel, _, pipelineRunner := getPipelineRunnerAndMocks()
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		dockerClient := docker.NewMockClient(ctrl)
+		tailLogsChannel, _, pipelineRunner := getPipelineRunnerAndMocks(dockerClient)
 
 		envvars := map[string]string{}
 		parentStage := manifest.EstafetteStage{
@@ -882,19 +915,18 @@ func TestRunService(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerRunnerMock.isImagePulledFunc = func(stageName string, containerImage string) bool { return true }
-		dockerRunnerMock.getImageSizeFunc = func(containerImage string) (int64, error) {
-			return 0, nil
-		}
-		dockerRunnerMock.startServiceContainerFunc = func(ctx context.Context, envvars map[string]string, service manifest.EstafetteService) (containerID string, err error) {
-			return "abc", nil
-		}
+		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(true).AnyTimes()
+		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil).AnyTimes()
+		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+		dockerClient.EXPECT().StartServiceContainer(gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil)
+
 		var wg sync.WaitGroup
 		wg.Add(1)
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
+		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
 			defer wg.Done()
 			return nil
-		}
+		})
 
 		// act
 		err := pipelineRunner.RunService(context.Background(), envvars, parentStage, service)
@@ -910,7 +942,11 @@ func TestRunService(t *testing.T) {
 
 	t.Run("SendsSequenceOfPendingAndRunningMessageToChannelForSuccessfulStartAndReadiness", func(t *testing.T) {
 
-		dockerRunnerMock, tailLogsChannel, _, pipelineRunner := getPipelineRunnerAndMocks()
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		dockerClient := docker.NewMockClient(ctrl)
+		tailLogsChannel, _, pipelineRunner := getPipelineRunnerAndMocks(dockerClient)
 
 		envvars := map[string]string{}
 		parentStage := manifest.EstafetteStage{
@@ -923,25 +959,20 @@ func TestRunService(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerRunnerMock.isImagePulledFunc = func(stageName string, containerImage string) bool { return false }
-		dockerRunnerMock.pullImageFunc = func(ctx context.Context, stageName string, containerImage string) error {
-			return nil
-		}
-		dockerRunnerMock.getImageSizeFunc = func(containerImage string) (int64, error) {
-			return 0, nil
-		}
-		dockerRunnerMock.startServiceContainerFunc = func(ctx context.Context, envvars map[string]string, service manifest.EstafetteService) (containerID string, err error) {
-			return "abc", nil
-		}
+		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false)
+		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false)
+		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false)
+		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil)
+		dockerClient.EXPECT().StartServiceContainer(gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil)
+
 		var wg sync.WaitGroup
 		wg.Add(1)
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
+		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
 			defer wg.Done()
 			return nil
-		}
-		dockerRunnerMock.runReadinessProbeContainerFunc = func(ctx context.Context, parentStage manifest.EstafetteStage, service manifest.EstafetteService, readiness manifest.ReadinessProbe) (err error) {
-			return nil
-		}
+		})
+		dockerClient.EXPECT().RunReadinessProbeContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 
 		// act
 		err := pipelineRunner.RunService(context.Background(), envvars, parentStage, service)
@@ -960,7 +991,11 @@ func TestRunService(t *testing.T) {
 
 	t.Run("SendsSequenceOfPendingAndRunningAndFailedMessageToChannelForFailingReadiness", func(t *testing.T) {
 
-		dockerRunnerMock, tailLogsChannel, _, pipelineRunner := getPipelineRunnerAndMocks()
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		dockerClient := docker.NewMockClient(ctrl)
+		tailLogsChannel, _, pipelineRunner := getPipelineRunnerAndMocks(dockerClient)
 
 		envvars := map[string]string{}
 		parentStage := manifest.EstafetteStage{
@@ -973,27 +1008,22 @@ func TestRunService(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerRunnerMock.isImagePulledFunc = func(stageName string, containerImage string) bool { return false }
-		dockerRunnerMock.pullImageFunc = func(ctx context.Context, stageName string, containerImage string) error {
-			return nil
-		}
-		dockerRunnerMock.getImageSizeFunc = func(containerImage string) (int64, error) {
-			return 0, nil
-		}
-		dockerRunnerMock.startServiceContainerFunc = func(ctx context.Context, envvars map[string]string, service manifest.EstafetteService) (containerID string, err error) {
-			return "abc", nil
-		}
+		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false)
+		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false)
+		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false)
+		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil)
+		dockerClient.EXPECT().StartServiceContainer(gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil)
+
 		var wg sync.WaitGroup
 		wg.Add(1)
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
+		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
 			defer wg.Done()
 			// ensure tailing doesn't set status before the main routine does
 			time.Sleep(100 * time.Millisecond)
 			return nil
-		}
-		dockerRunnerMock.runReadinessProbeContainerFunc = func(ctx context.Context, parentStage manifest.EstafetteStage, service manifest.EstafetteService, readiness manifest.ReadinessProbe) (err error) {
-			return fmt.Errorf("Failed readiness probe")
-		}
+		})
+		dockerClient.EXPECT().RunReadinessProbeContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("Failed readiness probe"))
 
 		// act
 		err := pipelineRunner.RunService(context.Background(), envvars, parentStage, service)
@@ -1015,7 +1045,11 @@ func TestRunService(t *testing.T) {
 
 	t.Run("SendsCanceledMessageToChannelForCanceledRun", func(t *testing.T) {
 
-		dockerRunnerMock, tailLogsChannel, cancellationChannel, pipelineRunner := getPipelineRunnerAndMocks()
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		dockerClient := docker.NewMockClient(ctrl)
+		tailLogsChannel, cancellationChannel, pipelineRunner := getPipelineRunnerAndMocks(dockerClient)
 
 		envvars := map[string]string{}
 		parentStage := manifest.EstafetteStage{
@@ -1027,13 +1061,13 @@ func TestRunService(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerRunnerMock.isImagePulledFunc = func(stageName string, containerImage string) bool { return false }
-		dockerRunnerMock.pullImageFunc = func(ctx context.Context, stageName string, containerImage string) error {
-			return nil
-		}
-		dockerRunnerMock.getImageSizeFunc = func(containerImage string) (int64, error) {
-			return 0, nil
-		}
+		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil).AnyTimes()
+		dockerClient.EXPECT().StopAllContainers()
+
 		// act
 		go pipelineRunner.StopPipelineOnCancellation()
 		cancellationChannel <- struct{}{}
@@ -1048,7 +1082,11 @@ func TestRunService(t *testing.T) {
 
 	t.Run("SendsCanceledMessageToChannelForCanceledRunEvenWhenReadinessFails", func(t *testing.T) {
 
-		dockerRunnerMock, tailLogsChannel, cancellationChannel, pipelineRunner := getPipelineRunnerAndMocks()
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		dockerClient := docker.NewMockClient(ctrl)
+		tailLogsChannel, cancellationChannel, pipelineRunner := getPipelineRunnerAndMocks(dockerClient)
 
 		envvars := map[string]string{}
 		parentStage := manifest.EstafetteStage{
@@ -1061,13 +1099,12 @@ func TestRunService(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerRunnerMock.isImagePulledFunc = func(stageName string, containerImage string) bool { return false }
-		dockerRunnerMock.pullImageFunc = func(ctx context.Context, stageName string, containerImage string) error {
-			return nil
-		}
-		dockerRunnerMock.getImageSizeFunc = func(containerImage string) (int64, error) {
-			return 0, nil
-		}
+		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil).AnyTimes()
+		dockerClient.EXPECT().StopAllContainers()
 
 		// act
 		go pipelineRunner.StopPipelineOnCancellation()
@@ -1086,7 +1123,11 @@ func TestRunStages(t *testing.T) {
 
 	t.Run("CallsCreateBridgeNetwork", func(t *testing.T) {
 
-		dockerRunnerMock, _, _, pipelineRunner := getPipelineRunnerAndMocks()
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		dockerClient := docker.NewMockClient(ctrl)
+		_, _, pipelineRunner := getPipelineRunnerAndMocks(dockerClient)
 
 		depth := 0
 		dir := "/estafette-work"
@@ -1100,21 +1141,28 @@ func TestRunStages(t *testing.T) {
 		}
 
 		// set mock responses
-		createBridgeNetworkFuncCalled := false
-		dockerRunnerMock.createNetworksFunc = func(ctx context.Context) error {
-			createBridgeNetworkFuncCalled = true
-			return nil
-		}
+		dockerClient.EXPECT().CreateNetworks(gomock.Any()).Return(nil)
+		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil).AnyTimes()
+		dockerClient.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil).AnyTimes()
+		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+		dockerClient.EXPECT().StopMultiStageServiceContainers(gomock.Any()).AnyTimes()
+		dockerClient.EXPECT().DeleteNetworks(gomock.Any()).AnyTimes()
 
 		// act
 		_, _ = pipelineRunner.RunStages(context.Background(), depth, stages, dir, envvars)
-
-		assert.True(t, createBridgeNetworkFuncCalled)
 	})
 
 	t.Run("CallsDeleteBridgeNetwork", func(t *testing.T) {
 
-		dockerRunnerMock, _, _, pipelineRunner := getPipelineRunnerAndMocks()
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		dockerClient := docker.NewMockClient(ctrl)
+		_, _, pipelineRunner := getPipelineRunnerAndMocks(dockerClient)
 
 		depth := 0
 		dir := "/estafette-work"
@@ -1128,21 +1176,28 @@ func TestRunStages(t *testing.T) {
 		}
 
 		// set mock responses
-		deleteBridgeNetworkFuncCalled := false
-		dockerRunnerMock.deleteNetworksFunc = func(ctx context.Context) error {
-			deleteBridgeNetworkFuncCalled = true
-			return nil
-		}
+		dockerClient.EXPECT().CreateNetworks(gomock.Any()).Return(nil)
+		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil).AnyTimes()
+		dockerClient.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil).AnyTimes()
+		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+		dockerClient.EXPECT().StopMultiStageServiceContainers(gomock.Any()).AnyTimes()
+		dockerClient.EXPECT().DeleteNetworks(gomock.Any()).AnyTimes()
 
 		// act
 		_, _ = pipelineRunner.RunStages(context.Background(), depth, stages, dir, envvars)
-
-		assert.True(t, deleteBridgeNetworkFuncCalled)
 	})
 
 	t.Run("CallsStopMultiStageServiceContainers", func(t *testing.T) {
 
-		dockerRunnerMock, _, _, pipelineRunner := getPipelineRunnerAndMocks()
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		dockerClient := docker.NewMockClient(ctrl)
+		_, _, pipelineRunner := getPipelineRunnerAndMocks(dockerClient)
 
 		depth := 0
 		dir := "/estafette-work"
@@ -1156,20 +1211,28 @@ func TestRunStages(t *testing.T) {
 		}
 
 		// set mock responses
-		stopMultiStageServiceContainersFuncCalled := false
-		dockerRunnerMock.stopMultiStageServiceContainersFunc = func(ctx context.Context) {
-			stopMultiStageServiceContainersFuncCalled = true
-		}
+		dockerClient.EXPECT().CreateNetworks(gomock.Any()).Return(nil)
+		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil).AnyTimes()
+		dockerClient.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil).AnyTimes()
+		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+		dockerClient.EXPECT().StopMultiStageServiceContainers(gomock.Any()).AnyTimes()
+		dockerClient.EXPECT().DeleteNetworks(gomock.Any()).AnyTimes()
 
 		// act
 		_, _ = pipelineRunner.RunStages(context.Background(), depth, stages, dir, envvars)
-
-		assert.True(t, stopMultiStageServiceContainersFuncCalled)
 	})
 
 	t.Run("ReturnsErrorWhenFirstStageFails", func(t *testing.T) {
 
-		dockerRunnerMock, _, _, pipelineRunner := getPipelineRunnerAndMocks()
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		dockerClient := docker.NewMockClient(ctrl)
+		_, _, pipelineRunner := getPipelineRunnerAndMocks(dockerClient)
 
 		depth := 0
 		dir := "/estafette-work"
@@ -1183,9 +1246,17 @@ func TestRunStages(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerRunnerMock.pullImageFunc = func(ctx context.Context, stageName string, containerImage string) error {
-			return fmt.Errorf("Failed pulling image")
-		}
+		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("Failed pulling image"))
+
+		dockerClient.EXPECT().CreateNetworks(gomock.Any()).Return(nil)
+		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil).AnyTimes()
+		dockerClient.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil).AnyTimes()
+		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+		dockerClient.EXPECT().StopMultiStageServiceContainers(gomock.Any()).AnyTimes()
+		dockerClient.EXPECT().DeleteNetworks(gomock.Any()).AnyTimes()
 
 		// act
 		_, err := pipelineRunner.RunStages(context.Background(), depth, stages, dir, envvars)
@@ -1197,7 +1268,11 @@ func TestRunStages(t *testing.T) {
 
 	t.Run("ReturnsErrorWhenFirstStageFailsButSecondRunsSuccessfully", func(t *testing.T) {
 
-		dockerRunnerMock, _, _, pipelineRunner := getPipelineRunnerAndMocks()
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		dockerClient := docker.NewMockClient(ctrl)
+		_, _, pipelineRunner := getPipelineRunnerAndMocks(dockerClient)
 
 		depth := 0
 		dir := "/estafette-work"
@@ -1217,10 +1292,8 @@ func TestRunStages(t *testing.T) {
 
 		// set mock responses
 		iteration := 0
-		callCount := 0
-		dockerRunnerMock.pullImageFunc = func(ctx context.Context, stageName string, containerImage string) error {
+		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, stageName string, containerImage string) error {
 			defer func() { iteration++ }()
-			callCount++
 
 			switch iteration {
 			case 0:
@@ -1230,7 +1303,17 @@ func TestRunStages(t *testing.T) {
 			}
 
 			return fmt.Errorf("Shouldn't call it this often")
-		}
+		}).Times(2)
+
+		dockerClient.EXPECT().CreateNetworks(gomock.Any()).Return(nil)
+		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil).AnyTimes()
+		dockerClient.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil).AnyTimes()
+		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+		dockerClient.EXPECT().StopMultiStageServiceContainers(gomock.Any()).AnyTimes()
+		dockerClient.EXPECT().DeleteNetworks(gomock.Any()).AnyTimes()
 
 		// act
 		_, err := pipelineRunner.RunStages(context.Background(), depth, stages, dir, envvars)
@@ -1238,12 +1321,15 @@ func TestRunStages(t *testing.T) {
 		if assert.NotNil(t, err) {
 			assert.Equal(t, "Failed pulling image", err.Error())
 		}
-		assert.Equal(t, 2, callCount)
 	})
 
 	t.Run("SkipsStagesWhichWhenClauseEvaluatesToFalse", func(t *testing.T) {
 
-		dockerRunnerMock, _, _, pipelineRunner := getPipelineRunnerAndMocks()
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		dockerClient := docker.NewMockClient(ctrl)
+		_, _, pipelineRunner := getPipelineRunnerAndMocks(dockerClient)
 
 		depth := 0
 		dir := "/estafette-work"
@@ -1268,10 +1354,8 @@ func TestRunStages(t *testing.T) {
 
 		// set mock responses
 		iteration := 0
-		callCount := 0
-		dockerRunnerMock.pullImageFunc = func(ctx context.Context, stageName string, containerImage string) error {
+		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, stageName string, containerImage string) error {
 			defer func() { iteration++ }()
-			callCount++
 
 			switch iteration {
 			case 0:
@@ -1281,17 +1365,29 @@ func TestRunStages(t *testing.T) {
 			}
 
 			return fmt.Errorf("Shouldn't call it this often")
-		}
+		}).Times(2)
+
+		dockerClient.EXPECT().CreateNetworks(gomock.Any()).Return(nil)
+		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil).AnyTimes()
+		dockerClient.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil).AnyTimes()
+		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+		dockerClient.EXPECT().StopMultiStageServiceContainers(gomock.Any()).AnyTimes()
+		dockerClient.EXPECT().DeleteNetworks(gomock.Any()).AnyTimes()
 
 		// act
 		_, _ = pipelineRunner.RunStages(context.Background(), depth, stages, dir, envvars)
-
-		assert.Equal(t, 2, callCount)
 	})
 
 	t.Run("SendsSkippedStatusMessageForSkippedStage", func(t *testing.T) {
 
-		dockerRunnerMock, _, _, pipelineRunner := getPipelineRunnerAndMocks()
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		dockerClient := docker.NewMockClient(ctrl)
+		_, _, pipelineRunner := getPipelineRunnerAndMocks(dockerClient)
 
 		depth := 0
 		dir := "/estafette-work"
@@ -1316,10 +1412,8 @@ func TestRunStages(t *testing.T) {
 
 		// set mock responses
 		iteration := 0
-		callCount := 0
-		dockerRunnerMock.pullImageFunc = func(ctx context.Context, stageName string, containerImage string) error {
+		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, stageName string, containerImage string) error {
 			defer func() { iteration++ }()
-			callCount++
 
 			switch iteration {
 			case 0:
@@ -1329,12 +1423,20 @@ func TestRunStages(t *testing.T) {
 			}
 
 			return fmt.Errorf("Shouldn't call it this often")
-		}
+		}).Times(2)
+
+		dockerClient.EXPECT().CreateNetworks(gomock.Any()).Return(nil)
+		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil).AnyTimes()
+		dockerClient.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil).AnyTimes()
+		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+		dockerClient.EXPECT().StopMultiStageServiceContainers(gomock.Any()).AnyTimes()
+		dockerClient.EXPECT().DeleteNetworks(gomock.Any()).AnyTimes()
 
 		// act
 		buildLogSteps, _ := pipelineRunner.RunStages(context.Background(), depth, stages, dir, envvars)
-
-		assert.Equal(t, 2, callCount)
 
 		if assert.Equal(t, 3, len(buildLogSteps)) {
 			assert.Equal(t, contracts.LogStatusFailed, buildLogSteps[0].Status)
@@ -1347,7 +1449,11 @@ func TestRunStages(t *testing.T) {
 
 	t.Run("SetsPullDurationAndRunDurationForStage", func(t *testing.T) {
 
-		dockerRunnerMock, _, _, pipelineRunner := getPipelineRunnerAndMocks()
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		dockerClient := docker.NewMockClient(ctrl)
+		_, _, pipelineRunner := getPipelineRunnerAndMocks(dockerClient)
 
 		depth := 0
 		dir := "/estafette-work"
@@ -1361,14 +1467,23 @@ func TestRunStages(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerRunnerMock.pullImageFunc = func(ctx context.Context, stageName string, containerImage string) error {
+		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, stageName string, containerImage string) error {
 			time.Sleep(50 * time.Millisecond)
 			return nil
-		}
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
+		})
+		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
 			time.Sleep(100 * time.Millisecond)
 			return nil
-		}
+		})
+
+		dockerClient.EXPECT().CreateNetworks(gomock.Any()).Return(nil)
+		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil).AnyTimes()
+		dockerClient.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil).AnyTimes()
+		dockerClient.EXPECT().StopMultiStageServiceContainers(gomock.Any()).AnyTimes()
+		dockerClient.EXPECT().DeleteNetworks(gomock.Any()).AnyTimes()
 
 		// act
 		buildLogSteps, _ := pipelineRunner.RunStages(context.Background(), depth, stages, dir, envvars)
@@ -1381,7 +1496,11 @@ func TestRunStages(t *testing.T) {
 
 	t.Run("InjectsBuilderInfoStageWhenEnableBuilderInfoStageInjectionIsCalledBeforeRunStages", func(t *testing.T) {
 
-		_, _, _, pipelineRunner := getPipelineRunnerAndMocks()
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		dockerClient := docker.NewMockClient(ctrl)
+		_, _, pipelineRunner := getPipelineRunnerAndMocks(dockerClient)
 
 		depth := 0
 		dir := "/estafette-work"
@@ -1393,6 +1512,18 @@ func TestRunStages(t *testing.T) {
 				When:           "status == 'succeeded'",
 			},
 		}
+
+		// set mocks
+		dockerClient.EXPECT().CreateNetworks(gomock.Any()).Return(nil)
+		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil).AnyTimes()
+		dockerClient.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil).AnyTimes()
+		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+		dockerClient.EXPECT().StopMultiStageServiceContainers(gomock.Any()).AnyTimes()
+		dockerClient.EXPECT().DeleteNetworks(gomock.Any()).AnyTimes()
 
 		// act
 		pipelineRunner.EnableBuilderInfoStageInjection()
@@ -1408,7 +1539,11 @@ func TestRunStages(t *testing.T) {
 
 	t.Run("SendsCanceledStageForAllStagesWhenFirstStageGetsCanceled", func(t *testing.T) {
 
-		_, _, cancellationChannel, pipelineRunner := getPipelineRunnerAndMocks()
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		dockerClient := docker.NewMockClient(ctrl)
+		_, cancellationChannel, pipelineRunner := getPipelineRunnerAndMocks(dockerClient)
 
 		depth := 0
 		dir := "/estafette-work"
@@ -1430,6 +1565,19 @@ func TestRunStages(t *testing.T) {
 				When:           "status == 'succeeded' || status == 'failed'",
 			},
 		}
+
+		// set mocks
+		dockerClient.EXPECT().CreateNetworks(gomock.Any()).Return(nil)
+		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil).AnyTimes()
+		dockerClient.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil).AnyTimes()
+		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+		dockerClient.EXPECT().StopMultiStageServiceContainers(gomock.Any()).AnyTimes()
+		dockerClient.EXPECT().StopAllContainers().AnyTimes()
+		dockerClient.EXPECT().DeleteNetworks(gomock.Any()).AnyTimes()
 
 		// act
 		go pipelineRunner.StopPipelineOnCancellation()
@@ -1451,7 +1599,11 @@ func TestRunStagesWithParallelStages(t *testing.T) {
 
 	t.Run("RunsParallelStagesReturnsBuildLogStepsWithNestedSteps", func(t *testing.T) {
 
-		dockerRunnerMock, _, _, pipelineRunner := getPipelineRunnerAndMocks()
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		dockerClient := docker.NewMockClient(ctrl)
+		_, _, pipelineRunner := getPipelineRunnerAndMocks(dockerClient)
 
 		depth := 0
 		dir := "/estafette-work"
@@ -1476,16 +1628,21 @@ func TestRunStagesWithParallelStages(t *testing.T) {
 		}
 
 		// set mock responses
-		callCount := 0
-		dockerRunnerMock.pullImageFunc = func(ctx context.Context, stageName string, containerImage string) error {
-			callCount++
-			return nil
-		}
+		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).Times(2)
+
+		dockerClient.EXPECT().CreateNetworks(gomock.Any()).Return(nil).AnyTimes()
+		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil).AnyTimes()
+		dockerClient.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil).AnyTimes()
+		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+		dockerClient.EXPECT().StopMultiStageServiceContainers(gomock.Any()).AnyTimes()
+		dockerClient.EXPECT().StopAllContainers().AnyTimes()
+		dockerClient.EXPECT().DeleteNetworks(gomock.Any()).AnyTimes()
 
 		// act
 		buildLogSteps, _ := pipelineRunner.RunStages(context.Background(), depth, stages, dir, envvars)
-
-		assert.Equal(t, 2, callCount)
 
 		if assert.Equal(t, 1, len(buildLogSteps)) {
 			assert.Equal(t, "stage-a", buildLogSteps[0].Step)
@@ -1509,7 +1666,11 @@ func TestRunStagesWithServices(t *testing.T) {
 
 	t.Run("RunsServicesReturnsBuildLogStepsWithServices", func(t *testing.T) {
 
-		dockerRunnerMock, _, _, pipelineRunner := getPipelineRunnerAndMocks()
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		dockerClient := docker.NewMockClient(ctrl)
+		_, _, pipelineRunner := getPipelineRunnerAndMocks(dockerClient)
 
 		depth := 0
 		dir := "/estafette-work"
@@ -1535,27 +1696,31 @@ func TestRunStagesWithServices(t *testing.T) {
 		}
 
 		// set mock responses
-		callCount := 0
-		dockerRunnerMock.pullImageFunc = func(ctx context.Context, stageName string, containerImage string) error {
-			callCount++
-			return nil
-		}
+		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).Times(3)
 		var wg sync.WaitGroup
 		wg.Add(1)
-		dockerRunnerMock.tailContainerLogsFunc = func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
+		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
 			if stageType == contracts.LogTypeService {
 				wg.Wait()
 			}
 			return nil
-		}
-		dockerRunnerMock.stopSingleStageServiceContainersFunc = func(ctx context.Context, parentStage manifest.EstafetteStage) {
+		})
+		dockerClient.EXPECT().StopSingleStageServiceContainers(gomock.Any(), gomock.Any()).Do(func(ctx context.Context, parentStage manifest.EstafetteStage) {
 			wg.Done()
-		}
+		})
+
+		dockerClient.EXPECT().CreateNetworks(gomock.Any()).Return(nil).AnyTimes()
+		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil).AnyTimes()
+		dockerClient.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil).AnyTimes()
+		dockerClient.EXPECT().StopMultiStageServiceContainers(gomock.Any()).AnyTimes()
+		dockerClient.EXPECT().StopAllContainers().AnyTimes()
+		dockerClient.EXPECT().DeleteNetworks(gomock.Any()).AnyTimes()
 
 		// act
 		buildLogSteps, _ := pipelineRunner.RunStages(context.Background(), depth, stages, dir, envvars)
-
-		assert.Equal(t, 3, callCount)
 
 		if assert.Equal(t, 1, len(buildLogSteps)) {
 			assert.Equal(t, "stage-a", buildLogSteps[0].Step)
@@ -1579,7 +1744,7 @@ func TestGetNestedBuildLogService(t *testing.T) {
 
 	t.Run("ReturnsNilIfBuildLogsStepsIsEmpty", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := service{
 			buildLogSteps: make([]*contracts.BuildLogStep, 0),
 		}
 		tailLogLine := contracts.TailLogLine{
@@ -1597,7 +1762,7 @@ func TestGetNestedBuildLogService(t *testing.T) {
 
 	t.Run("ReturnsNilIfDepthIsZero", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := service{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step: "stage-a",
@@ -1619,7 +1784,7 @@ func TestGetNestedBuildLogService(t *testing.T) {
 
 	t.Run("ReturnsNilIfParentStageExistsButNestedStageDoesNot", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := service{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step: "stage-a",
@@ -1646,7 +1811,7 @@ func TestGetNestedBuildLogService(t *testing.T) {
 
 	t.Run("ReturnsNilIfParentStageExistsButNestedStageDoesNotAndServiceWithSameNameExists", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := service{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step: "stage-a",
@@ -1678,7 +1843,7 @@ func TestGetNestedBuildLogService(t *testing.T) {
 
 	t.Run("ReturnsNestedStepIfParentStageAndNestedStageExist", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := service{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step: "stage-a",
@@ -1709,7 +1874,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 
 	t.Run("AddsMainStageIfDoesNotExist", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := service{
 			buildLogSteps: make([]*contracts.BuildLogStep, 0),
 		}
 		tailLogLine := contracts.TailLogLine{
@@ -1725,7 +1890,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 
 	t.Run("DoesNotReaddMainStageIfAlreadyExists", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := service{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step: "stage-a",
@@ -1745,7 +1910,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 
 	t.Run("AddsMainStageIfDoesNotExistWithRunIndex", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := service{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step:     "stage-a",
@@ -1770,7 +1935,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 
 	t.Run("AddsMainStageIfDoesNotExistForNestedStage", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := service{
 			buildLogSteps: []*contracts.BuildLogStep{},
 		}
 		tailLogLine := contracts.TailLogLine{
@@ -1788,7 +1953,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 
 	t.Run("AddsMainStageIfDoesNotExistForNestedService", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := service{
 			buildLogSteps: []*contracts.BuildLogStep{},
 		}
 		tailLogLine := contracts.TailLogLine{
@@ -1806,7 +1971,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 
 	t.Run("AddsMainStageWithDepth0IfServiceContainerStatusComesInFirst", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := service{
 			buildLogSteps: make([]*contracts.BuildLogStep, 0),
 		}
 		tailLogLine := contracts.TailLogLine{
@@ -1826,7 +1991,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 
 	t.Run("AddsNestedStageIfDoesNotExist", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := service{
 			buildLogSteps: []*contracts.BuildLogStep{},
 		}
 		tailLogLine := contracts.TailLogLine{
@@ -1846,7 +2011,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 
 	t.Run("DoesNotReaddNestedStageIfAlreadyExists", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := service{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step: "stage-a",
@@ -1875,7 +2040,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 
 	t.Run("AddsNestedServiceIfDoesNotExist", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := service{
 			buildLogSteps: []*contracts.BuildLogStep{},
 		}
 		tailLogLine := contracts.TailLogLine{
@@ -1895,7 +2060,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 
 	t.Run("DoesNotReaddNestedServiceIfAlreadyExists", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := service{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step: "stage-a",
@@ -1924,7 +2089,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 
 	t.Run("AddLogLineToMainStage", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := service{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step: "stage-a",
@@ -1955,7 +2120,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 
 	t.Run("AddLogLineToNestedStage", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := service{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step: "stage-a",
@@ -1993,7 +2158,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 
 	t.Run("AddLogLineToNestedService", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := service{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step: "stage-a",
@@ -2031,7 +2196,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 
 	t.Run("SetStatusForMainStage", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := service{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step:   "stage-a",
@@ -2053,7 +2218,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 
 	t.Run("SetStatusForNestedStage", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := service{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step: "stage-a",
@@ -2082,7 +2247,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 
 	t.Run("SetStatusForNestedService", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := service{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step: "stage-a",
@@ -2111,7 +2276,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 
 	t.Run("NestsParallelStageMessages", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := service{
 			buildLogSteps: []*contracts.BuildLogStep{},
 		}
 
@@ -2210,7 +2375,7 @@ func TestIsFinalStageComplete(t *testing.T) {
 
 	t.Run("ReturnsFalseIfBuildLogStepsAreEmpty", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := service{
 			buildLogSteps: make([]*contracts.BuildLogStep, 0),
 		}
 		stages := []*manifest.EstafetteStage{}
@@ -2223,7 +2388,7 @@ func TestIsFinalStageComplete(t *testing.T) {
 
 	t.Run("ReturnsFalseIfLastStepHasRunningStatus", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := service{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step:   "last-stage",
@@ -2245,7 +2410,7 @@ func TestIsFinalStageComplete(t *testing.T) {
 
 	t.Run("ReturnsFalseIfLastStepHasPendingStatus", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := service{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step:   "last-stage",
@@ -2267,7 +2432,7 @@ func TestIsFinalStageComplete(t *testing.T) {
 
 	t.Run("ReturnsTrueIfLastStepHasSucceededStatus", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := service{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step:   "last-stage",
@@ -2289,7 +2454,7 @@ func TestIsFinalStageComplete(t *testing.T) {
 
 	t.Run("ReturnsTrueIfLastStepHasFailedStatus", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := service{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step:   "last-stage",
@@ -2311,7 +2476,7 @@ func TestIsFinalStageComplete(t *testing.T) {
 
 	t.Run("ReturnsTrueIfLastStepHasSkippedStatus", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := service{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step:   "last-stage",
@@ -2333,7 +2498,7 @@ func TestIsFinalStageComplete(t *testing.T) {
 
 	t.Run("ReturnsTrueIfLastStepHasCanceledStatus", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := service{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step:   "last-stage",
@@ -2355,7 +2520,7 @@ func TestIsFinalStageComplete(t *testing.T) {
 
 	t.Run("ReturnsFalseIfLastStepHasSucceededStatusButIsNotTheFinalStage", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := service{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step:   "first-stage",
@@ -2380,7 +2545,7 @@ func TestIsFinalStageComplete(t *testing.T) {
 
 	t.Run("ReturnsFalseIfLastStepHasFailedStatusButIsNotTheFinalStage", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := service{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step:   "first-stage",
@@ -2405,7 +2570,7 @@ func TestIsFinalStageComplete(t *testing.T) {
 
 	t.Run("ReturnsFalseIfLastStepHasSkippedStatusButIsNotTheFinalStage", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := service{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step:   "first-stage",
@@ -2430,7 +2595,7 @@ func TestIsFinalStageComplete(t *testing.T) {
 
 	t.Run("ReturnsFalseIfLastStepHasCanceledStatusButIsNotTheFinalStage", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := service{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step:   "first-stage",
@@ -2455,7 +2620,7 @@ func TestIsFinalStageComplete(t *testing.T) {
 
 	t.Run("ReturnsFalseIfLastStageHasParallelStagesButLastStepHasNoEqualAmountOfNestedSteps", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := service{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step:   "last-stage",
@@ -2482,7 +2647,7 @@ func TestIsFinalStageComplete(t *testing.T) {
 
 	t.Run("ReturnsFalseIfLastStepHasSucceededStatusButAnyParallelStagesHavePendingOrRunningStatus", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := service{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step:   "last-stage",
@@ -2515,7 +2680,7 @@ func TestIsFinalStageComplete(t *testing.T) {
 
 	t.Run("ReturnsFalseIfLastStageHasServicesButLastStepHasNoEqualAmountOfServices", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := service{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step:   "last-stage",
@@ -2542,7 +2707,7 @@ func TestIsFinalStageComplete(t *testing.T) {
 
 	t.Run("ReturnsFalseIfLastStepHasSucceededStatusButAnyServicesHavePendingOrRunningStatus", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := service{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step:   "last-stage",
@@ -2575,7 +2740,7 @@ func TestIsFinalStageComplete(t *testing.T) {
 
 	t.Run("ReturnsFalseIfLastStepHasSucceededStatusButMultiStageServicesFromPreviousStagesHaveNotFinished", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := service{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step:   "earlier-stage",
@@ -2607,7 +2772,7 @@ func TestIsFinalStageComplete(t *testing.T) {
 
 	t.Run("ReturnsTrueIfLastStepHasSucceededStatusAndAllServicesFromPreviousStagesHaveFinished", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := service{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step:   "earlier-stage",
@@ -2638,15 +2803,17 @@ func TestIsFinalStageComplete(t *testing.T) {
 	})
 }
 
-func getPipelineRunnerAndMocks() (*dockerRunnerMockImpl, chan contracts.TailLogLine, chan struct{}, PipelineRunner) {
+func getPipelineRunnerAndMocks(dockerClient docker.Client) (chan contracts.TailLogLine, chan struct{}, Service) {
+
+	ctx := context.Background()
 
 	secretHelper := crypt.NewSecretHelper("SazbwMf3NZxVVbBqQHebPcXCqrVn3DDp", false)
-	envvarHelper := NewEnvvarHelper("TESTPREFIX_", secretHelper, obfuscator)
-	whenEvaluator := NewWhenEvaluator(envvarHelper)
-	dockerRunnerMock := &dockerRunnerMockImpl{}
+	obfuscationClient, _ := obfuscation.NewClient(ctx, secretHelper)
+	envvarClient, _ := envvar.NewClient(ctx, "TESTPREFIX_", secretHelper, obfuscationClient)
+	evaluationService, _ := evaluation.NewService(ctx, envvarClient)
 	tailLogsChannel := make(chan contracts.TailLogLine, 10000)
 	cancellationChannel := make(chan struct{})
-	pipelineRunner := NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunnerMock, true, cancellationChannel, tailLogsChannel, foundation.ApplicationInfo{})
+	pipelineService, _ := NewService(ctx, envvarClient, evaluationService, dockerClient, true, cancellationChannel, tailLogsChannel, foundation.ApplicationInfo{})
 
-	return dockerRunnerMock, tailLogsChannel, cancellationChannel, pipelineRunner
+	return tailLogsChannel, cancellationChannel, pipelineService
 }

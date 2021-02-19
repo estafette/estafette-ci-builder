@@ -6,6 +6,13 @@ import (
 	"io"
 	"os"
 
+	"github.com/estafette/estafette-ci-builder/api"
+	"github.com/estafette/estafette-ci-builder/clients/docker"
+	"github.com/estafette/estafette-ci-builder/clients/envvar"
+	"github.com/estafette/estafette-ci-builder/clients/estafetteciapi"
+	"github.com/estafette/estafette-ci-builder/clients/obfuscation"
+	"github.com/estafette/estafette-ci-builder/clients/readiness"
+	"github.com/estafette/estafette-ci-builder/services/pipeline"
 	contracts "github.com/estafette/estafette-ci-contracts"
 	foundation "github.com/estafette/estafette-foundation"
 	"github.com/opentracing/opentracing-go"
@@ -18,22 +25,38 @@ import (
 //go:generate mockgen -package=builder -destination ./mock.go -source=service.go
 type Service interface {
 	RunReadinessProbe(protocol, host string, port int, path, hostname string, timeoutSeconds int)
-	RunEstafetteBuildJob(pipelineRunner PipelineRunner, dockerRunner DockerRunner, envvarHelper EnvvarHelper, obfuscator Obfuscator, endOfLifeHelper EndOfLifeHelper, builderConfig contracts.BuilderConfig, credentialsBytes []byte, runAsJob bool)
+	RunEstafetteBuildJob(runAsJob bool)
+}
+
+// NewService returns a new CIBuilder
+func NewService(ctx context.Context, applicationInfo foundation.ApplicationInfo, pipelineService pipeline.Service, dockerClient docker.Client, envvarClient envvar.Client, obfuscationClient obfuscation.Client, estafetteciapiClient estafetteciapi.Client, readinessClient readiness.Client, builderConfig contracts.BuilderConfig, credentialsBytes []byte) (Service, error) {
+	return &service{
+		applicationInfo:      applicationInfo,
+		pipelineService:      pipelineService,
+		dockerClient:         dockerClient,
+		envvarClient:         envvarClient,
+		obfuscationClient:    obfuscationClient,
+		estafetteciapiClient: estafetteciapiClient,
+		readinessClient:      readinessClient,
+		builderConfig:        builderConfig,
+		credentialsBytes:     credentialsBytes,
+	}, nil
 }
 
 type service struct {
-	applicationInfo foundation.ApplicationInfo
+	applicationInfo      foundation.ApplicationInfo
+	pipelineService      pipeline.Service
+	dockerClient         docker.Client
+	envvarClient         envvar.Client
+	obfuscationClient    obfuscation.Client
+	estafetteciapiClient estafetteciapi.Client
+	readinessClient      readiness.Client
+	builderConfig        contracts.BuilderConfig
+	credentialsBytes     []byte
 }
 
-// NewCIBuilder returns a new CIBuilder
-func NewCIBuilder(applicationInfo foundation.ApplicationInfo) CIBuilder {
-	return &service{
-		applicationInfo: applicationInfo,
-	}
-}
-
-func (b *service) RunReadinessProbe(protocol, host string, port int, path, hostname string, timeoutSeconds int) {
-	err := WaitForReadiness(protocol, host, port, path, hostname, timeoutSeconds)
+func (s *service) RunReadinessProbe(protocol, host string, port int, path, hostname string, timeoutSeconds int) {
+	err := s.readinessClient.WaitForReadiness(protocol, host, port, path, hostname, timeoutSeconds)
 	if err != nil {
 		log.Fatal().Err(err).Msgf("Readiness probe failed")
 	}
@@ -42,35 +65,35 @@ func (b *service) RunReadinessProbe(protocol, host string, port int, path, hostn
 	os.Exit(0)
 }
 
-func (b *service) RunEstafetteBuildJob(pipelineRunner PipelineRunner, dockerRunner DockerRunner, envvarHelper EnvvarHelper, obfuscator Obfuscator, endOfLifeHelper EndOfLifeHelper, builderConfig contracts.BuilderConfig, credentialsBytes []byte, runAsJob bool) {
+func (s *service) RunEstafetteBuildJob(runAsJob bool) {
 
-	closer := b.initJaeger(b.applicationInfo.App)
+	closer := s.initJaeger(s.applicationInfo.App)
 	defer closer.Close()
 
 	// unset all ESTAFETTE_ envvars so they don't get abused by non-estafette components
-	envvarHelper.UnsetEstafetteEnvvars()
+	s.envvarClient.UnsetEstafetteEnvvars()
 
-	envvarHelper.SetEstafetteBuilderConfigEnvvars(builderConfig)
+	s.envvarClient.SetEstafetteBuilderConfigEnvvars(s.builderConfig)
 
 	buildLog := contracts.BuildLog{
-		RepoSource:   builderConfig.Git.RepoSource,
-		RepoOwner:    builderConfig.Git.RepoOwner,
-		RepoName:     builderConfig.Git.RepoName,
-		RepoBranch:   builderConfig.Git.RepoBranch,
-		RepoRevision: builderConfig.Git.RepoRevision,
+		RepoSource:   s.builderConfig.Git.RepoSource,
+		RepoOwner:    s.builderConfig.Git.RepoOwner,
+		RepoName:     s.builderConfig.Git.RepoName,
+		RepoBranch:   s.builderConfig.Git.RepoBranch,
+		RepoRevision: s.builderConfig.Git.RepoRevision,
 		Steps:        make([]*contracts.BuildLogStep, 0),
 	}
 
 	if os.Getenv("ESTAFETTE_LOG_FORMAT") == "v3" {
 		// set some default fields added to all logs
 		log.Logger = log.Logger.With().
-			Str("jobName", *builderConfig.JobName).
-			Interface("git", builderConfig.Git).
+			Str("jobName", *s.builderConfig.JobName).
+			Interface("git", s.builderConfig.Git).
 			Logger()
 	}
 
 	rootSpanName := "RunBuildJob"
-	if *builderConfig.Action == "release" {
+	if *s.builderConfig.Action == "release" {
 		rootSpanName = "RunReleaseJob"
 	}
 
@@ -81,83 +104,83 @@ func (b *service) RunEstafetteBuildJob(pipelineRunner PipelineRunner, dockerRunn
 	ctx = opentracing.ContextWithSpan(ctx, rootSpan)
 
 	// set running state, so a restarted job will show up as running once a new pod runs
-	_ = endOfLifeHelper.SendBuildStartedEvent(ctx)
+	_ = s.estafetteciapiClient.SendBuildStartedEvent(ctx)
 
 	// start docker daemon
 	dockerDaemonStartSpan, _ := opentracing.StartSpanFromContext(ctx, "StartDockerDaemon")
-	err := dockerRunner.StartDockerDaemon()
+	err := s.dockerClient.StartDockerDaemon()
 	if err != nil {
-		endOfLifeHelper.HandleFatal(ctx, buildLog, err, "Error starting docker daemon")
+		s.estafetteciapiClient.HandleFatal(ctx, buildLog, err, "Error starting docker daemon")
 	}
 
 	// wait for docker daemon to be ready for usage
-	dockerRunner.WaitForDockerDaemon()
+	s.dockerClient.WaitForDockerDaemon()
 	dockerDaemonStartSpan.Finish()
 
 	// listen to cancellation in order to stop any running pipeline or container
-	go pipelineRunner.StopPipelineOnCancellation()
+	go s.pipelineService.StopPipelineOnCancellation()
 
 	// get current working directory
-	dir := envvarHelper.GetWorkDir()
+	dir := s.envvarClient.GetWorkDir()
 	if dir == "" {
-		endOfLifeHelper.HandleFatal(ctx, buildLog, nil, "Getting working directory from environment variable ESTAFETTE_WORKDIR failed")
+		s.estafetteciapiClient.HandleFatal(ctx, buildLog, nil, "Getting working directory from environment variable ESTAFETTE_WORKDIR failed")
 	}
 
 	// set some envvars
-	err = envvarHelper.SetEstafetteGlobalEnvvars()
+	err = s.envvarClient.SetEstafetteGlobalEnvvars()
 	if err != nil {
-		endOfLifeHelper.HandleFatal(ctx, buildLog, err, "Setting global environment variables failed")
+		s.estafetteciapiClient.HandleFatal(ctx, buildLog, err, "Setting global environment variables failed")
 	}
 
-	// initialize obfuscator
-	err = obfuscator.CollectSecrets(*builderConfig.Manifest, credentialsBytes, envvarHelper.GetPipelineName())
+	// initialize obfuscationClient
+	err = s.obfuscationClient.CollectSecrets(*s.builderConfig.Manifest, s.credentialsBytes, s.envvarClient.GetPipelineName())
 	if err != nil {
-		endOfLifeHelper.HandleFatal(ctx, buildLog, err, "Collecting secrets to obfuscate failed")
+		s.estafetteciapiClient.HandleFatal(ctx, buildLog, err, "Collecting secrets to obfuscate failed")
 	}
 
 	// check whether this is a regular build or a release
-	stages := builderConfig.Manifest.Stages
-	if *builderConfig.Action == "release" {
+	stages := s.builderConfig.Manifest.Stages
+	if *s.builderConfig.Action == "release" {
 		// check if the release is defined
 		releaseExists := false
-		for _, r := range builderConfig.Manifest.Releases {
-			if r.Name == builderConfig.ReleaseParams.ReleaseName {
+		for _, r := range s.builderConfig.Manifest.Releases {
+			if r.Name == s.builderConfig.ReleaseParams.ReleaseName {
 				releaseExists = true
 				stages = r.Stages
 			}
 		}
 		if !releaseExists {
-			endOfLifeHelper.HandleFatal(ctx, buildLog, nil, fmt.Sprintf("Release %v does not exist", builderConfig.ReleaseParams.ReleaseName))
+			s.estafetteciapiClient.HandleFatal(ctx, buildLog, nil, fmt.Sprintf("Release %v does not exist", s.builderConfig.ReleaseParams.ReleaseName))
 		}
-		log.Info().Msgf("Starting release %v at version %v...", builderConfig.ReleaseParams.ReleaseName, builderConfig.BuildVersion.Version)
+		log.Info().Msgf("Starting release %v at version %v...", s.builderConfig.ReleaseParams.ReleaseName, s.builderConfig.BuildVersion.Version)
 	} else {
-		log.Info().Msgf("Starting build version %v...", builderConfig.BuildVersion.Version)
+		log.Info().Msgf("Starting build version %v...", s.builderConfig.BuildVersion.Version)
 	}
 
 	// create docker client
-	_, err = dockerRunner.CreateDockerClient()
+	_, err = s.dockerClient.CreateDockerClient()
 	if err != nil {
-		endOfLifeHelper.HandleFatal(ctx, buildLog, err, "Failed creating a docker client")
+		s.estafetteciapiClient.HandleFatal(ctx, buildLog, err, "Failed creating a docker client")
 	}
 
 	// collect estafette envvars and run stages from manifest
 	log.Info().Msgf("Running %v stages", len(stages))
-	estafetteEnvvars := envvarHelper.CollectEstafetteEnvvarsAndLabels(*builderConfig.Manifest)
-	globalEnvvars := envvarHelper.CollectGlobalEnvvars(*builderConfig.Manifest)
-	envvars := envvarHelper.OverrideEnvvars(estafetteEnvvars, globalEnvvars)
+	estafetteEnvvars := s.envvarClient.CollectEstafetteEnvvarsAndLabels(*s.builderConfig.Manifest)
+	globalEnvvars := s.envvarClient.CollectGlobalEnvvars(*s.builderConfig.Manifest)
+	envvars := s.envvarClient.OverrideEnvvars(estafetteEnvvars, globalEnvvars)
 
 	// run stages
-	pipelineRunner.EnableBuilderInfoStageInjection()
-	buildLog.Steps, err = pipelineRunner.RunStages(ctx, 0, stages, dir, envvars)
+	s.pipelineService.EnableBuilderInfoStageInjection()
+	buildLog.Steps, err = s.pipelineService.RunStages(ctx, 0, stages, dir, envvars)
 	if err != nil && buildLog.HasUnknownStatus() {
-		endOfLifeHelper.HandleFatal(ctx, buildLog, err, "Executing stages from manifest failed")
+		s.estafetteciapiClient.HandleFatal(ctx, buildLog, err, "Executing stages from manifest failed")
 	}
 
 	// send result to ci-api
 	buildStatus := contracts.GetAggregatedStatus(buildLog.Steps)
-	_ = endOfLifeHelper.SendBuildFinishedEvent(ctx, buildStatus)
-	_ = endOfLifeHelper.SendBuildJobLogEvent(ctx, buildLog)
-	_ = endOfLifeHelper.SendBuildCleanEvent(ctx, buildStatus)
+	_ = s.estafetteciapiClient.SendBuildFinishedEvent(ctx, buildStatus)
+	_ = s.estafetteciapiClient.SendBuildJobLogEvent(ctx, buildLog)
+	_ = s.estafetteciapiClient.SendBuildCleanEvent(ctx, buildStatus)
 
 	// finish and flush so it gets sent to the tracing backend
 	rootSpan.Finish()
@@ -166,13 +189,13 @@ func (b *service) RunEstafetteBuildJob(pipelineRunner PipelineRunner, dockerRunn
 	if runAsJob {
 		os.Exit(0)
 	} else {
-		HandleExit(buildLog.Steps)
+		api.HandleExit(buildLog.Steps)
 	}
 }
 
 // initJaeger returns an instance of Jaeger Tracer that can be configured with environment variables
 // https://github.com/jaegertracing/jaeger-client-go#environment-variables
-func (b *service) initJaeger(service string) io.Closer {
+func (s *service) initJaeger(service string) io.Closer {
 
 	cfg, err := jaegercfg.FromEnv()
 	if err != nil {
