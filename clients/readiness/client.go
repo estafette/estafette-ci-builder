@@ -1,6 +1,7 @@
-package builder
+package readiness
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"net/http"
@@ -9,7 +10,20 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func WaitForReadiness(protocol, host string, port int, path, hostname string, timeoutSeconds int) error {
+// Client pulls and runs docker containers
+//go:generate mockgen -package=readiness -destination ./mock.go -source=client.go
+type Client interface {
+	WaitForReadiness(protocol, host string, port int, path, hostname string, timeoutSeconds int) error
+}
+
+// NewClient returns a new readiness.Client
+func NewClient(ctx context.Context) (Client, error) {
+	return &client{}, nil
+}
+
+type client struct{}
+
+func (c *client) WaitForReadiness(protocol, host string, port int, path, hostname string, timeoutSeconds int) error {
 
 	if protocol == "" {
 		return fmt.Errorf("Protocol is empty, should be either http or https")

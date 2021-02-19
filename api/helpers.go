@@ -1,4 +1,4 @@
-package builder
+package api
 
 import (
 	"fmt"
@@ -12,7 +12,7 @@ import (
 	"github.com/olekukonko/tablewriter"
 )
 
-func contains(s []string, e string) bool {
+func Contains(s []string, e string) bool {
 	for _, a := range s {
 		if a == e {
 			return true
@@ -88,18 +88,7 @@ func RenderStats(buildLogSteps []*contracts.BuildLogStep) {
 	table.Render()
 }
 
-func pathExists(path string) (bool, error) {
-	_, err := os.Stat(path)
-	if err == nil {
-		return true, nil
-	}
-	if os.IsNotExist(err) {
-		return false, nil
-	}
-	return true, err
-}
-
-func getContainerImageName(containerImage string) string {
+func GetContainerImageName(containerImage string) string {
 
 	containerImageName := ""
 	if containerImage != "" {
@@ -110,7 +99,7 @@ func getContainerImageName(containerImage string) string {
 	return containerImageName
 }
 
-func getContainerImageTag(containerImage string) string {
+func GetContainerImageTag(containerImage string) string {
 
 	containerImageTag := ""
 	if containerImage != "" {
@@ -133,7 +122,7 @@ const (
 	letterIdxMax  = 63 / letterIdxBits   // # of letter indices fitting in 63 bits
 )
 
-func generateRandomString(n int) string {
+func GenerateRandomString(n int) string {
 	b := make([]byte, n)
 	// A src.Int63() generates 63 random bits, enough for letterIdxMax characters!
 	for i, cache, remain := n-1, src.Int63(), letterIdxMax; i >= 0; {

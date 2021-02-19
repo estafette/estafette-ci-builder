@@ -18,6 +18,7 @@ require (
 	github.com/estafette/estafette-ci-manifest v0.1.175
 	github.com/estafette/estafette-foundation v0.0.69
 	github.com/gogo/protobuf v1.3.0 // indirect
+	github.com/golang/mock v1.4.4
 	github.com/gorilla/mux v1.7.3 // indirect
 	github.com/mattn/go-runewidth v0.0.4 // indirect
 	github.com/moby/term v0.0.0-20201216013528-df9cb8a40635 // indirect

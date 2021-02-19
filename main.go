@@ -1,13 +1,21 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"io/ioutil"
 	"os"
 	"runtime"
 
 	"github.com/alecthomas/kingpin"
-	"github.com/estafette/estafette-ci-builder/builder"
+	"github.com/estafette/estafette-ci-builder/clients/docker"
+	"github.com/estafette/estafette-ci-builder/clients/envvar"
+	"github.com/estafette/estafette-ci-builder/clients/estafetteciapi"
+	"github.com/estafette/estafette-ci-builder/clients/obfuscation"
+	"github.com/estafette/estafette-ci-builder/clients/readiness"
+	"github.com/estafette/estafette-ci-builder/services/builder"
+	"github.com/estafette/estafette-ci-builder/services/evaluation"
+	"github.com/estafette/estafette-ci-builder/services/pipeline"
 	contracts "github.com/estafette/estafette-ci-contracts"
 	crypt "github.com/estafette/estafette-ci-crypt"
 	foundation "github.com/estafette/estafette-foundation"
@@ -55,12 +63,21 @@ func main() {
 	go foundation.HandleGracefulShutdown(osSignals, wg, func() {
 		close(cancellationChannel)
 	})
-
-	ciBuilder := builder.NewCIBuilder(applicationInfo)
+	ctx := foundation.InitCancellationContext(context.Background())
 
 	// this builder binary is mounted inside a scratch container to run as a readiness probe against service containers
 	if *runAsReadinessProbe {
-		ciBuilder.RunReadinessProbe(*readinessProtocol, *readinessHost, *readinessPort, *readinessPath, *readinessHostname, *readinessTimeoutSeconds)
+		readinessClient, err := readiness.NewClient(ctx)
+		if err != nil {
+			log.Fatal().Err(err).Msg("Failed creating readiness.Client")
+		}
+
+		builderService, err := builder.NewService(ctx, applicationInfo, nil, nil, nil, nil, nil, readinessClient, contracts.BuilderConfig{}, []byte{})
+		if err != nil {
+			log.Fatal().Err(err).Msg("Failed creating builder.Service")
+		}
+
+		builderService.RunReadinessProbe(*readinessProtocol, *readinessHost, *readinessPort, *readinessPath, *readinessHostname, *readinessTimeoutSeconds)
 	}
 
 	// init secret helper
@@ -69,26 +86,48 @@ func main() {
 
 	// bootstrap
 	tailLogsChannel := make(chan contracts.TailLogLine, 10000)
-	obfuscator := builder.NewObfuscator(secretHelper)
-	envvarHelper := builder.NewEnvvarHelper("ESTAFETTE_", secretHelper, obfuscator)
-	whenEvaluator := builder.NewWhenEvaluator(envvarHelper)
-	builderConfig, originalEncryptedCredentials := loadBuilderConfig(secretHelper, envvarHelper)
-	dockerRunner := builder.NewDockerRunner(envvarHelper, obfuscator, builderConfig, tailLogsChannel)
-	pipelineRunner := builder.NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner, *runAsJob, cancellationChannel, tailLogsChannel, applicationInfo)
 
-	// detect controlling server
-	ciServer := envvarHelper.GetCiServer()
-	if ciServer == "gocd" {
-		ciBuilder.RunGocdAgentBuild(pipelineRunner, dockerRunner, envvarHelper, obfuscator, builderConfig, originalEncryptedCredentials)
-	} else if ciServer == "estafette" {
-		endOfLifeHelper := builder.NewEndOfLifeHelper(*runAsJob, builderConfig, *podName)
-		ciBuilder.RunEstafetteBuildJob(pipelineRunner, dockerRunner, envvarHelper, obfuscator, endOfLifeHelper, builderConfig, originalEncryptedCredentials, *runAsJob)
-	} else {
-		log.Warn().Msgf("The CI Server (\"%s\") is not recognized, exiting.", ciServer)
+	obfuscationClient, err := obfuscation.NewClient(ctx, secretHelper)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed creating obfuscation.Client")
 	}
+	envvarClient, err := envvar.NewClient(ctx, "ESTAFETTE_", secretHelper, obfuscationClient)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed creating envvar.Client")
+	}
+	readinessClient, err := readiness.NewClient(ctx)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed creating readiness.Client")
+	}
+	evaluationService, err := evaluation.NewService(ctx, envvarClient)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed creating evaluation.Client")
+	}
+
+	builderConfig, originalEncryptedCredentials := loadBuilderConfig(secretHelper, envvarClient)
+
+	dockerClient, err := docker.NewClient(ctx, envvarClient, obfuscationClient, builderConfig, tailLogsChannel)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed creating docker.Client")
+	}
+	estafetteciapiClient, err := estafetteciapi.NewClient(ctx, *runAsJob, builderConfig, *podName)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed creating estafetteciapi.Client")
+	}
+	pipelineService, err := pipeline.NewService(ctx, envvarClient, evaluationService, dockerClient, *runAsJob, cancellationChannel, tailLogsChannel, applicationInfo)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed creating pipeline.Service")
+	}
+	builderService, err := builder.NewService(ctx, applicationInfo, pipelineService, dockerClient, envvarClient, obfuscationClient, estafetteciapiClient, readinessClient, builderConfig, originalEncryptedCredentials)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed creating builder.Service")
+	}
+
+	// run the build/release job
+	builderService.RunEstafetteBuildJob(*runAsJob)
 }
 
-func loadBuilderConfig(secretHelper crypt.SecretHelper, envvarHelper builder.EnvvarHelper) (builderConfig contracts.BuilderConfig, credentialsBytes []byte) {
+func loadBuilderConfig(secretHelper crypt.SecretHelper, envvarClient envvar.Client) (builderConfig contracts.BuilderConfig, credentialsBytes []byte) {
 	// read builder config either from file or envvar
 	var builderConfigJSON []byte
 	if *builderConfigPath != "" {
@@ -127,7 +166,7 @@ func loadBuilderConfig(secretHelper crypt.SecretHelper, envvarHelper builder.Env
 	}
 
 	// ensure GetPipelineName does not fail below
-	err = envvarHelper.SetPipelineName(builderConfig)
+	err = envvarClient.SetPipelineName(builderConfig)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to set pipeline name")
 	}
@@ -140,7 +179,7 @@ func loadBuilderConfig(secretHelper crypt.SecretHelper, envvarHelper builder.Env
 		decryptedAdditionalProperties := map[string]interface{}{}
 		for key, value := range c.AdditionalProperties {
 			if s, isString := value.(string); isString {
-				decryptedAdditionalProperties[key], err = secretHelper.DecryptAllEnvelopes(s, envvarHelper.GetPipelineName())
+				decryptedAdditionalProperties[key], err = secretHelper.DecryptAllEnvelopes(s, envvarClient.GetPipelineName())
 				if err != nil {
 					log.Fatal().Err(err).Msgf("Failed decrypting credential %v property %v", c.Name, key)
 				}

@@ -1,4 +1,4 @@
-package builder
+package api
 
 import contracts "github.com/estafette/estafette-ci-contracts"
 
