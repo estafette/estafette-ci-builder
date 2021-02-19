@@ -40,10 +40,8 @@ func TestRunStage(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false)
-		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false)
-		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false)
 		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("Failed pulling image"))
+		setDefaultMockExpectancies(dockerClient)
 
 		// act
 		err := pipelineService.RunStage(context.Background(), depth, runIndex, dir, envvars, parentStage, stage)
@@ -71,11 +69,8 @@ func TestRunStage(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false)
-		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false)
-		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false)
-		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), fmt.Errorf("Failed getting image size"))
+		setDefaultMockExpectancies(dockerClient)
 
 		// act
 		err := pipelineService.RunStage(context.Background(), depth, runIndex, dir, envvars, parentStage, stage)
@@ -103,10 +98,8 @@ func TestRunStage(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(true)
-		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false)
-		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false)
 		dockerClient.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("", fmt.Errorf("Failed starting container"))
+		setDefaultMockExpectancies(dockerClient)
 
 		// act
 		err := pipelineService.RunStage(context.Background(), depth, runIndex, dir, envvars, parentStage, stage)
@@ -134,11 +127,8 @@ func TestRunStage(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(true)
-		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false)
-		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false)
-		dockerClient.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil)
 		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("Failed tailing container logs"))
+		setDefaultMockExpectancies(dockerClient)
 
 		// act
 		err := pipelineService.RunStage(context.Background(), depth, runIndex, dir, envvars, parentStage, stage)
@@ -166,13 +156,10 @@ func TestRunStage(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false)
-		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false)
-		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false)
 		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
-		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil)
 		dockerClient.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil)
 		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+		setDefaultMockExpectancies(dockerClient)
 
 		// act
 		err := pipelineService.RunStage(context.Background(), depth, runIndex, dir, envvars, parentStage, stage)
@@ -200,10 +187,7 @@ func TestRunStage(t *testing.T) {
 
 		// set mock responses
 		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(true)
-		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false)
-		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false)
-		dockerClient.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil)
-		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+		setDefaultMockExpectancies(dockerClient)
 
 		// act
 		err := pipelineService.RunStage(context.Background(), depth, runIndex, dir, envvars, parentStage, stage)
@@ -236,13 +220,7 @@ func TestRunStage(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false)
-		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false)
-		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false)
-		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
-		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil)
-		dockerClient.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil)
-		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+		setDefaultMockExpectancies(dockerClient)
 
 		// act
 		err := pipelineService.RunStage(context.Background(), depth, runIndex, dir, envvars, parentStage, stage)
@@ -279,13 +257,8 @@ func TestRunStage(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false)
-		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false)
-		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false)
-		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
-		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil)
-		dockerClient.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil)
 		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("Failed tailing container logs"))
+		setDefaultMockExpectancies(dockerClient)
 
 		// act
 		err := pipelineService.RunStage(context.Background(), depth, runIndex, dir, envvars, parentStage, stage)
@@ -322,14 +295,7 @@ func TestRunStage(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
-		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
-		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
-		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
-		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil).AnyTimes()
-		dockerClient.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil).AnyTimes()
-		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
-		dockerClient.EXPECT().StopAllContainers().AnyTimes()
+		setDefaultMockExpectancies(dockerClient)
 
 		// act
 		go pipelineService.StopPipelineOnCancellation()
@@ -362,14 +328,8 @@ func TestRunStage(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
-		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
-		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
-		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
-		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil).AnyTimes()
-		dockerClient.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil).AnyTimes()
 		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("Failed tailing container logs")).AnyTimes()
-		dockerClient.EXPECT().StopAllContainers().AnyTimes()
+		setDefaultMockExpectancies(dockerClient)
 
 		// act
 		go pipelineService.StopPipelineOnCancellation()
@@ -407,13 +367,7 @@ func TestRunStage(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false)
-		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false)
-		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false)
-		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
-		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil)
-		dockerClient.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil)
-		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+		setDefaultMockExpectancies(dockerClient)
 
 		// act
 		err := pipelineService.RunStage(context.Background(), depth, runIndex, dir, envvars, parentStage, stage)
@@ -458,13 +412,8 @@ func TestRunStageWithRetry(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false)
-		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false)
-		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false)
-		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
-		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil)
-		dockerClient.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil)
 		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("Failed tailing container logs")).Times(1)
+		setDefaultMockExpectancies(dockerClient)
 
 		// act
 		err := pipelineService.RunStageWithRetry(context.Background(), depth, dir, envvars, parentStage, stage)
@@ -494,12 +443,6 @@ func TestRunStageWithRetry(t *testing.T) {
 		// set mock responses
 		iteration := 0
 
-		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false).MinTimes(1)
-		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false).MinTimes(1)
-		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false).MinTimes(1)
-		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).MinTimes(1)
-		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil).MinTimes(1)
-		dockerClient.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil).MinTimes(1)
 		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
 			defer func() { iteration++ }()
 
@@ -514,6 +457,7 @@ func TestRunStageWithRetry(t *testing.T) {
 
 			return fmt.Errorf("Shouldn't call it this often")
 		}).Times(3)
+		setDefaultMockExpectancies(dockerClient)
 
 		// act
 		err := pipelineService.RunStageWithRetry(context.Background(), depth, dir, envvars, parentStage, stage)
@@ -542,12 +486,6 @@ func TestRunStageWithRetry(t *testing.T) {
 
 		// set mock responses
 		iteration := 0
-		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false).MinTimes(1)
-		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false).MinTimes(1)
-		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false).MinTimes(1)
-		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).MinTimes(1)
-		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil).MinTimes(1)
-		dockerClient.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil).MinTimes(1)
 		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
 			defer func() { iteration++ }()
 
@@ -562,6 +500,7 @@ func TestRunStageWithRetry(t *testing.T) {
 
 			return fmt.Errorf("Shouldn't call it this often")
 		}).Times(3)
+		setDefaultMockExpectancies(dockerClient)
 
 		// act
 		err := pipelineService.RunStageWithRetry(context.Background(), depth, dir, envvars, parentStage, stage)
@@ -588,13 +527,8 @@ func TestRunStageWithRetry(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false)
-		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false)
-		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false)
-		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
-		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil)
-		dockerClient.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil)
 		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("Failed tailing container logs"))
+		setDefaultMockExpectancies(dockerClient)
 
 		// act
 		_ = pipelineService.RunStageWithRetry(context.Background(), depth, dir, envvars, parentStage, stage)
@@ -629,12 +563,6 @@ func TestRunStageWithRetry(t *testing.T) {
 
 		// set mock responses
 		iteration := 0
-		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false).MinTimes(1)
-		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false).MinTimes(1)
-		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false).MinTimes(1)
-		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).MinTimes(1)
-		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil).MinTimes(1)
-		dockerClient.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil).MinTimes(1)
 		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
 			defer func() { iteration++ }()
 
@@ -649,6 +577,7 @@ func TestRunStageWithRetry(t *testing.T) {
 
 			return fmt.Errorf("Shouldn't call it this often")
 		}).Times(3)
+		setDefaultMockExpectancies(dockerClient)
 
 		// act
 		_ = pipelineService.RunStageWithRetry(context.Background(), depth, dir, envvars, parentStage, stage)
@@ -702,10 +631,8 @@ func TestRunService(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false)
-		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false)
-		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false)
 		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("Failed pulling image"))
+		setDefaultMockExpectancies(dockerClient)
 
 		// act
 		err := pipelineService.RunService(context.Background(), envvars, parentStage, service)
@@ -732,11 +659,8 @@ func TestRunService(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false)
-		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false)
-		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false)
-		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), fmt.Errorf("Failed getting image size"))
+		setDefaultMockExpectancies(dockerClient)
 
 		// act
 		err := pipelineService.RunService(context.Background(), envvars, parentStage, service)
@@ -763,10 +687,8 @@ func TestRunService(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(true)
-		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false)
-		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false)
 		dockerClient.EXPECT().StartServiceContainer(gomock.Any(), gomock.Any(), gomock.Any()).Return("", fmt.Errorf("Failed starting container"))
+		setDefaultMockExpectancies(dockerClient)
 
 		// act
 		err := pipelineService.RunService(context.Background(), envvars, parentStage, service)
@@ -793,17 +715,13 @@ func TestRunService(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(true)
-		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false)
-		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false)
-		dockerClient.EXPECT().StartServiceContainer(gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil)
-
 		var wg sync.WaitGroup
 		wg.Add(1)
 		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
 			defer wg.Done()
 			return fmt.Errorf("Failed tailing container logs")
 		})
+		setDefaultMockExpectancies(dockerClient)
 
 		// act
 		err := pipelineService.RunService(context.Background(), envvars, parentStage, service)
@@ -833,11 +751,6 @@ func TestRunService(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(true)
-		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false)
-		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false)
-		dockerClient.EXPECT().StartServiceContainer(gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil)
-
 		var wg sync.WaitGroup
 		wg.Add(1)
 		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
@@ -845,6 +758,7 @@ func TestRunService(t *testing.T) {
 			return nil
 		})
 		dockerClient.EXPECT().RunReadinessProbeContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("Failed readiness probe"))
+		setDefaultMockExpectancies(dockerClient)
 
 		// act
 		err := pipelineService.RunService(context.Background(), envvars, parentStage, service)
@@ -875,18 +789,15 @@ func TestRunService(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(true)
-		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false)
-		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false)
+		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 		dockerClient.EXPECT().StartServiceContainer(gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil)
-
 		var wg sync.WaitGroup
 		wg.Add(1)
 		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
 			defer wg.Done()
 			return nil
 		})
-		dockerClient.EXPECT().RunReadinessProbeContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+		setDefaultMockExpectancies(dockerClient)
 
 		// act
 		err := pipelineService.RunService(context.Background(), envvars, parentStage, service)
@@ -916,17 +827,13 @@ func TestRunService(t *testing.T) {
 
 		// set mock responses
 		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(true).AnyTimes()
-		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil).AnyTimes()
-		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
-		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
-		dockerClient.EXPECT().StartServiceContainer(gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil)
-
 		var wg sync.WaitGroup
 		wg.Add(1)
 		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
 			defer wg.Done()
 			return nil
 		})
+		setDefaultMockExpectancies(dockerClient)
 
 		// act
 		err := pipelineService.RunService(context.Background(), envvars, parentStage, service)
@@ -959,13 +866,7 @@ func TestRunService(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false)
-		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false)
-		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false)
-		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
-		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil)
 		dockerClient.EXPECT().StartServiceContainer(gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil)
-
 		var wg sync.WaitGroup
 		wg.Add(1)
 		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
@@ -973,6 +874,7 @@ func TestRunService(t *testing.T) {
 			return nil
 		})
 		dockerClient.EXPECT().RunReadinessProbeContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+		setDefaultMockExpectancies(dockerClient)
 
 		// act
 		err := pipelineService.RunService(context.Background(), envvars, parentStage, service)
@@ -1008,13 +910,6 @@ func TestRunService(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false)
-		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false)
-		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false)
-		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
-		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil)
-		dockerClient.EXPECT().StartServiceContainer(gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil)
-
 		var wg sync.WaitGroup
 		wg.Add(1)
 		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
@@ -1024,6 +919,7 @@ func TestRunService(t *testing.T) {
 			return nil
 		})
 		dockerClient.EXPECT().RunReadinessProbeContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("Failed readiness probe"))
+		setDefaultMockExpectancies(dockerClient)
 
 		// act
 		err := pipelineService.RunService(context.Background(), envvars, parentStage, service)
@@ -1061,12 +957,7 @@ func TestRunService(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
-		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
-		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
-		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
-		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil).AnyTimes()
-		dockerClient.EXPECT().StopAllContainers()
+		setDefaultMockExpectancies(dockerClient)
 
 		// act
 		go pipelineService.StopPipelineOnCancellation()
@@ -1099,12 +990,16 @@ func TestRunService(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
-		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
-		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
-		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
-		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil).AnyTimes()
-		dockerClient.EXPECT().StopAllContainers()
+		var wg sync.WaitGroup
+		wg.Add(1)
+		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
+			defer wg.Done()
+			// ensure tailing doesn't set status before the main routine does
+			time.Sleep(100 * time.Millisecond)
+			return nil
+		}).AnyTimes()
+		dockerClient.EXPECT().RunReadinessProbeContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("Failed readiness probe")).AnyTimes()
+		setDefaultMockExpectancies(dockerClient)
 
 		// act
 		go pipelineService.StopPipelineOnCancellation()
@@ -1142,15 +1037,7 @@ func TestRunStages(t *testing.T) {
 
 		// set mock responses
 		dockerClient.EXPECT().CreateNetworks(gomock.Any()).Return(nil)
-		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
-		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
-		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
-		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
-		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil).AnyTimes()
-		dockerClient.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil).AnyTimes()
-		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
-		dockerClient.EXPECT().StopMultiStageServiceContainers(gomock.Any()).AnyTimes()
-		dockerClient.EXPECT().DeleteNetworks(gomock.Any()).AnyTimes()
+		setDefaultMockExpectancies(dockerClient)
 
 		// act
 		_, _ = pipelineService.RunStages(context.Background(), depth, stages, dir, envvars)
@@ -1176,16 +1063,8 @@ func TestRunStages(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerClient.EXPECT().CreateNetworks(gomock.Any()).Return(nil)
-		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
-		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
-		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
-		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
-		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil).AnyTimes()
-		dockerClient.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil).AnyTimes()
-		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
-		dockerClient.EXPECT().StopMultiStageServiceContainers(gomock.Any()).AnyTimes()
-		dockerClient.EXPECT().DeleteNetworks(gomock.Any()).AnyTimes()
+		dockerClient.EXPECT().DeleteNetworks(gomock.Any())
+		setDefaultMockExpectancies(dockerClient)
 
 		// act
 		_, _ = pipelineService.RunStages(context.Background(), depth, stages, dir, envvars)
@@ -1211,16 +1090,8 @@ func TestRunStages(t *testing.T) {
 		}
 
 		// set mock responses
-		dockerClient.EXPECT().CreateNetworks(gomock.Any()).Return(nil)
-		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
-		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
-		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
-		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
-		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil).AnyTimes()
-		dockerClient.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil).AnyTimes()
-		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
-		dockerClient.EXPECT().StopMultiStageServiceContainers(gomock.Any()).AnyTimes()
-		dockerClient.EXPECT().DeleteNetworks(gomock.Any()).AnyTimes()
+		dockerClient.EXPECT().StopMultiStageServiceContainers(gomock.Any())
+		setDefaultMockExpectancies(dockerClient)
 
 		// act
 		_, _ = pipelineService.RunStages(context.Background(), depth, stages, dir, envvars)
@@ -1247,16 +1118,7 @@ func TestRunStages(t *testing.T) {
 
 		// set mock responses
 		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("Failed pulling image"))
-
-		dockerClient.EXPECT().CreateNetworks(gomock.Any()).Return(nil)
-		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
-		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
-		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
-		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil).AnyTimes()
-		dockerClient.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil).AnyTimes()
-		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
-		dockerClient.EXPECT().StopMultiStageServiceContainers(gomock.Any()).AnyTimes()
-		dockerClient.EXPECT().DeleteNetworks(gomock.Any()).AnyTimes()
+		setDefaultMockExpectancies(dockerClient)
 
 		// act
 		_, err := pipelineService.RunStages(context.Background(), depth, stages, dir, envvars)
@@ -1304,16 +1166,7 @@ func TestRunStages(t *testing.T) {
 
 			return fmt.Errorf("Shouldn't call it this often")
 		}).Times(2)
-
-		dockerClient.EXPECT().CreateNetworks(gomock.Any()).Return(nil)
-		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
-		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
-		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
-		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil).AnyTimes()
-		dockerClient.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil).AnyTimes()
-		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
-		dockerClient.EXPECT().StopMultiStageServiceContainers(gomock.Any()).AnyTimes()
-		dockerClient.EXPECT().DeleteNetworks(gomock.Any()).AnyTimes()
+		setDefaultMockExpectancies(dockerClient)
 
 		// act
 		_, err := pipelineService.RunStages(context.Background(), depth, stages, dir, envvars)
@@ -1366,16 +1219,7 @@ func TestRunStages(t *testing.T) {
 
 			return fmt.Errorf("Shouldn't call it this often")
 		}).Times(2)
-
-		dockerClient.EXPECT().CreateNetworks(gomock.Any()).Return(nil)
-		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
-		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
-		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
-		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil).AnyTimes()
-		dockerClient.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil).AnyTimes()
-		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
-		dockerClient.EXPECT().StopMultiStageServiceContainers(gomock.Any()).AnyTimes()
-		dockerClient.EXPECT().DeleteNetworks(gomock.Any()).AnyTimes()
+		setDefaultMockExpectancies(dockerClient)
 
 		// act
 		_, _ = pipelineService.RunStages(context.Background(), depth, stages, dir, envvars)
@@ -1424,16 +1268,7 @@ func TestRunStages(t *testing.T) {
 
 			return fmt.Errorf("Shouldn't call it this often")
 		}).Times(2)
-
-		dockerClient.EXPECT().CreateNetworks(gomock.Any()).Return(nil)
-		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
-		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
-		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
-		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil).AnyTimes()
-		dockerClient.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil).AnyTimes()
-		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
-		dockerClient.EXPECT().StopMultiStageServiceContainers(gomock.Any()).AnyTimes()
-		dockerClient.EXPECT().DeleteNetworks(gomock.Any()).AnyTimes()
+		setDefaultMockExpectancies(dockerClient)
 
 		// act
 		buildLogSteps, _ := pipelineService.RunStages(context.Background(), depth, stages, dir, envvars)
@@ -1475,15 +1310,7 @@ func TestRunStages(t *testing.T) {
 			time.Sleep(100 * time.Millisecond)
 			return nil
 		})
-
-		dockerClient.EXPECT().CreateNetworks(gomock.Any()).Return(nil)
-		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
-		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
-		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
-		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil).AnyTimes()
-		dockerClient.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil).AnyTimes()
-		dockerClient.EXPECT().StopMultiStageServiceContainers(gomock.Any()).AnyTimes()
-		dockerClient.EXPECT().DeleteNetworks(gomock.Any()).AnyTimes()
+		setDefaultMockExpectancies(dockerClient)
 
 		// act
 		buildLogSteps, _ := pipelineService.RunStages(context.Background(), depth, stages, dir, envvars)
@@ -1514,16 +1341,7 @@ func TestRunStages(t *testing.T) {
 		}
 
 		// set mocks
-		dockerClient.EXPECT().CreateNetworks(gomock.Any()).Return(nil)
-		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
-		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
-		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
-		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
-		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil).AnyTimes()
-		dockerClient.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil).AnyTimes()
-		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
-		dockerClient.EXPECT().StopMultiStageServiceContainers(gomock.Any()).AnyTimes()
-		dockerClient.EXPECT().DeleteNetworks(gomock.Any()).AnyTimes()
+		setDefaultMockExpectancies(dockerClient)
 
 		// act
 		pipelineService.EnableBuilderInfoStageInjection()
@@ -1567,17 +1385,7 @@ func TestRunStages(t *testing.T) {
 		}
 
 		// set mocks
-		dockerClient.EXPECT().CreateNetworks(gomock.Any()).Return(nil)
-		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
-		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
-		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
-		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
-		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil).AnyTimes()
-		dockerClient.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil).AnyTimes()
-		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
-		dockerClient.EXPECT().StopMultiStageServiceContainers(gomock.Any()).AnyTimes()
-		dockerClient.EXPECT().StopAllContainers().AnyTimes()
-		dockerClient.EXPECT().DeleteNetworks(gomock.Any()).AnyTimes()
+		setDefaultMockExpectancies(dockerClient)
 
 		// act
 		go pipelineService.StopPipelineOnCancellation()
@@ -1629,17 +1437,7 @@ func TestRunStagesWithParallelStages(t *testing.T) {
 
 		// set mock responses
 		dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).Times(2)
-
-		dockerClient.EXPECT().CreateNetworks(gomock.Any()).Return(nil).AnyTimes()
-		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
-		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
-		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
-		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil).AnyTimes()
-		dockerClient.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil).AnyTimes()
-		dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
-		dockerClient.EXPECT().StopMultiStageServiceContainers(gomock.Any()).AnyTimes()
-		dockerClient.EXPECT().StopAllContainers().AnyTimes()
-		dockerClient.EXPECT().DeleteNetworks(gomock.Any()).AnyTimes()
+		setDefaultMockExpectancies(dockerClient)
 
 		// act
 		buildLogSteps, _ := pipelineService.RunStages(context.Background(), depth, stages, dir, envvars)
@@ -1708,16 +1506,7 @@ func TestRunStagesWithServices(t *testing.T) {
 		dockerClient.EXPECT().StopSingleStageServiceContainers(gomock.Any(), gomock.Any()).Do(func(ctx context.Context, parentStage manifest.EstafetteStage) {
 			wg.Done()
 		})
-
-		dockerClient.EXPECT().CreateNetworks(gomock.Any()).Return(nil).AnyTimes()
-		dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
-		dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
-		dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
-		dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil).AnyTimes()
-		dockerClient.EXPECT().StartServiceContainer(gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil).AnyTimes()
-		dockerClient.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil).AnyTimes()
-		dockerClient.EXPECT().StopMultiStageServiceContainers(gomock.Any()).AnyTimes()
-		dockerClient.EXPECT().DeleteNetworks(gomock.Any()).AnyTimes()
+		setDefaultMockExpectancies(dockerClient)
 
 		// act
 		buildLogSteps, _ := pipelineService.RunStages(context.Background(), depth, stages, dir, envvars)
@@ -2816,4 +2605,27 @@ func getpipelineServiceAndMocks(dockerClient docker.Client) (chan contracts.Tail
 	pipelineService, _ := NewService(ctx, envvarClient, evaluationService, dockerClient, true, cancellationChannel, tailLogsChannel, foundation.ApplicationInfo{})
 
 	return tailLogsChannel, cancellationChannel, pipelineService
+}
+
+func setDefaultMockExpectancies(dockerClient *docker.MockClient) {
+
+	dockerClient.EXPECT().CreateNetworks(gomock.Any()).Return(nil).AnyTimes()
+	dockerClient.EXPECT().IsImagePulled(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+	dockerClient.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+	dockerClient.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+	dockerClient.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+	dockerClient.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil).AnyTimes()
+
+	dockerClient.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil).AnyTimes()
+	dockerClient.EXPECT().StartServiceContainer(gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil).AnyTimes()
+
+	dockerClient.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+
+	dockerClient.EXPECT().RunReadinessProbeContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+
+	dockerClient.EXPECT().StopMultiStageServiceContainers(gomock.Any()).AnyTimes()
+	dockerClient.EXPECT().StopSingleStageServiceContainers(gomock.Any(), gomock.Any()).AnyTimes()
+	dockerClient.EXPECT().StopAllContainers().AnyTimes()
+
+	dockerClient.EXPECT().DeleteNetworks(gomock.Any()).AnyTimes()
 }
