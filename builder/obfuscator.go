@@ -8,6 +8,7 @@ import (
 
 	crypt "github.com/estafette/estafette-ci-crypt"
 	manifest "github.com/estafette/estafette-ci-manifest"
+	"github.com/rs/zerolog/log"
 )
 
 const maxLengthToSkipObfuscation = 3
@@ -32,6 +33,8 @@ func NewObfuscator(secretHelper crypt.SecretHelper) Obfuscator {
 }
 
 func (ob *obfuscatorImpl) CollectSecrets(manifest manifest.EstafetteManifest, credentialsBytes []byte, pipeline string) (err error) {
+
+	log.Debug().Msgf("Collecting secrets and checking if they're valid for pipeline %v...", pipeline)
 
 	replacerStrings := []string{}
 
