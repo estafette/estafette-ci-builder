@@ -48,6 +48,8 @@ func (ob *obfuscatorImpl) CollectSecrets(manifest manifest.EstafetteManifest, cr
 		return err
 	}
 
+	log.Debug().Msgf("Collected %v manifest secrets for pipeline %v...", len(values), pipeline)
+
 	replacerStrings = append(replacerStrings, ob.getReplacerStrings(values)...)
 
 	// collect all secrets from injected credentials
@@ -55,6 +57,8 @@ func (ob *obfuscatorImpl) CollectSecrets(manifest manifest.EstafetteManifest, cr
 	if err != nil {
 		return err
 	}
+
+	log.Debug().Msgf("Collected %v credentials secrets for pipeline %v...", len(values), pipeline)
 
 	replacerStrings = append(replacerStrings, ob.getReplacerStrings(values)...)
 
