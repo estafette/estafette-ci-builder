@@ -37,6 +37,7 @@ stages:
         path: ./publish
         copy:
         - templates
+        - daemon.json
 
       bake-gocd-agent:
         image: extensions/docker:dev
@@ -116,9 +117,7 @@ stages:
               },
               "Custom":null
             },
-            "GlobalEnvVars":{
-              "DOCKER_BUILDKIT": "1"
-            },
+            "GlobalEnvVars":null,
             "Stages":[
               {
                 "Name":"services-test",

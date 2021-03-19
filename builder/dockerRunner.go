@@ -710,7 +710,7 @@ func (dr *dockerRunnerImpl) StartDockerDaemon() error {
 
 	// dockerd --host=unix:///var/run/docker.sock --host=tcp://0.0.0.0:2375 --mtu=1500 &
 	log.Debug().Msg("Starting docker daemon...")
-	args := []string{"--host=unix:///var/run/docker.sock"}
+	args := []string{"--host=unix:///var/run/docker.sock", "--config-file=/daemon.json"}
 
 	// if an mtu is configured pass it to the docker daemon
 	if dr.config.DockerConfig != nil && dr.config.DockerConfig.RunType == contracts.DockerRunTypeDinD && dr.config.DockerConfig.MTU > 0 {
