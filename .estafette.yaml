@@ -456,7 +456,7 @@ releases:
   nanoserver-1809-beta:
     builder:
       os: windows
-      track: nanoserver-1809-stable
+      track: nanoserver-1809-dev
     clone: true
     stages:
       build:
