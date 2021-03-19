@@ -936,6 +936,13 @@ func (dr *dockerRunnerImpl) CreateNetworks(ctx context.Context) error {
 		return err
 	}
 
+	// ensure there's at least 1 network for supporting service containers
+	if dr.config.DockerConfig.RunType == contracts.DockerRunTypeDinD && len(dr.config.DockerConfig.Networks) == 0 {
+		dr.config.DockerConfig.Networks = append(dr.config.DockerConfig.Networks, contracts.DockerNetworkConfig{
+			Name: "estafette",
+		})
+	}
+
 	for _, nw := range dr.config.DockerConfig.Networks {
 
 		// check if network already exists
