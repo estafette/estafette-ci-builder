@@ -94,13 +94,8 @@ stages:
           "dockerConfig":{
             "runType":"dind",
             "mtu":1460,
-            "bip":"192.168.3.1/24",
             "networks":[{
-              "name":"estafette-integration",
-              "driver":"default",
-              "subnet":"192.168.4.1/24",
-              "gateway":"192.168.4.1",
-              "durable":false
+              "name":"estafette-integration"
             }]
           },
           "manifest":{
