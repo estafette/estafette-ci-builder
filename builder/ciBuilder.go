@@ -259,6 +259,11 @@ func (b *ciBuilderImpl) initJaeger(service string) io.Closer {
 		log.Fatal().Err(err).Msg("Generating Jaeger config from environment variables failed")
 	}
 
+	// disable jaeger if service name is empty
+	if cfg.ServiceName == "" {
+		cfg.Disabled = true
+	}
+
 	closer, err := cfg.InitGlobalTracer(service, jaegercfg.Logger(jaeger.StdLogger))
 
 	if err != nil {
