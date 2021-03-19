@@ -124,7 +124,9 @@ stages:
               },
               "Custom":null
             },
-            "GlobalEnvVars":null,
+            "GlobalEnvVars":{
+              "DOCKER_BUILDKIT": "1",
+            },
             "Stages":[
               {
                 "Name":"services-test",

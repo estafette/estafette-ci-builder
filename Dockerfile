@@ -18,7 +18,9 @@ COPY templates /entrypoint-templates
 ENV ESTAFETTE_CI_SERVER="estafette" \
     ESTAFETTE_WORKDIR="/estafette-work" \
     ESTAFETTE_LOG_FORMAT="v3" \
-    DOCKER_TLS_CERTDIR=""
+    DOCKER_TLS_CERTDIR="" \
+    DOCKER_TLS_VERIFY="0" \
+    DOCKER_BUILDKIT="1"
 
 WORKDIR ${ESTAFETTE_WORKDIR}
 
