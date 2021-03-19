@@ -727,6 +727,7 @@ func (dr *dockerRunnerImpl) StartDockerDaemon() error {
 		args = append(args, fmt.Sprintf("--registry-mirror=%v", dr.config.DockerConfig.RegistryMirror))
 	}
 
+	log.Info().Msgf("> dockerd %v", strings.Join(args, " "))
 	dockerDaemonCommand := exec.Command("dockerd", args...)
 	dockerDaemonCommand.Stdout = log.Logger
 	dockerDaemonCommand.Stderr = log.Logger
