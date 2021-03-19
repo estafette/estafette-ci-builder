@@ -93,10 +93,7 @@ stages:
           "track":"dev",
           "dockerConfig":{
             "runType":"dind",
-            "mtu":1460,
-            "networks":[{
-              "name":"estafette-integration"
-            }]
+            "mtu":1460
           },
           "manifest":{
             "Builder":{
