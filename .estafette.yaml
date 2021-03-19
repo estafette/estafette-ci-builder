@@ -125,7 +125,7 @@ stages:
               "Custom":null
             },
             "GlobalEnvVars":{
-              "DOCKER_BUILDKIT": "1",
+              "DOCKER_BUILDKIT": "1"
             },
             "Stages":[
               {
