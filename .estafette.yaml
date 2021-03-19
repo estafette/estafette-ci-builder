@@ -420,6 +420,10 @@ releases:
     builder:
       os: windows
       track: nanoserver-1809-stable
+    triggers:
+    - pipeline:
+        name: self
+        branch: .+
     clone: true
     stages:
       build:
