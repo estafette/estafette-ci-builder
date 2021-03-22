@@ -1,154 +1,16 @@
 package builder
 
 import (
-	"context"
 	"io/ioutil"
 	"os"
 	"path"
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/client"
 	contracts "github.com/estafette/estafette-ci-contracts"
 	crypt "github.com/estafette/estafette-ci-crypt"
-	manifest "github.com/estafette/estafette-ci-manifest"
 	"github.com/stretchr/testify/assert"
 )
-
-type dockerRunnerMockImpl struct {
-	isImagePulledFunc                    func(stageName string, containerImage string) bool
-	pullImageFunc                        func(ctx context.Context, stageName string, containerImage string) error
-	getImageSizeFunc                     func(containerImage string) (int64, error)
-	startStageContainerFunc              func(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, stage manifest.EstafetteStage) (containerID string, err error)
-	startServiceContainerFunc            func(ctx context.Context, envvars map[string]string, service manifest.EstafetteService) (containerID string, err error)
-	runReadinessProbeContainerFunc       func(ctx context.Context, parentStage manifest.EstafetteStage, service manifest.EstafetteService, readiness manifest.ReadinessProbe) (err error)
-	tailContainerLogsFunc                func(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error)
-	stopSingleStageServiceContainersFunc func(ctx context.Context, parentStage manifest.EstafetteStage)
-	stopMultiStageServiceContainersFunc  func(ctx context.Context)
-	startDockerDaemonFunc                func() error
-	waitForDockerDaemonFunc              func()
-	createDockerClientFunc               func() (*client.Client, error)
-	isTrustedImageFunc                   func(stageName string, containerImage string) bool
-	hasInjectedCredentialsFunc           func(stageName string, containerImage string) bool
-	stopAllContainersFunc                func()
-	createNetworksFunc                   func(ctx context.Context) error
-	deleteNetworksFunc                   func(ctx context.Context) error
-}
-
-func (d *dockerRunnerMockImpl) IsImagePulled(stageName string, containerImage string) bool {
-	if d.isImagePulledFunc == nil {
-		return false
-	}
-	return d.isImagePulledFunc(stageName, containerImage)
-}
-
-func (d *dockerRunnerMockImpl) PullImage(ctx context.Context, stageName string, containerImage string) error {
-	if d.pullImageFunc == nil {
-		return nil
-	}
-	return d.pullImageFunc(ctx, stageName, containerImage)
-}
-
-func (d *dockerRunnerMockImpl) GetImageSize(containerImage string) (int64, error) {
-	if d.getImageSizeFunc == nil {
-		return 0, nil
-	}
-	return d.getImageSizeFunc(containerImage)
-}
-
-func (d *dockerRunnerMockImpl) StartStageContainer(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, stage manifest.EstafetteStage) (containerID string, err error) {
-	if d.startStageContainerFunc == nil {
-		return "abc", nil
-	}
-	return d.startStageContainerFunc(ctx, depth, runIndex, dir, envvars, stage)
-}
-
-func (d *dockerRunnerMockImpl) StartServiceContainer(ctx context.Context, envvars map[string]string, service manifest.EstafetteService) (containerID string, err error) {
-	if d.startServiceContainerFunc == nil {
-		return "abc", nil
-	}
-	return d.startServiceContainerFunc(ctx, envvars, service)
-}
-
-func (d *dockerRunnerMockImpl) RunReadinessProbeContainer(ctx context.Context, parentStage manifest.EstafetteStage, service manifest.EstafetteService, readiness manifest.ReadinessProbe) (err error) {
-	if d.runReadinessProbeContainerFunc == nil {
-		return nil
-	}
-	return d.runReadinessProbeContainerFunc(ctx, parentStage, service, readiness)
-}
-
-func (d *dockerRunnerMockImpl) TailContainerLogs(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
-	if d.tailContainerLogsFunc == nil {
-		return nil
-	}
-	return d.tailContainerLogsFunc(ctx, containerID, parentStageName, stageName, stageType, depth, runIndex, multiStage)
-}
-
-func (d *dockerRunnerMockImpl) StopSingleStageServiceContainers(ctx context.Context, parentStage manifest.EstafetteStage) {
-	if d.stopSingleStageServiceContainersFunc != nil {
-		d.stopSingleStageServiceContainersFunc(ctx, parentStage)
-	}
-}
-
-func (d *dockerRunnerMockImpl) StopMultiStageServiceContainers(ctx context.Context) {
-	if d.stopMultiStageServiceContainersFunc != nil {
-		d.stopMultiStageServiceContainersFunc(ctx)
-	}
-}
-
-func (d *dockerRunnerMockImpl) StartDockerDaemon() error {
-	if d.startDockerDaemonFunc == nil {
-		return nil
-	}
-	return d.startDockerDaemonFunc()
-}
-
-func (d *dockerRunnerMockImpl) WaitForDockerDaemon() {
-	if d.waitForDockerDaemonFunc != nil {
-		d.waitForDockerDaemonFunc()
-	}
-}
-
-func (d *dockerRunnerMockImpl) CreateDockerClient() (*client.Client, error) {
-	if d.createDockerClientFunc != nil {
-		return nil, nil
-	}
-	return d.createDockerClientFunc()
-}
-
-func (d *dockerRunnerMockImpl) IsTrustedImage(stageName string, containerImage string) bool {
-	if d.isTrustedImageFunc == nil {
-		return false
-	}
-	return d.isTrustedImageFunc(stageName, containerImage)
-}
-
-func (d *dockerRunnerMockImpl) HasInjectedCredentials(stageName string, containerImage string) bool {
-	if d.hasInjectedCredentialsFunc == nil {
-		return false
-	}
-	return d.hasInjectedCredentialsFunc(stageName, containerImage)
-}
-
-func (d *dockerRunnerMockImpl) StopAllContainers() {
-	if d.stopAllContainersFunc != nil {
-		d.stopAllContainersFunc()
-	}
-}
-
-func (d *dockerRunnerMockImpl) CreateNetworks(ctx context.Context) error {
-	if d.createNetworksFunc == nil {
-		return nil
-	}
-	return d.createNetworksFunc(ctx)
-}
-
-func (d *dockerRunnerMockImpl) DeleteNetworks(ctx context.Context) error {
-	if d.deleteNetworksFunc == nil {
-		return nil
-	}
-	return d.deleteNetworksFunc(ctx)
-}
 
 func TestGenerateEntrypointScript(t *testing.T) {
 

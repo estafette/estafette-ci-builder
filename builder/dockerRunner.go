@@ -35,8 +35,9 @@ import (
 )
 
 // DockerRunner pulls and runs docker containers
+//go:generate mockgen -package=builder -destination ./dockerRunnerMock.go -source=dockerRunner.go
 type DockerRunner interface {
-	IsImagePulled(stageName string, containerImage string) bool
+	IsImagePulled(ctx context.Context, stageName string, containerImage string) bool
 	IsTrustedImage(stageName string, containerImage string) bool
 	HasInjectedCredentials(stageName string, containerImage string) bool
 	PullImage(ctx context.Context, stageName string, containerImage string) error
@@ -57,7 +58,6 @@ type DockerRunner interface {
 
 // NewDockerRunner returns a new DockerRunner
 func NewDockerRunner(envvarHelper EnvvarHelper, obfuscator Obfuscator, config contracts.BuilderConfig, tailLogsChannel chan contracts.TailLogLine) DockerRunner {
-
 	return &dockerRunnerImpl{
 		envvarHelper:                          envvarHelper,
 		obfuscator:                            obfuscator,
@@ -69,6 +69,7 @@ func NewDockerRunner(envvarHelper EnvvarHelper, obfuscator Obfuscator, config co
 		runningReadinessProbeContainerIDs:     make([]string, 0),
 		networks:                              map[string]string{},
 		entrypointTemplateDir:                 "/entrypoint-templates",
+		pulledImagesMutex:                     NewMapMutex(),
 	}
 }
 
@@ -87,11 +88,21 @@ type dockerRunnerImpl struct {
 	// networkBridgeID                       string
 	networks              map[string]string
 	entrypointTemplateDir string
+
+	pulledImagesMutex *MapMutex
 }
 
-func (dr *dockerRunnerImpl) IsImagePulled(stageName string, containerImage string) bool {
+func (dr *dockerRunnerImpl) IsImagePulled(ctx context.Context, stageName string, containerImage string) bool {
+
+	span, ctx := opentracing.StartSpanFromContext(ctx, "IsImagePulled")
+	defer span.Finish()
+	span.SetTag("docker-image", containerImage)
 
 	log.Info().Msgf("[%v] Checking if docker image '%v' exists locally...", stageName, containerImage)
+
+	// get read lock
+	dr.pulledImagesMutex.RLock(containerImage)
+	defer dr.pulledImagesMutex.RUnlock(containerImage)
 
 	imageSummaries, err := dr.dockerClient.ImageList(context.Background(), types.ImageListOptions{})
 	if err != nil {
@@ -112,6 +123,10 @@ func (dr *dockerRunnerImpl) PullImage(ctx context.Context, stageName string, con
 	span, ctx := opentracing.StartSpanFromContext(ctx, "PullImage")
 	defer span.Finish()
 	span.SetTag("docker-image", containerImage)
+
+	// get write lock so only one process pulls the same image
+	dr.pulledImagesMutex.Lock(containerImage)
+	defer dr.pulledImagesMutex.Unlock(containerImage)
 
 	log.Info().Msgf("[%v] Pulling docker image '%v'", stageName, containerImage)
 
@@ -427,7 +442,7 @@ func (dr *dockerRunnerImpl) RunReadinessProbeContainer(ctx context.Context, pare
 	defer span.Finish()
 
 	readinessProberImage := "estafette/scratch:latest"
-	isPulled := dr.IsImagePulled(service.Name+"-prober", readinessProberImage)
+	isPulled := dr.IsImagePulled(ctx, service.Name+"-prober", readinessProberImage)
 	if !isPulled {
 		err = dr.PullImage(ctx, service.Name+"-prober", readinessProberImage)
 		if err != nil {

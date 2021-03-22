@@ -538,7 +538,7 @@ func (pr *pipelineRunnerImpl) pullImageIfNeeded(ctx context.Context, stageName, 
 
 	if !pr.canceled && containerImage != "" {
 
-		isPulledImage = pr.dockerRunner.IsImagePulled(stageName, containerImage)
+		isPulledImage = pr.dockerRunner.IsImagePulled(ctx, stageName, containerImage)
 		isTrustedImage = pr.dockerRunner.IsTrustedImage(stageName, containerImage)
 		hasInjectedCredentials = pr.dockerRunner.HasInjectedCredentials(stageName, containerImage)
 
