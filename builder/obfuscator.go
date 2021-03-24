@@ -76,9 +76,13 @@ func (ob *obfuscatorImpl) getReplacerStrings(values []string) (replacerStrings [
 		valueLines := strings.Split(v, "\n")
 		for _, l := range valueLines {
 			if len(l) > maxLengthToSkipObfuscation {
+				// obfuscate plain secret value
 				replacerStrings = append(replacerStrings, l, "***")
 
-				// split further if line contains \n (encoded newline)
+				// obfuscate secret value in base64 encoding
+				replacerStrings = append(replacerStrings, base64.StdEncoding.EncodeToString([]byte(l)), "***")
+
+				// split further if line contains \n (encoded newline) and obfuscate each line
 				valueLineLines := strings.Split(l, "\\n")
 				for _, ll := range valueLineLines {
 					if len(ll) > maxLengthToSkipObfuscation {
