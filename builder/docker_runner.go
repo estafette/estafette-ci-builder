@@ -35,7 +35,7 @@ import (
 )
 
 // DockerRunner pulls and runs docker containers
-//go:generate mockgen -package=builder -destination ./dockerRunnerMock.go -source=dockerRunner.go
+//go:generate mockgen -package=builder -destination ./docker_runner_mock.go -source=docker_runner.go
 type DockerRunner interface {
 	IsImagePulled(ctx context.Context, stageName string, containerImage string) bool
 	IsTrustedImage(stageName string, containerImage string) bool
