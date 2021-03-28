@@ -19,6 +19,7 @@ stages:
       test:
         image: golang:1.16-alpine
         commands:
+        -  apk add --update --no-cache build-base
         - go test -race ./...
 
       build:
