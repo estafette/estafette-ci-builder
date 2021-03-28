@@ -21,7 +21,7 @@ stages:
       GOOS: linux
       GOARCH: amd64
     commands:
-    - go test ./...
+    - go test -race ./...
     - go build -v -ldflags "-X main.appgroup=${ESTAFETTE_LABEL_APP_GROUP} -X main.app=${ESTAFETTE_GIT_NAME} -X main.version=${ESTAFETTE_BUILD_VERSION} -X main.revision=${ESTAFETTE_GIT_REVISION} -X main.branch=${ESTAFETTE_GIT_BRANCH} -X main.buildDate=${ESTAFETTE_BUILD_DATETIME}" -o ./publish/${ESTAFETTE_GIT_NAME}
 
   bake-all:
