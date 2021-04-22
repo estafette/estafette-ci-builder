@@ -22,23 +22,29 @@ import (
 	"github.com/opentracing/opentracing-go"
 	"github.com/rs/zerolog/log"
 	"gopkg.in/yaml.v2"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
 // NewKubernetesRunner returns a new ContainerRunner to run containers using Kubernetes resources
 func NewKubernetesRunner(envvarHelper EnvvarHelper, obfuscator Obfuscator, kubeClientset *kubernetes.Clientset, config contracts.BuilderConfig, tailLogsChannel chan contracts.TailLogLine) ContainerRunner {
+
+	namespace, _ := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
+
 	return &kubernetesRunnerImpl{
-		envvarHelper:                          envvarHelper,
-		obfuscator:                            obfuscator,
-		kubeClientset:                         kubeClientset,
-		config:                                config,
-		tailLogsChannel:                       tailLogsChannel,
-		runningStageContainerIDs:              make([]string, 0),
-		runningSingleStageServiceContainerIDs: make([]string, 0),
-		runningMultiStageServiceContainerIDs:  make([]string, 0),
-		runningReadinessProbeContainerIDs:     make([]string, 0),
-		entrypointTemplateDir:                 "/entrypoint-templates",
-		pulledImagesMutex:                     NewMapMutex(),
+		envvarHelper:                     envvarHelper,
+		obfuscator:                       obfuscator,
+		kubeClientset:                    kubeClientset,
+		config:                           config,
+		tailLogsChannel:                  tailLogsChannel,
+		runningStagePodIDs:               make([]string, 0),
+		runningSingleStageServicePodIDss: make([]string, 0),
+		runningMultiStageServicePodIDss:  make([]string, 0),
+		runningReadinessProbePodIDss:     make([]string, 0),
+		entrypointTemplateDir:            "/entrypoint-templates",
+
+		namespace: string(namespace),
 	}
 }
 
@@ -49,43 +55,173 @@ type kubernetesRunnerImpl struct {
 	config          contracts.BuilderConfig
 	tailLogsChannel chan contracts.TailLogLine
 
-	runningStageContainerIDs              []string
-	runningSingleStageServiceContainerIDs []string
-	runningMultiStageServiceContainerIDs  []string
-	runningReadinessProbeContainerIDs     []string
-	entrypointTemplateDir                 string
+	runningStagePodIDs               []string
+	runningSingleStageServicePodIDss []string
+	runningMultiStageServicePodIDss  []string
+	runningReadinessProbePodIDss     []string
+	entrypointTemplateDir            string
 
-	pulledImagesMutex *MapMutex
+	namespace string
 }
 
 func (dr *kubernetesRunnerImpl) IsImagePulled(ctx context.Context, stageName string, containerImage string) bool {
-
-	span, ctx := opentracing.StartSpanFromContext(ctx, "IsImagePulled")
-	defer span.Finish()
-	span.SetTag("docker-image", containerImage)
-
-	return false
+	return true
 }
 
 func (dr *kubernetesRunnerImpl) PullImage(ctx context.Context, stageName string, containerImage string) (err error) {
-
-	span, ctx := opentracing.StartSpanFromContext(ctx, "PullImage")
-	defer span.Finish()
-	span.SetTag("docker-image", containerImage)
-
 	return
 }
 
 func (dr *kubernetesRunnerImpl) GetImageSize(containerImage string) (totalSize int64, err error) {
-
 	return totalSize, nil
 }
 
-func (dr *kubernetesRunnerImpl) StartStageContainer(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, stage manifest.EstafetteStage) (containerID string, err error) {
+func (dr *kubernetesRunnerImpl) StartStageContainer(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, stage manifest.EstafetteStage) (podID string, err error) {
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "StartStageContainer")
 	defer span.Finish()
 	span.SetTag("docker-image", stage.ContainerImage)
+
+	// check if image is trusted image
+	trustedImage := dr.config.GetTrustedImage(stage.ContainerImage)
+
+	// entrypoint, cmds, binds, err := dr.initContainerStartVariables(stage.Shell, stage.Commands, stage.RunCommandsInForeground, stage.CustomProperties, trustedImage)
+	// if err != nil {
+	// 	return
+	// }
+
+	// add custom properties as ESTAFETTE_EXTENSION_... envvar
+	extensionEnvVars := dr.generateExtensionEnvvars(stage.CustomProperties, stage.EnvVars)
+
+	// add stage name to envvars
+	if stage.EnvVars == nil {
+		stage.EnvVars = map[string]string{}
+	}
+	stage.EnvVars["ESTAFETTE_STAGE_NAME"] = stage.Name
+
+	// combine and override estafette and global envvars with stage envvars
+	combinedEnvVars := dr.envvarHelper.OverrideEnvvars(envvars, stage.EnvVars, extensionEnvVars)
+
+	// decrypt secrets in all envvars
+	combinedEnvVars = dr.envvarHelper.decryptSecrets(combinedEnvVars, dr.envvarHelper.GetPipelineName())
+
+	// define docker envvars and expand ESTAFETTE_ variables
+	kubernetesEnvVars := make([]v1.EnvVar, 0)
+	if len(combinedEnvVars) > 0 {
+		for k, v := range combinedEnvVars {
+			kubernetesEnvVars = append(kubernetesEnvVars, v1.EnvVar{Name: k, Value: os.Expand(v, dr.envvarHelper.getEstafetteEnv)})
+		}
+	}
+
+	// define binds
+	// binds = append(binds, fmt.Sprintf("%v:%v", dir, os.Expand(stage.WorkingDirectory, dr.envvarHelper.getEstafetteEnv)))
+
+	// define config
+	// config := container.Config{
+	// 	AttachStdout: true,
+	// 	AttachStderr: true,
+	// 	Env:          dockerEnvVars,
+	// 	Image:        stage.ContainerImage,
+	// 	WorkingDir:   os.Expand(stage.WorkingDirectory, dr.envvarHelper.getEstafetteEnv),
+	// }
+	// if len(stage.Commands) > 0 {
+	// 	if trustedImage != nil && !trustedImage.AllowCommands && len(trustedImage.InjectedCredentialTypes) > 0 {
+	// 		// return stage as failed with error message indicating that this trusted image doesn't allow commands
+	// 		err = fmt.Errorf("This trusted image does not allow for commands to be set as a protection against snooping injected credentials")
+	// 		return
+	// 	}
+
+	// 	// only override entrypoint when commands are set, so extensions can work without commands
+	// 	config.Entrypoint = entrypoint
+	// 	// only pass commands when they are set, so extensions can work without
+	// 	config.Cmd = cmds
+	// }
+	// if trustedImage != nil && trustedImage.RunDocker {
+	// 	if runtime.GOOS != "windows" {
+	// 		currentUser, err := user.Current()
+	// 		if err == nil && currentUser != nil {
+	// 			config.User = fmt.Sprintf("%v:%v", currentUser.Uid, currentUser.Gid)
+	// 			log.Debug().Msgf("Setting docker user to %v", config.User)
+	// 		} else {
+	// 			log.Debug().Err(err).Msg("Can't retrieve current user")
+	// 		}
+	// 	} else {
+	// 		log.Debug().Msg("Not setting docker user for windows")
+	// 	}
+	// }
+
+	// check if this is a trusted image with RunPrivileged or RunDocker set to true
+	privileged := false
+	if trustedImage != nil && runtime.GOOS != "windows" {
+		privileged = trustedImage.RunDocker || trustedImage.RunPrivileged
+	}
+
+	// create container
+	// resp, err := dr.dockerClient.ContainerCreate(ctx, &config, &container.HostConfig{
+	// 	Binds:      binds,
+	// 	Privileged: privileged,
+	// 	AutoRemove: true,
+	// 	LogConfig: container.LogConfig{
+	// 		Type: "local",
+	// 		Config: map[string]string{
+	// 			"max-size": "20m",
+	// 			"max-file": "5",
+	// 			"compress": "true",
+	// 			"mode":     "non-blocking",
+	// 		},
+	// 	},
+	// }, &network.NetworkingConfig{}, nil, "")
+	// if err != nil {
+	// 	return "", err
+	// }
+
+	podName := "somerandomname"
+
+	labels := map[string]string{
+		"createdBy": "estafette",
+	}
+
+	terminationGracePeriodSeconds := int64(300)
+
+	pod := &v1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      podName,
+			Namespace: dr.namespace,
+			Labels:    labels,
+			Annotations: map[string]string{
+				"cluster-autoscaler.kubernetes.io/safe-to-evict": "false",
+			},
+		},
+		Spec: v1.PodSpec{
+			ServiceAccountName:            "estafette-ci-builder",
+			TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
+			Containers: []v1.Container{
+				{
+					Name:            "estafette-ci-builder",
+					Image:           stage.ContainerImage,
+					ImagePullPolicy: v1.PullAlways,
+					Args: []string{
+						"--run-as-job",
+					},
+					Env: kubernetesEnvVars,
+					SecurityContext: &v1.SecurityContext{
+						Privileged: &privileged,
+					},
+					// Resources:    c.getCiBuilderJobResources(ctx, ciBuilderParams),
+					// VolumeMounts: volumeMounts,
+				},
+			},
+			RestartPolicy: v1.RestartPolicyNever,
+			// Volumes:       volumes,
+			// Affinity:      c.getCiBuilderJobAffinity(ctx, ciBuilderParams, localBuilderConfig),
+			// Tolerations:   c.getCiBuilderJobTolerations(ctx, ciBuilderParams, localBuilderConfig),
+		},
+	}
+
+	pod, err = dr.kubeClientset.CoreV1().Pods(dr.namespace).Create(pod)
+	if err != nil {
+		return
+	}
 
 	// // check if image is trusted image
 	// trustedImage := dr.config.GetTrustedImage(stage.ContainerImage)
@@ -93,29 +229,6 @@ func (dr *kubernetesRunnerImpl) StartStageContainer(ctx context.Context, depth i
 	// entrypoint, cmds, binds, err := dr.initContainerStartVariables(stage.Shell, stage.Commands, stage.RunCommandsInForeground, stage.CustomProperties, trustedImage)
 	// if err != nil {
 	// 	return
-	// }
-
-	// // add custom properties as ESTAFETTE_EXTENSION_... envvar
-	// extensionEnvVars := dr.generateExtensionEnvvars(stage.CustomProperties, stage.EnvVars)
-
-	// // add stage name to envvars
-	// if stage.EnvVars == nil {
-	// 	stage.EnvVars = map[string]string{}
-	// }
-	// stage.EnvVars["ESTAFETTE_STAGE_NAME"] = stage.Name
-
-	// // combine and override estafette and global envvars with stage envvars
-	// combinedEnvVars := dr.envvarHelper.OverrideEnvvars(envvars, stage.EnvVars, extensionEnvVars)
-
-	// // decrypt secrets in all envvars
-	// combinedEnvVars = dr.envvarHelper.decryptSecrets(combinedEnvVars, dr.envvarHelper.GetPipelineName())
-
-	// // define docker envvars and expand ESTAFETTE_ variables
-	// dockerEnvVars := make([]string, 0)
-	// if combinedEnvVars != nil && len(combinedEnvVars) > 0 {
-	// 	for k, v := range combinedEnvVars {
-	// 		dockerEnvVars = append(dockerEnvVars, fmt.Sprintf("%v=%v", k, os.Expand(v, dr.envvarHelper.getEstafetteEnv)))
-	// 	}
 	// }
 
 	// // define binds
@@ -208,26 +321,21 @@ func (dr *kubernetesRunnerImpl) StartStageContainer(ctx context.Context, depth i
 	// 	}
 	// }
 
-	// containerID = resp.ID
-	// dr.runningStageContainerIDs = dr.addRunningContainerID(dr.runningStageContainerIDs, containerID)
-
-	// // start container
-	// if err = dr.dockerClient.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{}); err != nil {
-	// 	return
-	// }
+	podID = podName
+	dr.runningStagePodIDs = dr.addRunningPodID(dr.runningStagePodIDs, podName)
 
 	return
 }
 
-func (dr *kubernetesRunnerImpl) StartServiceContainer(ctx context.Context, envvars map[string]string, service manifest.EstafetteService) (containerID string, err error) {
-	return containerID, fmt.Errorf("Service containers are currently not supported for builder.type: kubernetes")
+func (dr *kubernetesRunnerImpl) StartServiceContainer(ctx context.Context, envvars map[string]string, service manifest.EstafetteService) (podID string, err error) {
+	return podID, fmt.Errorf("Service containers are currently not supported for builder.type: kubernetes")
 }
 
 func (dr *kubernetesRunnerImpl) RunReadinessProbeContainer(ctx context.Context, parentStage manifest.EstafetteStage, service manifest.EstafetteService, readiness manifest.ReadinessProbe) (err error) {
 	return fmt.Errorf("Service containers are currently not supported for builder.type: kubernetes")
 }
 
-func (dr *kubernetesRunnerImpl) TailContainerLogs(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
+func (dr *kubernetesRunnerImpl) TailContainerLogs(ctx context.Context, podID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
 
 	// lineNumber := 1
 
@@ -325,12 +433,12 @@ func (dr *kubernetesRunnerImpl) TailContainerLogs(ctx context.Context, container
 
 	// // clear container id
 	// if stageType == contracts.LogTypeStage {
-	// 	dr.runningStageContainerIDs = dr.removeRunningContainerID(dr.runningStageContainerIDs, containerID)
+	// 	dr.runningStagePodIDs = dr.removeRunningPodIDs(dr.runningStagePodIDs, containerID)
 	// } else if stageType == contracts.LogTypeService && multiStage != nil {
 	// 	if *multiStage {
-	// 		dr.runningMultiStageServiceContainerIDs = dr.removeRunningContainerID(dr.runningMultiStageServiceContainerIDs, containerID)
+	// 		dr.runningMultiStageServicePodIDss = dr.removeRunningPodIDs(dr.runningMultiStageServicePodIDss, containerID)
 	// 	} else {
-	// 		dr.runningSingleStageServiceContainerIDs = dr.removeRunningContainerID(dr.runningSingleStageServiceContainerIDs, containerID)
+	// 		dr.runningSingleStageServicePodIDss = dr.removeRunningPodIDs(dr.runningSingleStageServicePodIDss, containerID)
 	// 	}
 	// }
 
@@ -342,23 +450,21 @@ func (dr *kubernetesRunnerImpl) TailContainerLogs(ctx context.Context, container
 }
 
 func (dr *kubernetesRunnerImpl) StopSingleStageServiceContainers(ctx context.Context, parentStage manifest.EstafetteStage) {
+	log.Info().Msgf("[%v] Stopping single-stage service containers...", parentStage.Name)
 
-	// log.Info().Msgf("[%v] Stopping single-stage service containers...", parentStage.Name)
+	// the service containers should be the only ones running, so just stop all containers
+	dr.stopContainers(dr.runningSingleStageServicePodIDss)
 
-	// // the service containers should be the only ones running, so just stop all containers
-	// dr.stopContainers(dr.runningSingleStageServiceContainerIDs)
-
-	// log.Info().Msgf("[%v] Stopped single-stage service containers...", parentStage.Name)
+	log.Info().Msgf("[%v] Stopped single-stage service containers...", parentStage.Name)
 }
 
 func (dr *kubernetesRunnerImpl) StopMultiStageServiceContainers(ctx context.Context) {
+	log.Info().Msg("Stopping multi-stage service containers...")
 
-	// log.Info().Msg("Stopping multi-stage service containers...")
+	// the service containers should be the only ones running, so just stop all containers
+	dr.stopContainers(dr.runningMultiStageServicePodIDss)
 
-	// // the service containers should be the only ones running, so just stop all containers
-	// dr.stopContainers(dr.runningMultiStageServiceContainerIDs)
-
-	// log.Info().Msg("Stopped multi-stage service containers...")
+	log.Info().Msg("Stopped multi-stage service containers...")
 }
 
 func (dr *kubernetesRunnerImpl) StartDockerDaemon() error {
@@ -397,30 +503,32 @@ func (dr *kubernetesRunnerImpl) HasInjectedCredentials(stageName string, contain
 	return len(credentialMap) > 0
 }
 
-func (dr *kubernetesRunnerImpl) stopContainer(containerID string) error {
+func (dr *kubernetesRunnerImpl) stopContainer(podID string) error {
 
-	// log.Debug().Msgf("Stopping container with id %v", containerID)
+	log.Debug().Msgf("Stopping pod with id %v", podID)
 
-	// timeout := 20 * time.Second
-	// err := dr.dockerClient.ContainerStop(context.Background(), containerID, &timeout)
-	// if err != nil {
-	// 	log.Warn().Err(err).Msgf("Failed stopping container with id %v", containerID)
-	// 	return err
-	// }
+	gracePeriodSeconds := int64(20)
 
-	// log.Info().Msgf("Stopped container with id %v", containerID)
+	err := dr.kubeClientset.CoreV1().Pods(dr.namespace).Delete(podID, &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriodSeconds})
+	if err != nil {
+		log.Warn().Err(err).Msgf("Failed stopping pod with id %v", podID)
+		return err
+	}
+
+	log.Info().Msgf("Stopped pod with id %v", podID)
+
 	return nil
 }
 
-func (dr *kubernetesRunnerImpl) stopContainers(containerIDs []string) {
+func (dr *kubernetesRunnerImpl) stopContainers(podIDs []string) {
 
-	if len(containerIDs) > 0 {
-		log.Info().Msgf("Stopping %v containers", len(containerIDs))
+	if len(podIDs) > 0 {
+		log.Info().Msgf("Stopping %v pods", len(podIDs))
 
 		var wg sync.WaitGroup
-		wg.Add(len(containerIDs))
+		wg.Add(len(podIDs))
 
-		for _, id := range containerIDs {
+		for _, id := range podIDs {
 			go func(id string) {
 				defer wg.Done()
 				dr.stopContainer(id)
@@ -429,41 +537,41 @@ func (dr *kubernetesRunnerImpl) stopContainers(containerIDs []string) {
 
 		wg.Wait()
 
-		log.Info().Msgf("Stopped %v containers", len(containerIDs))
+		log.Info().Msgf("Stopped %v pods", len(podIDs))
 	} else {
-		log.Info().Msg("No containers to stop")
+		log.Info().Msg("No pods to stop")
 	}
 }
 
 func (dr *kubernetesRunnerImpl) StopAllContainers() {
 
-	allRunningContainerIDs := append(dr.runningStageContainerIDs, dr.runningSingleStageServiceContainerIDs...)
-	allRunningContainerIDs = append(allRunningContainerIDs, dr.runningMultiStageServiceContainerIDs...)
-	allRunningContainerIDs = append(allRunningContainerIDs, dr.runningReadinessProbeContainerIDs...)
+	allRunningPodIDss := append(dr.runningStagePodIDs, dr.runningSingleStageServicePodIDss...)
+	allRunningPodIDss = append(allRunningPodIDss, dr.runningMultiStageServicePodIDss...)
+	allRunningPodIDss = append(allRunningPodIDss, dr.runningReadinessProbePodIDss...)
 
-	dr.stopContainers(allRunningContainerIDs)
+	dr.stopContainers(allRunningPodIDss)
 }
 
-func (dr *kubernetesRunnerImpl) addRunningContainerID(containerIDs []string, containerID string) []string {
+func (dr *kubernetesRunnerImpl) addRunningPodID(podIDs []string, podID string) []string {
 
-	log.Debug().Msgf("Adding container id %v to containerIDs", containerID)
+	log.Debug().Msgf("Adding pod id %v to podIDs", podID)
 
-	return append(containerIDs, containerID)
+	return append(podIDs, podID)
 }
 
-func (dr *kubernetesRunnerImpl) removeRunningContainerID(containerIDs []string, containerID string) []string {
+func (dr *kubernetesRunnerImpl) removeRunningPodIDs(podIDs []string, podID string) []string {
 
-	log.Debug().Msgf("Removing container id %v from containerIDs", containerID)
+	log.Debug().Msgf("Removing pod id %v from podIDs", podID)
 
-	purgedContainerIDs := []string{}
+	purgedPodIDss := []string{}
 
-	for _, id := range containerIDs {
-		if id != containerID {
-			purgedContainerIDs = append(purgedContainerIDs, id)
+	for _, id := range podIDs {
+		if id != podID {
+			purgedPodIDss = append(purgedPodIDss, id)
 		}
 	}
 
-	return purgedContainerIDs
+	return purgedPodIDss
 }
 
 func (dr *kubernetesRunnerImpl) CreateNetworks(ctx context.Context) error {

@@ -35,5 +35,7 @@ require (
 	google.golang.org/grpc v1.23.1 // indirect
 	gopkg.in/yaml.v2 v2.2.4
 	gotest.tools/v3 v3.0.3 // indirect
+	k8s.io/api v0.17.0
+	k8s.io/apimachinery v0.17.0
 	k8s.io/client-go v0.17.0
 )
