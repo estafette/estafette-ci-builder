@@ -10,8 +10,11 @@ import (
 	"github.com/estafette/estafette-ci-builder/builder"
 	contracts "github.com/estafette/estafette-ci-contracts"
 	crypt "github.com/estafette/estafette-ci-crypt"
+	manifest "github.com/estafette/estafette-ci-manifest"
 	foundation "github.com/estafette/estafette-foundation"
 	"github.com/rs/zerolog/log"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 )
 
 var (
@@ -73,16 +76,33 @@ func main() {
 	envvarHelper := builder.NewEnvvarHelper("ESTAFETTE_", secretHelper, obfuscator)
 	whenEvaluator := builder.NewWhenEvaluator(envvarHelper)
 	builderConfig, originalEncryptedCredentials := loadBuilderConfig(secretHelper, envvarHelper)
-	dockerRunner := builder.NewDockerRunner(envvarHelper, obfuscator, builderConfig, tailLogsChannel)
-	pipelineRunner := builder.NewPipelineRunner(envvarHelper, whenEvaluator, dockerRunner, *runAsJob, cancellationChannel, tailLogsChannel, applicationInfo)
+
+	var containerRunner builder.ContainerRunner
+	if builderConfig.Manifest != nil && builderConfig.Manifest.Builder.BuilderType == manifest.BuilderTypeKubernetes {
+		// creates the in-cluster config
+		kubeClientConfig, err := rest.InClusterConfig()
+		if err != nil {
+			log.Fatal().Err(err).Msg("Failed getting in-cluster kubernetes config")
+		}
+		// creates the clientset
+		kubeClientset, err := kubernetes.NewForConfig(kubeClientConfig)
+		if err != nil {
+			log.Fatal().Err(err).Msg("Failed creating kubernetes clientset")
+		}
+
+		containerRunner = builder.NewKubernetesRunner(envvarHelper, obfuscator, kubeClientset, builderConfig, tailLogsChannel)
+	} else {
+		containerRunner = builder.NewDockerRunner(envvarHelper, obfuscator, builderConfig, tailLogsChannel)
+	}
+	pipelineRunner := builder.NewPipelineRunner(envvarHelper, whenEvaluator, containerRunner, *runAsJob, cancellationChannel, tailLogsChannel, applicationInfo)
 
 	// detect controlling server
 	ciServer := envvarHelper.GetCiServer()
 	if ciServer == "gocd" {
-		ciBuilder.RunGocdAgentBuild(pipelineRunner, dockerRunner, envvarHelper, obfuscator, builderConfig, originalEncryptedCredentials)
+		ciBuilder.RunGocdAgentBuild(pipelineRunner, containerRunner, envvarHelper, obfuscator, builderConfig, originalEncryptedCredentials)
 	} else if ciServer == "estafette" {
 		endOfLifeHelper := builder.NewEndOfLifeHelper(*runAsJob, builderConfig, *podName)
-		ciBuilder.RunEstafetteBuildJob(pipelineRunner, dockerRunner, envvarHelper, obfuscator, endOfLifeHelper, builderConfig, originalEncryptedCredentials, *runAsJob)
+		ciBuilder.RunEstafetteBuildJob(pipelineRunner, containerRunner, envvarHelper, obfuscator, endOfLifeHelper, builderConfig, originalEncryptedCredentials, *runAsJob)
 	} else {
 		log.Warn().Msgf("The CI Server (\"%s\") is not recognized, exiting.", ciServer)
 	}

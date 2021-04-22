@@ -13,9 +13,9 @@ require (
 	github.com/docker/docker v20.10.5+incompatible
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/docker/go-units v0.4.0 // indirect
-	github.com/estafette/estafette-ci-contracts v0.0.239
+	github.com/estafette/estafette-ci-contracts v0.0.240
 	github.com/estafette/estafette-ci-crypt v0.0.41
-	github.com/estafette/estafette-ci-manifest v0.1.181
+	github.com/estafette/estafette-ci-manifest v0.1.182
 	github.com/estafette/estafette-foundation v0.0.69
 	github.com/gogo/protobuf v1.3.0 // indirect
 	github.com/golang/mock v1.5.0
@@ -32,8 +32,8 @@ require (
 	github.com/sethgrid/pester v1.1.0
 	github.com/stretchr/testify v1.6.1
 	github.com/uber/jaeger-client-go v2.20.1+incompatible
-	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4 // indirect
 	google.golang.org/grpc v1.23.1 // indirect
-	gopkg.in/yaml.v2 v2.2.2
+	gopkg.in/yaml.v2 v2.2.4
 	gotest.tools/v3 v3.0.3 // indirect
+	k8s.io/client-go v0.17.0
 )

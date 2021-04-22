@@ -34,30 +34,8 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-// DockerRunner pulls and runs docker containers
-//go:generate mockgen -package=builder -destination ./docker_runner_mock.go -source=docker_runner.go
-type DockerRunner interface {
-	IsImagePulled(ctx context.Context, stageName string, containerImage string) bool
-	IsTrustedImage(stageName string, containerImage string) bool
-	HasInjectedCredentials(stageName string, containerImage string) bool
-	PullImage(ctx context.Context, stageName string, containerImage string) error
-	GetImageSize(containerImage string) (int64, error)
-	StartStageContainer(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, stage manifest.EstafetteStage) (containerID string, err error)
-	StartServiceContainer(ctx context.Context, envvars map[string]string, service manifest.EstafetteService) (containerID string, err error)
-	RunReadinessProbeContainer(ctx context.Context, parentStage manifest.EstafetteStage, service manifest.EstafetteService, readiness manifest.ReadinessProbe) (err error)
-	TailContainerLogs(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error)
-	StopSingleStageServiceContainers(ctx context.Context, parentStage manifest.EstafetteStage)
-	StopMultiStageServiceContainers(ctx context.Context)
-	StartDockerDaemon() error
-	WaitForDockerDaemon()
-	CreateDockerClient() (*client.Client, error)
-	CreateNetworks(ctx context.Context) error
-	DeleteNetworks(ctx context.Context) error
-	StopAllContainers()
-}
-
-// NewDockerRunner returns a new DockerRunner
-func NewDockerRunner(envvarHelper EnvvarHelper, obfuscator Obfuscator, config contracts.BuilderConfig, tailLogsChannel chan contracts.TailLogLine) DockerRunner {
+// NewDockerRunner returns a new ContainerRunner to run containers using docker, either with docker-in-docker or docker-outside-docker
+func NewDockerRunner(envvarHelper EnvvarHelper, obfuscator Obfuscator, config contracts.BuilderConfig, tailLogsChannel chan contracts.TailLogLine) ContainerRunner {
 	return &dockerRunnerImpl{
 		envvarHelper:                          envvarHelper,
 		obfuscator:                            obfuscator,
@@ -773,15 +751,15 @@ func (dr *dockerRunnerImpl) WaitForDockerDaemon() {
 	log.Debug().Msg("Docker daemon is ready for use")
 }
 
-func (dr *dockerRunnerImpl) CreateDockerClient() (*client.Client, error) {
+func (dr *dockerRunnerImpl) CreateDockerClient() error {
 
 	dockerClient, err := client.NewEnvClient()
 	if err != nil {
-		return dockerClient, err
+		return err
 	}
 	dr.dockerClient = dockerClient
 
-	return dockerClient, err
+	return err
 }
 
 func (dr *dockerRunnerImpl) getImagePullOptions(containerImage string) types.ImagePullOptions {

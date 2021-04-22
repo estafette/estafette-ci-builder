@@ -18,8 +18,8 @@ import (
 // CIBuilder runs builds for different types of integrations
 type CIBuilder interface {
 	RunReadinessProbe(protocol, host string, port int, path, hostname string, timeoutSeconds int)
-	RunEstafetteBuildJob(pipelineRunner PipelineRunner, dockerRunner DockerRunner, envvarHelper EnvvarHelper, obfuscator Obfuscator, endOfLifeHelper EndOfLifeHelper, builderConfig contracts.BuilderConfig, credentialsBytes []byte, runAsJob bool)
-	RunGocdAgentBuild(pipelineRunner PipelineRunner, dockerRunner DockerRunner, envvarHelper EnvvarHelper, obfuscator Obfuscator, builderConfig contracts.BuilderConfig, credentialsBytes []byte)
+	RunEstafetteBuildJob(pipelineRunner PipelineRunner, containerRunner ContainerRunner, envvarHelper EnvvarHelper, obfuscator Obfuscator, endOfLifeHelper EndOfLifeHelper, builderConfig contracts.BuilderConfig, credentialsBytes []byte, runAsJob bool)
+	RunGocdAgentBuild(pipelineRunner PipelineRunner, containerRunner ContainerRunner, envvarHelper EnvvarHelper, obfuscator Obfuscator, builderConfig contracts.BuilderConfig, credentialsBytes []byte)
 	RunEstafetteCLIBuild() error
 }
 
@@ -44,7 +44,7 @@ func (b *ciBuilderImpl) RunReadinessProbe(protocol, host string, port int, path,
 	os.Exit(0)
 }
 
-func (b *ciBuilderImpl) RunEstafetteBuildJob(pipelineRunner PipelineRunner, dockerRunner DockerRunner, envvarHelper EnvvarHelper, obfuscator Obfuscator, endOfLifeHelper EndOfLifeHelper, builderConfig contracts.BuilderConfig, credentialsBytes []byte, runAsJob bool) {
+func (b *ciBuilderImpl) RunEstafetteBuildJob(pipelineRunner PipelineRunner, containerRunner ContainerRunner, envvarHelper EnvvarHelper, obfuscator Obfuscator, endOfLifeHelper EndOfLifeHelper, builderConfig contracts.BuilderConfig, credentialsBytes []byte, runAsJob bool) {
 
 	closer := b.initJaeger(b.applicationInfo.App)
 	defer closer.Close()
@@ -85,16 +85,18 @@ func (b *ciBuilderImpl) RunEstafetteBuildJob(pipelineRunner PipelineRunner, dock
 	// set running state, so a restarted job will show up as running once a new pod runs
 	_ = endOfLifeHelper.SendBuildStartedEvent(ctx)
 
-	// start docker daemon
-	dockerDaemonStartSpan, _ := opentracing.StartSpanFromContext(ctx, "StartDockerDaemon")
-	err := dockerRunner.StartDockerDaemon()
-	if err != nil {
-		endOfLifeHelper.HandleFatal(ctx, buildLog, err, "Error starting docker daemon")
-	}
+	if builderConfig.Manifest != nil || builderConfig.Manifest.Builder.BuilderType != manifest.BuilderTypeKubernetes {
+		// start docker daemon
+		dockerDaemonStartSpan, _ := opentracing.StartSpanFromContext(ctx, "StartDockerDaemon")
+		err := containerRunner.StartDockerDaemon()
+		if err != nil {
+			endOfLifeHelper.HandleFatal(ctx, buildLog, err, "Error starting docker daemon")
+		}
 
-	// wait for docker daemon to be ready for usage
-	dockerRunner.WaitForDockerDaemon()
-	dockerDaemonStartSpan.Finish()
+		// wait for docker daemon to be ready for usage
+		containerRunner.WaitForDockerDaemon()
+		dockerDaemonStartSpan.Finish()
+	}
 
 	// listen to cancellation in order to stop any running pipeline or container
 	go pipelineRunner.StopPipelineOnCancellation()
@@ -106,7 +108,7 @@ func (b *ciBuilderImpl) RunEstafetteBuildJob(pipelineRunner PipelineRunner, dock
 	}
 
 	// set some envvars
-	err = envvarHelper.SetEstafetteGlobalEnvvars()
+	err := envvarHelper.SetEstafetteGlobalEnvvars()
 	if err != nil {
 		endOfLifeHelper.HandleFatal(ctx, buildLog, err, "Setting global environment variables failed")
 	}
@@ -136,10 +138,12 @@ func (b *ciBuilderImpl) RunEstafetteBuildJob(pipelineRunner PipelineRunner, dock
 		log.Info().Msgf("Starting build version %v...", builderConfig.BuildVersion.Version)
 	}
 
-	// create docker client
-	_, err = dockerRunner.CreateDockerClient()
-	if err != nil {
-		endOfLifeHelper.HandleFatal(ctx, buildLog, err, "Failed creating a docker client")
+	if builderConfig.Manifest != nil || builderConfig.Manifest.Builder.BuilderType != manifest.BuilderTypeKubernetes {
+		// create docker client
+		err = containerRunner.CreateDockerClient()
+		if err != nil {
+			endOfLifeHelper.HandleFatal(ctx, buildLog, err, "Failed creating a docker client")
+		}
 	}
 
 	// collect estafette envvars and run stages from manifest
@@ -172,12 +176,12 @@ func (b *ciBuilderImpl) RunEstafetteBuildJob(pipelineRunner PipelineRunner, dock
 	}
 }
 
-func (b *ciBuilderImpl) RunGocdAgentBuild(pipelineRunner PipelineRunner, dockerRunner DockerRunner, envvarHelper EnvvarHelper, obfuscator Obfuscator, builderConfig contracts.BuilderConfig, credentialsBytes []byte) {
+func (b *ciBuilderImpl) RunGocdAgentBuild(pipelineRunner PipelineRunner, containerRunner ContainerRunner, envvarHelper EnvvarHelper, obfuscator Obfuscator, builderConfig contracts.BuilderConfig, credentialsBytes []byte) {
 
 	fatalHandler := NewGocdFatalHandler()
 
 	// create docker client
-	_, err := dockerRunner.CreateDockerClient()
+	err := containerRunner.CreateDockerClient()
 	if err != nil {
 		fatalHandler.HandleGocdFatal(err, "Failed creating a docker client")
 	}

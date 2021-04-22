@@ -249,7 +249,7 @@ func TestGenerateEntrypointScript(t *testing.T) {
 	})
 }
 
-func getDockerRunnerAndMocks() (chan contracts.TailLogLine, DockerRunner) {
+func getDockerRunnerAndMocks() (chan contracts.TailLogLine, ContainerRunner) {
 
 	secretHelper := crypt.NewSecretHelper("SazbwMf3NZxVVbBqQHebPcXCqrVn3DDp", false)
 	envvarHelper := NewEnvvarHelper("TESTPREFIX_", secretHelper, obfuscator)

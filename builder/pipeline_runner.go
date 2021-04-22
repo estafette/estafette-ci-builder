@@ -28,11 +28,11 @@ type PipelineRunner interface {
 }
 
 // NewPipelineRunner returns a new PipelineRunner
-func NewPipelineRunner(envvarHelper EnvvarHelper, whenEvaluator WhenEvaluator, dockerRunner DockerRunner, runAsJob bool, cancellationChannel chan struct{}, tailLogsChannel chan contracts.TailLogLine, applicationInfo foundation.ApplicationInfo) PipelineRunner {
+func NewPipelineRunner(envvarHelper EnvvarHelper, whenEvaluator WhenEvaluator, containerRunner ContainerRunner, runAsJob bool, cancellationChannel chan struct{}, tailLogsChannel chan contracts.TailLogLine, applicationInfo foundation.ApplicationInfo) PipelineRunner {
 	return &pipelineRunnerImpl{
 		envvarHelper:        envvarHelper,
 		whenEvaluator:       whenEvaluator,
-		dockerRunner:        dockerRunner,
+		containerRunner:     containerRunner,
 		runAsJob:            runAsJob,
 		cancellationChannel: cancellationChannel,
 		tailLogsChannel:     tailLogsChannel,
@@ -45,7 +45,7 @@ func NewPipelineRunner(envvarHelper EnvvarHelper, whenEvaluator WhenEvaluator, d
 type pipelineRunnerImpl struct {
 	envvarHelper           EnvvarHelper
 	whenEvaluator          WhenEvaluator
-	dockerRunner           DockerRunner
+	containerRunner        ContainerRunner
 	runAsJob               bool
 	cancellationChannel    chan struct{}
 	tailLogsChannel        chan contracts.TailLogLine
@@ -94,12 +94,12 @@ func (pr *pipelineRunnerImpl) RunStage(ctx context.Context, depth int, runIndex 
 		}
 	} else if stage.ContainerImage != "" {
 		var containerID string
-		containerID, err = pr.dockerRunner.StartStageContainer(ctx, depth, runIndex, dir, envvars, stage)
+		containerID, err = pr.containerRunner.StartStageContainer(ctx, depth, runIndex, dir, envvars, stage)
 		if pr.getCanceled() || err != nil {
 			return
 		}
 
-		err = pr.dockerRunner.TailContainerLogs(ctx, containerID, parentStageName, stage.Name, contracts.LogTypeStage, depth, runIndex, nil)
+		err = pr.containerRunner.TailContainerLogs(ctx, containerID, parentStageName, stage.Name, contracts.LogTypeStage, depth, runIndex, nil)
 		if pr.getCanceled() || err != nil {
 			return
 		}
@@ -143,7 +143,7 @@ func (pr *pipelineRunnerImpl) handleStageFinish(ctx context.Context, depth int, 
 
 	if len(stage.Services) > 0 {
 		// this stage has service containers, stop them now that the stage has finished
-		pr.dockerRunner.StopSingleStageServiceContainers(ctx, stage)
+		pr.containerRunner.StopSingleStageServiceContainers(ctx, stage)
 	}
 
 	runDurationValue := time.Since(dockerRunStart)
@@ -228,7 +228,7 @@ func (pr *pipelineRunnerImpl) RunService(ctx context.Context, envvars map[string
 	}
 
 	var containerID string
-	containerID, err = pr.dockerRunner.StartServiceContainer(ctx, envvars, service)
+	containerID, err = pr.containerRunner.StartServiceContainer(ctx, envvars, service)
 	if pr.getCanceled() || err != nil {
 		return
 	}
@@ -237,13 +237,13 @@ func (pr *pipelineRunnerImpl) RunService(ctx context.Context, envvars map[string
 	go func(ctx context.Context, envvars map[string]string, parentStage manifest.EstafetteStage, service manifest.EstafetteService, containerID string) {
 		var err error
 		defer pr.handleServiceFinish(ctx, envvars, parentStage, service, false, dockerRunStart, &err)
-		err = pr.dockerRunner.TailContainerLogs(ctx, containerID, parentStage.Name, service.Name, contracts.LogTypeService, 1, 0, service.MultiStage)
+		err = pr.containerRunner.TailContainerLogs(ctx, containerID, parentStage.Name, service.Name, contracts.LogTypeService, 1, 0, service.MultiStage)
 	}(ctx, envvars, parentStage, service, containerID)
 
 	// wait for service to be ready if readiness probe is defined
 	if service.Readiness != nil {
 		log.Info().Msgf("[%v] Starting readiness probe...", parentStage.Name)
-		err = pr.dockerRunner.RunReadinessProbeContainer(ctx, parentStage, service, *service.Readiness)
+		err = pr.containerRunner.RunReadinessProbeContainer(ctx, parentStage, service, *service.Readiness)
 		if pr.getCanceled() || err != nil {
 			return
 		}
@@ -289,12 +289,12 @@ func (pr *pipelineRunnerImpl) RunStages(ctx context.Context, depth int, stages [
 	tailLogsDone := make(chan struct{}, 1)
 	go pr.tailLogs(ctx, tailLogsDone, stages)
 
-	err = pr.dockerRunner.CreateNetworks(ctx)
+	err = pr.containerRunner.CreateNetworks(ctx)
 	if err != nil {
 		return
 	}
 	defer func(ctx context.Context) {
-		_ = pr.dockerRunner.DeleteNetworks(ctx)
+		_ = pr.containerRunner.DeleteNetworks(ctx)
 	}(ctx)
 
 	// set default build status at the start
@@ -357,7 +357,7 @@ func (pr *pipelineRunnerImpl) RunStages(ctx context.Context, depth int, stages [
 		}(s)
 	}
 
-	pr.dockerRunner.StopMultiStageServiceContainers(ctx)
+	pr.containerRunner.StopMultiStageServiceContainers(ctx)
 
 	<-tailLogsDone
 
@@ -520,7 +520,7 @@ func (pr *pipelineRunnerImpl) StopPipelineOnCancellation() {
 	pr.canceled = true
 	pr.cancellationMutex.Unlock()
 
-	pr.dockerRunner.StopAllContainers()
+	pr.containerRunner.StopAllContainers()
 }
 
 func (pr *pipelineRunnerImpl) EnableBuilderInfoStageInjection() {
@@ -552,9 +552,9 @@ func (pr *pipelineRunnerImpl) pullImageIfNeeded(ctx context.Context, stageName, 
 
 	if !pr.getCanceled() && containerImage != "" {
 
-		isPulledImage = pr.dockerRunner.IsImagePulled(ctx, stageName, containerImage)
-		isTrustedImage = pr.dockerRunner.IsTrustedImage(stageName, containerImage)
-		hasInjectedCredentials = pr.dockerRunner.HasInjectedCredentials(stageName, containerImage)
+		isPulledImage = pr.containerRunner.IsImagePulled(ctx, stageName, containerImage)
+		isTrustedImage = pr.containerRunner.IsTrustedImage(stageName, containerImage)
+		hasInjectedCredentials = pr.containerRunner.HasInjectedCredentials(stageName, containerImage)
 
 		buildLogStepDockerImage = &contracts.BuildLogStepDockerImage{
 			Name:                   getContainerImageName(containerImage),
@@ -571,12 +571,12 @@ func (pr *pipelineRunnerImpl) pullImageIfNeeded(ctx context.Context, stageName, 
 
 			// pull docker image
 			dockerPullStart := time.Now()
-			err = pr.dockerRunner.PullImage(ctx, stageName, containerImage)
+			err = pr.containerRunner.PullImage(ctx, stageName, containerImage)
 			imagePullDuration = time.Since(dockerPullStart)
 
 			// set docker image size
 			if !pr.getCanceled() && err == nil {
-				imageSize, err = pr.dockerRunner.GetImageSize(containerImage)
+				imageSize, err = pr.containerRunner.GetImageSize(containerImage)
 			}
 
 			if !pr.getCanceled() && err == nil {
@@ -623,8 +623,8 @@ func (pr *pipelineRunnerImpl) forceStatusForStage(stage manifest.EstafetteStage,
 	var autoInjected *bool
 	var image *contracts.BuildLogStepDockerImage
 	if stage.ContainerImage != "" {
-		isTrustedImage := pr.dockerRunner.IsTrustedImage(stage.Name, stage.ContainerImage)
-		hasInjectedCredentials := pr.dockerRunner.HasInjectedCredentials(stage.Name, stage.ContainerImage)
+		isTrustedImage := pr.containerRunner.IsTrustedImage(stage.Name, stage.ContainerImage)
+		hasInjectedCredentials := pr.containerRunner.HasInjectedCredentials(stage.Name, stage.ContainerImage)
 		image = &contracts.BuildLogStepDockerImage{
 			Name:                   getContainerImageName(stage.ContainerImage),
 			Tag:                    getContainerImageTag(stage.ContainerImage),
@@ -643,8 +643,8 @@ func (pr *pipelineRunnerImpl) forceStatusForStage(stage manifest.EstafetteStage,
 		var autoInjected *bool
 		var image *contracts.BuildLogStepDockerImage
 		if ps.ContainerImage != "" {
-			isTrustedImage := pr.dockerRunner.IsTrustedImage(ps.Name, ps.ContainerImage)
-			hasInjectedCredentials := pr.dockerRunner.HasInjectedCredentials(ps.Name, ps.ContainerImage)
+			isTrustedImage := pr.containerRunner.IsTrustedImage(ps.Name, ps.ContainerImage)
+			hasInjectedCredentials := pr.containerRunner.HasInjectedCredentials(ps.Name, ps.ContainerImage)
 			image = &contracts.BuildLogStepDockerImage{
 				Name:                   getContainerImageName(ps.ContainerImage),
 				Tag:                    getContainerImageTag(ps.ContainerImage),
@@ -663,8 +663,8 @@ func (pr *pipelineRunnerImpl) forceStatusForStage(stage manifest.EstafetteStage,
 	for _, s := range stage.Services {
 		var image *contracts.BuildLogStepDockerImage
 		if s.ContainerImage != "" {
-			isTrustedImage := pr.dockerRunner.IsTrustedImage(s.Name, s.ContainerImage)
-			hasInjectedCredentials := pr.dockerRunner.HasInjectedCredentials(s.Name, s.ContainerImage)
+			isTrustedImage := pr.containerRunner.IsTrustedImage(s.Name, s.ContainerImage)
+			hasInjectedCredentials := pr.containerRunner.HasInjectedCredentials(s.Name, s.ContainerImage)
 			image = &contracts.BuildLogStepDockerImage{
 				Name:                   getContainerImageName(s.ContainerImage),
 				Tag:                    getContainerImageTag(s.ContainerImage),
