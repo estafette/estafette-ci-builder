@@ -607,11 +607,13 @@ func (dr *kubernetesRunnerImpl) removeRunningPodIDs(podIDs []string, podID strin
 }
 
 func (dr *kubernetesRunnerImpl) CreateNetworks(ctx context.Context) error {
-	return fmt.Errorf("Networks are not supported for builder.type: kubernetes")
+	// return fmt.Errorf("Networks are not supported for builder.type: kubernetes")
+	return nil
 }
 
 func (dr *kubernetesRunnerImpl) DeleteNetworks(ctx context.Context) error {
-	return fmt.Errorf("Networks are not supported for builder.type: kubernetes")
+	// return fmt.Errorf("Networks are not supported for builder.type: kubernetes")
+	return nil
 }
 
 func (dr *kubernetesRunnerImpl) generateEntrypointScript(shell string, commands []string, runCommandsInForeground bool) (hostPath, mountPath, entrypointFile string, err error) {
