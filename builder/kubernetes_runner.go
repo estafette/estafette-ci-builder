@@ -84,7 +84,7 @@ func (dr *kubernetesRunnerImpl) GetImageSize(containerImage string) (totalSize i
 
 func (dr *kubernetesRunnerImpl) getStagePodName(stageName string, stageIndex int) (podName string) {
 
-	podName = strings.TrimPrefix(dr.envvarHelper.GetPodName(), *dr.config.Action)
+	podName = strings.TrimPrefix(dr.envvarHelper.GetPodName(), *dr.config.Action+"-")
 	podName = fmt.Sprintf("stg-%v-%v", stageIndex, podName)
 
 	return
@@ -233,6 +233,7 @@ func (dr *kubernetesRunnerImpl) StartStageContainer(ctx context.Context, depth i
 	}}
 
 	// TODO in the future use https://kubernetes.io/docs/concepts/workloads/pods/ephemeral-containers/ instead
+	// TODO combine with https://kubernetes.io/docs/concepts/services-networking/add-entries-to-pod-etc-hosts-with-host-aliases/ for service containers
 
 	pod := &v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
