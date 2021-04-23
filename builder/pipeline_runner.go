@@ -17,8 +17,8 @@ import (
 
 // PipelineRunner is the interface for running the pipeline steps
 type PipelineRunner interface {
-	RunStage(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, stage manifest.EstafetteStage) (err error)
-	RunStageWithRetry(ctx context.Context, depth int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, stage manifest.EstafetteStage) (err error)
+	RunStage(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, stage manifest.EstafetteStage, stageIndex int) (err error)
+	RunStageWithRetry(ctx context.Context, depth int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, stage manifest.EstafetteStage, stageIndex int) (err error)
 	RunService(ctx context.Context, envvars map[string]string, parentStage manifest.EstafetteStage, service manifest.EstafetteService) (err error)
 	RunStages(ctx context.Context, depth int, stages []*manifest.EstafetteStage, dir string, envvars map[string]string) (buildLogSteps []*contracts.BuildLogStep, err error)
 	RunParallelStages(ctx context.Context, depth int, dir string, envvars map[string]string, parentStage manifest.EstafetteStage, parallelStages []*manifest.EstafetteStage) (err error)
@@ -56,7 +56,7 @@ type pipelineRunnerImpl struct {
 	cancellationMutex      *sync.RWMutex
 }
 
-func (pr *pipelineRunnerImpl) RunStage(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, stage manifest.EstafetteStage) (err error) {
+func (pr *pipelineRunnerImpl) RunStage(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, stage manifest.EstafetteStage, stageIndex int) (err error) {
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "RunStage")
 	defer span.Finish()
@@ -94,7 +94,7 @@ func (pr *pipelineRunnerImpl) RunStage(ctx context.Context, depth int, runIndex 
 		}
 	} else if stage.ContainerImage != "" {
 		var containerID string
-		containerID, err = pr.containerRunner.StartStageContainer(ctx, depth, runIndex, dir, envvars, stage)
+		containerID, err = pr.containerRunner.StartStageContainer(ctx, depth, runIndex, dir, envvars, stage, stageIndex)
 		if pr.getCanceled() || err != nil {
 			return
 		}
@@ -152,7 +152,7 @@ func (pr *pipelineRunnerImpl) handleStageFinish(ctx context.Context, depth int, 
 	pr.sendStatusMessage(stage.Name, parentStageName, contracts.LogTypeStage, depth, runIndex, autoInjected, nil, runDuration, finalStatus)
 }
 
-func (pr *pipelineRunnerImpl) RunStageWithRetry(ctx context.Context, depth int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, stage manifest.EstafetteStage) (err error) {
+func (pr *pipelineRunnerImpl) RunStageWithRetry(ctx context.Context, depth int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, stage manifest.EstafetteStage, stageIndex int) (err error) {
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "RunStageWithRetry")
 	defer span.Finish()
@@ -172,7 +172,7 @@ func (pr *pipelineRunnerImpl) RunStageWithRetry(ctx context.Context, depth int, 
 
 	// retry until successful or number of retries is maxed out
 	for runIndex <= retries {
-		err = pr.RunStage(ctx, depth, runIndex, dir, envvars, parentStage, stage)
+		err = pr.RunStage(ctx, depth, runIndex, dir, envvars, parentStage, stage, stageIndex)
 
 		// if execution is successful, we're done
 		if pr.getCanceled() || err == nil {
@@ -340,7 +340,7 @@ func (pr *pipelineRunnerImpl) RunStages(ctx context.Context, depth int, stages [
 				return
 			}
 			if whenEvaluationResult {
-				err = pr.RunStageWithRetry(ctx, depth, dir, envvars, nil, *stage)
+				err = pr.RunStageWithRetry(ctx, depth, dir, envvars, nil, *stage, 0)
 				if pr.getCanceled() {
 					return
 				}
@@ -380,8 +380,8 @@ func (pr *pipelineRunnerImpl) RunParallelStages(ctx context.Context, depth int, 
 
 	errors := make(chan error, len(parallelStages))
 
-	for _, ps := range parallelStages {
-		go func(ctx context.Context, depth int, dir string, envvars map[string]string, parentStage manifest.EstafetteStage, stage manifest.EstafetteStage) {
+	for i, ps := range parallelStages {
+		go func(ctx context.Context, depth int, dir string, envvars map[string]string, parentStage manifest.EstafetteStage, stage manifest.EstafetteStage, stageIndex int) {
 			defer wg.Done()
 
 			// handle cancellation happening in between stages
@@ -399,7 +399,7 @@ func (pr *pipelineRunnerImpl) RunParallelStages(ctx context.Context, depth int, 
 
 			if whenEvaluationResult {
 
-				err = pr.RunStageWithRetry(ctx, depth, dir, envvars, &parentStage, stage)
+				err = pr.RunStageWithRetry(ctx, depth, dir, envvars, &parentStage, stage, stageIndex)
 
 				if pr.getCanceled() || err != nil {
 					if err != nil {
@@ -422,7 +422,7 @@ func (pr *pipelineRunnerImpl) RunParallelStages(ctx context.Context, depth int, 
 					Status:       &status,
 				}
 			}
-		}(ctx, depth, dir, envvars, parentStage, *ps)
+		}(ctx, depth, dir, envvars, parentStage, *ps, i)
 	}
 
 	// TODO as soon as one parallel stage fails cancel the others

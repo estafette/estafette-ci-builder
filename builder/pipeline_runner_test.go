@@ -33,13 +33,14 @@ func TestRunStage(t *testing.T) {
 			Name:           "stage-a",
 			ContainerImage: "alpine:latest",
 		}
+		stageIndex := 0
 
 		// set mock responses
 		containerRunnerMock.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("Failed pulling image"))
 		setDefaultMockExpectancies(containerRunnerMock)
 
 		// act
-		err := pipelineRunner.RunStage(context.Background(), depth, runIndex, dir, envvars, parentStage, stage)
+		err := pipelineRunner.RunStage(context.Background(), depth, runIndex, dir, envvars, parentStage, stage, stageIndex)
 
 		assert.NotNil(t, err)
 		assert.Equal(t, "Failed pulling image", err.Error())
@@ -61,13 +62,14 @@ func TestRunStage(t *testing.T) {
 			Name:           "stage-a",
 			ContainerImage: "alpine:latest",
 		}
+		stageIndex := 0
 
 		// set mock responses
 		containerRunnerMock.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), fmt.Errorf("Failed getting image size"))
 		setDefaultMockExpectancies(containerRunnerMock)
 
 		// act
-		err := pipelineRunner.RunStage(context.Background(), depth, runIndex, dir, envvars, parentStage, stage)
+		err := pipelineRunner.RunStage(context.Background(), depth, runIndex, dir, envvars, parentStage, stage, stageIndex)
 
 		assert.NotNil(t, err)
 		assert.Equal(t, "Failed getting image size", err.Error())
@@ -89,13 +91,14 @@ func TestRunStage(t *testing.T) {
 			Name:           "stage-a",
 			ContainerImage: "alpine:latest",
 		}
+		stageIndex := 0
 
 		// set mock responses
-		containerRunnerMock.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("", fmt.Errorf("Failed starting container"))
+		containerRunnerMock.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("", fmt.Errorf("Failed starting container"))
 		setDefaultMockExpectancies(containerRunnerMock)
 
 		// act
-		err := pipelineRunner.RunStage(context.Background(), depth, runIndex, dir, envvars, parentStage, stage)
+		err := pipelineRunner.RunStage(context.Background(), depth, runIndex, dir, envvars, parentStage, stage, stageIndex)
 
 		assert.NotNil(t, err)
 		assert.Equal(t, "Failed starting container", err.Error())
@@ -117,13 +120,14 @@ func TestRunStage(t *testing.T) {
 			Name:           "stage-a",
 			ContainerImage: "alpine:latest",
 		}
+		stageIndex := 0
 
 		// set mock responses
 		containerRunnerMock.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("Failed tailing container logs"))
 		setDefaultMockExpectancies(containerRunnerMock)
 
 		// act
-		err := pipelineRunner.RunStage(context.Background(), depth, runIndex, dir, envvars, parentStage, stage)
+		err := pipelineRunner.RunStage(context.Background(), depth, runIndex, dir, envvars, parentStage, stage, stageIndex)
 
 		assert.NotNil(t, err)
 		assert.Equal(t, "Failed tailing container logs", err.Error())
@@ -145,17 +149,18 @@ func TestRunStage(t *testing.T) {
 			Name:           "stage-a",
 			ContainerImage: "alpine:latest",
 		}
+		stageIndex := 0
 
 		// set mock responses
 		containerRunnerMock.EXPECT().IsImagePulled(gomock.Any(), gomock.Any(), gomock.Any()).Return(false)
 		containerRunnerMock.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 		containerRunnerMock.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil)
-		containerRunnerMock.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil)
+		containerRunnerMock.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil)
 		containerRunnerMock.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 		setDefaultMockExpectancies(containerRunnerMock)
 
 		// act
-		err := pipelineRunner.RunStage(context.Background(), depth, runIndex, dir, envvars, parentStage, stage)
+		err := pipelineRunner.RunStage(context.Background(), depth, runIndex, dir, envvars, parentStage, stage, stageIndex)
 
 		assert.Nil(t, err)
 	})
@@ -176,13 +181,14 @@ func TestRunStage(t *testing.T) {
 			Name:           "stage-a",
 			ContainerImage: "alpine:latest",
 		}
+		stageIndex := 0
 
 		// set mock responses
 		containerRunnerMock.EXPECT().IsImagePulled(gomock.Any(), gomock.Any(), gomock.Any()).Return(true)
 		setDefaultMockExpectancies(containerRunnerMock)
 
 		// act
-		err := pipelineRunner.RunStage(context.Background(), depth, runIndex, dir, envvars, parentStage, stage)
+		err := pipelineRunner.RunStage(context.Background(), depth, runIndex, dir, envvars, parentStage, stage, stageIndex)
 
 		assert.Nil(t, err)
 
@@ -209,12 +215,13 @@ func TestRunStage(t *testing.T) {
 			Name:           "stage-a",
 			ContainerImage: "alpine:latest",
 		}
+		stageIndex := 0
 
 		// set mock responses
 		setDefaultMockExpectancies(containerRunnerMock)
 
 		// act
-		err := pipelineRunner.RunStage(context.Background(), depth, runIndex, dir, envvars, parentStage, stage)
+		err := pipelineRunner.RunStage(context.Background(), depth, runIndex, dir, envvars, parentStage, stage, stageIndex)
 
 		assert.Nil(t, err)
 
@@ -245,13 +252,14 @@ func TestRunStage(t *testing.T) {
 			Name:           "stage-a",
 			ContainerImage: "alpine:latest",
 		}
+		stageIndex := 0
 
 		// set mock responses
 		containerRunnerMock.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("Failed tailing container logs"))
 		setDefaultMockExpectancies(containerRunnerMock)
 
 		// act
-		err := pipelineRunner.RunStage(context.Background(), depth, runIndex, dir, envvars, parentStage, stage)
+		err := pipelineRunner.RunStage(context.Background(), depth, runIndex, dir, envvars, parentStage, stage, stageIndex)
 
 		assert.NotNil(t, err)
 
@@ -282,6 +290,7 @@ func TestRunStage(t *testing.T) {
 			Name:           "stage-a",
 			ContainerImage: "alpine:latest",
 		}
+		stageIndex := 0
 
 		// set mock responses
 		setDefaultMockExpectancies(containerRunnerMock)
@@ -290,7 +299,7 @@ func TestRunStage(t *testing.T) {
 		go pipelineRunner.StopPipelineOnCancellation()
 		cancellationChannel <- struct{}{}
 		time.Sleep(10 * time.Millisecond)
-		err := pipelineRunner.RunStage(context.Background(), depth, runIndex, dir, envvars, parentStage, stage)
+		err := pipelineRunner.RunStage(context.Background(), depth, runIndex, dir, envvars, parentStage, stage, stageIndex)
 
 		assert.Nil(t, err)
 
@@ -314,6 +323,7 @@ func TestRunStage(t *testing.T) {
 			Name:           "stage-a",
 			ContainerImage: "alpine:latest",
 		}
+		stageIndex := 0
 
 		// set mock responses
 		containerRunnerMock.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("Failed tailing container logs")).AnyTimes()
@@ -323,7 +333,7 @@ func TestRunStage(t *testing.T) {
 		go pipelineRunner.StopPipelineOnCancellation()
 		cancellationChannel <- struct{}{}
 		time.Sleep(10 * time.Millisecond)
-		err := pipelineRunner.RunStage(context.Background(), depth, runIndex, dir, envvars, parentStage, stage)
+		err := pipelineRunner.RunStage(context.Background(), depth, runIndex, dir, envvars, parentStage, stage, stageIndex)
 
 		assert.Nil(t, err)
 
@@ -352,12 +362,13 @@ func TestRunStage(t *testing.T) {
 				&stage,
 			},
 		}
+		stageIndex := 0
 
 		// set mock responses
 		setDefaultMockExpectancies(containerRunnerMock)
 
 		// act
-		err := pipelineRunner.RunStage(context.Background(), depth, runIndex, dir, envvars, parentStage, stage)
+		err := pipelineRunner.RunStage(context.Background(), depth, runIndex, dir, envvars, parentStage, stage, stageIndex)
 
 		assert.Nil(t, err)
 
@@ -396,13 +407,14 @@ func TestRunStageWithRetry(t *testing.T) {
 			ContainerImage: "alpine:latest",
 			Retries:        0,
 		}
+		stageIndex := 0
 
 		// set mock responses
 		containerRunnerMock.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("Failed tailing container logs"))
 		setDefaultMockExpectancies(containerRunnerMock)
 
 		// act
-		err := pipelineRunner.RunStageWithRetry(context.Background(), depth, dir, envvars, parentStage, stage)
+		err := pipelineRunner.RunStageWithRetry(context.Background(), depth, dir, envvars, parentStage, stage, stageIndex)
 
 		assert.NotNil(t, err)
 		assert.Equal(t, "Failed tailing container logs", err.Error())
@@ -424,6 +436,7 @@ func TestRunStageWithRetry(t *testing.T) {
 			ContainerImage: "alpine:latest",
 			Retries:        2,
 		}
+		stageIndex := 0
 
 		// set mock responses
 		iteration := 0
@@ -445,7 +458,7 @@ func TestRunStageWithRetry(t *testing.T) {
 		setDefaultMockExpectancies(containerRunnerMock)
 
 		// act
-		err := pipelineRunner.RunStageWithRetry(context.Background(), depth, dir, envvars, parentStage, stage)
+		err := pipelineRunner.RunStageWithRetry(context.Background(), depth, dir, envvars, parentStage, stage, stageIndex)
 
 		assert.NotNil(t, err)
 		assert.Equal(t, "Failed tailing container logs", err.Error())
@@ -467,6 +480,7 @@ func TestRunStageWithRetry(t *testing.T) {
 			ContainerImage: "alpine:latest",
 			Retries:        2,
 		}
+		stageIndex := 0
 
 		// set mock responses
 		iteration := 0
@@ -488,7 +502,7 @@ func TestRunStageWithRetry(t *testing.T) {
 		setDefaultMockExpectancies(containerRunnerMock)
 
 		// act
-		err := pipelineRunner.RunStageWithRetry(context.Background(), depth, dir, envvars, parentStage, stage)
+		err := pipelineRunner.RunStageWithRetry(context.Background(), depth, dir, envvars, parentStage, stage, stageIndex)
 
 		assert.Nil(t, err)
 	})
@@ -509,13 +523,14 @@ func TestRunStageWithRetry(t *testing.T) {
 			ContainerImage: "alpine:latest",
 			Retries:        0,
 		}
+		stageIndex := 0
 
 		// set mock responses
 		containerRunnerMock.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("Failed tailing container logs"))
 		setDefaultMockExpectancies(containerRunnerMock)
 
 		// act
-		_ = pipelineRunner.RunStageWithRetry(context.Background(), depth, dir, envvars, parentStage, stage)
+		_ = pipelineRunner.RunStageWithRetry(context.Background(), depth, dir, envvars, parentStage, stage, stageIndex)
 
 		_ = <-tailLogsChannel                // pending state
 		_ = <-tailLogsChannel                // running state
@@ -543,6 +558,7 @@ func TestRunStageWithRetry(t *testing.T) {
 			ContainerImage: "alpine:latest",
 			Retries:        2,
 		}
+		stageIndex := 0
 
 		// set mock responses
 		iteration := 0
@@ -564,7 +580,7 @@ func TestRunStageWithRetry(t *testing.T) {
 		setDefaultMockExpectancies(containerRunnerMock)
 
 		// act
-		_ = pipelineRunner.RunStageWithRetry(context.Background(), depth, dir, envvars, parentStage, stage)
+		_ = pipelineRunner.RunStageWithRetry(context.Background(), depth, dir, envvars, parentStage, stage, stageIndex)
 
 		_ = <-tailLogsChannel                // pending state
 		_ = <-tailLogsChannel                // running state
@@ -2575,7 +2591,7 @@ func setDefaultMockExpectancies(containerRunnerMock *MockContainerRunner) {
 	containerRunnerMock.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil).AnyTimes()
 	containerRunnerMock.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
 	containerRunnerMock.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
-	containerRunnerMock.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil).AnyTimes()
+	containerRunnerMock.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil).AnyTimes()
 	containerRunnerMock.EXPECT().StartServiceContainer(gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil).AnyTimes()
 	containerRunnerMock.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 	containerRunnerMock.EXPECT().RunReadinessProbeContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()

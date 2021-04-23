@@ -82,21 +82,21 @@ func (dr *kubernetesRunnerImpl) GetImageSize(containerImage string) (totalSize i
 	return totalSize, nil
 }
 
-func (dr *kubernetesRunnerImpl) getStagePodName(stageName string) (podName string) {
+func (dr *kubernetesRunnerImpl) getStagePodName(stageName string, stageIndex int) (podName string) {
 
 	podName = strings.TrimPrefix(dr.envvarHelper.GetPodName(), *dr.config.Action)
-	podName = "stage" + podName
+	podName = fmt.Sprintf("stg-%v-%v", stageIndex, podName)
 
 	return
 }
 
-func (dr *kubernetesRunnerImpl) StartStageContainer(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, stage manifest.EstafetteStage) (podID string, err error) {
+func (dr *kubernetesRunnerImpl) StartStageContainer(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, stage manifest.EstafetteStage, stageIndex int) (podID string, err error) {
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "StartStageContainer")
 	defer span.Finish()
 	span.SetTag("docker-image", stage.ContainerImage)
 
-	podName := dr.getStagePodName(stage.Name)
+	podName := dr.getStagePodName(stage.Name, stageIndex)
 
 	// check if image is trusted image
 	trustedImage := dr.config.GetTrustedImage(stage.ContainerImage)
@@ -232,6 +232,8 @@ func (dr *kubernetesRunnerImpl) StartStageContainer(ctx context.Context, depth i
 		Operator: v1.TolerationOpExists,
 	}}
 
+	// TODO in the future use https://kubernetes.io/docs/concepts/workloads/pods/ephemeral-containers/ instead
+
 	pod := &v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      podName,
@@ -322,6 +324,12 @@ func (dr *kubernetesRunnerImpl) TailContainerLogs(ctx context.Context, podID, pa
 		return
 	}
 
+	// refresh pod status
+	pod, err = dr.kubeClientset.CoreV1().Pods(namespace).Get(podID, metav1.GetOptions{})
+	if err != nil {
+		return
+	}
+
 	err = dr.waitWhilePodLeavesState(ctx, pod, v1.PodRunning)
 	if err != nil {
 		return
@@ -369,7 +377,7 @@ func (dr *kubernetesRunnerImpl) waitWhilePodLeavesState(ctx context.Context, pod
 
 	if pod.Status.Phase == phase {
 
-		log.Debug().Msgf("waitWhilePodLeavesState - pod %v is %v, waiting for running state...", pod.Name, phase)
+		log.Debug().Msgf("waitWhilePodLeavesState - pod %v, waiting to leave phase %v...", pod.Name, phase)
 
 		// watch for pod to go into out of specified state
 		timeoutSeconds := int64(300)
@@ -394,6 +402,7 @@ func (dr *kubernetesRunnerImpl) waitWhilePodLeavesState(ctx context.Context, pod
 					log.Warn().Msgf("Watcher for pod %v returns event object of incorrect type", pod.Name)
 					break
 				}
+
 				if modifiedPod.Status.Phase != phase {
 					*pod = *modifiedPod
 					break

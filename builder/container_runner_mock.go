@@ -193,18 +193,18 @@ func (mr *MockContainerRunnerMockRecorder) StartServiceContainer(ctx, envvars, s
 }
 
 // StartStageContainer mocks base method.
-func (m *MockContainerRunner) StartStageContainer(ctx context.Context, depth, runIndex int, dir string, envvars map[string]string, stage manifest.EstafetteStage) (string, error) {
+func (m *MockContainerRunner) StartStageContainer(ctx context.Context, depth, runIndex int, dir string, envvars map[string]string, stage manifest.EstafetteStage, stageIndex int) (string, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "StartStageContainer", ctx, depth, runIndex, dir, envvars, stage)
+	ret := m.ctrl.Call(m, "StartStageContainer", ctx, depth, runIndex, dir, envvars, stage, stageIndex)
 	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // StartStageContainer indicates an expected call of StartStageContainer.
-func (mr *MockContainerRunnerMockRecorder) StartStageContainer(ctx, depth, runIndex, dir, envvars, stage interface{}) *gomock.Call {
+func (mr *MockContainerRunnerMockRecorder) StartStageContainer(ctx, depth, runIndex, dir, envvars, stage, stageIndex interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StartStageContainer", reflect.TypeOf((*MockContainerRunner)(nil).StartStageContainer), ctx, depth, runIndex, dir, envvars, stage)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StartStageContainer", reflect.TypeOf((*MockContainerRunner)(nil).StartStageContainer), ctx, depth, runIndex, dir, envvars, stage, stageIndex)
 }
 
 // StopAllContainers mocks base method.
