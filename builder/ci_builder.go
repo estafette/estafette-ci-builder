@@ -106,7 +106,7 @@ func (b *ciBuilderImpl) RunEstafetteBuildJob(pipelineRunner PipelineRunner, cont
 	}
 
 	// set some envvars
-	err := envvarHelper.SetEstafetteGlobalEnvvars()
+	err = envvarHelper.SetEstafetteGlobalEnvvars()
 	if err != nil {
 		endOfLifeHelper.HandleFatal(ctx, buildLog, err, "Setting global environment variables failed")
 	}
