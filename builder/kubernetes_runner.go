@@ -493,7 +493,8 @@ func (dr *kubernetesRunnerImpl) StopMultiStageServiceContainers(ctx context.Cont
 }
 
 func (dr *kubernetesRunnerImpl) StartDockerDaemon() error {
-	return fmt.Errorf("Docker daemon should not be started for builder.type: kubernetes")
+	// return fmt.Errorf("Docker daemon should not be started for builder.type: kubernetes")
+	return nil
 }
 
 func (dr *kubernetesRunnerImpl) WaitForDockerDaemon() {

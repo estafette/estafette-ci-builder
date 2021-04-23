@@ -85,18 +85,16 @@ func (b *ciBuilderImpl) RunEstafetteBuildJob(pipelineRunner PipelineRunner, cont
 	// set running state, so a restarted job will show up as running once a new pod runs
 	_ = endOfLifeHelper.SendBuildStartedEvent(ctx)
 
-	if builderConfig.Manifest != nil || builderConfig.Manifest.Builder.BuilderType != manifest.BuilderTypeKubernetes {
-		// start docker daemon
-		dockerDaemonStartSpan, _ := opentracing.StartSpanFromContext(ctx, "StartDockerDaemon")
-		err := containerRunner.StartDockerDaemon()
-		if err != nil {
-			endOfLifeHelper.HandleFatal(ctx, buildLog, err, "Error starting docker daemon")
-		}
-
-		// wait for docker daemon to be ready for usage
-		containerRunner.WaitForDockerDaemon()
-		dockerDaemonStartSpan.Finish()
+	// start docker daemon
+	dockerDaemonStartSpan, _ := opentracing.StartSpanFromContext(ctx, "StartDockerDaemon")
+	err := containerRunner.StartDockerDaemon()
+	if err != nil {
+		endOfLifeHelper.HandleFatal(ctx, buildLog, err, "Error starting docker daemon")
 	}
+
+	// wait for docker daemon to be ready for usage
+	containerRunner.WaitForDockerDaemon()
+	dockerDaemonStartSpan.Finish()
 
 	// listen to cancellation in order to stop any running pipeline or container
 	go pipelineRunner.StopPipelineOnCancellation()
