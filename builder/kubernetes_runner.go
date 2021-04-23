@@ -501,7 +501,8 @@ func (dr *kubernetesRunnerImpl) WaitForDockerDaemon() {
 }
 
 func (dr *kubernetesRunnerImpl) CreateDockerClient() error {
-	return fmt.Errorf("Docker daemon should not be started for builder.type: kubernetes")
+	// return fmt.Errorf("Docker client should not be created for builder.type: kubernetes")
+	return nil
 }
 
 func (dr *kubernetesRunnerImpl) IsTrustedImage(stageName string, containerImage string) bool {
