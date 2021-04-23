@@ -50,6 +50,10 @@ type EnvvarHelper interface {
 	GetPipelineName() string
 	GetWorkDir() string
 	GetTempDir() string
+	GetPodName() string
+	GetPodUID() string
+	GetPodNamespace() string
+	GetPodNodeName() string
 	makeDNSLabelSafe(string) string
 
 	getGitOrigin() (string, error)
@@ -583,6 +587,22 @@ func (h *envvarHelperImpl) GetWorkDir() string {
 
 func (h *envvarHelperImpl) GetTempDir() string {
 	return h.tempDir
+}
+
+func (h *envvarHelperImpl) GetPodName() string {
+	return os.Getenv("POD_NAME")
+}
+
+func (h *envvarHelperImpl) GetPodUID() string {
+	return os.Getenv("POD_UID")
+}
+
+func (h *envvarHelperImpl) GetPodNamespace() string {
+	return os.Getenv("POD_NAMESPACE")
+}
+
+func (h *envvarHelperImpl) GetPodNodeName() string {
+	return os.Getenv("POD_NODE_NAME")
 }
 
 func (h *envvarHelperImpl) makeDNSLabelSafe(value string) string {

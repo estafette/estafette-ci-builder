@@ -1,9 +1,11 @@
 package builder
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path"
@@ -15,15 +17,19 @@ import (
 	"strings"
 	"sync"
 	"text/template"
+	"time"
 
 	contracts "github.com/estafette/estafette-ci-contracts"
 	manifest "github.com/estafette/estafette-ci-manifest"
 	foundation "github.com/estafette/estafette-foundation"
 	"github.com/opentracing/opentracing-go"
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"gopkg.in/yaml.v2"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -76,19 +82,35 @@ func (dr *kubernetesRunnerImpl) GetImageSize(containerImage string) (totalSize i
 	return totalSize, nil
 }
 
+func (dr *kubernetesRunnerImpl) getStagePodName(stageName string) (podName string) {
+
+	podName = strings.TrimPrefix(dr.envvarHelper.GetPodName(), *dr.config.Action)
+	podName = "stage" + podName
+
+	return
+}
+
 func (dr *kubernetesRunnerImpl) StartStageContainer(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, stage manifest.EstafetteStage) (podID string, err error) {
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "StartStageContainer")
 	defer span.Finish()
 	span.SetTag("docker-image", stage.ContainerImage)
 
+	podName := dr.getStagePodName(stage.Name)
+
 	// check if image is trusted image
 	trustedImage := dr.config.GetTrustedImage(stage.ContainerImage)
 
-	// entrypoint, cmds, binds, err := dr.initContainerStartVariables(stage.Shell, stage.Commands, stage.RunCommandsInForeground, stage.CustomProperties, trustedImage)
-	// if err != nil {
-	// 	return
-	// }
+	cmd, args, binds, err := dr.initContainerStartVariables(stage.Shell, stage.Commands, stage.RunCommandsInForeground, stage.CustomProperties, trustedImage)
+	if err != nil {
+		return
+	}
+
+	if len(stage.Commands) > 0 && trustedImage != nil && !trustedImage.AllowCommands && len(trustedImage.InjectedCredentialTypes) > 0 {
+		// return stage as failed with error message indicating that this trusted image doesn't allow commands
+		err = fmt.Errorf("This trusted image does not allow for commands to be set as a protection against snooping injected credentials")
+		return
+	}
 
 	// add custom properties as ESTAFETTE_EXTENSION_... envvar
 	extensionEnvVars := dr.generateExtensionEnvvars(stage.CustomProperties, stage.EnvVars)
@@ -113,127 +135,6 @@ func (dr *kubernetesRunnerImpl) StartStageContainer(ctx context.Context, depth i
 		}
 	}
 
-	// define binds
-	// binds = append(binds, fmt.Sprintf("%v:%v", dir, os.Expand(stage.WorkingDirectory, dr.envvarHelper.getEstafetteEnv)))
-
-	// define config
-	// config := container.Config{
-	// 	AttachStdout: true,
-	// 	AttachStderr: true,
-	// 	Env:          dockerEnvVars,
-	// 	Image:        stage.ContainerImage,
-	// 	WorkingDir:   os.Expand(stage.WorkingDirectory, dr.envvarHelper.getEstafetteEnv),
-	// }
-	// if len(stage.Commands) > 0 {
-	// 	if trustedImage != nil && !trustedImage.AllowCommands && len(trustedImage.InjectedCredentialTypes) > 0 {
-	// 		// return stage as failed with error message indicating that this trusted image doesn't allow commands
-	// 		err = fmt.Errorf("This trusted image does not allow for commands to be set as a protection against snooping injected credentials")
-	// 		return
-	// 	}
-
-	// 	// only override entrypoint when commands are set, so extensions can work without commands
-	// 	config.Entrypoint = entrypoint
-	// 	// only pass commands when they are set, so extensions can work without
-	// 	config.Cmd = cmds
-	// }
-	// if trustedImage != nil && trustedImage.RunDocker {
-	// 	if runtime.GOOS != "windows" {
-	// 		currentUser, err := user.Current()
-	// 		if err == nil && currentUser != nil {
-	// 			config.User = fmt.Sprintf("%v:%v", currentUser.Uid, currentUser.Gid)
-	// 			log.Debug().Msgf("Setting docker user to %v", config.User)
-	// 		} else {
-	// 			log.Debug().Err(err).Msg("Can't retrieve current user")
-	// 		}
-	// 	} else {
-	// 		log.Debug().Msg("Not setting docker user for windows")
-	// 	}
-	// }
-
-	// check if this is a trusted image with RunPrivileged or RunDocker set to true
-	privileged := false
-	if trustedImage != nil && runtime.GOOS != "windows" {
-		privileged = trustedImage.RunDocker || trustedImage.RunPrivileged
-	}
-
-	// create container
-	// resp, err := dr.dockerClient.ContainerCreate(ctx, &config, &container.HostConfig{
-	// 	Binds:      binds,
-	// 	Privileged: privileged,
-	// 	AutoRemove: true,
-	// 	LogConfig: container.LogConfig{
-	// 		Type: "local",
-	// 		Config: map[string]string{
-	// 			"max-size": "20m",
-	// 			"max-file": "5",
-	// 			"compress": "true",
-	// 			"mode":     "non-blocking",
-	// 		},
-	// 	},
-	// }, &network.NetworkingConfig{}, nil, "")
-	// if err != nil {
-	// 	return "", err
-	// }
-
-	podName := "somerandomname"
-
-	labels := map[string]string{
-		"createdBy": "estafette",
-	}
-
-	terminationGracePeriodSeconds := int64(300)
-
-	pod := &v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      podName,
-			Namespace: dr.namespace,
-			Labels:    labels,
-			Annotations: map[string]string{
-				"cluster-autoscaler.kubernetes.io/safe-to-evict": "false",
-			},
-		},
-		Spec: v1.PodSpec{
-			ServiceAccountName:            "estafette-ci-builder",
-			TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
-			Containers: []v1.Container{
-				{
-					Name:            "estafette-ci-builder",
-					Image:           stage.ContainerImage,
-					ImagePullPolicy: v1.PullAlways,
-					Args: []string{
-						"--run-as-job",
-					},
-					Env: kubernetesEnvVars,
-					SecurityContext: &v1.SecurityContext{
-						Privileged: &privileged,
-					},
-					// Resources:    c.getCiBuilderJobResources(ctx, ciBuilderParams),
-					// VolumeMounts: volumeMounts,
-				},
-			},
-			RestartPolicy: v1.RestartPolicyNever,
-			// Volumes:       volumes,
-			// Affinity:      c.getCiBuilderJobAffinity(ctx, ciBuilderParams, localBuilderConfig),
-			// Tolerations:   c.getCiBuilderJobTolerations(ctx, ciBuilderParams, localBuilderConfig),
-		},
-	}
-
-	pod, err = dr.kubeClientset.CoreV1().Pods(dr.namespace).Create(pod)
-	if err != nil {
-		return
-	}
-
-	// // check if image is trusted image
-	// trustedImage := dr.config.GetTrustedImage(stage.ContainerImage)
-
-	// entrypoint, cmds, binds, err := dr.initContainerStartVariables(stage.Shell, stage.Commands, stage.RunCommandsInForeground, stage.CustomProperties, trustedImage)
-	// if err != nil {
-	// 	return
-	// }
-
-	// // define binds
-	// binds = append(binds, fmt.Sprintf("%v:%v", dir, os.Expand(stage.WorkingDirectory, dr.envvarHelper.getEstafetteEnv)))
-
 	// // check if this is a trusted image with RunDocker set to true
 	// if trustedImage != nil && trustedImage.RunDocker {
 	// 	if runtime.GOOS == "windows" {
@@ -253,26 +154,6 @@ func (dr *kubernetesRunnerImpl) StartStageContainer(ctx context.Context, depth i
 	// 	}
 	// }
 
-	// // define config
-	// config := container.Config{
-	// 	AttachStdout: true,
-	// 	AttachStderr: true,
-	// 	Env:          dockerEnvVars,
-	// 	Image:        stage.ContainerImage,
-	// 	WorkingDir:   os.Expand(stage.WorkingDirectory, dr.envvarHelper.getEstafetteEnv),
-	// }
-	// if len(stage.Commands) > 0 {
-	// 	if trustedImage != nil && !trustedImage.AllowCommands && len(trustedImage.InjectedCredentialTypes) > 0 {
-	// 		// return stage as failed with error message indicating that this trusted image doesn't allow commands
-	// 		err = fmt.Errorf("This trusted image does not allow for commands to be set as a protection against snooping injected credentials")
-	// 		return
-	// 	}
-
-	// 	// only override entrypoint when commands are set, so extensions can work without commands
-	// 	config.Entrypoint = entrypoint
-	// 	// only pass commands when they are set, so extensions can work without
-	// 	config.Cmd = cmds
-	// }
 	// if trustedImage != nil && trustedImage.RunDocker {
 	// 	if runtime.GOOS != "windows" {
 	// 		currentUser, err := user.Current()
@@ -287,30 +168,111 @@ func (dr *kubernetesRunnerImpl) StartStageContainer(ctx context.Context, depth i
 	// 	}
 	// }
 
-	// // check if this is a trusted image with RunPrivileged or RunDocker set to true
-	// privileged := false
-	// if trustedImage != nil && runtime.GOOS != "windows" {
-	// 	privileged = trustedImage.RunDocker || trustedImage.RunPrivileged
-	// }
+	// define binds
+	binds = append(binds, fmt.Sprintf("%v:%v", dir, os.Expand(stage.WorkingDirectory, dr.envvarHelper.getEstafetteEnv)))
 
-	// // create container
-	// resp, err := dr.dockerClient.ContainerCreate(ctx, &config, &container.HostConfig{
-	// 	Binds:      binds,
-	// 	Privileged: privileged,
-	// 	AutoRemove: true,
-	// 	LogConfig: container.LogConfig{
-	// 		Type: "local",
-	// 		Config: map[string]string{
-	// 			"max-size": "20m",
-	// 			"max-file": "5",
-	// 			"compress": "true",
-	// 			"mode":     "non-blocking",
-	// 		},
-	// 	},
-	// }, &network.NetworkingConfig{}, nil, "")
-	// if err != nil {
-	// 	return "", err
-	// }
+	volumes := []v1.Volume{}
+	volumeMounts := []v1.VolumeMount{}
+
+	for i, b := range binds {
+		bindparts := strings.Split(b, ":")
+		if len(bindparts) == 2 {
+			volumeName := fmt.Sprintf("vol-%v", i)
+			hostPath := bindparts[0]
+			mountPath := bindparts[1]
+
+			volumes = append(volumes, v1.Volume{
+				Name: volumeName,
+				VolumeSource: v1.VolumeSource{
+					HostPath: &v1.HostPathVolumeSource{
+						Path: hostPath,
+					},
+				},
+			})
+
+			volumeMounts = append(volumeMounts, v1.VolumeMount{
+				Name:      volumeName,
+				MountPath: mountPath,
+			})
+		}
+	}
+
+	// check if this is a trusted image with RunPrivileged or RunDocker set to true
+	privileged := false
+	if trustedImage != nil && runtime.GOOS != "windows" {
+		privileged = trustedImage.RunDocker || trustedImage.RunPrivileged
+	}
+
+	labels := map[string]string{
+		"pod": podName,
+	}
+
+	terminationGracePeriodSeconds := int64(300)
+
+	affinity := &v1.Affinity{
+		NodeAffinity: &v1.NodeAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
+				NodeSelectorTerms: []v1.NodeSelectorTerm{
+					{
+						MatchFields: []v1.NodeSelectorRequirement{
+							{
+								Key:      "metadata.name",
+								Operator: v1.NodeSelectorOpIn,
+								Values:   []string{dr.envvarHelper.GetPodNodeName()},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	tolerations := []v1.Toleration{{
+		Effect:   v1.TaintEffectNoSchedule,
+		Operator: v1.TolerationOpExists,
+	}}
+
+	pod := &v1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      podName,
+			Namespace: dr.namespace,
+			Labels:    labels,
+			Annotations: map[string]string{
+				"cluster-autoscaler.kubernetes.io/safe-to-evict": "false",
+			},
+		},
+		Spec: v1.PodSpec{
+			ServiceAccountName:            "estafette-ci-builder",
+			TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
+			Containers: []v1.Container{
+				{
+					Name:            "estafette-ci-stage-builder",
+					Image:           stage.ContainerImage,
+					ImagePullPolicy: v1.PullAlways,
+					Command:         cmd,
+					Args:            args,
+					WorkingDir:      os.Expand(stage.WorkingDirectory, dr.envvarHelper.getEstafetteEnv),
+					Env:             kubernetesEnvVars,
+					SecurityContext: &v1.SecurityContext{
+						Privileged: &privileged,
+					},
+					// no resources, so it can be scheduled on the same node
+					// Resources:    ,
+					VolumeMounts: volumeMounts,
+				},
+			},
+			RestartPolicy: v1.RestartPolicyNever,
+			Volumes:       volumes,
+			// needs affinity to land on the same node as the current pod and tolerations to be allowed on the node
+			Affinity:    affinity,
+			Tolerations: tolerations,
+		},
+	}
+
+	pod, err = dr.kubeClientset.CoreV1().Pods(dr.namespace).Create(pod)
+	if err != nil {
+		return
+	}
 
 	// // connect to any configured networks
 	// for networkName, networkID := range dr.networks {
@@ -337,116 +299,179 @@ func (dr *kubernetesRunnerImpl) RunReadinessProbeContainer(ctx context.Context, 
 
 func (dr *kubernetesRunnerImpl) TailContainerLogs(ctx context.Context, podID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
 
-	// lineNumber := 1
+	namespace := dr.envvarHelper.GetPodNamespace()
 
-	// // follow logs
-	// rc, err := dr.dockerClient.ContainerLogs(ctx, containerID, types.ContainerLogsOptions{
-	// 	ShowStdout: true,
-	// 	ShowStderr: true,
-	// 	Timestamps: false,
-	// 	Follow:     true,
-	// 	Details:    false,
-	// })
-	// if err != nil {
-	// 	return err
-	// }
-	// defer rc.Close()
+	log.Debug().Msgf("TailContainerLogs - getting pod=%v namespace=%v", podID, namespace)
 
-	// // stream logs to stdout with buffering
-	// in := bufio.NewReader(rc)
-	// var readError error
-	// for {
-	// 	// strip first 8 bytes, they contain docker control characters (https://github.com/docker/docker-ce/blob/v18.06.1-ce/components/engine/client/container_logs.go#L23-L32)
-	// 	headers := make([]byte, 8)
-	// 	n, readError := in.Read(headers)
-	// 	if readError != nil {
-	// 		break
-	// 	}
+	pod, err := dr.kubeClientset.CoreV1().Pods(namespace).Get(podID, metav1.GetOptions{})
+	if err != nil {
+		return
+	}
 
-	// 	if n < 8 {
-	// 		// doesn't seem to be a valid header
-	// 		continue
-	// 	}
+	err = dr.waitWhilePodLeavesState(ctx, pod, v1.PodPending)
+	if err != nil {
+		return
+	}
 
-	// 	// inspect the docker log header for stream type
+	if pod.Status.Phase != v1.PodRunning {
+		return fmt.Errorf("TailContainerLogs - pod %v has unsupported phase %v", pod.Name, pod.Status.Phase)
+	}
 
-	// 	// first byte contains the streamType
-	// 	// -   0: stdin (will be written on stdout)
-	// 	// -   1: stdout
-	// 	// -   2: stderr
-	// 	// -   3: system error
-	// 	streamType := ""
-	// 	switch headers[0] {
-	// 	case 1:
-	// 		streamType = "stdout"
-	// 	case 2:
-	// 		streamType = "stderr"
-	// 	default:
-	// 		continue
-	// 	}
+	err = dr.followPodLogs(ctx, pod, parentStageName, stageName, stageType, depth, runIndex)
+	if err != nil {
+		return
+	}
 
-	// 	// read the rest of the line until we hit end of line
-	// 	logLine, readError := in.ReadBytes('\n')
-	// 	if readError != nil {
-	// 		break
-	// 	}
+	err = dr.waitWhilePodLeavesState(ctx, pod, v1.PodRunning)
+	if err != nil {
+		return
+	}
 
-	// 	// strip headers and obfuscate secret values
-	// 	logLineString := dr.obfuscator.Obfuscate(string(logLine))
+	if pod.Status.Phase != v1.PodSucceeded && pod.Status.Phase != v1.PodFailed {
+		return fmt.Errorf("TailContainerLogs - pod %v has unsupported phase %v", pod.Name, pod.Status.Phase)
+	}
 
-	// 	// create object for tailing logs and storing in the db when done
-	// 	logLineObject := contracts.BuildLogLine{
-	// 		LineNumber: lineNumber,
-	// 		Timestamp:  time.Now().UTC(),
-	// 		StreamType: streamType,
-	// 		Text:       logLineString,
-	// 	}
-	// 	lineNumber++
+	// check exit code
+	var exitCode int32
+	if len(pod.Status.ContainerStatuses) > 0 && pod.Status.ContainerStatuses[0].LastTerminationState.Terminated != nil {
+		exitCode = pod.Status.ContainerStatuses[0].LastTerminationState.Terminated.ExitCode
+	} else {
+		return fmt.Errorf("Container %v exited with error", podID)
+	}
 
-	// 	// log as json, to be tailed when looking at live logs from gui
-	// 	dr.tailLogsChannel <- contracts.TailLogLine{
-	// 		Step:        stageName,
-	// 		ParentStage: parentStageName,
-	// 		Type:        stageType,
-	// 		Depth:       depth,
-	// 		RunIndex:    runIndex,
-	// 		LogLine:     &logLineObject,
-	// 	}
-	// }
+	log.Debug().Msgf("TailContainerLogs - done following logs stream for pod %v", pod.Name)
 
-	// if readError != nil && readError != io.EOF {
-	// 	log.Error().Msgf("[%v] Error: %v", stageName, readError)
-	// 	return readError
-	// }
+	// clear container id
+	if stageType == contracts.LogTypeStage {
+		dr.runningStagePodIDs = dr.removeRunningPodIDs(dr.runningStagePodIDs, podID)
+	} else if stageType == contracts.LogTypeService && multiStage != nil {
+		if *multiStage {
+			dr.runningMultiStageServicePodIDss = dr.removeRunningPodIDs(dr.runningMultiStageServicePodIDss, podID)
+		} else {
+			dr.runningSingleStageServicePodIDss = dr.removeRunningPodIDs(dr.runningSingleStageServicePodIDss, podID)
+		}
+	}
 
-	// // wait for container to stop running
-	// resultC, errC := dr.dockerClient.ContainerWait(ctx, containerID, container.WaitConditionNotRunning)
-
-	// var exitCode int64
-	// select {
-	// case result := <-resultC:
-	// 	exitCode = result.StatusCode
-	// case err = <-errC:
-	// 	log.Warn().Err(err).Msgf("Container %v exited with error", containerID)
-	// 	return err
-	// }
-
-	// // clear container id
-	// if stageType == contracts.LogTypeStage {
-	// 	dr.runningStagePodIDs = dr.removeRunningPodIDs(dr.runningStagePodIDs, containerID)
-	// } else if stageType == contracts.LogTypeService && multiStage != nil {
-	// 	if *multiStage {
-	// 		dr.runningMultiStageServicePodIDss = dr.removeRunningPodIDs(dr.runningMultiStageServicePodIDss, containerID)
-	// 	} else {
-	// 		dr.runningSingleStageServicePodIDss = dr.removeRunningPodIDs(dr.runningSingleStageServicePodIDss, containerID)
-	// 	}
-	// }
-
-	// if exitCode != 0 {
-	// 	return fmt.Errorf("Failed with exit code: %v", exitCode)
-	// }
+	if exitCode != 0 {
+		return fmt.Errorf("Failed with exit code: %v", exitCode)
+	}
 
 	return
+}
+
+func (dr *kubernetesRunnerImpl) waitWhilePodLeavesState(ctx context.Context, pod *v1.Pod, phase v1.PodPhase) (err error) {
+
+	namespace := dr.envvarHelper.GetPodNamespace()
+
+	labelSelector := labels.Set{
+		"pod": pod.Name,
+	}
+
+	if pod.Status.Phase == phase {
+
+		log.Debug().Msgf("waitWhilePodLeavesState - pod %v is %v, waiting for running state...", pod.Name, phase)
+
+		// watch for pod to go into out of specified state
+		timeoutSeconds := int64(300)
+
+		watcher, err := dr.kubeClientset.CoreV1().Pods(namespace).Watch(metav1.ListOptions{
+			LabelSelector:  labelSelector.String(),
+			TimeoutSeconds: &timeoutSeconds,
+		})
+		if err != nil {
+			return err
+		}
+
+		for {
+			event, ok := <-watcher.ResultChan()
+			if !ok {
+				log.Warn().Msgf("Watcher for pod %v is closed", pod.Name)
+				break
+			}
+			if event.Type == watch.Modified {
+				modifiedPod, ok := event.Object.(*v1.Pod)
+				if !ok {
+					log.Warn().Msgf("Watcher for pod %v returns event object of incorrect type", pod.Name)
+					break
+				}
+				if modifiedPod.Status.Phase != phase {
+					*pod = *modifiedPod
+					break
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func (dr *kubernetesRunnerImpl) followPodLogs(ctx context.Context, pod *v1.Pod, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int) (err error) {
+	log.Debug().Msg("TailContainerLogs - pod has running state...")
+
+	namespace := dr.envvarHelper.GetPodNamespace()
+	lineNumber := 1
+
+	req := dr.kubeClientset.CoreV1().Pods(namespace).GetLogs(pod.Name, &v1.PodLogOptions{
+		Follow: true,
+	})
+	logsStream, err := req.Stream()
+	if err != nil {
+		return errors.Wrapf(err, "Failed opening logs stream for pod %v", pod.Name)
+	}
+	defer logsStream.Close()
+
+	reader := bufio.NewReader(logsStream)
+	for {
+		line, err := reader.ReadBytes('\n')
+		if err == io.EOF {
+			log.Debug().Msgf("EOF in logs stream for pod %v, exiting tailing", pod.Name)
+			break
+		}
+		if err != nil {
+			return err
+		}
+
+		// first byte contains the streamType
+		// -   0: stdin (will be written on stdout)
+		// -   1: stdout
+		// -   2: stderr
+		// -   3: system error
+		streamType := "stdout"
+		// switch headers[0] {
+		// case 1:
+		// 	streamType = "stdout"
+		// case 2:
+		// 	streamType = "stderr"
+		// default:
+		// 	continue
+		// }
+
+		// strip headers and obfuscate secret values
+		logLineString := dr.obfuscator.Obfuscate(string(line))
+
+		// create object for tailing logs and storing in the db when done
+		logLineObject := contracts.BuildLogLine{
+			LineNumber: lineNumber,
+			Timestamp:  time.Now().UTC(),
+			StreamType: streamType,
+			Text:       logLineString,
+		}
+		lineNumber++
+
+		// log as json, to be tailed when looking at live logs from gui
+		dr.tailLogsChannel <- contracts.TailLogLine{
+			Step:        stageName,
+			ParentStage: parentStageName,
+			Type:        stageType,
+			Depth:       depth,
+			RunIndex:    runIndex,
+			LogLine:     &logLineObject,
+		}
+	}
+
+	log.Debug().Msgf("Done following logs stream for pod %v", pod.Name)
+
+	return nil
 }
 
 func (dr *kubernetesRunnerImpl) StopSingleStageServiceContainers(ctx context.Context, parentStage manifest.EstafetteStage) {
@@ -564,10 +589,15 @@ func (dr *kubernetesRunnerImpl) removeRunningPodIDs(podIDs []string, podID strin
 	log.Debug().Msgf("Removing pod id %v from podIDs", podID)
 
 	purgedPodIDss := []string{}
-
 	for _, id := range podIDs {
 		if id != podID {
 			purgedPodIDss = append(purgedPodIDss, id)
+		} else {
+			// remove the pod
+			err := dr.kubeClientset.CoreV1().Pods(dr.envvarHelper.GetPodNamespace()).Delete(podID, &metav1.DeleteOptions{})
+			if err != nil {
+				log.Warn().Err(err).Msgf("Failed deleting pod %v", podID)
+			}
 		}
 	}
 
@@ -673,41 +703,41 @@ func (dr *kubernetesRunnerImpl) generateEntrypointScript(shell string, commands 
 		log.Debug().Str("entrypoint", string(entryPointBytes)).Msgf("Inspecting entrypoint script at %v", entrypointPath)
 	}
 
-	hostPath = entrypointdir
+	hostPath = filepath.Join(dr.envvarHelper.GetTempDir(), strings.TrimPrefix(entrypointdir, "/tmp"))
 	mountPath = "/entrypoint"
 	if runtime.GOOS == "windows" {
-		hostPath = filepath.Join(dr.envvarHelper.GetTempDir(), strings.TrimPrefix(hostPath, "C:\\Windows\\TEMP"))
+		hostPath = filepath.Join(dr.envvarHelper.GetTempDir(), strings.TrimPrefix(entrypointdir, "C:\\Windows\\TEMP"))
 		mountPath = "C:" + mountPath
 	}
 
 	return
 }
 
-func (dr *kubernetesRunnerImpl) initContainerStartVariables(shell string, commands []string, runCommandsInForeground bool, customProperties map[string]interface{}, trustedImage *contracts.TrustedImageConfig) (entrypoint []string, cmds []string, binds []string, err error) {
-	entrypoint = make([]string, 0)
-	cmds = make([]string, 0)
+func (dr *kubernetesRunnerImpl) initContainerStartVariables(shell string, commands []string, runCommandsInForeground bool, customProperties map[string]interface{}, trustedImage *contracts.TrustedImageConfig) (cmd []string, args []string, binds []string, err error) {
+	cmd = make([]string, 0)
+	args = make([]string, 0)
 	binds = make([]string, 0)
 
 	if len(commands) > 0 {
 		// generate entrypoint script
 		entrypointHostPath, entrypointMountPath, entrypointFile, innerErr := dr.generateEntrypointScript(shell, commands, runCommandsInForeground)
 		if innerErr != nil {
-			return entrypoint, cmds, binds, innerErr
+			return cmd, args, binds, innerErr
 		}
 
 		// use generated entrypoint script for executing commands
 		entrypointFilePath := path.Join(entrypointMountPath, entrypointFile)
 		if runtime.GOOS == "windows" && shell == "powershell" {
 			entrypointFilePath = fmt.Sprintf("C:\\entrypoint\\%v", entrypointFile)
-			entrypoint = []string{"powershell.exe", entrypointFilePath}
+			cmd = []string{"powershell.exe", entrypointFilePath}
 		} else if runtime.GOOS == "windows" && shell == "cmd" {
 			entrypointFilePath = fmt.Sprintf("C:\\entrypoint\\%v", entrypointFile)
-			entrypoint = []string{"cmd.exe", "/C", entrypointFilePath}
+			cmd = []string{"cmd.exe", "/C", entrypointFilePath}
 		} else {
-			entrypoint = []string{entrypointFilePath}
+			cmd = []string{entrypointFilePath}
 		}
 
-		log.Debug().Interface("entrypoint", entrypoint).Msg("Inspecting entrypoint array")
+		log.Debug().Interface("cmd", cmd).Msg("Inspecting cmd array")
 
 		binds = append(binds, fmt.Sprintf("%v:%v", entrypointHostPath, entrypointMountPath))
 	}
@@ -835,10 +865,10 @@ func (dr *kubernetesRunnerImpl) generateCredentialsFiles(trustedImage *contracts
 			log.Debug().Msgf("Stored credentials of type %v in file %v", credentialType, filepath)
 		}
 
-		hostPath = credentialsdir
+		hostPath = filepath.Join(dr.envvarHelper.GetTempDir(), strings.TrimPrefix(credentialsdir, "/tmp"))
 		mountPath = "/credentials"
 		if runtime.GOOS == "windows" {
-			hostPath = filepath.Join(dr.envvarHelper.GetTempDir(), strings.TrimPrefix(hostPath, "C:\\Windows\\TEMP"))
+			hostPath = filepath.Join(dr.envvarHelper.GetTempDir(), strings.TrimPrefix(credentialsdir, "C:\\Windows\\TEMP"))
 			mountPath = "C:" + mountPath
 		}
 	}
