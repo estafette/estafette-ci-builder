@@ -104,8 +104,8 @@ func (dr *kubernetesRunnerImpl) StartStageContainer(ctx context.Context, depth i
 	defer span.Finish()
 	span.SetTag("docker-image", stage.ContainerImage)
 
-	// podName := dr.getStagePodName(stage, stageIndex)
-	podID = dr.getEphemeralContainerName(stage)
+	podID = dr.getStagePodName(stage, stageIndex)
+	// podID = dr.getEphemeralContainerName(stage)
 
 	// check if image is trusted image
 	trustedImage := dr.config.GetTrustedImage(stage.ContainerImage)
@@ -179,41 +179,41 @@ func (dr *kubernetesRunnerImpl) StartStageContainer(ctx context.Context, depth i
 		privileged = trustedImage.RunDocker || trustedImage.RunPrivileged
 	}
 
-	// EPHEMERAL BEGIN
-	dr.mutex.Lock()
-	defer dr.mutex.Lock()
+	// // EPHEMERAL BEGIN
+	// dr.mutex.Lock()
+	// defer dr.mutex.Lock()
 
-	// get current ephemeral containers
-	ephemeralContainers, err := dr.kubeClientset.CoreV1().Pods(dr.namespace).GetEphemeralContainers(dr.envvarHelper.GetPodName(), metav1.GetOptions{})
-	if err != nil {
-		return
-	}
+	// // get current ephemeral containers
+	// ephemeralContainers, err := dr.kubeClientset.CoreV1().Pods(dr.namespace).GetEphemeralContainers(dr.envvarHelper.GetPodName(), metav1.GetOptions{})
+	// if err != nil {
+	// 	return
+	// }
 
-	ephemeralContainers.EphemeralContainers = append(ephemeralContainers.EphemeralContainers, v1.EphemeralContainer{
-		// TargetContainerName: podID,
-		EphemeralContainerCommon: v1.EphemeralContainerCommon{
-			Name:            podID,
-			Image:           stage.ContainerImage,
-			ImagePullPolicy: v1.PullAlways,
-			Command:         cmd,
-			Args:            args,
-			WorkingDir:      os.Expand(stage.WorkingDirectory, dr.envvarHelper.getEstafetteEnv),
-			Env:             kubernetesEnvVars,
-			SecurityContext: &v1.SecurityContext{
-				Privileged: &privileged,
-			},
-			// no resources, so it can be scheduled on the same node
-			// Resources:    ,
-			VolumeMounts: volumeMounts,
-		},
-	})
+	// ephemeralContainers.EphemeralContainers = append(ephemeralContainers.EphemeralContainers, v1.EphemeralContainer{
+	// 	// TargetContainerName: podID,
+	// 	EphemeralContainerCommon: v1.EphemeralContainerCommon{
+	// 		Name:            podID,
+	// 		Image:           stage.ContainerImage,
+	// 		ImagePullPolicy: v1.PullAlways,
+	// 		Command:         cmd,
+	// 		Args:            args,
+	// 		WorkingDir:      os.Expand(stage.WorkingDirectory, dr.envvarHelper.getEstafetteEnv),
+	// 		Env:             kubernetesEnvVars,
+	// 		SecurityContext: &v1.SecurityContext{
+	// 			Privileged: &privileged,
+	// 		},
+	// 		// no resources, so it can be scheduled on the same node
+	// 		// Resources:    ,
+	// 		VolumeMounts: volumeMounts,
+	// 	},
+	// })
 
-	_, err = dr.kubeClientset.CoreV1().Pods(dr.namespace).UpdateEphemeralContainers(dr.envvarHelper.GetPodName(), ephemeralContainers)
-	if err != nil {
-		return
-	}
+	// _, err = dr.kubeClientset.CoreV1().Pods(dr.namespace).UpdateEphemeralContainers(dr.envvarHelper.GetPodName(), ephemeralContainers)
+	// if err != nil {
+	// 	return
+	// }
 
-	// EPHEMERAL END
+	// // EPHEMERAL END
 
 	// // check if this is a trusted image with RunDocker set to true
 	// if trustedImage != nil && trustedImage.RunDocker {
@@ -248,88 +248,88 @@ func (dr *kubernetesRunnerImpl) StartStageContainer(ctx context.Context, depth i
 	// 	}
 	// }
 
-	// labels := map[string]string{
-	// 	"pod": podName,
+	labels := map[string]string{
+		"pod": podID,
+	}
+
+	terminationGracePeriodSeconds := int64(300)
+
+	affinity := &v1.Affinity{
+		NodeAffinity: &v1.NodeAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
+				NodeSelectorTerms: []v1.NodeSelectorTerm{
+					{
+						MatchFields: []v1.NodeSelectorRequirement{
+							{
+								Key:      "metadata.name",
+								Operator: v1.NodeSelectorOpIn,
+								Values:   []string{dr.envvarHelper.GetPodNodeName()},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	tolerations := []v1.Toleration{{
+		Effect:   v1.TaintEffectNoSchedule,
+		Operator: v1.TolerationOpExists,
+	}}
+
+	// TODO in the future use https://kubernetes.io/docs/concepts/workloads/pods/ephemeral-containers/ instead when they're out of alpha
+	// TODO combine with https://kubernetes.io/docs/concepts/services-networking/add-entries-to-pod-etc-hosts-with-host-aliases/ for service containers
+
+	pod := &v1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      podID,
+			Namespace: dr.namespace,
+			Labels:    labels,
+			Annotations: map[string]string{
+				"cluster-autoscaler.kubernetes.io/safe-to-evict": "false",
+			},
+		},
+		Spec: v1.PodSpec{
+			ServiceAccountName:            "estafette-ci-builder",
+			TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
+			Containers: []v1.Container{
+				{
+					Name:            "estafette-ci-stage-builder",
+					Image:           stage.ContainerImage,
+					ImagePullPolicy: v1.PullAlways,
+					Command:         cmd,
+					Args:            args,
+					WorkingDir:      os.Expand(stage.WorkingDirectory, dr.envvarHelper.getEstafetteEnv),
+					Env:             kubernetesEnvVars,
+					SecurityContext: &v1.SecurityContext{
+						Privileged: &privileged,
+					},
+					// no resources, so it can be scheduled on the same node
+					// Resources:    ,
+					VolumeMounts: volumeMounts,
+				},
+			},
+			RestartPolicy: v1.RestartPolicyNever,
+			Volumes:       volumes,
+			// needs affinity to land on the same node as the current pod and tolerations to be allowed on the node
+			Affinity:    affinity,
+			Tolerations: tolerations,
+		},
+	}
+
+	pod, err = dr.kubeClientset.CoreV1().Pods(dr.namespace).Create(pod)
+	if err != nil {
+		return
+	}
+
+	// // connect to any configured networks
+	// for networkName, networkID := range dr.networks {
+	// 	err = dr.dockerClient.NetworkConnect(ctx, networkID, resp.ID, nil)
+	// 	if err != nil {
+	// 		log.Error().Err(err).Msgf("Failed connecting container %v to network %v with id %v", resp.ID, networkName, networkID)
+	// 		return
+	// 	}
 	// }
-
-	// terminationGracePeriodSeconds := int64(300)
-
-	// affinity := &v1.Affinity{
-	// 	NodeAffinity: &v1.NodeAffinity{
-	// 		RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
-	// 			NodeSelectorTerms: []v1.NodeSelectorTerm{
-	// 				{
-	// 					MatchFields: []v1.NodeSelectorRequirement{
-	// 						{
-	// 							Key:      "metadata.name",
-	// 							Operator: v1.NodeSelectorOpIn,
-	// 							Values:   []string{dr.envvarHelper.GetPodNodeName()},
-	// 						},
-	// 					},
-	// 				},
-	// 			},
-	// 		},
-	// 	},
-	// }
-
-	// tolerations := []v1.Toleration{{
-	// 	Effect:   v1.TaintEffectNoSchedule,
-	// 	Operator: v1.TolerationOpExists,
-	// }}
-
-	// // TODO in the future use https://kubernetes.io/docs/concepts/workloads/pods/ephemeral-containers/ instead
-	// // TODO combine with https://kubernetes.io/docs/concepts/services-networking/add-entries-to-pod-etc-hosts-with-host-aliases/ for service containers
-
-	// pod := &v1.Pod{
-	// 	ObjectMeta: metav1.ObjectMeta{
-	// 		Name:      podName,
-	// 		Namespace: dr.namespace,
-	// 		Labels:    labels,
-	// 		Annotations: map[string]string{
-	// 			"cluster-autoscaler.kubernetes.io/safe-to-evict": "false",
-	// 		},
-	// 	},
-	// 	Spec: v1.PodSpec{
-	// 		ServiceAccountName:            "estafette-ci-builder",
-	// 		TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
-	// 		Containers: []v1.Container{
-	// 			{
-	// 				Name:            "estafette-ci-stage-builder",
-	// 				Image:           stage.ContainerImage,
-	// 				ImagePullPolicy: v1.PullAlways,
-	// 				Command:         cmd,
-	// 				Args:            args,
-	// 				WorkingDir:      os.Expand(stage.WorkingDirectory, dr.envvarHelper.getEstafetteEnv),
-	// 				Env:             kubernetesEnvVars,
-	// 				SecurityContext: &v1.SecurityContext{
-	// 					Privileged: &privileged,
-	// 				},
-	// 				// no resources, so it can be scheduled on the same node
-	// 				// Resources:    ,
-	// 				VolumeMounts: volumeMounts,
-	// 			},
-	// 		},
-	// 		RestartPolicy: v1.RestartPolicyNever,
-	// 		Volumes:       volumes,
-	// 		// needs affinity to land on the same node as the current pod and tolerations to be allowed on the node
-	// 		Affinity:    affinity,
-	// 		Tolerations: tolerations,
-	// 	},
-	// }
-
-	// pod, err = dr.kubeClientset.CoreV1().Pods(dr.namespace).Create(pod)
-	// if err != nil {
-	// 	return
-	// }
-
-	// // // connect to any configured networks
-	// // for networkName, networkID := range dr.networks {
-	// // 	err = dr.dockerClient.NetworkConnect(ctx, networkID, resp.ID, nil)
-	// // 	if err != nil {
-	// // 		log.Error().Err(err).Msgf("Failed connecting container %v to network %v with id %v", resp.ID, networkName, networkID)
-	// // 		return
-	// // 	}
-	// // }
 
 	dr.runningStagePodIDs = dr.addRunningPodID(dr.runningStagePodIDs, podID)
 
@@ -346,75 +346,77 @@ func (dr *kubernetesRunnerImpl) RunReadinessProbeContainer(ctx context.Context, 
 
 func (dr *kubernetesRunnerImpl) TailContainerLogs(ctx context.Context, podID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
 
-	// namespace := dr.envvarHelper.GetPodNamespace()
-
 	log.Debug().Msgf("TailContainerLogs - ephemeral container %v", podID)
 
-	err = dr.followEphemeralContainerLogs(ctx, podID, parentStageName, stageName, stageType, depth, runIndex)
-	if err != nil {
-		return
-	}
+	// clear container id
+	defer func() {
+		if stageType == contracts.LogTypeStage {
+			dr.runningStagePodIDs = dr.removeRunningPodIDs(dr.runningStagePodIDs, podID)
+		} else if stageType == contracts.LogTypeService && multiStage != nil {
+			if *multiStage {
+				dr.runningMultiStageServicePodIDss = dr.removeRunningPodIDs(dr.runningMultiStageServicePodIDss, podID)
+			} else {
+				dr.runningSingleStageServicePodIDss = dr.removeRunningPodIDs(dr.runningSingleStageServicePodIDss, podID)
+			}
+		}
+	}()
 
-	// pod, err := dr.kubeClientset.CoreV1().Pods(dr.namespace).Get(podID, metav1.GetOptions{})
+	// err = dr.followEphemeralContainerLogs(ctx, podID, parentStageName, stageName, stageType, depth, runIndex)
 	// if err != nil {
 	// 	return
 	// }
 
-	// err = dr.waitWhilePodLeavesState(ctx, pod, v1.PodPending)
-	// if err != nil {
-	// 	return
-	// }
-
-	// if pod.Status.Phase != v1.PodRunning && pod.Status.Phase != v1.PodSucceeded && pod.Status.Phase != v1.PodFailed {
-	// 	return fmt.Errorf("TailContainerLogs - pod %v has unsupported phase %v", pod.Name, pod.Status.Phase)
-	// }
-
-	// err = dr.followPodLogs(ctx, pod, parentStageName, stageName, stageType, depth, runIndex)
-	// if err != nil {
-	// 	return
-	// }
-
-	// refresh pod status
 	pod, err := dr.kubeClientset.CoreV1().Pods(dr.namespace).Get(podID, metav1.GetOptions{})
 	if err != nil {
 		return
 	}
 
-	// err = dr.waitWhilePodLeavesState(ctx, pod, v1.PodRunning)
-	// if err != nil {
-	// 	return
-	// }
+	err = dr.waitWhilePodLeavesState(ctx, pod, v1.PodPending)
+	if err != nil {
+		return
+	}
 
-	// if pod.Status.Phase != v1.PodSucceeded && pod.Status.Phase != v1.PodFailed {
-	// 	return fmt.Errorf("TailContainerLogs - pod %v has unsupported phase %v", pod.Name, pod.Status.Phase)
-	// }
+	if pod.Status.Phase != v1.PodRunning && pod.Status.Phase != v1.PodSucceeded && pod.Status.Phase != v1.PodFailed {
+		return fmt.Errorf("TailContainerLogs - pod %v has unsupported phase %v", pod.Name, pod.Status.Phase)
+	}
+
+	err = dr.followPodLogs(ctx, pod, parentStageName, stageName, stageType, depth, runIndex)
+	if err != nil {
+		return
+	}
+
+	// refresh pod status
+	pod, err = dr.kubeClientset.CoreV1().Pods(dr.namespace).Get(podID, metav1.GetOptions{})
+	if err != nil {
+		return
+	}
+
+	err = dr.waitWhilePodLeavesState(ctx, pod, v1.PodRunning)
+	if err != nil {
+		return
+	}
+
+	if pod.Status.Phase != v1.PodSucceeded && pod.Status.Phase != v1.PodFailed {
+		return fmt.Errorf("TailContainerLogs - pod %v has unsupported phase %v", pod.Name, pod.Status.Phase)
+	}
 
 	// check exit code
 	var exitCode int32
-	if len(pod.Status.ContainerStatuses) > 0 {
-		// find container with podID
-		for _, c := range pod.Status.ContainerStatuses {
-			if c.Name == podID && c.LastTerminationState.Terminated != nil {
-				exitCode = c.LastTerminationState.Terminated.ExitCode
-				break
-			}
-		}
+	if len(pod.Status.ContainerStatuses) > 0 && pod.Status.ContainerStatuses[0].State.Terminated != nil {
+		exitCode = pod.Status.ContainerStatuses[0].State.Terminated.ExitCode
+
+		// find container with podID for ephemeral containers
+		// for _, c := range pod.Status.ContainerStatuses {
+		// 	if c.Name == podID && c.LastTerminationState.Terminated != nil {
+		// 		exitCode = c.LastTerminationState.Terminated.ExitCode
+		// 		break
+		// 	}
+		// }
 	} else {
 		return fmt.Errorf("Container %v exited with error", podID)
 	}
 
 	log.Debug().Msgf("TailContainerLogs - done following logs stream for pod %v", pod.Name)
-
-	// clear container id
-	if stageType == contracts.LogTypeStage {
-		dr.runningStagePodIDs = dr.removeRunningPodIDs(dr.runningStagePodIDs, podID)
-	} else if stageType == contracts.LogTypeService && multiStage != nil {
-		if *multiStage {
-			dr.runningMultiStageServicePodIDss = dr.removeRunningPodIDs(dr.runningMultiStageServicePodIDss, podID)
-		} else {
-			dr.runningSingleStageServicePodIDss = dr.removeRunningPodIDs(dr.runningSingleStageServicePodIDss, podID)
-		}
-	}
 
 	if exitCode != 0 {
 		return fmt.Errorf("Failed with exit code: %v", exitCode)
@@ -725,12 +727,12 @@ func (dr *kubernetesRunnerImpl) removeRunningPodIDs(podIDs []string, podID strin
 	for _, id := range podIDs {
 		if id != podID {
 			purgedPodIDss = append(purgedPodIDss, id)
-			// } else {
-			// 	// remove the pod
-			// 	err := dr.kubeClientset.CoreV1().Pods(dr.namespace).Delete(podID, &metav1.DeleteOptions{})
-			// 	if err != nil {
-			// 		log.Warn().Err(err).Msgf("Failed deleting pod %v", podID)
-			// 	}
+		} else {
+			// remove the pod
+			err := dr.kubeClientset.CoreV1().Pods(dr.namespace).Delete(podID, &metav1.DeleteOptions{})
+			if err != nil {
+				log.Warn().Err(err).Msgf("Failed deleting pod %v", podID)
+			}
 		}
 	}
 
