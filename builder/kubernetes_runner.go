@@ -316,7 +316,7 @@ func (dr *kubernetesRunnerImpl) TailContainerLogs(ctx context.Context, podID, pa
 		return
 	}
 
-	if pod.Status.Phase != v1.PodRunning {
+	if pod.Status.Phase != v1.PodRunning && pod.Status.Phase != v1.PodSucceeded && pod.Status.Phase != v1.PodFailed {
 		return fmt.Errorf("TailContainerLogs - pod %v has unsupported phase %v", pod.Name, pod.Status.Phase)
 	}
 
