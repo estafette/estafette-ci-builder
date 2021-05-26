@@ -1,6 +1,5 @@
 builder:
   track: stable
-  medium: memory
 
 labels:
   app-group: estafette-ci
@@ -34,7 +33,7 @@ stages:
       bake:
         image: extensions/docker:dev
         action: build
-        no-cache: true
+        severity: unknown
         dontExpand:
         - ESTAFETTE_WORKDIR
         repositories:
@@ -47,6 +46,7 @@ stages:
       bake-gocd-agent:
         image: extensions/docker:dev
         action: build
+        severity: unknown
         no-cache: true
         versionTagSuffix: gocd
         repositories:
@@ -56,37 +56,8 @@ stages:
         - templates
         dockerfile: Dockerfile.gocd
 
-  dive-and-trivy-all:
-    parallelStages:
-      dive:
-        image: extensions/docker:dev
-        action: dive
-        repositories:
-        - estafette
-
-      dive-gocd-agent:
-        image: extensions/docker:dev
-        action: dive
-        versionTagSuffix: gocd
-        repositories:
-        - estafette
-
-      trivy:
-        image: extensions/docker:dev
-        action: trivy
-        repositories:
-        - estafette
-
-      trivy-gocd-agent:
-        image: extensions/docker:dev
-        action: trivy
-        versionTagSuffix: gocd
-        severity: low
-        repositories:
-        - estafette
-
   clean-working-directory:
-    image: golang:1.16.0-alpine
+    image: golang:1.16-alpine
     commands:
     - rm -rf ..?* .[!.]* *
 
@@ -204,7 +175,7 @@ stages:
                   {
                     "Name":"buildA",
                     "ContainerImage":
-                    "golang:1.14.0-alpine3.11",
+                    "golang:1.16-alpine",
                     "Shell":"/bin/sh",
                     "WorkingDirectory":"/estafette-work",
                     "Commands":[
@@ -425,10 +396,10 @@ releases:
     builder:
       os: windows
       track: nanoserver-1809-stable
-    triggers:
-    - pipeline:
-        name: self
-        branch: .+
+    # triggers:
+    # - pipeline:
+    #     name: self
+    #     branch: .+
     clone: true
     stages:
       build:
