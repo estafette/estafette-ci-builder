@@ -33,12 +33,12 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-// NewKubernetesRunner returns a new ContainerRunner to run containers using Kubernetes resources
-func NewKubernetesRunner(envvarHelper EnvvarHelper, obfuscator Obfuscator, kubeClientset *kubernetes.Clientset, config contracts.BuilderConfig, tailLogsChannel chan contracts.TailLogLine) ContainerRunner {
+// NewPodRunner returns a new ContainerRunner to run containers using Kubernetes resources
+func NewPodRunner(envvarHelper EnvvarHelper, obfuscator Obfuscator, kubeClientset *kubernetes.Clientset, config contracts.BuilderConfig, tailLogsChannel chan contracts.TailLogLine) ContainerRunner {
 
 	namespace, _ := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
 
-	return &kubernetesRunnerImpl{
+	return &podRunnerImpl{
 		envvarHelper:                     envvarHelper,
 		obfuscator:                       obfuscator,
 		kubeClientset:                    kubeClientset,
@@ -56,7 +56,7 @@ func NewKubernetesRunner(envvarHelper EnvvarHelper, obfuscator Obfuscator, kubeC
 	}
 }
 
-type kubernetesRunnerImpl struct {
+type podRunnerImpl struct {
 	envvarHelper    EnvvarHelper
 	obfuscator      Obfuscator
 	kubeClientset   *kubernetes.Clientset
@@ -74,19 +74,19 @@ type kubernetesRunnerImpl struct {
 	mutex *sync.Mutex
 }
 
-func (dr *kubernetesRunnerImpl) IsImagePulled(ctx context.Context, stageName string, containerImage string) bool {
+func (dr *podRunnerImpl) IsImagePulled(ctx context.Context, stageName string, containerImage string) bool {
 	return true
 }
 
-func (dr *kubernetesRunnerImpl) PullImage(ctx context.Context, stageName string, containerImage string) (err error) {
+func (dr *podRunnerImpl) PullImage(ctx context.Context, stageName string, containerImage string) (err error) {
 	return
 }
 
-func (dr *kubernetesRunnerImpl) GetImageSize(containerImage string) (totalSize int64, err error) {
+func (dr *podRunnerImpl) GetImageSize(containerImage string) (totalSize int64, err error) {
 	return totalSize, nil
 }
 
-func (dr *kubernetesRunnerImpl) getStagePodName(stage manifest.EstafetteStage, stageIndex int) (podName string) {
+func (dr *podRunnerImpl) getStagePodName(stage manifest.EstafetteStage, stageIndex int) (podName string) {
 
 	podName = strings.TrimPrefix(dr.envvarHelper.GetPodName(), *dr.config.Action+"-")
 	podName = fmt.Sprintf("stg-%v-%v", stageIndex, podName)
@@ -94,11 +94,7 @@ func (dr *kubernetesRunnerImpl) getStagePodName(stage manifest.EstafetteStage, s
 	return
 }
 
-func (dr *kubernetesRunnerImpl) getEphemeralContainerName(stage manifest.EstafetteStage) (podName string) {
-	return fmt.Sprintf("%v-%v", stage.Name, generateRandomString(5))
-}
-
-func (dr *kubernetesRunnerImpl) StartStageContainer(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, stage manifest.EstafetteStage, stageIndex int) (podID string, err error) {
+func (dr *podRunnerImpl) StartStageContainer(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, stage manifest.EstafetteStage, stageIndex int) (podID string, err error) {
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "StartStageContainer")
 	defer span.Finish()
@@ -336,15 +332,15 @@ func (dr *kubernetesRunnerImpl) StartStageContainer(ctx context.Context, depth i
 	return
 }
 
-func (dr *kubernetesRunnerImpl) StartServiceContainer(ctx context.Context, envvars map[string]string, service manifest.EstafetteService) (podID string, err error) {
+func (dr *podRunnerImpl) StartServiceContainer(ctx context.Context, envvars map[string]string, service manifest.EstafetteService) (podID string, err error) {
 	return podID, fmt.Errorf("Service containers are currently not supported for builder.type: kubernetes")
 }
 
-func (dr *kubernetesRunnerImpl) RunReadinessProbeContainer(ctx context.Context, parentStage manifest.EstafetteStage, service manifest.EstafetteService, readiness manifest.ReadinessProbe) (err error) {
+func (dr *podRunnerImpl) RunReadinessProbeContainer(ctx context.Context, parentStage manifest.EstafetteStage, service manifest.EstafetteService, readiness manifest.ReadinessProbe) (err error) {
 	return fmt.Errorf("Service containers are currently not supported for builder.type: kubernetes")
 }
 
-func (dr *kubernetesRunnerImpl) TailContainerLogs(ctx context.Context, podID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
+func (dr *podRunnerImpl) TailContainerLogs(ctx context.Context, podID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
 
 	log.Debug().Msgf("TailContainerLogs - ephemeral container %v", podID)
 
@@ -360,11 +356,6 @@ func (dr *kubernetesRunnerImpl) TailContainerLogs(ctx context.Context, podID, pa
 			}
 		}
 	}()
-
-	// err = dr.followEphemeralContainerLogs(ctx, podID, parentStageName, stageName, stageType, depth, runIndex)
-	// if err != nil {
-	// 	return
-	// }
 
 	pod, err := dr.kubeClientset.CoreV1().Pods(dr.namespace).Get(podID, metav1.GetOptions{})
 	if err != nil {
@@ -425,76 +416,7 @@ func (dr *kubernetesRunnerImpl) TailContainerLogs(ctx context.Context, podID, pa
 	return
 }
 
-func (dr *kubernetesRunnerImpl) followEphemeralContainerLogs(ctx context.Context, podID string, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int) (err error) {
-	log.Debug().Msg("TailContainerLogs - pod has running state...")
-
-	lineNumber := 1
-
-	req := dr.kubeClientset.CoreV1().Pods(dr.namespace).GetLogs(dr.envvarHelper.GetPodName(), &v1.PodLogOptions{
-		Follow:    true,
-		Container: podID,
-	})
-	logsStream, err := req.Stream()
-	if err != nil {
-		return errors.Wrapf(err, "Failed opening logs stream for ephemeral container %v", podID)
-	}
-	defer logsStream.Close()
-
-	reader := bufio.NewReader(logsStream)
-	for {
-		line, err := reader.ReadBytes('\n')
-		if err == io.EOF {
-			log.Debug().Msgf("EOF in logs stream for ephemeral container %v, exiting tailing", podID)
-			break
-		}
-		if err != nil {
-			return err
-		}
-
-		// first byte contains the streamType
-		// -   0: stdin (will be written on stdout)
-		// -   1: stdout
-		// -   2: stderr
-		// -   3: system error
-		streamType := "stdout"
-		// switch headers[0] {
-		// case 1:
-		// 	streamType = "stdout"
-		// case 2:
-		// 	streamType = "stderr"
-		// default:
-		// 	continue
-		// }
-
-		// strip headers and obfuscate secret values
-		logLineString := dr.obfuscator.Obfuscate(string(line))
-
-		// create object for tailing logs and storing in the db when done
-		logLineObject := contracts.BuildLogLine{
-			LineNumber: lineNumber,
-			Timestamp:  time.Now().UTC(),
-			StreamType: streamType,
-			Text:       logLineString,
-		}
-		lineNumber++
-
-		// log as json, to be tailed when looking at live logs from gui
-		dr.tailLogsChannel <- contracts.TailLogLine{
-			Step:        stageName,
-			ParentStage: parentStageName,
-			Type:        stageType,
-			Depth:       depth,
-			RunIndex:    runIndex,
-			LogLine:     &logLineObject,
-		}
-	}
-
-	log.Debug().Msgf("Done following logs stream for ephemeral container %v", podID)
-
-	return nil
-}
-
-func (dr *kubernetesRunnerImpl) waitWhilePodLeavesState(ctx context.Context, pod *v1.Pod, phase v1.PodPhase) (err error) {
+func (dr *podRunnerImpl) waitWhilePodLeavesState(ctx context.Context, pod *v1.Pod, phase v1.PodPhase) (err error) {
 
 	labelSelector := labels.Set{
 		"pod": pod.Name,
@@ -539,7 +461,7 @@ func (dr *kubernetesRunnerImpl) waitWhilePodLeavesState(ctx context.Context, pod
 	return nil
 }
 
-func (dr *kubernetesRunnerImpl) followPodLogs(ctx context.Context, pod *v1.Pod, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int) (err error) {
+func (dr *podRunnerImpl) followPodLogs(ctx context.Context, pod *v1.Pod, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int) (err error) {
 	log.Debug().Msg("TailContainerLogs - pod has running state...")
 
 	lineNumber := 1
@@ -607,7 +529,7 @@ func (dr *kubernetesRunnerImpl) followPodLogs(ctx context.Context, pod *v1.Pod, 
 	return nil
 }
 
-func (dr *kubernetesRunnerImpl) StopSingleStageServiceContainers(ctx context.Context, parentStage manifest.EstafetteStage) {
+func (dr *podRunnerImpl) StopSingleStageServiceContainers(ctx context.Context, parentStage manifest.EstafetteStage) {
 	log.Info().Msgf("[%v] Stopping single-stage service containers...", parentStage.Name)
 
 	// the service containers should be the only ones running, so just stop all containers
@@ -616,7 +538,7 @@ func (dr *kubernetesRunnerImpl) StopSingleStageServiceContainers(ctx context.Con
 	log.Info().Msgf("[%v] Stopped single-stage service containers...", parentStage.Name)
 }
 
-func (dr *kubernetesRunnerImpl) StopMultiStageServiceContainers(ctx context.Context) {
+func (dr *podRunnerImpl) StopMultiStageServiceContainers(ctx context.Context) {
 	log.Info().Msg("Stopping multi-stage service containers...")
 
 	// the service containers should be the only ones running, so just stop all containers
@@ -625,20 +547,20 @@ func (dr *kubernetesRunnerImpl) StopMultiStageServiceContainers(ctx context.Cont
 	log.Info().Msg("Stopped multi-stage service containers...")
 }
 
-func (dr *kubernetesRunnerImpl) StartDockerDaemon() error {
+func (dr *podRunnerImpl) StartDockerDaemon() error {
 	// return fmt.Errorf("Docker daemon should not be started for builder.type: kubernetes")
 	return nil
 }
 
-func (dr *kubernetesRunnerImpl) WaitForDockerDaemon() {
+func (dr *podRunnerImpl) WaitForDockerDaemon() {
 }
 
-func (dr *kubernetesRunnerImpl) CreateDockerClient() error {
+func (dr *podRunnerImpl) CreateDockerClient() error {
 	// return fmt.Errorf("Docker client should not be created for builder.type: kubernetes")
 	return nil
 }
 
-func (dr *kubernetesRunnerImpl) IsTrustedImage(stageName string, containerImage string) bool {
+func (dr *podRunnerImpl) IsTrustedImage(stageName string, containerImage string) bool {
 
 	log.Info().Msgf("[%v] Checking if docker image '%v' is trusted...", stageName, containerImage)
 
@@ -648,7 +570,7 @@ func (dr *kubernetesRunnerImpl) IsTrustedImage(stageName string, containerImage 
 	return trustedImage != nil
 }
 
-func (dr *kubernetesRunnerImpl) HasInjectedCredentials(stageName string, containerImage string) bool {
+func (dr *podRunnerImpl) HasInjectedCredentials(stageName string, containerImage string) bool {
 
 	log.Info().Msgf("[%v] Checking if docker image '%v' has injected credentials...", stageName, containerImage)
 
@@ -663,7 +585,7 @@ func (dr *kubernetesRunnerImpl) HasInjectedCredentials(stageName string, contain
 	return len(credentialMap) > 0
 }
 
-func (dr *kubernetesRunnerImpl) stopContainer(podID string) error {
+func (dr *podRunnerImpl) stopContainer(podID string) error {
 
 	log.Debug().Msgf("Stopping pod with id %v", podID)
 
@@ -680,7 +602,7 @@ func (dr *kubernetesRunnerImpl) stopContainer(podID string) error {
 	return nil
 }
 
-func (dr *kubernetesRunnerImpl) stopContainers(podIDs []string) {
+func (dr *podRunnerImpl) stopContainers(podIDs []string) {
 
 	if len(podIDs) > 0 {
 		log.Info().Msgf("Stopping %v pods", len(podIDs))
@@ -703,7 +625,7 @@ func (dr *kubernetesRunnerImpl) stopContainers(podIDs []string) {
 	}
 }
 
-func (dr *kubernetesRunnerImpl) StopAllContainers() {
+func (dr *podRunnerImpl) StopAllContainers() {
 
 	allRunningPodIDss := append(dr.runningStagePodIDs, dr.runningSingleStageServicePodIDss...)
 	allRunningPodIDss = append(allRunningPodIDss, dr.runningMultiStageServicePodIDss...)
@@ -712,14 +634,14 @@ func (dr *kubernetesRunnerImpl) StopAllContainers() {
 	dr.stopContainers(allRunningPodIDss)
 }
 
-func (dr *kubernetesRunnerImpl) addRunningPodID(podIDs []string, podID string) []string {
+func (dr *podRunnerImpl) addRunningPodID(podIDs []string, podID string) []string {
 
 	log.Debug().Msgf("Adding pod id %v to podIDs", podID)
 
 	return append(podIDs, podID)
 }
 
-func (dr *kubernetesRunnerImpl) removeRunningPodIDs(podIDs []string, podID string) []string {
+func (dr *podRunnerImpl) removeRunningPodIDs(podIDs []string, podID string) []string {
 
 	log.Debug().Msgf("Removing pod id %v from podIDs", podID)
 
@@ -739,17 +661,17 @@ func (dr *kubernetesRunnerImpl) removeRunningPodIDs(podIDs []string, podID strin
 	return purgedPodIDss
 }
 
-func (dr *kubernetesRunnerImpl) CreateNetworks(ctx context.Context) error {
+func (dr *podRunnerImpl) CreateNetworks(ctx context.Context) error {
 	// return fmt.Errorf("Networks are not supported for builder.type: kubernetes")
 	return nil
 }
 
-func (dr *kubernetesRunnerImpl) DeleteNetworks(ctx context.Context) error {
+func (dr *podRunnerImpl) DeleteNetworks(ctx context.Context) error {
 	// return fmt.Errorf("Networks are not supported for builder.type: kubernetes")
 	return nil
 }
 
-func (dr *kubernetesRunnerImpl) generateEntrypointScript(shell string, commands []string, runCommandsInForeground bool) (hostPath, mountPath, entrypointFile string, err error) {
+func (dr *podRunnerImpl) generateEntrypointScript(shell string, commands []string, runCommandsInForeground bool) (hostPath, mountPath, entrypointFile string, err error) {
 
 	r, _ := regexp.Compile("[a-zA-Z0-9_]+=|export|shopt|;|cd |\\||&&|\\|\\|")
 
@@ -850,7 +772,7 @@ func (dr *kubernetesRunnerImpl) generateEntrypointScript(shell string, commands 
 	return
 }
 
-func (dr *kubernetesRunnerImpl) initContainerStartVariables(shell string, commands []string, runCommandsInForeground bool, customProperties map[string]interface{}, trustedImage *contracts.TrustedImageConfig) (cmd []string, args []string, binds []string, err error) {
+func (dr *podRunnerImpl) initContainerStartVariables(shell string, commands []string, runCommandsInForeground bool, customProperties map[string]interface{}, trustedImage *contracts.TrustedImageConfig) (cmd []string, args []string, binds []string, err error) {
 	cmd = make([]string, 0)
 	args = make([]string, 0)
 	binds = make([]string, 0)
@@ -891,7 +813,7 @@ func (dr *kubernetesRunnerImpl) initContainerStartVariables(shell string, comman
 	return
 }
 
-func (dr *kubernetesRunnerImpl) generateExtensionEnvvars(customProperties map[string]interface{}, envvars map[string]string) (extensionEnvVars map[string]string) {
+func (dr *podRunnerImpl) generateExtensionEnvvars(customProperties map[string]interface{}, envvars map[string]string) (extensionEnvVars map[string]string) {
 	extensionEnvVars = map[string]string{}
 	if customProperties != nil && len(customProperties) > 0 {
 		for k, v := range customProperties {
@@ -958,7 +880,7 @@ func (dr *kubernetesRunnerImpl) generateExtensionEnvvars(customProperties map[st
 	return
 }
 
-func (dr *kubernetesRunnerImpl) generateCredentialsFiles(trustedImage *contracts.TrustedImageConfig) (hostPath, mountPath string, err error) {
+func (dr *podRunnerImpl) generateCredentialsFiles(trustedImage *contracts.TrustedImageConfig) (hostPath, mountPath string, err error) {
 
 	if trustedImage != nil {
 		// create a tempdir to store credential files in and mount into container

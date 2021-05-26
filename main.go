@@ -90,7 +90,7 @@ func main() {
 			log.Fatal().Err(err).Msg("Failed creating kubernetes clientset")
 		}
 
-		containerRunner = builder.NewKubernetesRunner(envvarHelper, obfuscator, kubeClientset, builderConfig, tailLogsChannel)
+		containerRunner = builder.NewPodRunner(envvarHelper, obfuscator, kubeClientset, builderConfig, tailLogsChannel)
 	} else {
 		containerRunner = builder.NewDockerRunner(envvarHelper, obfuscator, builderConfig, tailLogsChannel)
 	}
