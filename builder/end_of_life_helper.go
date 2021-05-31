@@ -150,6 +150,22 @@ func (elh *endOfLifeHelperImpl) SendBuildJobLogEventCore(ctx context.Context, bu
 				log.Error().Err(err).Msgf("Failed marshalling ReleaseLog for job %v", jobName)
 				return
 			}
+		} else if *elh.config.Action == "bot" {
+			// copy buildLog to botLog and marshal that
+			botLog := contracts.BotLog{
+				ID:         buildLog.ID,
+				RepoSource: buildLog.RepoSource,
+				RepoOwner:  buildLog.RepoOwner,
+				RepoName:   buildLog.RepoName,
+				BotID:      strconv.Itoa(elh.config.BotParams.BotID),
+				Steps:      buildLog.Steps,
+				InsertedAt: buildLog.InsertedAt,
+			}
+			data, err = json.Marshal(botLog)
+			if err != nil {
+				log.Error().Err(err).Msgf("Failed marshalling BotLog for job %v", jobName)
+				return
+			}
 		} else {
 			data, err = json.Marshal(buildLog)
 			if err != nil {
