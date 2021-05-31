@@ -183,6 +183,10 @@ func (h *envvarHelperImpl) SetEstafetteBuilderConfigEnvvars(builderConfig contra
 		// set ESTAFETTE_RELEASE_ID for backwards compatibility with extensions/slack-build-status
 		h.setEstafetteEnv("ESTAFETTE_RELEASE_ID", strconv.Itoa(builderConfig.ReleaseParams.ReleaseID))
 	}
+	if builderConfig.BotParams != nil {
+		h.setEstafetteEnv("ESTAFETTE_BOT_NAME", builderConfig.BotParams.BotName)
+		h.setEstafetteEnv("ESTAFETTE_BOT_ID", strconv.Itoa(builderConfig.BotParams.BotID))
+	}
 	if builderConfig.BuildParams != nil {
 		// set ESTAFETTE_BUILD_ID for backwards compatibility with extensions/github-status and extensions/bitbucket-status and extensions/slack-build-status
 		h.setEstafetteEnv("ESTAFETTE_BUILD_ID", strconv.Itoa(builderConfig.BuildParams.BuildID))
