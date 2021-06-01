@@ -95,6 +95,23 @@ func (h *envvarHelperImpl) getCommandOutput(name string, arg ...string) (string,
 
 func (h *envvarHelperImpl) SetEstafetteGlobalEnvvars() (err error) {
 
+	// initialize build datetime envvar
+	err = h.initBuildDatetime()
+	if err != nil {
+		return err
+	}
+
+	// initialize build status envvar
+	err = h.initBuildStatus()
+	if err != nil {
+		return err
+	}
+
+	// remaining envvars are only set for gocd agent runs
+	if h.ciServer != "gocd" {
+		return
+	}
+
 	// initialize git source envvar
 	err = h.initGitSource()
 	if err != nil {
@@ -127,18 +144,6 @@ func (h *envvarHelperImpl) SetEstafetteGlobalEnvvars() (err error) {
 
 	// initialize git branch envvar
 	err = h.initGitBranch()
-	if err != nil {
-		return err
-	}
-
-	// initialize build datetime envvar
-	err = h.initBuildDatetime()
-	if err != nil {
-		return err
-	}
-
-	// initialize build status envvar
-	err = h.initBuildStatus()
 	if err != nil {
 		return err
 	}
