@@ -59,11 +59,13 @@ stages:
   clean-working-directory:
     image: golang:1.16-alpine
     commands:
-    - rm -rf ..?* .[!.]* *
+    # - rm -rf ..?* .[!.]* *
+    - mkdir -p integration-test
 
   test:
     image: estafette/estafette-ci-builder:${ESTAFETTE_BUILD_VERSION}
     env:
+      ESTAFETTE_WORKDIR: /estafette-work/integration-test
       BUILDER_CONFIG:
         '{
           "jobType":"build",
@@ -223,10 +225,12 @@ stages:
               "CustomProperties":{
                 "action":"build",
                 "no-cache":true,
+                "severity":"unknown",
                 "tag":"testtag",
-                "expand-variables":false,
+                "dontExpand":["ESTAFETTE_WORKDIR"],
                 "path":"./publish",
-                "repositories":["estafette"]
+                "repositories":["estafette"],
+                "copy":["templates","daemon.json"]
               }
             }
           ],
