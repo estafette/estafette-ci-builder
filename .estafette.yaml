@@ -131,7 +131,7 @@ stages:
                 },
                 {
                   "Name": "cockroachdb",
-                  "ContainerImage": "cockroachdb/cockroach:v19.2.0",
+                  "ContainerImage": "cockroachdb/cockroach:v21.1.1",
                   "Commands":[
                     "/cockroach/cockroach start-single-node --insecure --advertise-addr cockroachdb"
                   ],
@@ -245,11 +245,10 @@ stages:
             "repoSource":"github.com",
             "repoOwner":"estafette",
             "repoName":"estafette-ci-builder",
-            "repoBranch":"integration-test",
-            "repoRevision":"4ba7791566e3f6f69e8542183168ec9b1ad03ca7"
+            "repoBranch":"main"
           },
           "version":{
-            "version":"0.0.0-integration-test",
+            "version":"0.0.0-main",
             "major":0,
             "minor":0,
             "patch":"0",
