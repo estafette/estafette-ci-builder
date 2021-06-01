@@ -119,8 +119,9 @@ func (b *ciBuilderImpl) RunEstafetteBuildJob(pipelineRunner PipelineRunner, cont
 		endOfLifeHelper.HandleFatal(ctx, buildLog, err, "Collecting secrets to obfuscate failed")
 	}
 
-	// check whether this is a regular build or a release
 	stages := builderConfig.Stages
+
+	// check whether this is a regular build or a release
 	switch builderConfig.JobType {
 	case contracts.JobTypeBuild:
 		log.Info().Msgf("Starting build version %v...", builderConfig.Version.Version)
