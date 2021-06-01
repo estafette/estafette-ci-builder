@@ -88,7 +88,7 @@ func (dr *kubernetesRunnerImpl) GetImageSize(containerImage string) (totalSize i
 
 func (dr *kubernetesRunnerImpl) getStagePodName(stage manifest.EstafetteStage, stageIndex int) (podName string) {
 
-	podName = strings.TrimPrefix(dr.envvarHelper.GetPodName(), *dr.config.Action+"-")
+	podName = strings.TrimPrefix(dr.envvarHelper.GetPodName(), string(dr.config.JobType)+"-")
 	podName = fmt.Sprintf("stg-%v-%v", stageIndex, podName)
 
 	return

@@ -72,9 +72,9 @@ func (b *ciBuilderImpl) RunEstafetteBuildJob(pipelineRunner PipelineRunner, cont
 	}
 
 	rootSpanName := "RunBuildJob"
-	if *builderConfig.Action == "release" {
+	if builderConfig.JobType == contracts.JobTypeRelease {
 		rootSpanName = "RunReleaseJob"
-	} else if *builderConfig.Action == "bot" {
+	} else if builderConfig.JobType == contracts.JobTypeBot {
 		rootSpanName = "RunBotJob"
 	}
 
@@ -120,35 +120,16 @@ func (b *ciBuilderImpl) RunEstafetteBuildJob(pipelineRunner PipelineRunner, cont
 	}
 
 	// check whether this is a regular build or a release
-	stages := builderConfig.Manifest.Stages
-	if *builderConfig.Action == "release" {
-		// check if the release is defined
-		releaseExists := false
-		for _, r := range builderConfig.Manifest.Releases {
-			if r.Name == builderConfig.ReleaseParams.ReleaseName {
-				releaseExists = true
-				stages = r.Stages
-			}
-		}
-		if !releaseExists {
-			endOfLifeHelper.HandleFatal(ctx, buildLog, nil, fmt.Sprintf("Release %v does not exist", builderConfig.ReleaseParams.ReleaseName))
-		}
-		log.Info().Msgf("Starting release %v at version %v...", builderConfig.ReleaseParams.ReleaseName, builderConfig.BuildVersion.Version)
-	} else if *builderConfig.Action == "bot" {
-		// check if the release is defined
-		botExists := false
-		for _, b := range builderConfig.Manifest.Bots {
-			if b.Name == builderConfig.BotParams.BotName {
-				botExists = true
-				stages = b.Stages
-			}
-		}
-		if !botExists {
-			endOfLifeHelper.HandleFatal(ctx, buildLog, nil, fmt.Sprintf("Bot %v does not exist", builderConfig.BotParams.BotName))
-		}
-		log.Info().Msgf("Starting bot %v...", builderConfig.BotParams.BotName)
-	} else {
-		log.Info().Msgf("Starting build version %v...", builderConfig.BuildVersion.Version)
+	stages := builderConfig.Stages
+	switch builderConfig.JobType {
+	case contracts.JobTypeBuild:
+		log.Info().Msgf("Starting build version %v...", builderConfig.Version.Version)
+
+	case contracts.JobTypeRelease:
+		log.Info().Msgf("Starting release %v at version %v...", builderConfig.Release.Name, builderConfig.Version.Version)
+
+	case contracts.JobTypeBot:
+		log.Info().Msgf("Starting bot %v...", builderConfig.Bot.Name)
 	}
 
 	if builderConfig.Manifest != nil || builderConfig.Manifest.Builder.BuilderType != manifest.BuilderTypeKubernetes {

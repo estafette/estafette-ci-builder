@@ -66,7 +66,7 @@ stages:
     env:
       BUILDER_CONFIG:
         '{
-          "action":"build",
+          "jobType":"build",
           "track":"dev",
           "dockerConfig":{
             "runType":"dind",
@@ -236,8 +236,8 @@ stages:
             "postLogsUrl":"https://httpstat.us/200",
             "jwt":""
           },
-          "buildParams":{
-            "buildID":391855387650326531
+          "build":{
+            "ID":391855387650326531
           },
           "git":{
             "repoSource":"github.com",
@@ -246,7 +246,7 @@ stages:
             "repoBranch":"integration-test",
             "repoRevision":"4ba7791566e3f6f69e8542183168ec9b1ad03ca7"
           },
-          "buildVersion":{
+          "version":{
             "version":"0.0.0-integration-test",
             "major":0,
             "minor":0,
