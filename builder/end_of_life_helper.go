@@ -271,6 +271,23 @@ func (elh *endOfLifeHelperImpl) sendBuilderEvent(ctx context.Context, buildStatu
 			BuildID:      buildID,
 			BuildStatus:  buildStatus.ToStatus(),
 		}
+
+		// set correct status
+		switch ciBuilderEvent.JobType {
+		case contracts.JobTypeBuild:
+			if ciBuilderEvent.Build != nil {
+				ciBuilderEvent.Build.BuildStatus = buildStatus.ToStatus()
+			}
+		case contracts.JobTypeRelease:
+			if ciBuilderEvent.Release != nil {
+				ciBuilderEvent.Release.ReleaseStatus = buildStatus.ToStatus()
+			}
+		case contracts.JobTypeBot:
+			if ciBuilderEvent.Bot != nil {
+				ciBuilderEvent.Bot.BotStatus = buildStatus.ToStatus()
+			}
+		}
+
 		data, err := json.Marshal(ciBuilderEvent)
 		if err != nil {
 			log.Error().Err(err).Msgf("Failed marshalling EstafetteCiBuilderEvent for job %v", jobName)
