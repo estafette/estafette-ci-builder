@@ -99,7 +99,7 @@ func (b *ciBuilderImpl) RunEstafetteBuildJob(pipelineRunner PipelineRunner, cont
 	dockerDaemonStartSpan.Finish()
 
 	// listen to cancellation in order to stop any running pipeline or container
-	go pipelineRunner.StopPipelineOnCancellation()
+	go pipelineRunner.StopPipelineOnCancellation(ctx)
 
 	// get current working directory
 	dir := envvarHelper.GetWorkDir()

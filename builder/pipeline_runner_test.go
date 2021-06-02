@@ -296,7 +296,7 @@ func TestRunStage(t *testing.T) {
 		setDefaultMockExpectancies(containerRunnerMock)
 
 		// act
-		go pipelineRunner.StopPipelineOnCancellation()
+		go pipelineRunner.StopPipelineOnCancellation(context.Background())
 		cancellationChannel <- struct{}{}
 		time.Sleep(10 * time.Millisecond)
 		err := pipelineRunner.RunStage(context.Background(), depth, runIndex, dir, envvars, parentStage, stage, stageIndex)
@@ -330,7 +330,7 @@ func TestRunStage(t *testing.T) {
 		setDefaultMockExpectancies(containerRunnerMock)
 
 		// act
-		go pipelineRunner.StopPipelineOnCancellation()
+		go pipelineRunner.StopPipelineOnCancellation(context.Background())
 		cancellationChannel <- struct{}{}
 		time.Sleep(10 * time.Millisecond)
 		err := pipelineRunner.RunStage(context.Background(), depth, runIndex, dir, envvars, parentStage, stage, stageIndex)
@@ -957,7 +957,7 @@ func TestRunService(t *testing.T) {
 		setDefaultMockExpectancies(containerRunnerMock)
 
 		// act
-		go pipelineRunner.StopPipelineOnCancellation()
+		go pipelineRunner.StopPipelineOnCancellation(context.Background())
 		cancellationChannel <- struct{}{}
 		time.Sleep(10 * time.Millisecond)
 		err := pipelineRunner.RunService(context.Background(), envvars, parentStage, service)
@@ -989,7 +989,7 @@ func TestRunService(t *testing.T) {
 		setDefaultMockExpectancies(containerRunnerMock)
 
 		// act
-		go pipelineRunner.StopPipelineOnCancellation()
+		go pipelineRunner.StopPipelineOnCancellation(context.Background())
 		cancellationChannel <- struct{}{}
 		time.Sleep(10 * time.Millisecond)
 		err := pipelineRunner.RunService(context.Background(), envvars, parentStage, service)
@@ -1367,7 +1367,7 @@ func TestRunStages(t *testing.T) {
 		setDefaultMockExpectancies(containerRunnerMock)
 
 		// act
-		go pipelineRunner.StopPipelineOnCancellation()
+		go pipelineRunner.StopPipelineOnCancellation(context.Background())
 		cancellationChannel <- struct{}{}
 		time.Sleep(10 * time.Millisecond)
 		buildLogSteps, _ := pipelineRunner.RunStages(context.Background(), depth, stages, dir, envvars)
@@ -2597,6 +2597,6 @@ func setDefaultMockExpectancies(containerRunnerMock *MockContainerRunner) {
 	containerRunnerMock.EXPECT().RunReadinessProbeContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 	containerRunnerMock.EXPECT().CreateNetworks(gomock.Any()).Return(nil).AnyTimes()
 	containerRunnerMock.EXPECT().DeleteNetworks(gomock.Any()).Return(nil).AnyTimes()
-	containerRunnerMock.EXPECT().StopAllContainers().AnyTimes()
+	containerRunnerMock.EXPECT().StopAllContainers(gomock.Any()).AnyTimes()
 	containerRunnerMock.EXPECT().StopMultiStageServiceContainers(gomock.Any()).AnyTimes()
 }

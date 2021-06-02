@@ -26,5 +26,5 @@ type ContainerRunner interface {
 	CreateDockerClient() error
 	CreateNetworks(ctx context.Context) error
 	DeleteNetworks(ctx context.Context) error
-	StopAllContainers()
+	StopAllContainers(ctx context.Context)
 }

@@ -23,7 +23,7 @@ type PipelineRunner interface {
 	RunStages(ctx context.Context, depth int, stages []*manifest.EstafetteStage, dir string, envvars map[string]string) (buildLogSteps []*contracts.BuildLogStep, err error)
 	RunParallelStages(ctx context.Context, depth int, dir string, envvars map[string]string, parentStage manifest.EstafetteStage, parallelStages []*manifest.EstafetteStage) (err error)
 	RunServices(ctx context.Context, envvars map[string]string, parentStage manifest.EstafetteStage, services []*manifest.EstafetteService) (err error)
-	StopPipelineOnCancellation()
+	StopPipelineOnCancellation(ctx context.Context)
 	EnableBuilderInfoStageInjection()
 }
 
@@ -512,7 +512,7 @@ func (pr *pipelineRunnerImpl) RunServices(ctx context.Context, envvars map[strin
 	return
 }
 
-func (pr *pipelineRunnerImpl) StopPipelineOnCancellation() {
+func (pr *pipelineRunnerImpl) StopPipelineOnCancellation(ctx context.Context) {
 	// wait for cancellation
 	<-pr.cancellationChannel
 
@@ -520,7 +520,7 @@ func (pr *pipelineRunnerImpl) StopPipelineOnCancellation() {
 	pr.canceled = true
 	pr.cancellationMutex.Unlock()
 
-	pr.containerRunner.StopAllContainers()
+	pr.containerRunner.StopAllContainers(ctx)
 }
 
 func (pr *pipelineRunnerImpl) EnableBuilderInfoStageInjection() {

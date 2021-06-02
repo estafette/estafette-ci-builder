@@ -887,7 +887,7 @@ func (dr *dockerRunnerImpl) stopContainers(containerIDs []string) {
 	}
 }
 
-func (dr *dockerRunnerImpl) StopAllContainers() {
+func (dr *dockerRunnerImpl) StopAllContainers(ctx context.Context) {
 
 	allRunningContainerIDs := append(dr.runningStageContainerIDs, dr.runningSingleStageServiceContainerIDs...)
 	allRunningContainerIDs = append(allRunningContainerIDs, dr.runningMultiStageServiceContainerIDs...)

@@ -208,15 +208,15 @@ func (mr *MockContainerRunnerMockRecorder) StartStageContainer(ctx, depth, runIn
 }
 
 // StopAllContainers mocks base method.
-func (m *MockContainerRunner) StopAllContainers() {
+func (m *MockContainerRunner) StopAllContainers(ctx context.Context) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "StopAllContainers")
+	m.ctrl.Call(m, "StopAllContainers", ctx)
 }
 
 // StopAllContainers indicates an expected call of StopAllContainers.
-func (mr *MockContainerRunnerMockRecorder) StopAllContainers() *gomock.Call {
+func (mr *MockContainerRunnerMockRecorder) StopAllContainers(ctx interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StopAllContainers", reflect.TypeOf((*MockContainerRunner)(nil).StopAllContainers))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StopAllContainers", reflect.TypeOf((*MockContainerRunner)(nil).StopAllContainers), ctx)
 }
 
 // StopMultiStageServiceContainers mocks base method.

@@ -317,7 +317,7 @@ func (dr *kubernetesRunnerImpl) StartStageContainer(ctx context.Context, depth i
 		},
 	}
 
-	pod, err = dr.kubeClientset.CoreV1().Pods(dr.namespace).Create(pod)
+	pod, err = dr.kubeClientset.CoreV1().Pods(dr.namespace).Create(ctx, pod, metav1.CreateOptions{})
 	if err != nil {
 		return
 	}
@@ -351,12 +351,12 @@ func (dr *kubernetesRunnerImpl) TailContainerLogs(ctx context.Context, podID, pa
 	// clear container id
 	defer func() {
 		if stageType == contracts.LogTypeStage {
-			dr.runningStagePodIDs = dr.removeRunningPodIDs(dr.runningStagePodIDs, podID)
+			dr.runningStagePodIDs = dr.removeRunningPodIDs(ctx, dr.runningStagePodIDs, podID)
 		} else if stageType == contracts.LogTypeService && multiStage != nil {
 			if *multiStage {
-				dr.runningMultiStageServicePodIDss = dr.removeRunningPodIDs(dr.runningMultiStageServicePodIDss, podID)
+				dr.runningMultiStageServicePodIDss = dr.removeRunningPodIDs(ctx, dr.runningMultiStageServicePodIDss, podID)
 			} else {
-				dr.runningSingleStageServicePodIDss = dr.removeRunningPodIDs(dr.runningSingleStageServicePodIDss, podID)
+				dr.runningSingleStageServicePodIDss = dr.removeRunningPodIDs(ctx, dr.runningSingleStageServicePodIDss, podID)
 			}
 		}
 	}()
@@ -366,7 +366,7 @@ func (dr *kubernetesRunnerImpl) TailContainerLogs(ctx context.Context, podID, pa
 	// 	return
 	// }
 
-	pod, err := dr.kubeClientset.CoreV1().Pods(dr.namespace).Get(podID, metav1.GetOptions{})
+	pod, err := dr.kubeClientset.CoreV1().Pods(dr.namespace).Get(ctx, podID, metav1.GetOptions{})
 	if err != nil {
 		return
 	}
@@ -386,7 +386,7 @@ func (dr *kubernetesRunnerImpl) TailContainerLogs(ctx context.Context, podID, pa
 	}
 
 	// refresh pod status
-	pod, err = dr.kubeClientset.CoreV1().Pods(dr.namespace).Get(podID, metav1.GetOptions{})
+	pod, err = dr.kubeClientset.CoreV1().Pods(dr.namespace).Get(ctx, podID, metav1.GetOptions{})
 	if err != nil {
 		return
 	}
@@ -434,7 +434,7 @@ func (dr *kubernetesRunnerImpl) followEphemeralContainerLogs(ctx context.Context
 		Follow:    true,
 		Container: podID,
 	})
-	logsStream, err := req.Stream()
+	logsStream, err := req.Stream(ctx)
 	if err != nil {
 		return errors.Wrapf(err, "Failed opening logs stream for ephemeral container %v", podID)
 	}
@@ -507,7 +507,7 @@ func (dr *kubernetesRunnerImpl) waitWhilePodLeavesState(ctx context.Context, pod
 		// watch for pod to go into out of specified state
 		timeoutSeconds := int64(300)
 
-		watcher, err := dr.kubeClientset.CoreV1().Pods(dr.namespace).Watch(metav1.ListOptions{
+		watcher, err := dr.kubeClientset.CoreV1().Pods(dr.namespace).Watch(ctx, metav1.ListOptions{
 			LabelSelector:  labelSelector.String(),
 			TimeoutSeconds: &timeoutSeconds,
 		})
@@ -547,7 +547,7 @@ func (dr *kubernetesRunnerImpl) followPodLogs(ctx context.Context, pod *v1.Pod, 
 	req := dr.kubeClientset.CoreV1().Pods(dr.namespace).GetLogs(pod.Name, &v1.PodLogOptions{
 		Follow: true,
 	})
-	logsStream, err := req.Stream()
+	logsStream, err := req.Stream(ctx)
 	if err != nil {
 		return errors.Wrapf(err, "Failed opening logs stream for pod %v", pod.Name)
 	}
@@ -611,7 +611,7 @@ func (dr *kubernetesRunnerImpl) StopSingleStageServiceContainers(ctx context.Con
 	log.Info().Msgf("[%v] Stopping single-stage service containers...", parentStage.Name)
 
 	// the service containers should be the only ones running, so just stop all containers
-	dr.stopContainers(dr.runningSingleStageServicePodIDss)
+	dr.stopContainers(ctx, dr.runningSingleStageServicePodIDss)
 
 	log.Info().Msgf("[%v] Stopped single-stage service containers...", parentStage.Name)
 }
@@ -620,7 +620,7 @@ func (dr *kubernetesRunnerImpl) StopMultiStageServiceContainers(ctx context.Cont
 	log.Info().Msg("Stopping multi-stage service containers...")
 
 	// the service containers should be the only ones running, so just stop all containers
-	dr.stopContainers(dr.runningMultiStageServicePodIDss)
+	dr.stopContainers(ctx, dr.runningMultiStageServicePodIDss)
 
 	log.Info().Msg("Stopped multi-stage service containers...")
 }
@@ -663,13 +663,13 @@ func (dr *kubernetesRunnerImpl) HasInjectedCredentials(stageName string, contain
 	return len(credentialMap) > 0
 }
 
-func (dr *kubernetesRunnerImpl) stopContainer(podID string) error {
+func (dr *kubernetesRunnerImpl) stopContainer(ctx context.Context, podID string) error {
 
 	log.Debug().Msgf("Stopping pod with id %v", podID)
 
 	gracePeriodSeconds := int64(20)
 
-	err := dr.kubeClientset.CoreV1().Pods(dr.namespace).Delete(podID, &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriodSeconds})
+	err := dr.kubeClientset.CoreV1().Pods(dr.namespace).Delete(ctx, podID, metav1.DeleteOptions{GracePeriodSeconds: &gracePeriodSeconds})
 	if err != nil {
 		log.Warn().Err(err).Msgf("Failed stopping pod with id %v", podID)
 		return err
@@ -680,7 +680,7 @@ func (dr *kubernetesRunnerImpl) stopContainer(podID string) error {
 	return nil
 }
 
-func (dr *kubernetesRunnerImpl) stopContainers(podIDs []string) {
+func (dr *kubernetesRunnerImpl) stopContainers(ctx context.Context, podIDs []string) {
 
 	if len(podIDs) > 0 {
 		log.Info().Msgf("Stopping %v pods", len(podIDs))
@@ -691,7 +691,7 @@ func (dr *kubernetesRunnerImpl) stopContainers(podIDs []string) {
 		for _, id := range podIDs {
 			go func(id string) {
 				defer wg.Done()
-				dr.stopContainer(id)
+				dr.stopContainer(ctx, id)
 			}(id)
 		}
 
@@ -703,13 +703,13 @@ func (dr *kubernetesRunnerImpl) stopContainers(podIDs []string) {
 	}
 }
 
-func (dr *kubernetesRunnerImpl) StopAllContainers() {
+func (dr *kubernetesRunnerImpl) StopAllContainers(ctx context.Context) {
 
 	allRunningPodIDss := append(dr.runningStagePodIDs, dr.runningSingleStageServicePodIDss...)
 	allRunningPodIDss = append(allRunningPodIDss, dr.runningMultiStageServicePodIDss...)
 	allRunningPodIDss = append(allRunningPodIDss, dr.runningReadinessProbePodIDss...)
 
-	dr.stopContainers(allRunningPodIDss)
+	dr.stopContainers(ctx, allRunningPodIDss)
 }
 
 func (dr *kubernetesRunnerImpl) addRunningPodID(podIDs []string, podID string) []string {
@@ -719,7 +719,7 @@ func (dr *kubernetesRunnerImpl) addRunningPodID(podIDs []string, podID string) [
 	return append(podIDs, podID)
 }
 
-func (dr *kubernetesRunnerImpl) removeRunningPodIDs(podIDs []string, podID string) []string {
+func (dr *kubernetesRunnerImpl) removeRunningPodIDs(ctx context.Context, podIDs []string, podID string) []string {
 
 	log.Debug().Msgf("Removing pod id %v from podIDs", podID)
 
@@ -729,7 +729,7 @@ func (dr *kubernetesRunnerImpl) removeRunningPodIDs(podIDs []string, podID strin
 			purgedPodIDss = append(purgedPodIDss, id)
 		} else {
 			// remove the pod
-			err := dr.kubeClientset.CoreV1().Pods(dr.namespace).Delete(podID, &metav1.DeleteOptions{})
+			err := dr.kubeClientset.CoreV1().Pods(dr.namespace).Delete(ctx, podID, metav1.DeleteOptions{})
 			if err != nil {
 				log.Warn().Err(err).Msgf("Failed deleting pod %v", podID)
 			}

@@ -17,7 +17,6 @@ require (
 	github.com/estafette/estafette-ci-crypt v0.0.41
 	github.com/estafette/estafette-ci-manifest v0.1.190
 	github.com/estafette/estafette-foundation v0.0.69
-	github.com/gogo/protobuf v1.3.0 // indirect
 	github.com/golang/mock v1.5.0
 	github.com/gorilla/mux v1.7.3 // indirect
 	github.com/mattn/go-runewidth v0.0.4 // indirect
@@ -33,10 +32,9 @@ require (
 	github.com/sethgrid/pester v1.1.0
 	github.com/stretchr/testify v1.6.1
 	github.com/uber/jaeger-client-go v2.20.1+incompatible
-	google.golang.org/grpc v1.23.1 // indirect
-	gopkg.in/yaml.v2 v2.2.4
+	gopkg.in/yaml.v2 v2.4.0
 	gotest.tools/v3 v3.0.3 // indirect
-	k8s.io/api v0.17.0
-	k8s.io/apimachinery v0.17.0
-	k8s.io/client-go v0.17.0
+	k8s.io/api v0.21.1
+	k8s.io/apimachinery v0.21.1
+	k8s.io/client-go v0.21.1
 )
