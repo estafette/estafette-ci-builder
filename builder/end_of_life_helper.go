@@ -251,9 +251,17 @@ func (elh *endOfLifeHelperImpl) sendBuilderEvent(ctx context.Context, buildStatu
 			releaseID = elh.config.Release.ID
 		}
 
-		ciBuilderEvent := EstafetteCiBuilderEvent{
-			JobName:      jobName,
-			PodName:      elh.podName,
+		ciBuilderEvent := contracts.EstafetteCiBuilderEvent{
+			JobType: elh.config.JobType,
+			Build:   elh.config.Build,
+			Release: elh.config.Release,
+			Bot:     elh.config.Bot,
+			Git:     elh.config.Git,
+
+			JobName: jobName,
+			PodName: elh.podName,
+
+			// deprecated
 			RepoSource:   elh.config.Git.RepoSource,
 			RepoOwner:    elh.config.Git.RepoOwner,
 			RepoName:     elh.config.Git.RepoName,
