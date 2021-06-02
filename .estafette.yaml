@@ -46,7 +46,7 @@ stages:
       bake-gocd-agent:
         image: extensions/docker:dev
         action: build
-        severity: unknown
+        severity: high
         no-cache: true
         versionTagSuffix: gocd
         repositories:
