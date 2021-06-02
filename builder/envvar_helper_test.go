@@ -470,7 +470,7 @@ func TestSetEstafetteEventEnvvars(t *testing.T) {
 		}
 
 		// act
-		envvarHelper.setEstafetteEventEnvvars([]*manifest.EstafetteEvent{&event})
+		envvarHelper.setEstafetteEventEnvvars([]manifest.EstafetteEvent{event})
 
 		envvars := envvarHelper.collectEstafetteEnvvars()
 		assert.Equal(t, 14, len(envvars))
@@ -501,7 +501,7 @@ func TestSetEstafetteEventEnvvars(t *testing.T) {
 		}
 
 		// act
-		envvarHelper.setEstafetteEventEnvvars([]*manifest.EstafetteEvent{&event})
+		envvarHelper.setEstafetteEventEnvvars([]manifest.EstafetteEvent{event})
 
 		_ = envvarHelper.collectEstafetteEnvvars()
 		assert.Equal(t, "1.0.50-some-branch", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_UPSTREAM_BUILD_VERSION"))
@@ -530,7 +530,7 @@ func TestSetEstafetteEventEnvvars(t *testing.T) {
 		}
 
 		// act
-		envvarHelper.setEstafetteEventEnvvars([]*manifest.EstafetteEvent{&event})
+		envvarHelper.setEstafetteEventEnvvars([]manifest.EstafetteEvent{event})
 
 		envvars := envvarHelper.collectEstafetteEnvvars()
 		assert.Equal(t, 14, len(envvars))
@@ -556,7 +556,7 @@ func TestSetEstafetteEventEnvvars(t *testing.T) {
 		}
 
 		// act
-		envvarHelper.setEstafetteEventEnvvars([]*manifest.EstafetteEvent{&event})
+		envvarHelper.setEstafetteEventEnvvars([]manifest.EstafetteEvent{event})
 
 		envvars := envvarHelper.collectEstafetteEnvvars()
 		assert.Equal(t, 6, len(envvars))
@@ -576,7 +576,7 @@ func TestSetEstafetteEventEnvvars(t *testing.T) {
 		}
 
 		// act
-		envvarHelper.setEstafetteEventEnvvars([]*manifest.EstafetteEvent{&event})
+		envvarHelper.setEstafetteEventEnvvars([]manifest.EstafetteEvent{event})
 
 		envvars := envvarHelper.collectEstafetteEnvvars()
 		assert.Equal(t, 2, len(envvars))
@@ -594,7 +594,7 @@ func TestSetEstafetteEventEnvvars(t *testing.T) {
 		}
 
 		// act
-		envvarHelper.setEstafetteEventEnvvars([]*manifest.EstafetteEvent{&event})
+		envvarHelper.setEstafetteEventEnvvars([]manifest.EstafetteEvent{event})
 
 		envvars := envvarHelper.collectEstafetteEnvvars()
 		assert.Equal(t, 2, len(envvars))

@@ -24,7 +24,7 @@ type EnvvarHelper interface {
 	getCommandOutput(string, ...string) (string, error)
 	SetEstafetteGlobalEnvvars() error
 	SetEstafetteBuilderConfigEnvvars(builderConfig contracts.BuilderConfig) error
-	setEstafetteEventEnvvars(events []*manifest.EstafetteEvent) error
+	setEstafetteEventEnvvars(events []manifest.EstafetteEvent) error
 	initGitSource() error
 	initGitOwner() error
 	initGitName() error
@@ -95,6 +95,23 @@ func (h *envvarHelperImpl) getCommandOutput(name string, arg ...string) (string,
 
 func (h *envvarHelperImpl) SetEstafetteGlobalEnvvars() (err error) {
 
+	// initialize build datetime envvar
+	err = h.initBuildDatetime()
+	if err != nil {
+		return err
+	}
+
+	// initialize build status envvar
+	err = h.initBuildStatus()
+	if err != nil {
+		return err
+	}
+
+	// remaining envvars are only set for gocd agent runs
+	if h.ciServer != "gocd" {
+		return
+	}
+
 	// initialize git source envvar
 	err = h.initGitSource()
 	if err != nil {
@@ -131,18 +148,6 @@ func (h *envvarHelperImpl) SetEstafetteGlobalEnvvars() (err error) {
 		return err
 	}
 
-	// initialize build datetime envvar
-	err = h.initBuildDatetime()
-	if err != nil {
-		return err
-	}
-
-	// initialize build status envvar
-	err = h.initBuildStatus()
-	if err != nil {
-		return err
-	}
-
 	return
 }
 
@@ -155,41 +160,50 @@ func (h *envvarHelperImpl) SetEstafetteBuilderConfigEnvvars(builderConfig contra
 
 	h.setEstafetteEnv("ESTAFETTE_GIT_BRANCH", builderConfig.Git.RepoBranch)
 	h.setEstafetteEnv("ESTAFETTE_GIT_REVISION", builderConfig.Git.RepoRevision)
-	h.setEstafetteEnv("ESTAFETTE_BUILD_VERSION", builderConfig.BuildVersion.Version)
-	if builderConfig.BuildVersion != nil && builderConfig.BuildVersion.Major != nil {
-		h.setEstafetteEnv("ESTAFETTE_BUILD_VERSION_MAJOR", strconv.Itoa(*builderConfig.BuildVersion.Major))
+	h.setEstafetteEnv("ESTAFETTE_BUILD_VERSION", builderConfig.Version.Version)
+	if builderConfig.Version != nil && builderConfig.Version.Major != nil {
+		h.setEstafetteEnv("ESTAFETTE_BUILD_VERSION_MAJOR", strconv.Itoa(*builderConfig.Version.Major))
 	}
-	if builderConfig.BuildVersion != nil && builderConfig.BuildVersion.Minor != nil {
-		h.setEstafetteEnv("ESTAFETTE_BUILD_VERSION_MINOR", strconv.Itoa(*builderConfig.BuildVersion.Minor))
+	if builderConfig.Version != nil && builderConfig.Version.Minor != nil {
+		h.setEstafetteEnv("ESTAFETTE_BUILD_VERSION_MINOR", strconv.Itoa(*builderConfig.Version.Minor))
 	}
-	if builderConfig.BuildVersion != nil && builderConfig.BuildVersion.AutoIncrement != nil {
-		h.setEstafetteEnv("ESTAFETTE_BUILD_VERSION_PATCH", strconv.Itoa(*builderConfig.BuildVersion.AutoIncrement))
+	if builderConfig.Version != nil && builderConfig.Version.AutoIncrement != nil {
+		h.setEstafetteEnv("ESTAFETTE_BUILD_VERSION_PATCH", strconv.Itoa(*builderConfig.Version.AutoIncrement))
 	}
-	if builderConfig.BuildVersion != nil && builderConfig.BuildVersion.Label != nil {
-		h.setEstafetteEnv("ESTAFETTE_BUILD_VERSION_LABEL", *builderConfig.BuildVersion.Label)
+	if builderConfig.Version != nil && builderConfig.Version.Label != nil {
+		h.setEstafetteEnv("ESTAFETTE_BUILD_VERSION_LABEL", *builderConfig.Version.Label)
 	}
 
 	// set counters to enable release locking for older revisions inside extensions
-	if builderConfig.BuildVersion != nil {
-		h.setEstafetteEnv("ESTAFETTE_BUILD_CURRENT_COUNTER", strconv.Itoa(builderConfig.BuildVersion.CurrentCounter))
-		h.setEstafetteEnv("ESTAFETTE_BUILD_MAX_COUNTER", strconv.Itoa(builderConfig.BuildVersion.MaxCounter))
-		h.setEstafetteEnv("ESTAFETTE_BUILD_MAX_COUNTER_CURRENT_BRANCH", strconv.Itoa(builderConfig.BuildVersion.MaxCounterCurrentBranch))
+	if builderConfig.Version != nil {
+		h.setEstafetteEnv("ESTAFETTE_BUILD_CURRENT_COUNTER", strconv.Itoa(builderConfig.Version.CurrentCounter))
+		h.setEstafetteEnv("ESTAFETTE_BUILD_MAX_COUNTER", strconv.Itoa(builderConfig.Version.MaxCounter))
+		h.setEstafetteEnv("ESTAFETTE_BUILD_MAX_COUNTER_CURRENT_BRANCH", strconv.Itoa(builderConfig.Version.MaxCounterCurrentBranch))
 	}
 
-	if builderConfig.ReleaseParams != nil {
-		h.setEstafetteEnv("ESTAFETTE_RELEASE_NAME", builderConfig.ReleaseParams.ReleaseName)
-		h.setEstafetteEnv("ESTAFETTE_RELEASE_ACTION", builderConfig.ReleaseParams.ReleaseAction)
-		h.setEstafetteEnv("ESTAFETTE_RELEASE_TRIGGERED_BY", builderConfig.ReleaseParams.TriggeredBy)
-		// set ESTAFETTE_RELEASE_ID for backwards compatibility with extensions/slack-build-status
-		h.setEstafetteEnv("ESTAFETTE_RELEASE_ID", strconv.Itoa(builderConfig.ReleaseParams.ReleaseID))
-	}
-	if builderConfig.BotParams != nil {
-		h.setEstafetteEnv("ESTAFETTE_BOT_NAME", builderConfig.BotParams.BotName)
-		h.setEstafetteEnv("ESTAFETTE_BOT_ID", strconv.Itoa(builderConfig.BotParams.BotID))
-	}
-	if builderConfig.BuildParams != nil {
+	if builderConfig.Build != nil {
 		// set ESTAFETTE_BUILD_ID for backwards compatibility with extensions/github-status and extensions/bitbucket-status and extensions/slack-build-status
-		h.setEstafetteEnv("ESTAFETTE_BUILD_ID", strconv.Itoa(builderConfig.BuildParams.BuildID))
+		h.setEstafetteEnv("ESTAFETTE_BUILD_ID", builderConfig.Build.ID)
+	}
+	if builderConfig.Release != nil {
+		h.setEstafetteEnv("ESTAFETTE_RELEASE_NAME", builderConfig.Release.Name)
+		h.setEstafetteEnv("ESTAFETTE_RELEASE_ACTION", builderConfig.Release.Action)
+		// set ESTAFETTE_RELEASE_ID for backwards compatibility with extensions/slack-build-status
+		h.setEstafetteEnv("ESTAFETTE_RELEASE_ID", builderConfig.Release.ID)
+
+		triggeredBy := ""
+		if len(builderConfig.Events) > 0 {
+			for _, e := range builderConfig.Events {
+				if e.Manual != nil {
+					triggeredBy = e.Manual.UserID
+				}
+			}
+		}
+		h.setEstafetteEnv("ESTAFETTE_RELEASE_TRIGGERED_BY", triggeredBy)
+	}
+	if builderConfig.Bot != nil {
+		h.setEstafetteEnv("ESTAFETTE_BOT_NAME", builderConfig.Bot.Name)
+		h.setEstafetteEnv("ESTAFETTE_BOT_ID", builderConfig.Bot.ID)
 	}
 
 	// set ESTAFETTE_CI_SERVER_BASE_URL for backwards compatibility with extensions/github-status and extensions/bitbucket-status and extensions/slack-build-status
@@ -200,16 +214,12 @@ func (h *envvarHelperImpl) SetEstafetteBuilderConfigEnvvars(builderConfig contra
 	return h.setEstafetteEventEnvvars(builderConfig.Events)
 }
 
-func (h *envvarHelperImpl) setEstafetteEventEnvvars(events []*manifest.EstafetteEvent) (err error) {
+func (h *envvarHelperImpl) setEstafetteEventEnvvars(events []manifest.EstafetteEvent) (err error) {
 
 	if events != nil {
 		for _, e := range events {
-			if e == nil {
-				continue
-			}
-
-			triggerFields := reflect.TypeOf(*e)
-			triggerValues := reflect.ValueOf(*e)
+			triggerFields := reflect.TypeOf(e)
+			triggerValues := reflect.ValueOf(e)
 
 			for i := 0; i < triggerFields.NumField(); i++ {
 

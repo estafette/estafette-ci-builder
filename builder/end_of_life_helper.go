@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"strconv"
 	"time"
 
 	contracts "github.com/estafette/estafette-ci-contracts"
@@ -134,14 +133,14 @@ func (elh *endOfLifeHelperImpl) SendBuildJobLogEventCore(ctx context.Context, bu
 		var requestBody io.Reader
 
 		var data []byte
-		if *elh.config.Action == "release" {
+		if elh.config.JobType == contracts.JobTypeRelease {
 			// copy buildLog to releaseLog and marshal that
 			releaseLog := contracts.ReleaseLog{
 				ID:         buildLog.ID,
 				RepoSource: buildLog.RepoSource,
 				RepoOwner:  buildLog.RepoOwner,
 				RepoName:   buildLog.RepoName,
-				ReleaseID:  strconv.Itoa(elh.config.ReleaseParams.ReleaseID),
+				ReleaseID:  elh.config.Release.ID,
 				Steps:      buildLog.Steps,
 				InsertedAt: buildLog.InsertedAt,
 			}
@@ -150,14 +149,14 @@ func (elh *endOfLifeHelperImpl) SendBuildJobLogEventCore(ctx context.Context, bu
 				log.Error().Err(err).Msgf("Failed marshalling ReleaseLog for job %v", jobName)
 				return
 			}
-		} else if *elh.config.Action == "bot" {
+		} else if elh.config.JobType == contracts.JobTypeBot {
 			// copy buildLog to botLog and marshal that
 			botLog := contracts.BotLog{
 				ID:         buildLog.ID,
 				RepoSource: buildLog.RepoSource,
 				RepoOwner:  buildLog.RepoOwner,
 				RepoName:   buildLog.RepoName,
-				BotID:      strconv.Itoa(elh.config.BotParams.BotID),
+				BotID:      elh.config.Bot.ID,
 				Steps:      buildLog.Steps,
 				InsertedAt: buildLog.InsertedAt,
 			}
@@ -243,13 +242,13 @@ func (elh *endOfLifeHelperImpl) sendBuilderEvent(ctx context.Context, buildStatu
 		var requestBody io.Reader
 
 		buildID := ""
-		if elh.config.BuildParams != nil {
-			buildID = strconv.Itoa(elh.config.BuildParams.BuildID)
+		if elh.config.Build != nil {
+			buildID = elh.config.Build.ID
 		}
 
 		releaseID := ""
-		if elh.config.ReleaseParams != nil {
-			releaseID = strconv.Itoa(elh.config.ReleaseParams.ReleaseID)
+		if elh.config.Release != nil {
+			releaseID = elh.config.Release.ID
 		}
 
 		ciBuilderEvent := EstafetteCiBuilderEvent{
