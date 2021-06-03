@@ -241,16 +241,6 @@ func (elh *endOfLifeHelperImpl) sendBuilderEvent(ctx context.Context, buildStatu
 		// convert EstafetteCiBuilderEvent to json
 		var requestBody io.Reader
 
-		buildID := ""
-		if elh.config.Build != nil {
-			buildID = elh.config.Build.ID
-		}
-
-		releaseID := ""
-		if elh.config.Release != nil {
-			releaseID = elh.config.Release.ID
-		}
-
 		ciBuilderEvent := contracts.EstafetteCiBuilderEvent{
 			JobType: elh.config.JobType,
 			Build:   elh.config.Build,
