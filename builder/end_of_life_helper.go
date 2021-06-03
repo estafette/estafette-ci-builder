@@ -260,33 +260,10 @@ func (elh *endOfLifeHelperImpl) sendBuilderEvent(ctx context.Context, buildStatu
 
 			JobName: jobName,
 			PodName: elh.podName,
-
-			// deprecated
-			RepoSource:   elh.config.Git.RepoSource,
-			RepoOwner:    elh.config.Git.RepoOwner,
-			RepoName:     elh.config.Git.RepoName,
-			RepoBranch:   elh.config.Git.RepoBranch,
-			RepoRevision: elh.config.Git.RepoRevision,
-			ReleaseID:    releaseID,
-			BuildID:      buildID,
-			BuildStatus:  buildStatus.ToStatus(),
 		}
 
-		// set correct status
-		switch ciBuilderEvent.JobType {
-		case contracts.JobTypeBuild:
-			if ciBuilderEvent.Build != nil {
-				ciBuilderEvent.Build.BuildStatus = buildStatus.ToStatus()
-			}
-		case contracts.JobTypeRelease:
-			if ciBuilderEvent.Release != nil {
-				ciBuilderEvent.Release.ReleaseStatus = buildStatus.ToStatus()
-			}
-		case contracts.JobTypeBot:
-			if ciBuilderEvent.Bot != nil {
-				ciBuilderEvent.Bot.BotStatus = buildStatus.ToStatus()
-			}
-		}
+		// update status
+		ciBuilderEvent.SetStatus(buildStatus.ToStatus())
 
 		data, err := json.Marshal(ciBuilderEvent)
 		if err != nil {
