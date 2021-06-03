@@ -215,23 +215,22 @@ func (elh *endOfLifeHelperImpl) SendBuildJobLogEventCore(ctx context.Context, bu
 
 func (elh *endOfLifeHelperImpl) SendBuildStartedEvent(ctx context.Context) error {
 	buildStatus := contracts.LogStatusRunning
-	return elh.sendBuilderEvent(ctx, buildStatus, fmt.Sprintf("builder:%v", buildStatus.ToStatus()), contracts.BuildEventTypeUpdateStatus)
+	return elh.sendBuilderEvent(ctx, buildStatus, contracts.BuildEventTypeUpdateStatus)
 }
 
 func (elh *endOfLifeHelperImpl) SendBuildFinishedEvent(ctx context.Context, buildStatus contracts.LogStatus) error {
-	return elh.sendBuilderEvent(ctx, buildStatus, fmt.Sprintf("builder:%v", buildStatus.ToStatus()), contracts.BuildEventTypeUpdateStatus)
+	return elh.sendBuilderEvent(ctx, buildStatus, contracts.BuildEventTypeUpdateStatus)
 }
 
 func (elh *endOfLifeHelperImpl) SendBuildCleanEvent(ctx context.Context, buildStatus contracts.LogStatus) error {
-	return elh.sendBuilderEvent(ctx, buildStatus, "builder:clean", contracts.BuildEventTypeClean)
+	return elh.sendBuilderEvent(ctx, buildStatus, contracts.BuildEventTypeClean)
 }
 
-func (elh *endOfLifeHelperImpl) sendBuilderEvent(ctx context.Context, buildStatus contracts.LogStatus, event string, buildEventType contracts.BuildEventType) (err error) {
+func (elh *endOfLifeHelperImpl) sendBuilderEvent(ctx context.Context, buildStatus contracts.LogStatus, buildEventType contracts.BuildEventType) (err error) {
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "SendBuildStatus")
 	defer span.Finish()
 	span.SetTag("build-status", buildStatus.ToStatus())
-	span.SetTag("event-type", event)
 
 	ciServerBuilderEventsURL := elh.config.CIServer.BuilderEventsURL
 	jwt := elh.config.CIServer.JWT
@@ -282,7 +281,6 @@ func (elh *endOfLifeHelperImpl) sendBuilderEvent(ctx context.Context, buildStatu
 		request, ht := nethttp.TraceRequest(span.Tracer(), request)
 
 		// add headers
-		request.Header.Add("X-Estafette-Event", event)
 		request.Header.Add("X-Estafette-Event-Job-Name", jobName)
 		request.Header.Add("Authorization", fmt.Sprintf("Bearer %v", jwt))
 
@@ -300,7 +298,7 @@ func (elh *endOfLifeHelperImpl) sendBuilderEvent(ctx context.Context, buildStatu
 		defer response.Body.Close()
 		ht.Finish()
 
-		log.Debug().Str("pesterLogs", client.LogString()).Str("url", ciServerBuilderEventsURL).Msgf("Succesfully sent %v event to api", event)
+		log.Debug().Str("pesterLogs", client.LogString()).Str("url", ciServerBuilderEventsURL).Msgf("Succesfully sent build event type '%v' to api", buildEventType)
 	}
 
 	return nil
