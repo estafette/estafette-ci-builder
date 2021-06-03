@@ -215,18 +215,18 @@ func (elh *endOfLifeHelperImpl) SendBuildJobLogEventCore(ctx context.Context, bu
 
 func (elh *endOfLifeHelperImpl) SendBuildStartedEvent(ctx context.Context) error {
 	buildStatus := contracts.LogStatusRunning
-	return elh.sendBuilderEvent(ctx, buildStatus, fmt.Sprintf("builder:%v", buildStatus.ToStatus()))
+	return elh.sendBuilderEvent(ctx, buildStatus, fmt.Sprintf("builder:%v", buildStatus.ToStatus()), contracts.BuildEventUpdateStatus)
 }
 
 func (elh *endOfLifeHelperImpl) SendBuildFinishedEvent(ctx context.Context, buildStatus contracts.LogStatus) error {
-	return elh.sendBuilderEvent(ctx, buildStatus, fmt.Sprintf("builder:%v", buildStatus.ToStatus()))
+	return elh.sendBuilderEvent(ctx, buildStatus, fmt.Sprintf("builder:%v", buildStatus.ToStatus()), contracts.BuildEventUpdateStatus)
 }
 
 func (elh *endOfLifeHelperImpl) SendBuildCleanEvent(ctx context.Context, buildStatus contracts.LogStatus) error {
-	return elh.sendBuilderEvent(ctx, buildStatus, "builder:clean")
+	return elh.sendBuilderEvent(ctx, buildStatus, "builder:clean", contracts.BuildEventClean)
 }
 
-func (elh *endOfLifeHelperImpl) sendBuilderEvent(ctx context.Context, buildStatus contracts.LogStatus, event string) (err error) {
+func (elh *endOfLifeHelperImpl) sendBuilderEvent(ctx context.Context, buildStatus contracts.LogStatus, event string, buildEvent contracts.BuildEvent) (err error) {
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "SendBuildStatus")
 	defer span.Finish()
@@ -242,11 +242,12 @@ func (elh *endOfLifeHelperImpl) sendBuilderEvent(ctx context.Context, buildStatu
 		var requestBody io.Reader
 
 		ciBuilderEvent := contracts.EstafetteCiBuilderEvent{
-			JobType: elh.config.JobType,
-			Build:   elh.config.Build,
-			Release: elh.config.Release,
-			Bot:     elh.config.Bot,
-			Git:     elh.config.Git,
+			BuildEvent: buildEvent,
+			JobType:    elh.config.JobType,
+			Build:      elh.config.Build,
+			Release:    elh.config.Release,
+			Bot:        elh.config.Bot,
+			Git:        elh.config.Git,
 
 			JobName: jobName,
 			PodName: elh.podName,
