@@ -256,8 +256,8 @@ github.com/estafette/estafette-ci-contracts v0.0.260/go.mod h1:2+SgA9LFXxI3q8SJX
 github.com/estafette/estafette-ci-crypt v0.0.41 h1:0dyy3TAC3+BMG72D1M9mKgYBQFY5QNF488asfwfSJP8=
 github.com/estafette/estafette-ci-crypt v0.0.41/go.mod h1:yODzGbzW7Jj0xEFjAv1Is+FHcYaugHUtrPdkJdHV8/c=
 github.com/estafette/estafette-ci-manifest v0.1.190/go.mod h1:WASkc3SCW6ghRv6IimS7e2dUJljwn+5izBXt+ATxp2Q=
-github.com/estafette/estafette-ci-manifest v0.1.191 h1:9YEaxGW5hJgF8NIYg2m9u4bdZEknQXVKzTMhukMVzhQ=
-github.com/estafette/estafette-ci-manifest v0.1.191/go.mod h1:WASkc3SCW6ghRv6IimS7e2dUJljwn+5izBXt+ATxp2Q=
+github.com/estafette/estafette-ci-manifest v0.1.192 h1:UO8YPlIU59406O1HJZtDDLqlwGXN2AJSLnRNnou41xc=
+github.com/estafette/estafette-ci-manifest v0.1.192/go.mod h1:WASkc3SCW6ghRv6IimS7e2dUJljwn+5izBXt+ATxp2Q=
 github.com/estafette/estafette-foundation v0.0.54/go.mod h1:3tosAek4nyGDaWbi9dz2jSb2Wa4dAtLw/7c7mDWwaLA=
 github.com/estafette/estafette-foundation v0.0.69 h1:KzAOoFy6IEBibs8NGDV15jeyWrEf0F5szerjCsPizNQ=
 github.com/estafette/estafette-foundation v0.0.69/go.mod h1:JCPoeHhk9b8Jom1Vf5wwIfkDvrdXCKxEtmDdDc+1ISg=
