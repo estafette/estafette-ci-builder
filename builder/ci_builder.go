@@ -49,11 +49,6 @@ func (b *ciBuilderImpl) RunEstafetteBuildJob(pipelineRunner PipelineRunner, cont
 	closer := b.initJaeger(b.applicationInfo.App)
 	defer closer.Close()
 
-	// unset all ESTAFETTE_ envvars so they don't get abused by non-estafette components
-	envvarHelper.UnsetEstafetteEnvvars()
-
-	envvarHelper.SetEstafetteBuilderConfigEnvvars(builderConfig)
-
 	buildLog := contracts.BuildLog{
 		RepoSource:   builderConfig.Git.RepoSource,
 		RepoOwner:    builderConfig.Git.RepoOwner,
@@ -61,14 +56,6 @@ func (b *ciBuilderImpl) RunEstafetteBuildJob(pipelineRunner PipelineRunner, cont
 		RepoBranch:   builderConfig.Git.RepoBranch,
 		RepoRevision: builderConfig.Git.RepoRevision,
 		Steps:        make([]*contracts.BuildLogStep, 0),
-	}
-
-	if os.Getenv("ESTAFETTE_LOG_FORMAT") == "v3" {
-		// set some default fields added to all logs
-		log.Logger = log.Logger.With().
-			Str("jobName", *builderConfig.JobName).
-			Interface("git", builderConfig.Git).
-			Logger()
 	}
 
 	rootSpanName := "RunBuildJob"
@@ -87,9 +74,25 @@ func (b *ciBuilderImpl) RunEstafetteBuildJob(pipelineRunner PipelineRunner, cont
 	// set running state, so a restarted job will show up as running once a new pod runs
 	_ = endOfLifeHelper.SendBuildStartedEvent(ctx)
 
+	// unset all ESTAFETTE_ envvars so they don't get abused by non-estafette components
+	envvarHelper.UnsetEstafetteEnvvars()
+
+	err := envvarHelper.SetEstafetteBuilderConfigEnvvars(builderConfig)
+	if err != nil {
+		endOfLifeHelper.HandleFatal(ctx, buildLog, err, "Error setting estafette builder config envvars")
+	}
+
+	if os.Getenv("ESTAFETTE_LOG_FORMAT") == "v3" {
+		// set some default fields added to all logs
+		log.Logger = log.Logger.With().
+			Str("jobName", *builderConfig.JobName).
+			Interface("git", builderConfig.Git).
+			Logger()
+	}
+
 	// start docker daemon
 	dockerDaemonStartSpan, _ := opentracing.StartSpanFromContext(ctx, "StartDockerDaemon")
-	err := containerRunner.StartDockerDaemon()
+	err = containerRunner.StartDockerDaemon()
 	if err != nil {
 		endOfLifeHelper.HandleFatal(ctx, buildLog, err, "Error starting docker daemon")
 	}
@@ -143,7 +146,11 @@ func (b *ciBuilderImpl) RunEstafetteBuildJob(pipelineRunner PipelineRunner, cont
 
 	// collect estafette envvars and run stages from manifest
 	log.Info().Msgf("Running %v stages", len(stages))
-	estafetteEnvvars := envvarHelper.CollectEstafetteEnvvarsAndLabels(*builderConfig.Manifest)
+	estafetteEnvvars, err := envvarHelper.CollectEstafetteEnvvarsAndLabels(*builderConfig.Manifest)
+	if err != nil {
+		endOfLifeHelper.HandleFatal(ctx, buildLog, err, "CollectEstafetteEnvvarsAndLabels failed")
+	}
+
 	globalEnvvars := envvarHelper.CollectGlobalEnvvars(*builderConfig.Manifest)
 	envvars := envvarHelper.OverrideEnvvars(estafetteEnvvars, globalEnvvars)
 
@@ -228,7 +235,11 @@ func (b *ciBuilderImpl) RunGocdAgentBuild(pipelineRunner PipelineRunner, contain
 	}
 
 	// collect estafette and 'global' envvars from manifest
-	estafetteEnvvars := envvarHelper.CollectEstafetteEnvvarsAndLabels(manifest)
+	estafetteEnvvars, err := envvarHelper.CollectEstafetteEnvvarsAndLabels(manifest)
+	if err != nil {
+		fatalHandler.HandleGocdFatal(err, "CollectEstafetteEnvvarsAndLabels failed")
+	}
+
 	globalEnvvars := envvarHelper.CollectGlobalEnvvars(manifest)
 
 	// merge estafette and global envvars

@@ -94,9 +94,9 @@ func (dr *kubernetesRunnerImpl) getStagePodName(stage manifest.EstafetteStage, s
 	return
 }
 
-func (dr *kubernetesRunnerImpl) getEphemeralContainerName(stage manifest.EstafetteStage) (podName string) {
-	return fmt.Sprintf("%v-%v", stage.Name, generateRandomString(5))
-}
+// func (dr *kubernetesRunnerImpl) getEphemeralContainerName(stage manifest.EstafetteStage) (podName string) {
+// 	return fmt.Sprintf("%v-%v", stage.Name, generateRandomString(5))
+// }
 
 func (dr *kubernetesRunnerImpl) StartStageContainer(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, stage manifest.EstafetteStage, stageIndex int) (podID string, err error) {
 
@@ -138,10 +138,8 @@ func (dr *kubernetesRunnerImpl) StartStageContainer(ctx context.Context, depth i
 
 	// define docker envvars and expand ESTAFETTE_ variables
 	kubernetesEnvVars := make([]v1.EnvVar, 0)
-	if len(combinedEnvVars) > 0 {
-		for k, v := range combinedEnvVars {
-			kubernetesEnvVars = append(kubernetesEnvVars, v1.EnvVar{Name: k, Value: os.Expand(v, dr.envvarHelper.getEstafetteEnv)})
-		}
+	for k, v := range combinedEnvVars {
+		kubernetesEnvVars = append(kubernetesEnvVars, v1.EnvVar{Name: k, Value: os.Expand(v, dr.envvarHelper.getEstafetteEnv)})
 	}
 
 	// define binds
@@ -317,7 +315,7 @@ func (dr *kubernetesRunnerImpl) StartStageContainer(ctx context.Context, depth i
 		},
 	}
 
-	pod, err = dr.kubeClientset.CoreV1().Pods(dr.namespace).Create(ctx, pod, metav1.CreateOptions{})
+	_, err = dr.kubeClientset.CoreV1().Pods(dr.namespace).Create(ctx, pod, metav1.CreateOptions{})
 	if err != nil {
 		return
 	}
@@ -425,74 +423,74 @@ func (dr *kubernetesRunnerImpl) TailContainerLogs(ctx context.Context, podID, pa
 	return
 }
 
-func (dr *kubernetesRunnerImpl) followEphemeralContainerLogs(ctx context.Context, podID string, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int) (err error) {
-	log.Debug().Msg("TailContainerLogs - pod has running state...")
+// func (dr *kubernetesRunnerImpl) followEphemeralContainerLogs(ctx context.Context, podID string, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int) (err error) {
+// 	log.Debug().Msg("TailContainerLogs - pod has running state...")
 
-	lineNumber := 1
+// 	lineNumber := 1
 
-	req := dr.kubeClientset.CoreV1().Pods(dr.namespace).GetLogs(dr.envvarHelper.GetPodName(), &v1.PodLogOptions{
-		Follow:    true,
-		Container: podID,
-	})
-	logsStream, err := req.Stream(ctx)
-	if err != nil {
-		return errors.Wrapf(err, "Failed opening logs stream for ephemeral container %v", podID)
-	}
-	defer logsStream.Close()
+// 	req := dr.kubeClientset.CoreV1().Pods(dr.namespace).GetLogs(dr.envvarHelper.GetPodName(), &v1.PodLogOptions{
+// 		Follow:    true,
+// 		Container: podID,
+// 	})
+// 	logsStream, err := req.Stream(ctx)
+// 	if err != nil {
+// 		return errors.Wrapf(err, "Failed opening logs stream for ephemeral container %v", podID)
+// 	}
+// 	defer logsStream.Close()
 
-	reader := bufio.NewReader(logsStream)
-	for {
-		line, err := reader.ReadBytes('\n')
-		if err == io.EOF {
-			log.Debug().Msgf("EOF in logs stream for ephemeral container %v, exiting tailing", podID)
-			break
-		}
-		if err != nil {
-			return err
-		}
+// 	reader := bufio.NewReader(logsStream)
+// 	for {
+// 		line, err := reader.ReadBytes('\n')
+// 		if err == io.EOF {
+// 			log.Debug().Msgf("EOF in logs stream for ephemeral container %v, exiting tailing", podID)
+// 			break
+// 		}
+// 		if err != nil {
+// 			return err
+// 		}
 
-		// first byte contains the streamType
-		// -   0: stdin (will be written on stdout)
-		// -   1: stdout
-		// -   2: stderr
-		// -   3: system error
-		streamType := "stdout"
-		// switch headers[0] {
-		// case 1:
-		// 	streamType = "stdout"
-		// case 2:
-		// 	streamType = "stderr"
-		// default:
-		// 	continue
-		// }
+// 		// first byte contains the streamType
+// 		// -   0: stdin (will be written on stdout)
+// 		// -   1: stdout
+// 		// -   2: stderr
+// 		// -   3: system error
+// 		streamType := "stdout"
+// 		// switch headers[0] {
+// 		// case 1:
+// 		// 	streamType = "stdout"
+// 		// case 2:
+// 		// 	streamType = "stderr"
+// 		// default:
+// 		// 	continue
+// 		// }
 
-		// strip headers and obfuscate secret values
-		logLineString := dr.obfuscator.Obfuscate(string(line))
+// 		// strip headers and obfuscate secret values
+// 		logLineString := dr.obfuscator.Obfuscate(string(line))
 
-		// create object for tailing logs and storing in the db when done
-		logLineObject := contracts.BuildLogLine{
-			LineNumber: lineNumber,
-			Timestamp:  time.Now().UTC(),
-			StreamType: streamType,
-			Text:       logLineString,
-		}
-		lineNumber++
+// 		// create object for tailing logs and storing in the db when done
+// 		logLineObject := contracts.BuildLogLine{
+// 			LineNumber: lineNumber,
+// 			Timestamp:  time.Now().UTC(),
+// 			StreamType: streamType,
+// 			Text:       logLineString,
+// 		}
+// 		lineNumber++
 
-		// log as json, to be tailed when looking at live logs from gui
-		dr.tailLogsChannel <- contracts.TailLogLine{
-			Step:        stageName,
-			ParentStage: parentStageName,
-			Type:        stageType,
-			Depth:       depth,
-			RunIndex:    runIndex,
-			LogLine:     &logLineObject,
-		}
-	}
+// 		// log as json, to be tailed when looking at live logs from gui
+// 		dr.tailLogsChannel <- contracts.TailLogLine{
+// 			Step:        stageName,
+// 			ParentStage: parentStageName,
+// 			Type:        stageType,
+// 			Depth:       depth,
+// 			RunIndex:    runIndex,
+// 			LogLine:     &logLineObject,
+// 		}
+// 	}
 
-	log.Debug().Msgf("Done following logs stream for ephemeral container %v", podID)
+// 	log.Debug().Msgf("Done following logs stream for ephemeral container %v", podID)
 
-	return nil
-}
+// 	return nil
+// }
 
 func (dr *kubernetesRunnerImpl) waitWhilePodLeavesState(ctx context.Context, pod *v1.Pod, phase v1.PodPhase) (err error) {
 
@@ -691,7 +689,10 @@ func (dr *kubernetesRunnerImpl) stopContainers(ctx context.Context, podIDs []str
 		for _, id := range podIDs {
 			go func(id string) {
 				defer wg.Done()
-				dr.stopContainer(ctx, id)
+				err := dr.stopContainer(ctx, id)
+				if err != nil {
+					log.Warn().Err(err).Msgf("Failed stopping container with id %v", id)
+				}
 			}(id)
 		}
 
@@ -751,7 +752,7 @@ func (dr *kubernetesRunnerImpl) DeleteNetworks(ctx context.Context) error {
 
 func (dr *kubernetesRunnerImpl) generateEntrypointScript(shell string, commands []string, runCommandsInForeground bool) (hostPath, mountPath, entrypointFile string, err error) {
 
-	r, _ := regexp.Compile("[a-zA-Z0-9_]+=|export|shopt|;|cd |\\||&&|\\|\\|")
+	r, _ := regexp.Compile(`[a-zA-Z0-9_]+=|export|shopt|;|cd |\||&&|\|\|`)
 
 	firstCommands := []struct {
 		Command         string
@@ -893,7 +894,7 @@ func (dr *kubernetesRunnerImpl) initContainerStartVariables(shell string, comman
 
 func (dr *kubernetesRunnerImpl) generateExtensionEnvvars(customProperties map[string]interface{}, envvars map[string]string) (extensionEnvVars map[string]string) {
 	extensionEnvVars = map[string]string{}
-	if customProperties != nil && len(customProperties) > 0 {
+	if len(customProperties) > 0 {
 		for k, v := range customProperties {
 			extensionkey := dr.envvarHelper.getEstafetteEnvvarName(fmt.Sprintf("ESTAFETTE_EXTENSION_%v", foundation.ToUpperSnakeCase(k)))
 
@@ -975,7 +976,6 @@ func (dr *kubernetesRunnerImpl) generateCredentialsFiles(trustedImage *contracts
 
 		credentialMap := dr.config.GetCredentialsForTrustedImage(*trustedImage)
 		if len(credentialMap) == 0 {
-			credentialsdir = ""
 			return
 		}
 		for credentialType, credentialsForType := range credentialMap {

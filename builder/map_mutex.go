@@ -9,7 +9,7 @@ type MapMutex struct {
 
 func NewMapMutex() *MapMutex {
 	return &MapMutex{
-		innerMap: make(map[string]*sync.RWMutex, 0),
+		innerMap: make(map[string]*sync.RWMutex),
 		mutex:    &sync.RWMutex{},
 	}
 }

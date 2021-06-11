@@ -69,7 +69,6 @@ func (elh *endOfLifeHelperImpl) HandleFatal(ctx context.Context, buildLog contra
 			StreamType: "stderr",
 			Text:       message,
 		})
-		lineNumber++
 	}
 
 	buildLog.Steps = append(buildLog.Steps, &fatalStep)
@@ -102,7 +101,7 @@ func (elh *endOfLifeHelperImpl) SendBuildJobLogEvent(ctx context.Context, buildL
 		if s.Status == contracts.LogStatusSucceeded {
 			if len(s.LogLines) > 0 {
 				slimBuildLogStep.LogLines = []contracts.BuildLogLine{
-					contracts.BuildLogLine{
+					{
 						LineNumber: s.LogLines[0].LineNumber,
 						Timestamp:  s.LogLines[0].Timestamp,
 						StreamType: "stdout",
@@ -120,7 +119,7 @@ func (elh *endOfLifeHelperImpl) SendBuildJobLogEvent(ctx context.Context, buildL
 
 func (elh *endOfLifeHelperImpl) SendBuildJobLogEventCore(ctx context.Context, buildLog contracts.BuildLog) (err error) {
 
-	span, ctx := opentracing.StartSpanFromContext(ctx, "SendLog")
+	span, _ := opentracing.StartSpanFromContext(ctx, "SendLog")
 	defer span.Finish()
 
 	ciServerBuilderPostLogsURL := elh.config.CIServer.PostLogsURL
@@ -228,7 +227,7 @@ func (elh *endOfLifeHelperImpl) SendBuildCleanEvent(ctx context.Context, buildSt
 
 func (elh *endOfLifeHelperImpl) sendBuilderEvent(ctx context.Context, buildStatus contracts.LogStatus, buildEventType contracts.BuildEventType) (err error) {
 
-	span, ctx := opentracing.StartSpanFromContext(ctx, "SendBuildStatus")
+	span, _ := opentracing.StartSpanFromContext(ctx, "SendBuildStatus")
 	defer span.Finish()
 	span.SetTag("build-status", buildStatus.ToStatus())
 

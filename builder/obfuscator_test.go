@@ -29,7 +29,8 @@ func TestObfuscate(t *testing.T) {
 		pipeline := "github.com/estafette/estafette-ci-builder"
 		credentialsBytes, _ := json.Marshal(credentials)
 
-		obfuscator.CollectSecrets(manifest, credentialsBytes, pipeline)
+		err := obfuscator.CollectSecrets(manifest, credentialsBytes, pipeline)
+		assert.Nil(t, err)
 
 		// act
 		output := obfuscator.Obfuscate("this is my secret")
@@ -50,7 +51,8 @@ func TestObfuscate(t *testing.T) {
 		pipeline := "github.com/estafette/estafette-ci-builder"
 		credentialsBytes, _ := json.Marshal(credentials)
 
-		obfuscator.CollectSecrets(manifest, credentialsBytes, pipeline)
+		err := obfuscator.CollectSecrets(manifest, credentialsBytes, pipeline)
+		assert.Nil(t, err)
 
 		// act
 		output := obfuscator.Obfuscate(base64.StdEncoding.EncodeToString([]byte("this is my secret")))
@@ -69,7 +71,8 @@ func TestObfuscate(t *testing.T) {
 		pipeline := "github.com/estafette/estafette-ci-builder"
 		credentialsBytes, _ := json.Marshal(credentials)
 
-		obfuscator.CollectSecrets(manifest, credentialsBytes, pipeline)
+		err := obfuscator.CollectSecrets(manifest, credentialsBytes, pipeline)
+		assert.Nil(t, err)
 
 		// act
 		output := obfuscator.Obfuscate(base64.StdEncoding.EncodeToString([]byte("this is my secret")))
@@ -90,7 +93,8 @@ func TestObfuscate(t *testing.T) {
 		pipeline := "github.com/estafette/estafette-ci-builder"
 		credentialsBytes, _ := json.Marshal(credentials)
 
-		obfuscator.CollectSecrets(manifest, credentialsBytes, pipeline)
+		err := obfuscator.CollectSecrets(manifest, credentialsBytes, pipeline)
+		assert.Nil(t, err)
 
 		// act
 		output := obfuscator.Obfuscate("this is my secret")
@@ -114,7 +118,8 @@ func TestObfuscate(t *testing.T) {
 		credentials := []*contracts.CredentialConfig{}
 		credentialsBytes, _ := json.Marshal(credentials)
 
-		obfuscator.CollectSecrets(manifest, credentialsBytes, pipeline)
+		err = obfuscator.CollectSecrets(manifest, credentialsBytes, pipeline)
+		assert.Nil(t, err)
 
 		unencryptedValueLines := strings.Split(strings.ReplaceAll(unencryptedValue, "\\n", "\n"), "\n")
 		assert.Equal(t, 50, len(unencryptedValueLines))
@@ -146,7 +151,8 @@ func TestObfuscate(t *testing.T) {
 		credentials := []*contracts.CredentialConfig{}
 		credentialsBytes, _ := json.Marshal(credentials)
 
-		obfuscator.CollectSecrets(manifest, credentialsBytes, pipeline)
+		err = obfuscator.CollectSecrets(manifest, credentialsBytes, pipeline)
+		assert.Nil(t, err)
 
 		unencryptedValueLines := strings.Split(unencryptedValue, "\n")
 		assert.Equal(t, 12, len(unencryptedValueLines))
@@ -178,7 +184,8 @@ func TestObfuscate(t *testing.T) {
 		credentials := []*contracts.CredentialConfig{}
 		credentialsBytes, _ := json.Marshal(credentials)
 
-		obfuscator.CollectSecrets(manifest, credentialsBytes, pipeline)
+		err = obfuscator.CollectSecrets(manifest, credentialsBytes, pipeline)
+		assert.Nil(t, err)
 
 		unencryptedValueLines := strings.Split(strings.ReplaceAll(unencryptedValue, "\\n", "\n"), "\n")
 		assert.Equal(t, 50, len(unencryptedValueLines))
@@ -209,7 +216,8 @@ func TestObfuscate(t *testing.T) {
 		credentials := []*contracts.CredentialConfig{}
 		credentialsBytes, _ := json.Marshal(credentials)
 
-		obfuscator.CollectSecrets(manifest, credentialsBytes, pipeline)
+		err = obfuscator.CollectSecrets(manifest, credentialsBytes, pipeline)
+		assert.Nil(t, err)
 
 		unencryptedValueLines := strings.Split(strings.ReplaceAll(unencryptedValue, "\\n", "\n"), "\n")
 		assert.Equal(t, 50, len(unencryptedValueLines))
@@ -240,7 +248,8 @@ func TestObfuscate(t *testing.T) {
 		credentials := []*contracts.CredentialConfig{}
 		credentialsBytes, _ := json.Marshal(credentials)
 
-		obfuscator.CollectSecrets(manifest, credentialsBytes, pipeline)
+		err = obfuscator.CollectSecrets(manifest, credentialsBytes, pipeline)
+		assert.Nil(t, err)
 
 		unencryptedValueLines := strings.Split(unencryptedValue, "\n")
 		assert.Equal(t, 12, len(unencryptedValueLines))
@@ -271,7 +280,8 @@ func TestObfuscate(t *testing.T) {
 		credentials := []*contracts.CredentialConfig{}
 		credentialsBytes, _ := json.Marshal(credentials)
 
-		obfuscator.CollectSecrets(manifest, credentialsBytes, pipeline)
+		err = obfuscator.CollectSecrets(manifest, credentialsBytes, pipeline)
+		assert.Nil(t, err)
 
 		unencryptedValueLines := strings.Split(strings.ReplaceAll(unencryptedValue, "\\n", "\n"), "\n")
 		assert.Equal(t, 50, len(unencryptedValueLines))

@@ -532,9 +532,9 @@ func TestRunStageWithRetry(t *testing.T) {
 		// act
 		_ = pipelineRunner.RunStageWithRetry(context.Background(), depth, dir, envvars, parentStage, stage, stageIndex)
 
-		_ = <-tailLogsChannel                // pending state
-		_ = <-tailLogsChannel                // running state
-		_ = <-tailLogsChannel                // failed state
+		<-tailLogsChannel                    // pending state
+		<-tailLogsChannel                    // running state
+		<-tailLogsChannel                    // failed state
 		errorLogMessage := <-tailLogsChannel // logged error message
 
 		if assert.NotNil(t, errorLogMessage.LogLine) {
@@ -582,27 +582,27 @@ func TestRunStageWithRetry(t *testing.T) {
 		// act
 		_ = pipelineRunner.RunStageWithRetry(context.Background(), depth, dir, envvars, parentStage, stage, stageIndex)
 
-		_ = <-tailLogsChannel                // pending state
-		_ = <-tailLogsChannel                // running state
-		_ = <-tailLogsChannel                // failed state
+		<-tailLogsChannel                    // pending state
+		<-tailLogsChannel                    // running state
+		<-tailLogsChannel                    // failed state
 		errorLogMessage := <-tailLogsChannel // logged error message
 
 		if assert.NotNil(t, errorLogMessage.LogLine) {
 			assert.Equal(t, "Failed tailing container logs attempt 1", errorLogMessage.LogLine.Text)
 		}
 
-		_ = <-tailLogsChannel               // pending state
-		_ = <-tailLogsChannel               // running state
-		_ = <-tailLogsChannel               // failed state
+		<-tailLogsChannel                   // pending state
+		<-tailLogsChannel                   // running state
+		<-tailLogsChannel                   // failed state
 		errorLogMessage = <-tailLogsChannel // logged error message
 
 		if assert.NotNil(t, errorLogMessage.LogLine) {
 			assert.Equal(t, "Failed tailing container logs attempt 2", errorLogMessage.LogLine.Text)
 		}
 
-		_ = <-tailLogsChannel               // pending state
-		_ = <-tailLogsChannel               // running state
-		_ = <-tailLogsChannel               // failed state
+		<-tailLogsChannel                   // pending state
+		<-tailLogsChannel                   // running state
+		<-tailLogsChannel                   // failed state
 		errorLogMessage = <-tailLogsChannel // logged error message
 
 		if assert.NotNil(t, errorLogMessage.LogLine) {

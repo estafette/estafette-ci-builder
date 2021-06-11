@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"os"
-	"runtime"
 
 	"github.com/alecthomas/kingpin"
 	"github.com/estafette/estafette-ci-builder/builder"
@@ -24,7 +23,6 @@ var (
 	branch    string
 	revision  string
 	buildDate string
-	goVersion = runtime.Version()
 
 	builderConfigFlag       = kingpin.Flag("builder-config", "The Estafette server passes in this json structure to parameterize the build, set trusted images and inject credentials.").Envar("BUILDER_CONFIG").String()
 	builderConfigPath       = kingpin.Flag("builder-config-path", "The path to the builder config json stored in a mounted file, to parameterize the build, set trusted images and inject credentials.").Envar("BUILDER_CONFIG_PATH").String()

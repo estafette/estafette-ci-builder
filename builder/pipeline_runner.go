@@ -329,7 +329,10 @@ func (pr *pipelineRunnerImpl) RunStages(ctx context.Context, depth int, stages [
 			whenEvaluationResult, err = pr.whenEvaluator.Evaluate(stage.Name, stage.When, pr.whenEvaluator.GetParameters())
 			if err != nil {
 				// set 'failed' build status
-				pr.envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "failed")
+				envErr := pr.envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "failed")
+				if envErr != nil {
+					log.Warn().Err(envErr).Msg("Failed setting ESTAFETTE_BUILD_STATUS to failed")
+				}
 				envvars[pr.envvarHelper.getEstafetteEnvvarName("ESTAFETTE_BUILD_STATUS")] = "failed"
 				finalErr = err
 
@@ -346,7 +349,10 @@ func (pr *pipelineRunnerImpl) RunStages(ctx context.Context, depth int, stages [
 				}
 				if err != nil {
 					// set 'failed' build status
-					pr.envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "failed")
+					envErr := pr.envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "failed")
+					if envErr != nil {
+						log.Warn().Err(envErr).Msg("Failed setting ESTAFETTE_BUILD_STATUS to failed")
+					}
 					envvars[pr.envvarHelper.getEstafetteEnvvarName("ESTAFETTE_BUILD_STATUS")] = "failed"
 					finalErr = err
 				}
@@ -476,7 +482,6 @@ func (pr *pipelineRunnerImpl) RunServices(ctx context.Context, envvars map[strin
 				if pr.getCanceled() {
 					return
 				} else if err != nil {
-
 					// create log line for error
 					logLineObject := contracts.BuildLogLine{
 						LineNumber: 10000,
@@ -494,8 +499,6 @@ func (pr *pipelineRunnerImpl) RunServices(ctx context.Context, envvars map[strin
 
 					errors <- err
 				}
-			} else {
-				// TODO send taillogline for skipped
 			}
 		}(ctx, envvars, parentStage, *s)
 	}
@@ -525,13 +528,6 @@ func (pr *pipelineRunnerImpl) StopPipelineOnCancellation(ctx context.Context) {
 
 func (pr *pipelineRunnerImpl) EnableBuilderInfoStageInjection() {
 	pr.injectBuilderInfoStage = true
-}
-
-func (pr *pipelineRunnerImpl) resetCancellation() {
-	pr.cancellationMutex.Lock()
-	defer pr.cancellationMutex.Unlock()
-
-	pr.canceled = false
 }
 
 func (pr *pipelineRunnerImpl) getCanceled() bool {

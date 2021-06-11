@@ -124,7 +124,7 @@ func getContainerImageTag(containerImage string) string {
 	return containerImageTag
 }
 
-var src = rand.NewSource(time.Now().UnixNano())
+var src = rand.NewSource(time.Now().UnixNano()) //nolint:golint,unused
 
 const letterBytes = "abcdefghijklmnopqrstuvwxyz"
 const (
@@ -133,6 +133,7 @@ const (
 	letterIdxMax  = 63 / letterIdxBits   // # of letter indices fitting in 63 bits
 )
 
+//nolint:golint,unused,deadcode
 func generateRandomString(n int) string {
 	b := make([]byte, n)
 	// A src.Int63() generates 63 random bits, enough for letterIdxMax characters!

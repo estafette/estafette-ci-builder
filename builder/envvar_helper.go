@@ -35,7 +35,7 @@ type EnvvarHelper interface {
 	initBuildStatus() error
 	initLabels(manifest.EstafetteManifest) error
 	collectEstafetteEnvvars() map[string]string
-	CollectEstafetteEnvvarsAndLabels(manifest.EstafetteManifest) map[string]string
+	CollectEstafetteEnvvarsAndLabels(manifest.EstafetteManifest) (map[string]string, error)
 	CollectGlobalEnvvars(manifest.EstafetteManifest) map[string]string
 	UnsetEstafetteEnvvars()
 	getEstafetteEnv(string) string
@@ -153,43 +153,97 @@ func (h *envvarHelperImpl) SetEstafetteGlobalEnvvars() (err error) {
 
 func (h *envvarHelperImpl) SetEstafetteBuilderConfigEnvvars(builderConfig contracts.BuilderConfig) (err error) {
 	// set envvars that can be used by any container
-	h.setEstafetteEnv("ESTAFETTE_GIT_SOURCE", builderConfig.Git.RepoSource)
-	h.setEstafetteEnv("ESTAFETTE_GIT_OWNER", builderConfig.Git.RepoOwner)
-	h.setEstafetteEnv("ESTAFETTE_GIT_NAME", builderConfig.Git.RepoName)
-	h.setEstafetteEnv("ESTAFETTE_GIT_FULLNAME", fmt.Sprintf("%v/%v", builderConfig.Git.RepoOwner, builderConfig.Git.RepoName))
+	err = h.setEstafetteEnv("ESTAFETTE_GIT_SOURCE", builderConfig.Git.RepoSource)
+	if err != nil {
+		return
+	}
+	err = h.setEstafetteEnv("ESTAFETTE_GIT_OWNER", builderConfig.Git.RepoOwner)
+	if err != nil {
+		return
+	}
+	err = h.setEstafetteEnv("ESTAFETTE_GIT_NAME", builderConfig.Git.RepoName)
+	if err != nil {
+		return
+	}
+	err = h.setEstafetteEnv("ESTAFETTE_GIT_FULLNAME", fmt.Sprintf("%v/%v", builderConfig.Git.RepoOwner, builderConfig.Git.RepoName))
+	if err != nil {
+		return
+	}
 
-	h.setEstafetteEnv("ESTAFETTE_GIT_BRANCH", builderConfig.Git.RepoBranch)
-	h.setEstafetteEnv("ESTAFETTE_GIT_REVISION", builderConfig.Git.RepoRevision)
-	h.setEstafetteEnv("ESTAFETTE_BUILD_VERSION", builderConfig.Version.Version)
+	err = h.setEstafetteEnv("ESTAFETTE_GIT_BRANCH", builderConfig.Git.RepoBranch)
+	if err != nil {
+		return
+	}
+	err = h.setEstafetteEnv("ESTAFETTE_GIT_REVISION", builderConfig.Git.RepoRevision)
+	if err != nil {
+		return
+	}
+	err = h.setEstafetteEnv("ESTAFETTE_BUILD_VERSION", builderConfig.Version.Version)
+	if err != nil {
+		return
+	}
 	if builderConfig.Version != nil && builderConfig.Version.Major != nil {
-		h.setEstafetteEnv("ESTAFETTE_BUILD_VERSION_MAJOR", strconv.Itoa(*builderConfig.Version.Major))
+		err = h.setEstafetteEnv("ESTAFETTE_BUILD_VERSION_MAJOR", strconv.Itoa(*builderConfig.Version.Major))
+		if err != nil {
+			return
+		}
 	}
 	if builderConfig.Version != nil && builderConfig.Version.Minor != nil {
-		h.setEstafetteEnv("ESTAFETTE_BUILD_VERSION_MINOR", strconv.Itoa(*builderConfig.Version.Minor))
+		err = h.setEstafetteEnv("ESTAFETTE_BUILD_VERSION_MINOR", strconv.Itoa(*builderConfig.Version.Minor))
+		if err != nil {
+			return
+		}
 	}
 	if builderConfig.Version != nil && builderConfig.Version.AutoIncrement != nil {
-		h.setEstafetteEnv("ESTAFETTE_BUILD_VERSION_PATCH", strconv.Itoa(*builderConfig.Version.AutoIncrement))
+		err = h.setEstafetteEnv("ESTAFETTE_BUILD_VERSION_PATCH", strconv.Itoa(*builderConfig.Version.AutoIncrement))
+		if err != nil {
+			return
+		}
 	}
 	if builderConfig.Version != nil && builderConfig.Version.Label != nil {
-		h.setEstafetteEnv("ESTAFETTE_BUILD_VERSION_LABEL", *builderConfig.Version.Label)
+		err = h.setEstafetteEnv("ESTAFETTE_BUILD_VERSION_LABEL", *builderConfig.Version.Label)
+		if err != nil {
+			return
+		}
 	}
 
 	// set counters to enable release locking for older revisions inside extensions
 	if builderConfig.Version != nil {
-		h.setEstafetteEnv("ESTAFETTE_BUILD_CURRENT_COUNTER", strconv.Itoa(builderConfig.Version.CurrentCounter))
-		h.setEstafetteEnv("ESTAFETTE_BUILD_MAX_COUNTER", strconv.Itoa(builderConfig.Version.MaxCounter))
-		h.setEstafetteEnv("ESTAFETTE_BUILD_MAX_COUNTER_CURRENT_BRANCH", strconv.Itoa(builderConfig.Version.MaxCounterCurrentBranch))
+		err = h.setEstafetteEnv("ESTAFETTE_BUILD_CURRENT_COUNTER", strconv.Itoa(builderConfig.Version.CurrentCounter))
+		if err != nil {
+			return
+		}
+		err = h.setEstafetteEnv("ESTAFETTE_BUILD_MAX_COUNTER", strconv.Itoa(builderConfig.Version.MaxCounter))
+		if err != nil {
+			return
+		}
+		err = h.setEstafetteEnv("ESTAFETTE_BUILD_MAX_COUNTER_CURRENT_BRANCH", strconv.Itoa(builderConfig.Version.MaxCounterCurrentBranch))
+		if err != nil {
+			return
+		}
 	}
 
 	if builderConfig.Build != nil {
 		// set ESTAFETTE_BUILD_ID for backwards compatibility with extensions/github-status and extensions/bitbucket-status and extensions/slack-build-status
-		h.setEstafetteEnv("ESTAFETTE_BUILD_ID", builderConfig.Build.ID)
+		err = h.setEstafetteEnv("ESTAFETTE_BUILD_ID", builderConfig.Build.ID)
+		if err != nil {
+			return
+		}
 	}
 	if builderConfig.Release != nil {
-		h.setEstafetteEnv("ESTAFETTE_RELEASE_NAME", builderConfig.Release.Name)
-		h.setEstafetteEnv("ESTAFETTE_RELEASE_ACTION", builderConfig.Release.Action)
+		err = h.setEstafetteEnv("ESTAFETTE_RELEASE_NAME", builderConfig.Release.Name)
+		if err != nil {
+			return
+		}
+		err = h.setEstafetteEnv("ESTAFETTE_RELEASE_ACTION", builderConfig.Release.Action)
+		if err != nil {
+			return
+		}
 		// set ESTAFETTE_RELEASE_ID for backwards compatibility with extensions/slack-build-status
-		h.setEstafetteEnv("ESTAFETTE_RELEASE_ID", builderConfig.Release.ID)
+		err = h.setEstafetteEnv("ESTAFETTE_RELEASE_ID", builderConfig.Release.ID)
+		if err != nil {
+			return
+		}
 
 		triggeredBy := ""
 		if len(builderConfig.Events) > 0 {
@@ -199,16 +253,28 @@ func (h *envvarHelperImpl) SetEstafetteBuilderConfigEnvvars(builderConfig contra
 				}
 			}
 		}
-		h.setEstafetteEnv("ESTAFETTE_RELEASE_TRIGGERED_BY", triggeredBy)
+		err = h.setEstafetteEnv("ESTAFETTE_RELEASE_TRIGGERED_BY", triggeredBy)
+		if err != nil {
+			return
+		}
 	}
 	if builderConfig.Bot != nil {
-		h.setEstafetteEnv("ESTAFETTE_BOT_NAME", builderConfig.Bot.Name)
-		h.setEstafetteEnv("ESTAFETTE_BOT_ID", builderConfig.Bot.ID)
+		err = h.setEstafetteEnv("ESTAFETTE_BOT_NAME", builderConfig.Bot.Name)
+		if err != nil {
+			return
+		}
+		err = h.setEstafetteEnv("ESTAFETTE_BOT_ID", builderConfig.Bot.ID)
+		if err != nil {
+			return
+		}
 	}
 
 	// set ESTAFETTE_CI_SERVER_BASE_URL for backwards compatibility with extensions/github-status and extensions/bitbucket-status and extensions/slack-build-status
 	if builderConfig.CIServer != nil {
-		h.setEstafetteEnv("ESTAFETTE_CI_SERVER_BASE_URL", builderConfig.CIServer.BaseURL)
+		err = h.setEstafetteEnv("ESTAFETTE_CI_SERVER_BASE_URL", builderConfig.CIServer.BaseURL)
+		if err != nil {
+			return
+		}
 	}
 
 	return h.setEstafetteEventEnvvars(builderConfig.Events)
@@ -216,52 +282,56 @@ func (h *envvarHelperImpl) SetEstafetteBuilderConfigEnvvars(builderConfig contra
 
 func (h *envvarHelperImpl) setEstafetteEventEnvvars(events []manifest.EstafetteEvent) (err error) {
 
-	if events != nil {
-		for _, e := range events {
-			triggerFields := reflect.TypeOf(e)
-			triggerValues := reflect.ValueOf(e)
+	for _, e := range events {
+		triggerFields := reflect.TypeOf(e)
+		triggerValues := reflect.ValueOf(e)
 
-			for i := 0; i < triggerFields.NumField(); i++ {
+		for i := 0; i < triggerFields.NumField(); i++ {
 
-				triggerField := triggerFields.Field(i).Name
-				triggerValue := triggerValues.Field(i)
+			triggerField := triggerFields.Field(i).Name
+			triggerValue := triggerValues.Field(i)
 
-				if triggerValue.Kind() != reflect.Ptr || triggerValue.IsNil() {
-					continue
+			if triggerValue.Kind() != reflect.Ptr || triggerValue.IsNil() {
+				continue
+			}
+
+			// dereference the pointer
+			derefencedPointerValue := reflect.Indirect(triggerValue)
+
+			triggerPropertyFields := derefencedPointerValue.Type()
+			triggerPropertyValues := derefencedPointerValue
+
+			for j := 0; j < triggerPropertyFields.NumField(); j++ {
+
+				triggerPropertyField := triggerPropertyFields.Field(j).Name
+				triggerPropertyValue := triggerPropertyValues.Field(j)
+
+				envvarName := "ESTAFETTE_TRIGGER_" + foundation.ToUpperSnakeCase(triggerField) + "_" + foundation.ToUpperSnakeCase(triggerPropertyField)
+				envvarValue := ""
+
+				switch triggerPropertyValue.Kind() {
+				case reflect.String:
+					envvarValue = triggerPropertyValue.String()
+				default:
+					jsonValue, _ := json.Marshal(triggerPropertyValue.Interface())
+					envvarValue = string(jsonValue)
+
+					envvarValue = strings.Trim(envvarValue, "\"")
 				}
 
-				// dereference the pointer
-				derefencedPointerValue := reflect.Indirect(triggerValue)
-
-				triggerPropertyFields := derefencedPointerValue.Type()
-				triggerPropertyValues := derefencedPointerValue
-
-				for j := 0; j < triggerPropertyFields.NumField(); j++ {
-
-					triggerPropertyField := triggerPropertyFields.Field(j).Name
-					triggerPropertyValue := triggerPropertyValues.Field(j)
-
-					envvarName := "ESTAFETTE_TRIGGER_" + foundation.ToUpperSnakeCase(triggerField) + "_" + foundation.ToUpperSnakeCase(triggerPropertyField)
-					envvarValue := ""
-
-					switch triggerPropertyValue.Kind() {
-					case reflect.String:
-						envvarValue = triggerPropertyValue.String()
-					default:
-						jsonValue, _ := json.Marshal(triggerPropertyValue.Interface())
-						envvarValue = string(jsonValue)
-
-						envvarValue = strings.Trim(envvarValue, "\"")
+				if e.Fired {
+					err = h.setEstafetteEnv(envvarName, envvarValue)
+					if err != nil {
+						return
 					}
+				}
 
-					if e.Fired {
-						h.setEstafetteEnv(envvarName, envvarValue)
-					}
-
-					if e.Name != "" {
-						// set envvar for named trigger/event, in order to have upstream pipelines and release when they're not fired as well
-						envvarName := "ESTAFETTE_TRIGGER_" + foundation.ToUpperSnakeCase(e.Name) + "_" + foundation.ToUpperSnakeCase(triggerPropertyField)
-						h.setEstafetteEnv(envvarName, envvarValue)
+				if e.Name != "" {
+					// set envvar for named trigger/event, in order to have upstream pipelines and release when they're not fired as well
+					envvarName := "ESTAFETTE_TRIGGER_" + foundation.ToUpperSnakeCase(e.Name) + "_" + foundation.ToUpperSnakeCase(triggerPropertyField)
+					err = h.setEstafetteEnv(envvarName, envvarValue)
+					if err != nil {
+						return
 					}
 				}
 			}
@@ -461,13 +531,16 @@ func (h *envvarHelperImpl) initLabels(m manifest.EstafetteManifest) (err error) 
 	return
 }
 
-func (h *envvarHelperImpl) CollectEstafetteEnvvarsAndLabels(m manifest.EstafetteManifest) (envvars map[string]string) {
+func (h *envvarHelperImpl) CollectEstafetteEnvvarsAndLabels(m manifest.EstafetteManifest) (envvars map[string]string, err error) {
 
 	// set labels as envvars
-	h.initLabels(m)
+	err = h.initLabels(m)
+	if err != nil {
+		return
+	}
 
 	// return all envvars starting with ESTAFETTE_
-	return h.collectEstafetteEnvvars()
+	return h.collectEstafetteEnvvars(), nil
 }
 
 func (h *envvarHelperImpl) collectEstafetteEnvvars() (envvars map[string]string) {
@@ -507,7 +580,10 @@ func (h *envvarHelperImpl) UnsetEstafetteEnvvars() {
 
 	envvarsToUnset := h.collectEstafetteEnvvars()
 	for key := range envvarsToUnset {
-		h.unsetEstafetteEnv(key)
+		err := h.unsetEstafetteEnv(key)
+		if err != nil {
+			log.Warn().Err(err).Msgf("Failed unseeting envvar %v", key)
+		}
 	}
 }
 
@@ -555,10 +631,8 @@ func (h *envvarHelperImpl) OverrideEnvvars(envvarMaps ...map[string]string) (env
 
 	envvars = make(map[string]string)
 	for _, envvarMap := range envvarMaps {
-		if envvarMap != nil && len(envvarMap) > 0 {
-			for k, v := range envvarMap {
-				envvars[k] = v
-			}
+		for k, v := range envvarMap {
+			envvars[k] = v
 		}
 	}
 
@@ -579,7 +653,7 @@ func (h *envvarHelperImpl) decryptSecret(encryptedValue, pipeline string) (decry
 
 func (h *envvarHelperImpl) decryptSecrets(encryptedEnvvars map[string]string, pipeline string) (envvars map[string]string) {
 
-	if encryptedEnvvars == nil || len(encryptedEnvvars) == 0 {
+	if len(encryptedEnvvars) == 0 {
 		return encryptedEnvvars
 	}
 

@@ -72,7 +72,7 @@ type dockerRunnerImpl struct {
 
 func (dr *dockerRunnerImpl) IsImagePulled(ctx context.Context, stageName string, containerImage string) bool {
 
-	span, ctx := opentracing.StartSpanFromContext(ctx, "IsImagePulled")
+	span, _ := opentracing.StartSpanFromContext(ctx, "IsImagePulled")
 	defer span.Finish()
 	span.SetTag("docker-image", containerImage)
 
@@ -98,7 +98,7 @@ func (dr *dockerRunnerImpl) IsImagePulled(ctx context.Context, stageName string,
 
 func (dr *dockerRunnerImpl) PullImage(ctx context.Context, stageName string, containerImage string) (err error) {
 
-	span, ctx := opentracing.StartSpanFromContext(ctx, "PullImage")
+	span, _ := opentracing.StartSpanFromContext(ctx, "PullImage")
 	defer span.Finish()
 	span.SetTag("docker-image", containerImage)
 
@@ -168,7 +168,7 @@ func (dr *dockerRunnerImpl) StartStageContainer(ctx context.Context, depth int, 
 
 	// define docker envvars and expand ESTAFETTE_ variables
 	dockerEnvVars := make([]string, 0)
-	if combinedEnvVars != nil && len(combinedEnvVars) > 0 {
+	if len(combinedEnvVars) > 0 {
 		for k, v := range combinedEnvVars {
 			dockerEnvVars = append(dockerEnvVars, fmt.Sprintf("%v=%v", k, os.Expand(v, dr.envvarHelper.getEstafetteEnv)))
 		}
@@ -306,7 +306,7 @@ func (dr *dockerRunnerImpl) StartServiceContainer(ctx context.Context, envvars m
 
 	// define docker envvars and expand ESTAFETTE_ variables
 	dockerEnvVars := make([]string, 0)
-	if combinedEnvVars != nil && len(combinedEnvVars) > 0 {
+	if len(combinedEnvVars) > 0 {
 		for k, v := range combinedEnvVars {
 			dockerEnvVars = append(dockerEnvVars, fmt.Sprintf("%v=%v", k, os.Expand(v, dr.envvarHelper.getEstafetteEnv)))
 		}
@@ -444,10 +444,8 @@ func (dr *dockerRunnerImpl) RunReadinessProbeContainer(ctx context.Context, pare
 
 	// define docker envvars and expand ESTAFETTE_ variables
 	dockerEnvVars := make([]string, 0)
-	if envvars != nil && len(envvars) > 0 {
-		for k, v := range envvars {
-			dockerEnvVars = append(dockerEnvVars, fmt.Sprintf("%v=%v", k, os.Expand(v, dr.envvarHelper.getEstafetteEnv)))
-		}
+	for k, v := range envvars {
+		dockerEnvVars = append(dockerEnvVars, fmt.Sprintf("%v=%v", k, os.Expand(v, dr.envvarHelper.getEstafetteEnv)))
 	}
 
 	// mount the builder binary and trusted certs into the image
@@ -753,7 +751,7 @@ func (dr *dockerRunnerImpl) WaitForDockerDaemon() {
 
 func (dr *dockerRunnerImpl) CreateDockerClient() error {
 
-	dockerClient, err := client.NewEnvClient()
+	dockerClient, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
 		return err
 	}
@@ -813,11 +811,10 @@ func (dr *dockerRunnerImpl) getImagePullOptions(containerImage string) types.Ima
 				return types.ImagePullOptions{
 					RegistryAuth: authStr,
 				}
+			} else {
+				log.Error().Err(err).Msgf("Failed marshaling docker auth config for container image %v", containerImage)
+				break
 			}
-
-			log.Error().Err(err).Msgf("Failed marshaling docker auth config for container image %v", containerImage)
-
-			break
 		}
 	}
 
@@ -875,7 +872,10 @@ func (dr *dockerRunnerImpl) stopContainers(containerIDs []string) {
 		for _, id := range containerIDs {
 			go func(id string) {
 				defer wg.Done()
-				dr.stopContainer(id)
+				err := dr.stopContainer(id)
+				if err != nil {
+					log.Warn().Err(err).Msgf("Failed stopping container with id %v", id)
+				}
 			}(id)
 		}
 
@@ -1007,7 +1007,7 @@ func (dr *dockerRunnerImpl) DeleteNetworks(ctx context.Context) error {
 
 func (dr *dockerRunnerImpl) generateEntrypointScript(shell string, commands []string, runCommandsInForeground bool) (hostPath, mountPath, entrypointFile string, err error) {
 
-	r, _ := regexp.Compile("[a-zA-Z0-9_]+=|export|shopt|;|cd |\\||&&|\\|\\|")
+	r, _ := regexp.Compile(`[a-zA-Z0-9_]+=|export|shopt|;|cd |\||&&|\|\|`)
 
 	firstCommands := []struct {
 		Command         string
@@ -1149,45 +1149,43 @@ func (dr *dockerRunnerImpl) initContainerStartVariables(shell string, commands [
 
 func (dr *dockerRunnerImpl) generateExtensionEnvvars(customProperties map[string]interface{}, envvars map[string]string) (extensionEnvVars map[string]string) {
 	extensionEnvVars = map[string]string{}
-	if customProperties != nil && len(customProperties) > 0 {
-		for k, v := range customProperties {
-			extensionkey := dr.envvarHelper.getEstafetteEnvvarName(fmt.Sprintf("ESTAFETTE_EXTENSION_%v", foundation.ToUpperSnakeCase(k)))
+	for k, v := range customProperties {
+		extensionkey := dr.envvarHelper.getEstafetteEnvvarName(fmt.Sprintf("ESTAFETTE_EXTENSION_%v", foundation.ToUpperSnakeCase(k)))
 
-			if s, isString := v.(string); isString {
-				// if custom property is of type string add the envvar
-				extensionEnvVars[extensionkey] = s
-			} else if s, isBool := v.(bool); isBool {
-				// if custom property is of type bool add the envvar
-				extensionEnvVars[extensionkey] = strconv.FormatBool(s)
-			} else if s, isInt := v.(int); isInt {
-				// if custom property is of type bool add the envvar
-				extensionEnvVars[extensionkey] = strconv.FormatInt(int64(s), 10)
-			} else if s, isFloat := v.(float64); isFloat {
-				// if custom property is of type bool add the envvar
-				extensionEnvVars[extensionkey] = strconv.FormatFloat(float64(s), 'f', -1, 64)
+		if s, isString := v.(string); isString {
+			// if custom property is of type string add the envvar
+			extensionEnvVars[extensionkey] = s
+		} else if s, isBool := v.(bool); isBool {
+			// if custom property is of type bool add the envvar
+			extensionEnvVars[extensionkey] = strconv.FormatBool(s)
+		} else if s, isInt := v.(int); isInt {
+			// if custom property is of type bool add the envvar
+			extensionEnvVars[extensionkey] = strconv.FormatInt(int64(s), 10)
+		} else if s, isFloat := v.(float64); isFloat {
+			// if custom property is of type bool add the envvar
+			extensionEnvVars[extensionkey] = strconv.FormatFloat(float64(s), 'f', -1, 64)
 
-			} else if i, isInterfaceArray := v.([]interface{}); isInterfaceArray {
-				// check whether all array items are of type string
-				valid := true
-				stringValues := []string{}
-				for _, iv := range i {
-					if s, isString := iv.(string); isString {
-						stringValues = append(stringValues, s)
-					} else {
-						valid = false
-						break
-					}
-				}
-
-				if valid {
-					// if all array items are string, pass as comma-separated list to extension
-					extensionEnvVars[extensionkey] = strings.Join(stringValues, ",")
+		} else if i, isInterfaceArray := v.([]interface{}); isInterfaceArray {
+			// check whether all array items are of type string
+			valid := true
+			stringValues := []string{}
+			for _, iv := range i {
+				if s, isString := iv.(string); isString {
+					stringValues = append(stringValues, s)
 				} else {
-					log.Warn().Interface("customProperty", v).Msgf("Cannot turn custom property %v into extension envvar", k)
+					valid = false
+					break
 				}
-			} else {
-				log.Warn().Interface("customProperty", v).Msgf("Cannot turn custom property %v of type %v into extension envvar", k, reflect.TypeOf(v))
 			}
+
+			if valid {
+				// if all array items are string, pass as comma-separated list to extension
+				extensionEnvVars[extensionkey] = strings.Join(stringValues, ",")
+			} else {
+				log.Warn().Interface("customProperty", v).Msgf("Cannot turn custom property %v into extension envvar", k)
+			}
+		} else {
+			log.Warn().Interface("customProperty", v).Msgf("Cannot turn custom property %v of type %v into extension envvar", k, reflect.TypeOf(v))
 		}
 
 		// add envvar to custom properties
@@ -1231,7 +1229,6 @@ func (dr *dockerRunnerImpl) generateCredentialsFiles(trustedImage *contracts.Tru
 
 		credentialMap := dr.config.GetCredentialsForTrustedImage(*trustedImage)
 		if len(credentialMap) == 0 {
-			credentialsdir = ""
 			return
 		}
 		for credentialType, credentialsForType := range credentialMap {

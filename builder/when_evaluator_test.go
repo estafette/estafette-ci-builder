@@ -18,7 +18,7 @@ func TestWhenEvaluator(t *testing.T) {
 		envvarHelper.UnsetEstafetteEnvvars()
 
 		// act
-		result, err := whenEvaluator.Evaluate("name", "", make(map[string]interface{}, 0))
+		result, err := whenEvaluator.Evaluate("name", "", make(map[string]interface{}))
 
 		assert.NotNil(t, err)
 		assert.False(t, result)
@@ -29,7 +29,7 @@ func TestWhenEvaluator(t *testing.T) {
 		envvarHelper.UnsetEstafetteEnvvars()
 
 		// act
-		result, _ := whenEvaluator.Evaluate("name", "3 > 2", make(map[string]interface{}, 0))
+		result, _ := whenEvaluator.Evaluate("name", "3 > 2", make(map[string]interface{}))
 
 		assert.True(t, result)
 	})
@@ -85,8 +85,10 @@ func TestWhenParameters(t *testing.T) {
 	t.Run("ReturnsMapWithBranchEqualToBranchWithoutTrailingNewline", func(t *testing.T) {
 
 		envvarHelper.UnsetEstafetteEnvvars()
-		envvarHelper.SetEstafetteGlobalEnvvars()
-		envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
+		err := envvarHelper.SetEstafetteGlobalEnvvars()
+		assert.Nil(t, err)
+		err = envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
+		assert.Nil(t, err)
 
 		// act
 		parameters := whenEvaluator.GetParameters()
@@ -97,8 +99,10 @@ func TestWhenParameters(t *testing.T) {
 	t.Run("ReturnsMapWithAction", func(t *testing.T) {
 
 		envvarHelper.UnsetEstafetteEnvvars()
-		envvarHelper.SetEstafetteGlobalEnvvars()
-		envvarHelper.setEstafetteEnv("ESTAFETTE_RELEASE_ACTION", "deploy-canary")
+		err := envvarHelper.SetEstafetteGlobalEnvvars()
+		assert.Nil(t, err)
+		err = envvarHelper.setEstafetteEnv("ESTAFETTE_RELEASE_ACTION", "deploy-canary")
+		assert.Nil(t, err)
 
 		// act
 		parameters := whenEvaluator.GetParameters()
@@ -109,8 +113,10 @@ func TestWhenParameters(t *testing.T) {
 	t.Run("ReturnsMapWithStatusSetToSucceededByDefault", func(t *testing.T) {
 
 		envvarHelper.UnsetEstafetteEnvvars()
-		envvarHelper.SetEstafetteGlobalEnvvars()
-		envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
+		err := envvarHelper.SetEstafetteGlobalEnvvars()
+		assert.Nil(t, err)
+		err = envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
+		assert.Nil(t, err)
 
 		// act
 		parameters := whenEvaluator.GetParameters()

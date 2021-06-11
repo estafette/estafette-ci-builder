@@ -7,8 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	contracts "github.com/estafette/estafette-ci-contracts"
-	crypt "github.com/estafette/estafette-ci-crypt"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -247,17 +245,4 @@ func TestGenerateEntrypointScript(t *testing.T) {
 		assert.Nil(t, err)
 		assert.Equal(t, "#!/bin/sh\nset -e\necho -e \"\\x1b[38;5;250m> go test ./...\\x1b[0m\"\ngo test ./...\n\necho -e \"\\x1b[38;5;250m> go build\\x1b[0m\"\ngo build", string(bytes))
 	})
-}
-
-func getDockerRunnerAndMocks() (chan contracts.TailLogLine, ContainerRunner) {
-
-	secretHelper := crypt.NewSecretHelper("SazbwMf3NZxVVbBqQHebPcXCqrVn3DDp", false)
-	envvarHelper := NewEnvvarHelper("TESTPREFIX_", secretHelper, obfuscator)
-	obfuscator := NewObfuscator(secretHelper)
-	config := contracts.BuilderConfig{}
-	tailLogsChannel := make(chan contracts.TailLogLine, 10000)
-
-	dockerRunner := NewDockerRunner(envvarHelper, obfuscator, config, tailLogsChannel)
-
-	return tailLogsChannel, dockerRunner
 }

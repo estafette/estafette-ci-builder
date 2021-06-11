@@ -73,8 +73,9 @@ func TestCollectEstafetteEnvvarsAndLabels(t *testing.T) {
 		manifest := manifest.EstafetteManifest{}
 
 		// act
-		envvars := envvarHelper.CollectEstafetteEnvvarsAndLabels(manifest)
+		envvars, err := envvarHelper.CollectEstafetteEnvvarsAndLabels(manifest)
 
+		assert.Nil(t, err)
 		assert.Equal(t, 0, len(envvars))
 	})
 
@@ -84,8 +85,9 @@ func TestCollectEstafetteEnvvarsAndLabels(t *testing.T) {
 		manifest := manifest.EstafetteManifest{Labels: map[string]string{"app": "estafette-ci-builder"}}
 
 		// act
-		envvars := envvarHelper.CollectEstafetteEnvvarsAndLabels(manifest)
+		envvars, err := envvarHelper.CollectEstafetteEnvvarsAndLabels(manifest)
 
+		assert.Nil(t, err)
 		_, exists := envvars["TESTPREFIX_LABEL_APP"]
 		assert.True(t, exists)
 		assert.Equal(t, "estafette-ci-builder", envvars["TESTPREFIX_LABEL_APP"])
@@ -97,8 +99,9 @@ func TestCollectEstafetteEnvvarsAndLabels(t *testing.T) {
 		manifest := manifest.EstafetteManifest{Labels: map[string]string{"owningTeam": "estafette-ci-team"}}
 
 		// act
-		envvars := envvarHelper.CollectEstafetteEnvvarsAndLabels(manifest)
+		envvars, err := envvarHelper.CollectEstafetteEnvvarsAndLabels(manifest)
 
+		assert.Nil(t, err)
 		log.Debug().Interface("envvars", envvars).Msg("")
 		_, exists := envvars["TESTPREFIX_LABEL_OWNING_TEAM"]
 		assert.True(t, exists)
@@ -111,8 +114,9 @@ func TestCollectEstafetteEnvvarsAndLabels(t *testing.T) {
 		manifest := manifest.EstafetteManifest{Labels: map[string]string{"app": "estafette-ci-builder", "team": "estafette-ci-team"}}
 
 		// act
-		envvars := envvarHelper.CollectEstafetteEnvvarsAndLabels(manifest)
+		envvars, err := envvarHelper.CollectEstafetteEnvvarsAndLabels(manifest)
 
+		assert.Nil(t, err)
 		_, exists := envvars["TESTPREFIX_LABEL_APP"]
 		assert.True(t, exists)
 		assert.Equal(t, "estafette-ci-builder", envvars["TESTPREFIX_LABEL_APP"])
@@ -129,8 +133,9 @@ func TestCollectEstafetteEnvvarsAndLabels(t *testing.T) {
 		os.Setenv("TESTPREFIX_VERSION", "1.0.3")
 
 		// act
-		envvars := envvarHelper.CollectEstafetteEnvvarsAndLabels(manifest)
+		envvars, err := envvarHelper.CollectEstafetteEnvvarsAndLabels(manifest)
 
+		assert.Nil(t, err)
 		_, exists := envvars["TESTPREFIX_VERSION"]
 		assert.True(t, exists)
 		assert.Equal(t, "1.0.3", envvars["TESTPREFIX_VERSION"])
@@ -143,8 +148,9 @@ func TestCollectEstafetteEnvvarsAndLabels(t *testing.T) {
 		os.Setenv("TESTPREFIX_VERSION", "b=c")
 
 		// act
-		envvars := envvarHelper.CollectEstafetteEnvvarsAndLabels(manifest)
+		envvars, err := envvarHelper.CollectEstafetteEnvvarsAndLabels(manifest)
 
+		assert.Nil(t, err)
 		_, exists := envvars["TESTPREFIX_VERSION"]
 		assert.True(t, exists)
 		assert.Equal(t, "b=c", envvars["TESTPREFIX_VERSION"])
@@ -158,8 +164,9 @@ func TestCollectEstafetteEnvvarsAndLabels(t *testing.T) {
 		os.Setenv("TESTPREFIX_GIT_REPOSITORY", "git@github.com:estafette/estafette-ci-builder.git")
 
 		// act
-		envvars := envvarHelper.CollectEstafetteEnvvarsAndLabels(manifest)
+		envvars, err := envvarHelper.CollectEstafetteEnvvarsAndLabels(manifest)
 
+		assert.Nil(t, err)
 		_, exists := envvars["TESTPREFIX_VERSION"]
 		assert.True(t, exists)
 		assert.Equal(t, "1.0.3", envvars["TESTPREFIX_VERSION"])
@@ -176,8 +183,9 @@ func TestCollectEstafetteEnvvarsAndLabels(t *testing.T) {
 		os.Setenv("TESTPREFIX_VERSION", "1.0.3")
 
 		// act
-		envvars := envvarHelper.CollectEstafetteEnvvarsAndLabels(manifest)
+		envvars, err := envvarHelper.CollectEstafetteEnvvarsAndLabels(manifest)
 
+		assert.Nil(t, err)
 		_, exists := envvars["TESTPREFIX_VERSION"]
 		assert.True(t, exists)
 		assert.Equal(t, "1.0.3", envvars["TESTPREFIX_VERSION"])
@@ -470,8 +478,9 @@ func TestSetEstafetteEventEnvvars(t *testing.T) {
 		}
 
 		// act
-		envvarHelper.setEstafetteEventEnvvars([]manifest.EstafetteEvent{event})
+		err := envvarHelper.setEstafetteEventEnvvars([]manifest.EstafetteEvent{event})
 
+		assert.Nil(t, err)
 		envvars := envvarHelper.collectEstafetteEnvvars()
 		assert.Equal(t, 14, len(envvars))
 		assert.Equal(t, "1.0.50-some-branch", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_PIPELINE_BUILD_VERSION"))
@@ -501,8 +510,9 @@ func TestSetEstafetteEventEnvvars(t *testing.T) {
 		}
 
 		// act
-		envvarHelper.setEstafetteEventEnvvars([]manifest.EstafetteEvent{event})
+		err := envvarHelper.setEstafetteEventEnvvars([]manifest.EstafetteEvent{event})
 
+		assert.Nil(t, err)
 		_ = envvarHelper.collectEstafetteEnvvars()
 		assert.Equal(t, "1.0.50-some-branch", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_UPSTREAM_BUILD_VERSION"))
 		assert.Equal(t, "github.com", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_UPSTREAM_REPO_SOURCE"))
@@ -530,8 +540,9 @@ func TestSetEstafetteEventEnvvars(t *testing.T) {
 		}
 
 		// act
-		envvarHelper.setEstafetteEventEnvvars([]manifest.EstafetteEvent{event})
+		err := envvarHelper.setEstafetteEventEnvvars([]manifest.EstafetteEvent{event})
 
+		assert.Nil(t, err)
 		envvars := envvarHelper.collectEstafetteEnvvars()
 		assert.Equal(t, 14, len(envvars))
 		assert.Equal(t, "1.0.50-some-branch", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_RELEASE_RELEASE_VERSION"))
@@ -556,8 +567,9 @@ func TestSetEstafetteEventEnvvars(t *testing.T) {
 		}
 
 		// act
-		envvarHelper.setEstafetteEventEnvvars([]manifest.EstafetteEvent{event})
+		err := envvarHelper.setEstafetteEventEnvvars([]manifest.EstafetteEvent{event})
 
+		assert.Nil(t, err)
 		envvars := envvarHelper.collectEstafetteEnvvars()
 		assert.Equal(t, 6, len(envvars))
 		assert.Equal(t, "push", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_GIT_EVENT"))
@@ -576,8 +588,9 @@ func TestSetEstafetteEventEnvvars(t *testing.T) {
 		}
 
 		// act
-		envvarHelper.setEstafetteEventEnvvars([]manifest.EstafetteEvent{event})
+		err := envvarHelper.setEstafetteEventEnvvars([]manifest.EstafetteEvent{event})
 
+		assert.Nil(t, err)
 		envvars := envvarHelper.collectEstafetteEnvvars()
 		assert.Equal(t, 2, len(envvars))
 		assert.Equal(t, "2009-11-17T20:34:58.651387237Z", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_CRON_TIME"))
@@ -594,8 +607,9 @@ func TestSetEstafetteEventEnvvars(t *testing.T) {
 		}
 
 		// act
-		envvarHelper.setEstafetteEventEnvvars([]manifest.EstafetteEvent{event})
+		err := envvarHelper.setEstafetteEventEnvvars([]manifest.EstafetteEvent{event})
 
+		assert.Nil(t, err)
 		envvars := envvarHelper.collectEstafetteEnvvars()
 		assert.Equal(t, 2, len(envvars))
 		assert.Equal(t, "user@server.com", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_MANUAL_USER_ID"))
