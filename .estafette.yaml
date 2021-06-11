@@ -24,7 +24,7 @@ stages:
       lint:
         image: golangci/golangci-lint:latest-alpine
         commands:
-        - golangci-lint run
+        - golangci-lint run --timeout 3m
 
       build:
         image: golang:1.16-alpine
