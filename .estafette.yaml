@@ -21,6 +21,11 @@ stages:
         - apk add --update --no-cache build-base
         - go test -race ./...
 
+      lint:
+        image: golangci/golangci-lint:latest-alpine
+        commands:
+        - golangci-lint run
+
       build:
         image: golang:1.16-alpine
         env:
