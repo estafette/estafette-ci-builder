@@ -482,7 +482,7 @@ func TestSetEstafetteEventEnvvars(t *testing.T) {
 
 		assert.Nil(t, err)
 		envvars := envvarHelper.collectEstafetteEnvvars()
-		assert.Equal(t, 14, len(envvars))
+		assert.Equal(t, 7, len(envvars))
 		assert.Equal(t, "1.0.50-some-branch", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_PIPELINE_BUILD_VERSION"))
 		assert.Equal(t, "github.com", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_PIPELINE_REPO_SOURCE"))
 		assert.Equal(t, "estafette", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_PIPELINE_REPO_OWNER"))
@@ -544,7 +544,7 @@ func TestSetEstafetteEventEnvvars(t *testing.T) {
 
 		assert.Nil(t, err)
 		envvars := envvarHelper.collectEstafetteEnvvars()
-		assert.Equal(t, 14, len(envvars))
+		assert.Equal(t, 7, len(envvars))
 		assert.Equal(t, "1.0.50-some-branch", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_RELEASE_RELEASE_VERSION"))
 		assert.Equal(t, "github.com", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_RELEASE_REPO_SOURCE"))
 		assert.Equal(t, "estafette", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_RELEASE_REPO_OWNER"))
@@ -571,7 +571,7 @@ func TestSetEstafetteEventEnvvars(t *testing.T) {
 
 		assert.Nil(t, err)
 		envvars := envvarHelper.collectEstafetteEnvvars()
-		assert.Equal(t, 6, len(envvars))
+		assert.Equal(t, 3, len(envvars))
 		assert.Equal(t, "push", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_GIT_EVENT"))
 		assert.Equal(t, "github.com/estafette/estafette-ci-api", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_GIT_REPOSITORY"))
 		assert.Equal(t, "master", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_GIT_BRANCH"))
@@ -592,7 +592,7 @@ func TestSetEstafetteEventEnvvars(t *testing.T) {
 
 		assert.Nil(t, err)
 		envvars := envvarHelper.collectEstafetteEnvvars()
-		assert.Equal(t, 2, len(envvars))
+		assert.Equal(t, 1, len(envvars))
 		assert.Equal(t, "2009-11-17T20:34:58.651387237Z", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_CRON_TIME"))
 	})
 
@@ -611,7 +611,7 @@ func TestSetEstafetteEventEnvvars(t *testing.T) {
 
 		assert.Nil(t, err)
 		envvars := envvarHelper.collectEstafetteEnvvars()
-		assert.Equal(t, 2, len(envvars))
+		assert.Equal(t, 1, len(envvars))
 		assert.Equal(t, "user@server.com", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_MANUAL_USER_ID"))
 	})
 }

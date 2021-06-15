@@ -169,8 +169,12 @@ func (h *envvarHelperImpl) SetEstafetteBuilderConfigEnvvars(builderConfig contra
 	if err != nil {
 		return
 	}
-
 	err = h.setEstafetteEnv("ESTAFETTE_GIT_BRANCH", builderConfig.Git.RepoBranch)
+	if err != nil {
+		return
+	}
+	// set dns safe version
+	err = h.setEstafetteEnv("ESTAFETTE_GIT_BRANCH_DNS_SAFE", h.makeDNSLabelSafe(builderConfig.Git.RepoBranch))
 	if err != nil {
 		return
 	}
@@ -603,12 +607,6 @@ func (h *envvarHelperImpl) setEstafetteEnv(key, value string) error {
 	key = h.getEstafetteEnvvarName(key)
 
 	err := os.Setenv(key, value)
-	if err != nil {
-		return err
-	}
-
-	// set dns safe version
-	err = os.Setenv(fmt.Sprintf("%v_DNS_SAFE", key), h.makeDNSLabelSafe(value))
 	if err != nil {
 		return err
 	}
