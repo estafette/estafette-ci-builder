@@ -9,9 +9,9 @@ require (
 	github.com/containerd/containerd v1.5.2 // indirect
 	github.com/docker/docker v20.10.7+incompatible
 	github.com/docker/go-connections v0.4.0 // indirect
-	github.com/estafette/estafette-ci-contracts v0.0.260
+	github.com/estafette/estafette-ci-contracts v0.0.267
 	github.com/estafette/estafette-ci-crypt v0.0.41
-	github.com/estafette/estafette-ci-manifest v0.1.195
+	github.com/estafette/estafette-ci-manifest v0.1.197
 	github.com/estafette/estafette-foundation v0.0.69
 	github.com/golang/mock v1.5.0
 	github.com/gorilla/mux v1.7.3 // indirect

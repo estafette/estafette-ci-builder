@@ -428,15 +428,30 @@ func (dr *dockerRunnerImpl) RunReadinessProbeContainer(ctx context.Context, pare
 		}
 	}
 
-	envvars := map[string]string{
-		"RUN_AS_READINESS_PROBE":    "true",
-		"READINESS_PROTOCOL":        readiness.Protocol,
-		"READINESS_HOST":            service.Name,
-		"READINESS_PORT":            strconv.Itoa(readiness.Port),
-		"READINESS_PATH":            readiness.Path,
-		"READINESS_HOSTNAME":        readiness.Hostname,
-		"READINESS_TIMEOUT_SECONDS": strconv.Itoa(readiness.TimeoutSeconds),
-		"ESTAFETTE_LOG_FORMAT":      "console",
+	var envvars map[string]string
+	if readiness.HttpGet != nil {
+		envvars = map[string]string{
+			"RUN_AS_READINESS_PROBE":    "true",
+			"READINESS_SCHEME":          readiness.HttpGet.Scheme,
+			"READINESS_HOST":            service.Name,
+			"READINESS_PORT":            strconv.Itoa(readiness.HttpGet.Port),
+			"READINESS_PATH":            readiness.HttpGet.Path,
+			"READINESS_HOSTNAME":        readiness.HttpGet.Host,
+			"READINESS_TIMEOUT_SECONDS": strconv.Itoa(readiness.TimeoutSeconds),
+			"ESTAFETTE_LOG_FORMAT":      "console",
+		}
+	} else {
+		// legacy
+		envvars = map[string]string{
+			"RUN_AS_READINESS_PROBE":    "true",
+			"READINESS_SCHEME":          readiness.Protocol,
+			"READINESS_HOST":            service.Name,
+			"READINESS_PORT":            strconv.Itoa(readiness.Port),
+			"READINESS_PATH":            readiness.Path,
+			"READINESS_HOSTNAME":        readiness.Hostname,
+			"READINESS_TIMEOUT_SECONDS": strconv.Itoa(readiness.TimeoutSeconds),
+			"ESTAFETTE_LOG_FORMAT":      "console",
+		}
 	}
 
 	// decrypt secrets in all envvars

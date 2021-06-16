@@ -9,10 +9,10 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func WaitForReadiness(protocol, host string, port int, path, hostname string, timeoutSeconds int) error {
+func WaitForReadinessHttpGet(scheme, host string, port int, path, hostname string, timeoutSeconds int) error {
 
-	if protocol == "" {
-		return fmt.Errorf("Protocol is empty, should be either http or https")
+	if scheme == "" {
+		return fmt.Errorf("Scheme is empty, should be either http or https")
 	}
 	if host == "" {
 		return fmt.Errorf("Host is empty, should be the name (or alias) of the service")
@@ -27,7 +27,7 @@ func WaitForReadiness(protocol, host string, port int, path, hostname string, ti
 		return fmt.Errorf("Timeout should be larger than zero")
 	}
 
-	readinessURL := fmt.Sprintf("%v://%v:%v%v", protocol, host, port, path)
+	readinessURL := fmt.Sprintf("%v://%v:%v%v", scheme, host, port, path)
 
 	log.Info().Msgf("Running readiness probe against %v with host header %v", readinessURL, hostname)
 
@@ -42,7 +42,7 @@ func WaitForReadiness(protocol, host string, port int, path, hostname string, ti
 	if err != nil {
 		return err
 	}
-	if hostname != "" && hostname != "host" {
+	if hostname != "" && hostname != "host" && hostname != host {
 		request.Header.Add("Host", hostname)
 	}
 

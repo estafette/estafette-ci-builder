@@ -163,6 +163,20 @@ func (mr *MockContainerRunnerMockRecorder) RunReadinessProbeContainer(ctx, paren
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RunReadinessProbeContainer", reflect.TypeOf((*MockContainerRunner)(nil).RunReadinessProbeContainer), ctx, parentStage, service, readiness)
 }
 
+// RunReadinessProbeExec mocks base method.
+func (m *MockContainerRunner) RunReadinessProbeExec(ctx context.Context, parentStage manifest.EstafetteStage, service manifest.EstafetteService, readiness manifest.ReadinessProbe) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RunReadinessProbeExec", ctx, parentStage, service, readiness)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RunReadinessProbeExec indicates an expected call of RunReadinessProbeExec.
+func (mr *MockContainerRunnerMockRecorder) RunReadinessProbeExec(ctx, parentStage, service, readiness interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RunReadinessProbeExec", reflect.TypeOf((*MockContainerRunner)(nil).RunReadinessProbeExec), ctx, parentStage, service, readiness)
+}
+
 // StartDockerDaemon mocks base method.
 func (m *MockContainerRunner) StartDockerDaemon() error {
 	m.ctrl.T.Helper()

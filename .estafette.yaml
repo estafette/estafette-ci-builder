@@ -128,12 +128,14 @@ stages:
                   "ContainerImage": "nginx:alpine",
                   "Shell":"/bin/sh",
                   "When":"status == ''succeeded''",
-                  "Readiness": {
-                    "Path": "/",
+                  "ReadinessProbe": {
+                    "HttpGet": {
+                      "Path": "/",
+                      "Host": "nginx",
+                      "Port": 80,
+                      "Scheme": "http"
+                    },
                     "TimeoutSeconds": 30,
-                    "Hostname": "nginx",
-                    "Port": 80,
-                    "Protocol": "http"
                   }
                 },
                 {

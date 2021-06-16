@@ -17,7 +17,7 @@ import (
 
 // CIBuilder runs builds for different types of integrations
 type CIBuilder interface {
-	RunReadinessProbe(protocol, host string, port int, path, hostname string, timeoutSeconds int)
+	RunReadinessProbe(scheme, host string, port int, path, hostname string, timeoutSeconds int)
 	RunEstafetteBuildJob(pipelineRunner PipelineRunner, containerRunner ContainerRunner, envvarHelper EnvvarHelper, obfuscator Obfuscator, endOfLifeHelper EndOfLifeHelper, builderConfig contracts.BuilderConfig, credentialsBytes []byte, runAsJob bool)
 	RunGocdAgentBuild(pipelineRunner PipelineRunner, containerRunner ContainerRunner, envvarHelper EnvvarHelper, obfuscator Obfuscator, builderConfig contracts.BuilderConfig, credentialsBytes []byte)
 	RunEstafetteCLIBuild() error
@@ -34,8 +34,8 @@ func NewCIBuilder(applicationInfo foundation.ApplicationInfo) CIBuilder {
 	}
 }
 
-func (b *ciBuilderImpl) RunReadinessProbe(protocol, host string, port int, path, hostname string, timeoutSeconds int) {
-	err := WaitForReadiness(protocol, host, port, path, hostname, timeoutSeconds)
+func (b *ciBuilderImpl) RunReadinessProbe(scheme, host string, port int, path, hostname string, timeoutSeconds int) {
+	err := WaitForReadinessHttpGet(scheme, host, port, path, hostname, timeoutSeconds)
 	if err != nil {
 		log.Fatal().Err(err).Msgf("Readiness probe failed")
 	}

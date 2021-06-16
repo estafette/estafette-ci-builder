@@ -32,7 +32,7 @@ var (
 	podName                 = kingpin.Flag("pod-name", "The name of the pod.").Envar("POD_NAME").String()
 
 	runAsReadinessProbe     = kingpin.Flag("run-as-readiness-probe", "Indicates whether the builder should run as readiness probe.").Envar("RUN_AS_READINESS_PROBE").Bool()
-	readinessProtocol       = kingpin.Flag("readiness-protocol", "The protocol to use for the readiness probe.").Envar("READINESS_PROTOCOL").String()
+	readinessScheme         = kingpin.Flag("readiness-scheme", "The scheme to use for the readiness probe.").Envar("READINESS_SCHEME").String()
 	readinessHost           = kingpin.Flag("readiness-host", "The host to use for the readiness probe.").Envar("READINESS_HOST").String()
 	readinessPort           = kingpin.Flag("readiness-port", "The port to use for the readiness probe.").Envar("READINESS_PORT").Int()
 	readinessPath           = kingpin.Flag("readiness-path", "The path to use for the readiness probe.").Envar("READINESS_PATH").String()
@@ -61,7 +61,7 @@ func main() {
 
 	// this builder binary is mounted inside a scratch container to run as a readiness probe against service containers
 	if *runAsReadinessProbe {
-		ciBuilder.RunReadinessProbe(*readinessProtocol, *readinessHost, *readinessPort, *readinessPath, *readinessHostname, *readinessTimeoutSeconds)
+		ciBuilder.RunReadinessProbe(*readinessScheme, *readinessHost, *readinessPort, *readinessPath, *readinessHostname, *readinessTimeoutSeconds)
 	}
 
 	// init secret helper
