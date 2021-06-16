@@ -135,7 +135,7 @@ stages:
                       "Port": 80,
                       "Scheme": "http"
                     },
-                    "TimeoutSeconds": 30,
+                    "TimeoutSeconds": 30
                   }
                 },
                 {
