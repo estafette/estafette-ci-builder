@@ -63,7 +63,7 @@ func TestGenerateEntrypointScript(t *testing.T) {
 		assert.Nil(t, err)
 		bytes, err := ioutil.ReadFile(path.Join(hostPath, entrypointFile))
 		assert.Nil(t, err)
-		assert.Equal(t, "#!/bin/sh\nset -e\n\nprintf '%s\\n' \"\\033[38;5;250m> exec go test ./...\\033[0m\"\nexec go test ./...", string(bytes))
+		assert.Equal(t, "#!/bin/sh\nset -e\n\nprintf '\\033[38;5;250m> exec %s\\033[0m' \"go test ./...\"\nexec go test ./...", string(bytes))
 	})
 
 	t.Run("ReturnsVariablesForTwoOrMoreCommands", func(t *testing.T) {
@@ -78,7 +78,7 @@ func TestGenerateEntrypointScript(t *testing.T) {
 		assert.Nil(t, err)
 		bytes, err := ioutil.ReadFile(path.Join(hostPath, entrypointFile))
 		assert.Nil(t, err)
-		assert.Equal(t, "#!/bin/sh\nset -e\nprintf '%s\\n' \"\\033[38;5;250m> go test ./... &\\033[0m\"\ngo test ./... &\ntrap \"kill $!; wait; exit\" 1 2 15\nwait $!\n\nprintf '%s\\n' \"\\033[38;5;250m> exec go build\\033[0m\"\nexec go build", string(bytes))
+		assert.Equal(t, "#!/bin/sh\nset -e\nprintf '\\033[38;5;250m> %s &\\033[0m' \"go test ./...\"\ngo test ./... &\ntrap \"kill $!; wait; exit\" 1 2 15\nwait $!\n\nprintf '\\033[38;5;250m> exec %s\\033[0m' \"go build\"\nexec go build", string(bytes))
 	})
 
 	t.Run("DoesNotRunVariableAssignmentInBackground", func(t *testing.T) {
@@ -93,7 +93,7 @@ func TestGenerateEntrypointScript(t *testing.T) {
 		assert.Nil(t, err)
 		bytes, err := ioutil.ReadFile(path.Join(hostPath, entrypointFile))
 		assert.Nil(t, err)
-		assert.Equal(t, "#!/bin/sh\nset -e\nprintf '%s\\n' \"\\033[38;5;250m> go test ./... &\\033[0m\"\ngo test ./... &\ntrap \"kill $!; wait; exit\" 1 2 15\nwait $!\nprintf '%s\\n' \"\\033[38;5;250m> export MY_TITLE_2=abc\\033[0m\"\nexport MY_TITLE_2=abc\nprintf '%s\\n' \"\\033[38;5;250m> echo $MY_TITLE_2 &\\033[0m\"\necho $MY_TITLE_2 &\ntrap \"kill $!; wait; exit\" 1 2 15\nwait $!\n\nprintf '%s\\n' \"\\033[38;5;250m> exec go build\\033[0m\"\nexec go build", string(bytes))
+		assert.Equal(t, "#!/bin/sh\nset -e\nprintf '\\033[38;5;250m> %s &\\033[0m' \"go test ./...\"\ngo test ./... &\ntrap \"kill $!; wait; exit\" 1 2 15\nwait $!\nprintf '\\033[38;5;250m> %s\\033[0m' \"export MY_TITLE_2=abc\"\nexport MY_TITLE_2=abc\nprintf '\\033[38;5;250m> %s &\\033[0m' \"echo $MY_TITLE_2\"\necho $MY_TITLE_2 &\ntrap \"kill $!; wait; exit\" 1 2 15\nwait $!\n\nprintf '\\033[38;5;250m> exec %s\\033[0m' \"go build\"\nexec go build", string(bytes))
 	})
 
 	t.Run("DoesNotRunCommandsWithOrInBackground", func(t *testing.T) {
@@ -108,7 +108,7 @@ func TestGenerateEntrypointScript(t *testing.T) {
 		assert.Nil(t, err)
 		bytes, err := ioutil.ReadFile(path.Join(hostPath, entrypointFile))
 		assert.Nil(t, err)
-		assert.Equal(t, "#!/bin/sh\nset -e\nprintf '%s\\n' \"\\033[38;5;250m> false || true\\033[0m\"\nfalse || true\n\nprintf '%s\\n' \"\\033[38;5;250m> exec go build\\033[0m\"\nexec go build", string(bytes))
+		assert.Equal(t, "#!/bin/sh\nset -e\nprintf '\\033[38;5;250m> %s\\033[0m' \"false || true\"\nfalse || true\n\nprintf '\\033[38;5;250m> exec %s\\033[0m' \"go build\"\nexec go build", string(bytes))
 	})
 
 	t.Run("DoesNotRunCommandsWithAndInBackground", func(t *testing.T) {
@@ -123,7 +123,7 @@ func TestGenerateEntrypointScript(t *testing.T) {
 		assert.Nil(t, err)
 		bytes, err := ioutil.ReadFile(path.Join(hostPath, entrypointFile))
 		assert.Nil(t, err)
-		assert.Equal(t, "#!/bin/sh\nset -e\nprintf '%s\\n' \"\\033[38;5;250m> false && true\\033[0m\"\nfalse && true\n\nprintf '%s\\n' \"\\033[38;5;250m> exec go build\\033[0m\"\nexec go build", string(bytes))
+		assert.Equal(t, "#!/bin/sh\nset -e\nprintf '\\033[38;5;250m> %s\\033[0m' \"false && true\"\nfalse && true\n\nprintf '\\033[38;5;250m> exec %s\\033[0m' \"go build\"\nexec go build", string(bytes))
 	})
 
 	t.Run("DoesNotRunCommandsWithPipeInBackground", func(t *testing.T) {
@@ -138,7 +138,7 @@ func TestGenerateEntrypointScript(t *testing.T) {
 		assert.Nil(t, err)
 		bytes, err := ioutil.ReadFile(path.Join(hostPath, entrypointFile))
 		assert.Nil(t, err)
-		assert.Equal(t, "#!/bin/sh\nset -e\nprintf '%s\\n' \"\\033[38;5;250m> cat kubernetes.yaml | kubectl apply -f -\\033[0m\"\ncat kubernetes.yaml | kubectl apply -f -\n\nprintf '%s\\n' \"\\033[38;5;250m> exec kubectl rollout status deploy/myapp\\033[0m\"\nexec kubectl rollout status deploy/myapp", string(bytes))
+		assert.Equal(t, "#!/bin/sh\nset -e\nprintf '\\033[38;5;250m> %s\\033[0m' \"cat kubernetes.yaml | kubectl apply -f -\"\ncat kubernetes.yaml | kubectl apply -f -\n\nprintf '\\033[38;5;250m> exec %s\\033[0m' \"kubectl rollout status deploy/myapp\"\nexec kubectl rollout status deploy/myapp", string(bytes))
 	})
 
 	t.Run("DoesNotRunCommandsWithChangeDirectoryInBackground", func(t *testing.T) {
@@ -153,7 +153,7 @@ func TestGenerateEntrypointScript(t *testing.T) {
 		assert.Nil(t, err)
 		bytes, err := ioutil.ReadFile(path.Join(hostPath, entrypointFile))
 		assert.Nil(t, err)
-		assert.Equal(t, "#!/bin/sh\nset -e\nprintf '%s\\n' \"\\033[38;5;250m> cd subdir\\033[0m\"\ncd subdir\n\nprintf '%s\\n' \"\\033[38;5;250m> exec ls -latr\\033[0m\"\nexec ls -latr", string(bytes))
+		assert.Equal(t, "#!/bin/sh\nset -e\nprintf '\\033[38;5;250m> %s\\033[0m' \"cd subdir\"\ncd subdir\n\nprintf '\\033[38;5;250m> exec %s\\033[0m' \"ls -latr\"\nexec ls -latr", string(bytes))
 	})
 
 	t.Run("DoesNotRunCommandsWithExportInBackground", func(t *testing.T) {
@@ -168,7 +168,7 @@ func TestGenerateEntrypointScript(t *testing.T) {
 		assert.Nil(t, err)
 		bytes, err := ioutil.ReadFile(path.Join(hostPath, entrypointFile))
 		assert.Nil(t, err)
-		assert.Equal(t, "#!/bin/sh\nset -e\nprintf '%s\\n' \"\\033[38;5;250m> export \\$(python3 requiredenv.py)\\033[0m\"\nexport $(python3 requiredenv.py)\n\nprintf '%s\\n' \"\\033[38;5;250m> exec ls -latr\\033[0m\"\nexec ls -latr", string(bytes))
+		assert.Equal(t, "#!/bin/sh\nset -e\nprintf '\\033[38;5;250m> %s\\033[0m' \"export \\$(python3 requiredenv.py)\"\nexport $(python3 requiredenv.py)\n\nprintf '\\033[38;5;250m> exec %s\\033[0m' \"ls -latr\"\nexec ls -latr", string(bytes))
 	})
 
 	t.Run("DoesNotRunCommandsWithShoptInBackground", func(t *testing.T) {
@@ -183,7 +183,7 @@ func TestGenerateEntrypointScript(t *testing.T) {
 		assert.Nil(t, err)
 		bytes, err := ioutil.ReadFile(path.Join(hostPath, entrypointFile))
 		assert.Nil(t, err)
-		assert.Equal(t, "#!/bin/sh\nset -e\nprintf '%s\\n' \"\\033[38;5;250m> shopt -u dotglob\\033[0m\"\nshopt -u dotglob\n\nprintf '%s\\n' \"\\033[38;5;250m> exec ls -latr\\033[0m\"\nexec ls -latr", string(bytes))
+		assert.Equal(t, "#!/bin/sh\nset -e\nprintf '\\033[38;5;250m> %s\\033[0m' \"shopt -u dotglob\"\nshopt -u dotglob\n\nprintf '\\033[38;5;250m> exec %s\\033[0m' \"ls -latr\"\nexec ls -latr", string(bytes))
 	})
 
 	t.Run("DoesNotRunCommandsWithSemicolonInBackground", func(t *testing.T) {
@@ -198,7 +198,7 @@ func TestGenerateEntrypointScript(t *testing.T) {
 		assert.Nil(t, err)
 		bytes, err := ioutil.ReadFile(path.Join(hostPath, entrypointFile))
 		assert.Nil(t, err)
-		assert.Equal(t, "#!/bin/sh\nset -e\nprintf '%s\\n' \"\\033[38;5;250m> if [ \\\"${VARIABLE}\\\" -ne \\\"\\\" ]; then echo $VARIABLE; fi\\033[0m\"\nif [ \"${VARIABLE}\" -ne \"\" ]; then echo $VARIABLE; fi\n\nprintf '%s\\n' \"\\033[38;5;250m> exec go build\\033[0m\"\nexec go build", string(bytes))
+		assert.Equal(t, "#!/bin/sh\nset -e\nprintf '\\033[38;5;250m> %s\\033[0m' \"if [ \\\"${VARIABLE}\\\" -ne \\\"\\\" ]; then echo $VARIABLE; fi\"\nif [ \"${VARIABLE}\" -ne \"\" ]; then echo $VARIABLE; fi\n\nprintf '\\033[38;5;250m> exec %s\\033[0m' \"go build\"\nexec go build", string(bytes))
 	})
 
 	t.Run("EscapesDoubleQuotesInEchoStatements", func(t *testing.T) {
@@ -213,7 +213,7 @@ func TestGenerateEntrypointScript(t *testing.T) {
 		assert.Nil(t, err)
 		bytes, err := ioutil.ReadFile(path.Join(hostPath, entrypointFile))
 		assert.Nil(t, err)
-		assert.Equal(t, "#!/bin/sh\nset -e\n\nprintf '%s\\n' \"\\033[38;5;250m> exec echo \\\"<xml />\\\"\\033[0m\"\nexec echo \"<xml />\"", string(bytes))
+		assert.Equal(t, "#!/bin/sh\nset -e\n\nprintf '\\033[38;5;250m> exec %s\\033[0m' \"echo \\\"<xml />\\\"\"\nexec echo \"<xml />\"", string(bytes))
 	})
 
 	t.Run("DoesNotEscapeSingleQuotesInEchoStatements", func(t *testing.T) {
@@ -228,7 +228,7 @@ func TestGenerateEntrypointScript(t *testing.T) {
 		assert.Nil(t, err)
 		bytes, err := ioutil.ReadFile(path.Join(hostPath, entrypointFile))
 		assert.Nil(t, err)
-		assert.Equal(t, "#!/bin/sh\nset -e\n\nprintf '%s\\n' \"\\033[38;5;250m> exec echo '<xml />'\\033[0m\"\nexec echo '<xml />'", string(bytes))
+		assert.Equal(t, "#!/bin/sh\nset -e\n\nprintf '\\033[38;5;250m> exec %s\\033[0m' \"echo '<xml />'\"\nexec echo '<xml />'", string(bytes))
 	})
 
 	t.Run("DoesNotRunAnyCommandInBackgroundWhenRunCommandsInForegroundIsTrue", func(t *testing.T) {
@@ -243,6 +243,6 @@ func TestGenerateEntrypointScript(t *testing.T) {
 		assert.Nil(t, err)
 		bytes, err := ioutil.ReadFile(path.Join(hostPath, entrypointFile))
 		assert.Nil(t, err)
-		assert.Equal(t, "#!/bin/sh\nset -e\nprintf '%s\\n' \"\\033[38;5;250m> go test ./...\\033[0m\"\ngo test ./...\n\nprintf '%s\\n' \"\\033[38;5;250m> go build\\033[0m\"\ngo build", string(bytes))
+		assert.Equal(t, "#!/bin/sh\nset -e\nprintf '\\033[38;5;250m> %s\\033[0m' \"go test ./...\"\ngo test ./...\n\nprintf '\\033[38;5;250m> %s\\033[0m' \"go build\"\ngo build", string(bytes))
 	})
 }
