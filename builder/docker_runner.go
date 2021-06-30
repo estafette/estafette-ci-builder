@@ -1282,7 +1282,6 @@ func (dr *dockerRunnerImpl) generateCredentialsFiles(trustedImage *contracts.Tru
 }
 
 func escapeCharsInCommand(command string) string {
-	command = strings.Replace(command, "\"", "\\\"", -1)
-	command = strings.Replace(command, "$(", "\\$(", -1)
+	command = strings.Replace(command, `'`, `\'`, -1)
 	return command
 }
