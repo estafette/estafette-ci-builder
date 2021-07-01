@@ -2,6 +2,7 @@ package builder
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"runtime"
@@ -13,6 +14,11 @@ import (
 	foundation "github.com/estafette/estafette-foundation"
 	"github.com/opentracing/opentracing-go"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/sync/errgroup"
+)
+
+var (
+	ErrCanceled = fmt.Errorf("Canceled")
 )
 
 // PipelineRunner is the interface for running the pipeline steps
@@ -131,7 +137,7 @@ func (pr *pipelineRunnerImpl) handleStageFinish(ctx context.Context, depth int, 
 
 	// finalize stage
 	finalStatus := contracts.LogStatusSucceeded
-	if pr.getCanceled() {
+	if pr.getCanceled() || errors.Is(err, ErrCanceled) {
 		log.Info().Msgf("%v Stage canceled", stagePlaceholder)
 		finalStatus = contracts.LogStatusCanceled
 	} else if err != nil {
@@ -173,6 +179,13 @@ func (pr *pipelineRunnerImpl) RunStageWithRetry(ctx context.Context, depth int, 
 	// retry until successful or number of retries is maxed out
 	for runIndex <= retries {
 		err = pr.RunStage(ctx, depth, runIndex, dir, envvars, parentStage, stage, stageIndex)
+
+		// check if context has been canceled
+		select {
+		case <-ctx.Done():
+			return ErrCanceled
+		default:
+		}
 
 		// if execution is successful, we're done
 		if pr.getCanceled() || err == nil {
@@ -258,7 +271,7 @@ func (pr *pipelineRunnerImpl) handleServiceFinish(ctx context.Context, envvars m
 
 	// finalize stage
 	finalStatus := contracts.LogStatusSucceeded
-	if pr.getCanceled() {
+	if pr.getCanceled() || errors.Is(err, ErrCanceled) {
 		log.Info().Msgf("[%v] [%v] Service canceled", parentStage.Name, service.Name)
 		finalStatus = contracts.LogStatusCanceled
 	} else if err != nil {
@@ -344,7 +357,7 @@ func (pr *pipelineRunnerImpl) RunStages(ctx context.Context, depth int, stages [
 			}
 			if whenEvaluationResult {
 				err = pr.RunStageWithRetry(ctx, depth, dir, envvars, nil, *stage, 0)
-				if pr.getCanceled() {
+				if pr.getCanceled() || errors.Is(err, ErrCanceled) {
 					return
 				}
 				if err != nil {
@@ -381,37 +394,32 @@ func (pr *pipelineRunnerImpl) RunParallelStages(ctx context.Context, depth int, 
 
 	log.Info().Msgf("[%v] Running %v parallel stages", parentStage.Name, len(parallelStages))
 
-	var wg sync.WaitGroup
-	wg.Add(len(parallelStages))
-
-	errors := make(chan error, len(parallelStages))
-
+	g, ctx := errgroup.WithContext(ctx)
 	for i, ps := range parallelStages {
-		go func(ctx context.Context, depth int, dir string, envvars map[string]string, parentStage manifest.EstafetteStage, stage manifest.EstafetteStage, stageIndex int) {
-			defer wg.Done()
+		stageIndex := i
+		stage := *ps
 
+		g.Go(func() error {
 			// handle cancellation happening in between stages
 			if pr.getCanceled() {
-				return
+				return nil
 			}
 
 			whenEvaluationResult, err := pr.whenEvaluator.Evaluate(stage.Name, stage.When, pr.whenEvaluator.GetParameters())
 			if pr.getCanceled() || err != nil {
 				if err != nil {
-					errors <- err
+					return err
 				}
-				return
+				return nil
 			}
 
 			if whenEvaluationResult {
-
 				err = pr.RunStageWithRetry(ctx, depth, dir, envvars, &parentStage, stage, stageIndex)
-
 				if pr.getCanceled() || err != nil {
 					if err != nil {
-						errors <- err
+						return err
 					}
-					return
+					return nil
 				}
 
 			} else {
@@ -428,20 +436,12 @@ func (pr *pipelineRunnerImpl) RunParallelStages(ctx context.Context, depth int, 
 					Status:       &status,
 				}
 			}
-		}(ctx, depth, dir, envvars, parentStage, *ps, i)
+
+			return nil
+		})
 	}
 
-	// TODO as soon as one parallel stage fails cancel the others
-
-	wg.Wait()
-
-	close(errors)
-	for e := range errors {
-		err = e
-		return
-	}
-
-	return
+	return g.Wait()
 }
 
 func (pr *pipelineRunnerImpl) RunServices(ctx context.Context, envvars map[string]string, parentStage manifest.EstafetteStage, services []*manifest.EstafetteService) (err error) {
