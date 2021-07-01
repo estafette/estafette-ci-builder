@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"io/ioutil"
 	"os"
@@ -50,18 +51,14 @@ func main() {
 	// init log format from envvar ESTAFETTE_LOG_FORMAT
 	foundation.InitLoggingFromEnv(applicationInfo)
 
-	// handle shutdown for cancellation
-	osSignals, wg := foundation.InitGracefulShutdownHandling()
-	cancellationChannel := make(chan struct{})
-	go foundation.HandleGracefulShutdown(osSignals, wg, func() {
-		close(cancellationChannel)
-	})
+	// handle cancellation
+	ctx := foundation.InitCancellationContext(context.Background())
 
 	ciBuilder := builder.NewCIBuilder(applicationInfo)
 
 	// this builder binary is mounted inside a scratch container to run as a readiness probe against service containers
 	if *runAsReadinessProbe {
-		ciBuilder.RunReadinessProbe(*readinessScheme, *readinessHost, *readinessPort, *readinessPath, *readinessHostname, *readinessTimeoutSeconds)
+		ciBuilder.RunReadinessProbe(ctx, *readinessScheme, *readinessHost, *readinessPort, *readinessPath, *readinessHostname, *readinessTimeoutSeconds)
 	}
 
 	// init secret helper
@@ -92,15 +89,15 @@ func main() {
 	} else {
 		containerRunner = builder.NewDockerRunner(envvarHelper, obfuscator, builderConfig, tailLogsChannel)
 	}
-	pipelineRunner := builder.NewPipelineRunner(envvarHelper, whenEvaluator, containerRunner, *runAsJob, cancellationChannel, tailLogsChannel, applicationInfo)
+	pipelineRunner := builder.NewPipelineRunner(envvarHelper, whenEvaluator, containerRunner, *runAsJob, tailLogsChannel, applicationInfo)
 
 	// detect controlling server
 	ciServer := envvarHelper.GetCiServer()
 	if ciServer == "gocd" {
-		ciBuilder.RunGocdAgentBuild(pipelineRunner, containerRunner, envvarHelper, obfuscator, builderConfig, originalEncryptedCredentials)
+		ciBuilder.RunGocdAgentBuild(ctx, pipelineRunner, containerRunner, envvarHelper, obfuscator, builderConfig, originalEncryptedCredentials)
 	} else if ciServer == "estafette" {
 		endOfLifeHelper := builder.NewEndOfLifeHelper(*runAsJob, builderConfig, *podName)
-		ciBuilder.RunEstafetteBuildJob(pipelineRunner, containerRunner, envvarHelper, obfuscator, endOfLifeHelper, builderConfig, originalEncryptedCredentials, *runAsJob)
+		ciBuilder.RunEstafetteBuildJob(ctx, pipelineRunner, containerRunner, envvarHelper, obfuscator, endOfLifeHelper, builderConfig, originalEncryptedCredentials, *runAsJob)
 	} else {
 		log.Warn().Msgf("The CI Server (\"%s\") is not recognized, exiting.", ciServer)
 	}

@@ -34,17 +34,16 @@ type PipelineRunner interface {
 }
 
 // NewPipelineRunner returns a new PipelineRunner
-func NewPipelineRunner(envvarHelper EnvvarHelper, whenEvaluator WhenEvaluator, containerRunner ContainerRunner, runAsJob bool, cancellationChannel chan struct{}, tailLogsChannel chan contracts.TailLogLine, applicationInfo foundation.ApplicationInfo) PipelineRunner {
+func NewPipelineRunner(envvarHelper EnvvarHelper, whenEvaluator WhenEvaluator, containerRunner ContainerRunner, runAsJob bool, tailLogsChannel chan contracts.TailLogLine, applicationInfo foundation.ApplicationInfo) PipelineRunner {
 	return &pipelineRunnerImpl{
-		envvarHelper:        envvarHelper,
-		whenEvaluator:       whenEvaluator,
-		containerRunner:     containerRunner,
-		runAsJob:            runAsJob,
-		cancellationChannel: cancellationChannel,
-		tailLogsChannel:     tailLogsChannel,
-		buildLogSteps:       make([]*contracts.BuildLogStep, 0),
-		applicationInfo:     applicationInfo,
-		cancellationMutex:   &sync.RWMutex{},
+		envvarHelper:      envvarHelper,
+		whenEvaluator:     whenEvaluator,
+		containerRunner:   containerRunner,
+		runAsJob:          runAsJob,
+		tailLogsChannel:   tailLogsChannel,
+		buildLogSteps:     make([]*contracts.BuildLogStep, 0),
+		applicationInfo:   applicationInfo,
+		cancellationMutex: &sync.RWMutex{},
 	}
 }
 
@@ -53,7 +52,6 @@ type pipelineRunnerImpl struct {
 	whenEvaluator          WhenEvaluator
 	containerRunner        ContainerRunner
 	runAsJob               bool
-	cancellationChannel    chan struct{}
 	tailLogsChannel        chan contracts.TailLogLine
 	buildLogSteps          []*contracts.BuildLogStep
 	canceled               bool
@@ -516,8 +514,9 @@ func (pr *pipelineRunnerImpl) RunServices(ctx context.Context, envvars map[strin
 }
 
 func (pr *pipelineRunnerImpl) StopPipelineOnCancellation(ctx context.Context) {
+
 	// wait for cancellation
-	<-pr.cancellationChannel
+	<-ctx.Done()
 
 	pr.cancellationMutex.Lock()
 	pr.canceled = true

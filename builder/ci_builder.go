@@ -17,9 +17,9 @@ import (
 
 // CIBuilder runs builds for different types of integrations
 type CIBuilder interface {
-	RunReadinessProbe(scheme, host string, port int, path, hostname string, timeoutSeconds int)
-	RunEstafetteBuildJob(pipelineRunner PipelineRunner, containerRunner ContainerRunner, envvarHelper EnvvarHelper, obfuscator Obfuscator, endOfLifeHelper EndOfLifeHelper, builderConfig contracts.BuilderConfig, credentialsBytes []byte, runAsJob bool)
-	RunGocdAgentBuild(pipelineRunner PipelineRunner, containerRunner ContainerRunner, envvarHelper EnvvarHelper, obfuscator Obfuscator, builderConfig contracts.BuilderConfig, credentialsBytes []byte)
+	RunReadinessProbe(ctx context.Context, scheme, host string, port int, path, hostname string, timeoutSeconds int)
+	RunEstafetteBuildJob(ctx context.Context, pipelineRunner PipelineRunner, containerRunner ContainerRunner, envvarHelper EnvvarHelper, obfuscator Obfuscator, endOfLifeHelper EndOfLifeHelper, builderConfig contracts.BuilderConfig, credentialsBytes []byte, runAsJob bool)
+	RunGocdAgentBuild(ctx context.Context, pipelineRunner PipelineRunner, containerRunner ContainerRunner, envvarHelper EnvvarHelper, obfuscator Obfuscator, builderConfig contracts.BuilderConfig, credentialsBytes []byte)
 	RunEstafetteCLIBuild() error
 }
 
@@ -34,8 +34,8 @@ func NewCIBuilder(applicationInfo foundation.ApplicationInfo) CIBuilder {
 	}
 }
 
-func (b *ciBuilderImpl) RunReadinessProbe(scheme, host string, port int, path, hostname string, timeoutSeconds int) {
-	err := WaitForReadinessHttpGet(scheme, host, port, path, hostname, timeoutSeconds)
+func (b *ciBuilderImpl) RunReadinessProbe(ctx context.Context, scheme, host string, port int, path, hostname string, timeoutSeconds int) {
+	err := WaitForReadinessHttpGet(ctx, scheme, host, port, path, hostname, timeoutSeconds)
 	if err != nil {
 		log.Fatal().Err(err).Msgf("Readiness probe failed")
 	}
@@ -44,7 +44,7 @@ func (b *ciBuilderImpl) RunReadinessProbe(scheme, host string, port int, path, h
 	os.Exit(0)
 }
 
-func (b *ciBuilderImpl) RunEstafetteBuildJob(pipelineRunner PipelineRunner, containerRunner ContainerRunner, envvarHelper EnvvarHelper, obfuscator Obfuscator, endOfLifeHelper EndOfLifeHelper, builderConfig contracts.BuilderConfig, credentialsBytes []byte, runAsJob bool) {
+func (b *ciBuilderImpl) RunEstafetteBuildJob(ctx context.Context, pipelineRunner PipelineRunner, containerRunner ContainerRunner, envvarHelper EnvvarHelper, obfuscator Obfuscator, endOfLifeHelper EndOfLifeHelper, builderConfig contracts.BuilderConfig, credentialsBytes []byte, runAsJob bool) {
 
 	closer := b.initJaeger(b.applicationInfo.App)
 	defer closer.Close()
@@ -68,7 +68,6 @@ func (b *ciBuilderImpl) RunEstafetteBuildJob(pipelineRunner PipelineRunner, cont
 	rootSpan := opentracing.StartSpan(rootSpanName)
 	defer rootSpan.Finish()
 
-	ctx := context.Background()
 	ctx = opentracing.ContextWithSpan(ctx, rootSpan)
 
 	// set running state, so a restarted job will show up as running once a new pod runs
@@ -178,7 +177,7 @@ func (b *ciBuilderImpl) RunEstafetteBuildJob(pipelineRunner PipelineRunner, cont
 	}
 }
 
-func (b *ciBuilderImpl) RunGocdAgentBuild(pipelineRunner PipelineRunner, containerRunner ContainerRunner, envvarHelper EnvvarHelper, obfuscator Obfuscator, builderConfig contracts.BuilderConfig, credentialsBytes []byte) {
+func (b *ciBuilderImpl) RunGocdAgentBuild(ctx context.Context, pipelineRunner PipelineRunner, containerRunner ContainerRunner, envvarHelper EnvvarHelper, obfuscator Obfuscator, builderConfig contracts.BuilderConfig, credentialsBytes []byte) {
 
 	fatalHandler := NewGocdFatalHandler()
 

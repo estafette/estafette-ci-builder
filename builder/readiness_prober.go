@@ -1,6 +1,7 @@
 package builder
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"net/http"
@@ -9,7 +10,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func WaitForReadinessHttpGet(scheme, host string, port int, path, hostname string, timeoutSeconds int) error {
+func WaitForReadinessHttpGet(ctx context.Context, scheme, host string, port int, path, hostname string, timeoutSeconds int) error {
 
 	if scheme == "" {
 		return fmt.Errorf("Scheme is empty, should be either http or https")
@@ -38,7 +39,7 @@ func WaitForReadinessHttpGet(scheme, host string, port int, path, hostname strin
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		},
 	}
-	request, err := http.NewRequest("GET", readinessURL, nil)
+	request, err := http.NewRequestWithContext(ctx, "GET", readinessURL, nil)
 	if err != nil {
 		return err
 	}
