@@ -245,7 +245,7 @@ func (b *ciBuilderImpl) RunGocdAgentBuild(ctx context.Context, pipelineRunner Pi
 	envvars := envvarHelper.OverrideEnvvars(estafetteEnvvars, globalEnvvars)
 
 	// run stages
-	buildLogSteps, err := pipelineRunner.RunStages(context.Background(), 0, stages, dir, envvars)
+	buildLogSteps, err := pipelineRunner.RunStages(ctx, 0, stages, dir, envvars)
 	if err != nil {
 		fatalHandler.HandleGocdFatal(err, "Executing stages from manifest failed")
 	}

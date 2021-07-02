@@ -82,7 +82,7 @@ func (dr *kubernetesRunnerImpl) PullImage(ctx context.Context, stageName string,
 	return
 }
 
-func (dr *kubernetesRunnerImpl) GetImageSize(containerImage string) (totalSize int64, err error) {
+func (dr *kubernetesRunnerImpl) GetImageSize(ctx context.Context, containerImage string) (totalSize int64, err error) {
 	return totalSize, nil
 }
 

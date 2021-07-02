@@ -82,7 +82,7 @@ func (dr *dockerRunnerImpl) IsImagePulled(ctx context.Context, stageName string,
 	dr.pulledImagesMutex.RLock(containerImage)
 	defer dr.pulledImagesMutex.RUnlock(containerImage)
 
-	imageSummaries, err := dr.dockerClient.ImageList(context.Background(), types.ImageListOptions{})
+	imageSummaries, err := dr.dockerClient.ImageList(ctx, types.ImageListOptions{})
 	if err != nil {
 		return false
 	}
@@ -108,7 +108,7 @@ func (dr *dockerRunnerImpl) PullImage(ctx context.Context, stageName string, con
 
 	log.Info().Msgf("[%v] Pulling docker image '%v'", stageName, containerImage)
 
-	rc, err := dr.dockerClient.ImagePull(context.Background(), containerImage, dr.getImagePullOptions(containerImage))
+	rc, err := dr.dockerClient.ImagePull(ctx, containerImage, dr.getImagePullOptions(containerImage))
 	if err != nil {
 		return err
 	}
@@ -123,9 +123,9 @@ func (dr *dockerRunnerImpl) PullImage(ctx context.Context, stageName string, con
 	return
 }
 
-func (dr *dockerRunnerImpl) GetImageSize(containerImage string) (totalSize int64, err error) {
+func (dr *dockerRunnerImpl) GetImageSize(ctx context.Context, containerImage string) (totalSize int64, err error) {
 
-	items, err := dr.dockerClient.ImageHistory(context.Background(), containerImage)
+	items, err := dr.dockerClient.ImageHistory(ctx, containerImage)
 	if err != nil {
 		return totalSize, err
 	}
@@ -694,7 +694,7 @@ func (dr *dockerRunnerImpl) StopSingleStageServiceContainers(ctx context.Context
 	log.Info().Msgf("[%v] Stopping single-stage service containers...", parentStage.Name)
 
 	// the service containers should be the only ones running, so just stop all containers
-	dr.stopContainers(dr.runningSingleStageServiceContainerIDs)
+	dr.stopContainers(ctx, dr.runningSingleStageServiceContainerIDs)
 
 	log.Info().Msgf("[%v] Stopped single-stage service containers...", parentStage.Name)
 }
@@ -704,7 +704,7 @@ func (dr *dockerRunnerImpl) StopMultiStageServiceContainers(ctx context.Context)
 	log.Info().Msg("Stopping multi-stage service containers...")
 
 	// the service containers should be the only ones running, so just stop all containers
-	dr.stopContainers(dr.runningMultiStageServiceContainerIDs)
+	dr.stopContainers(ctx, dr.runningMultiStageServiceContainerIDs)
 
 	log.Info().Msg("Stopped multi-stage service containers...")
 }
@@ -861,12 +861,12 @@ func (dr *dockerRunnerImpl) HasInjectedCredentials(stageName string, containerIm
 	return len(credentialMap) > 0
 }
 
-func (dr *dockerRunnerImpl) stopContainer(containerID string) error {
+func (dr *dockerRunnerImpl) stopContainer(ctx context.Context, containerID string) error {
 
 	log.Debug().Msgf("Stopping container with id %v", containerID)
 
 	timeout := 20 * time.Second
-	err := dr.dockerClient.ContainerStop(context.Background(), containerID, &timeout)
+	err := dr.dockerClient.ContainerStop(ctx, containerID, &timeout)
 	if err != nil {
 		log.Warn().Err(err).Msgf("Failed stopping container with id %v", containerID)
 		return err
@@ -876,7 +876,7 @@ func (dr *dockerRunnerImpl) stopContainer(containerID string) error {
 	return nil
 }
 
-func (dr *dockerRunnerImpl) stopContainers(containerIDs []string) {
+func (dr *dockerRunnerImpl) stopContainers(ctx context.Context, containerIDs []string) {
 
 	if len(containerIDs) > 0 {
 		log.Info().Msgf("Stopping %v containers", len(containerIDs))
@@ -887,7 +887,7 @@ func (dr *dockerRunnerImpl) stopContainers(containerIDs []string) {
 		for _, id := range containerIDs {
 			go func(id string) {
 				defer wg.Done()
-				err := dr.stopContainer(id)
+				err := dr.stopContainer(ctx, id)
 				if err != nil {
 					log.Warn().Err(err).Msgf("Failed stopping container with id %v", id)
 				}
@@ -908,7 +908,7 @@ func (dr *dockerRunnerImpl) StopAllContainers(ctx context.Context) {
 	allRunningContainerIDs = append(allRunningContainerIDs, dr.runningMultiStageServiceContainerIDs...)
 	allRunningContainerIDs = append(allRunningContainerIDs, dr.runningReadinessProbeContainerIDs...)
 
-	dr.stopContainers(allRunningContainerIDs)
+	dr.stopContainers(ctx, allRunningContainerIDs)
 }
 
 func (dr *dockerRunnerImpl) addRunningContainerID(containerIDs []string, containerID string) []string {

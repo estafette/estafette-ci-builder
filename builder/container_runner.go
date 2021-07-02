@@ -14,7 +14,7 @@ type ContainerRunner interface {
 	IsTrustedImage(stageName string, containerImage string) bool
 	HasInjectedCredentials(stageName string, containerImage string) bool
 	PullImage(ctx context.Context, stageName string, containerImage string) error
-	GetImageSize(containerImage string) (int64, error)
+	GetImageSize(ctx context.Context, containerImage string) (int64, error)
 	StartStageContainer(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, stage manifest.EstafetteStage, stageIndex int) (containerID string, err error)
 	StartServiceContainer(ctx context.Context, envvars map[string]string, service manifest.EstafetteService) (containerID string, err error)
 	RunReadinessProbeContainer(ctx context.Context, parentStage manifest.EstafetteStage, service manifest.EstafetteService, readiness manifest.ReadinessProbe) (err error)

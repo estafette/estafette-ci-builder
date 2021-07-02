@@ -65,7 +65,7 @@ func TestRunStage(t *testing.T) {
 		stageIndex := 0
 
 		// set mock responses
-		containerRunnerMock.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), fmt.Errorf("Failed getting image size"))
+		containerRunnerMock.EXPECT().GetImageSize(gomock.Any(), gomock.Any()).Return(int64(0), fmt.Errorf("Failed getting image size"))
 		setDefaultMockExpectancies(containerRunnerMock)
 
 		// act
@@ -154,7 +154,7 @@ func TestRunStage(t *testing.T) {
 		// set mock responses
 		containerRunnerMock.EXPECT().IsImagePulled(gomock.Any(), gomock.Any(), gomock.Any()).Return(false)
 		containerRunnerMock.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
-		containerRunnerMock.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil)
+		containerRunnerMock.EXPECT().GetImageSize(gomock.Any(), gomock.Any()).Return(int64(0), nil)
 		containerRunnerMock.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil)
 		containerRunnerMock.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 		setDefaultMockExpectancies(containerRunnerMock)
@@ -300,7 +300,7 @@ func TestRunStage(t *testing.T) {
 		go pipelineRunner.StopPipelineOnCancellation(ctx)
 		cancel()
 		time.Sleep(10 * time.Millisecond)
-		err := pipelineRunner.RunStage(context.Background(), depth, runIndex, dir, envvars, parentStage, stage, stageIndex)
+		err := pipelineRunner.RunStage(ctx, depth, runIndex, dir, envvars, parentStage, stage, stageIndex)
 
 		assert.Nil(t, err)
 
@@ -335,7 +335,7 @@ func TestRunStage(t *testing.T) {
 		go pipelineRunner.StopPipelineOnCancellation(ctx)
 		cancel()
 		time.Sleep(10 * time.Millisecond)
-		err := pipelineRunner.RunStage(context.Background(), depth, runIndex, dir, envvars, parentStage, stage, stageIndex)
+		err := pipelineRunner.RunStage(ctx, depth, runIndex, dir, envvars, parentStage, stage, stageIndex)
 
 		assert.Nil(t, err)
 
@@ -659,7 +659,7 @@ func TestRunService(t *testing.T) {
 		}
 
 		// set mock responses
-		containerRunnerMock.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), fmt.Errorf("Failed getting image size"))
+		containerRunnerMock.EXPECT().GetImageSize(gomock.Any(), gomock.Any()).Return(int64(0), fmt.Errorf("Failed getting image size"))
 		setDefaultMockExpectancies(containerRunnerMock)
 
 		// act
@@ -789,7 +789,7 @@ func TestRunService(t *testing.T) {
 		// set mock responses
 		containerRunnerMock.EXPECT().IsImagePulled(gomock.Any(), gomock.Any(), gomock.Any()).Return(false)
 		containerRunnerMock.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
-		containerRunnerMock.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil)
+		containerRunnerMock.EXPECT().GetImageSize(gomock.Any(), gomock.Any()).Return(int64(0), nil)
 		containerRunnerMock.EXPECT().StartServiceContainer(gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil)
 		var wg sync.WaitGroup
 		wg.Add(1)
@@ -963,7 +963,7 @@ func TestRunService(t *testing.T) {
 		go pipelineRunner.StopPipelineOnCancellation(ctx)
 		cancel()
 		time.Sleep(10 * time.Millisecond)
-		err := pipelineRunner.RunService(context.Background(), envvars, parentStage, service)
+		err := pipelineRunner.RunService(ctx, envvars, parentStage, service)
 
 		assert.Nil(t, err)
 
@@ -997,7 +997,7 @@ func TestRunService(t *testing.T) {
 		cancel()
 
 		time.Sleep(10 * time.Millisecond)
-		err := pipelineRunner.RunService(context.Background(), envvars, parentStage, service)
+		err := pipelineRunner.RunService(ctx, envvars, parentStage, service)
 
 		assert.Nil(t, err)
 
@@ -1376,7 +1376,7 @@ func TestRunStages(t *testing.T) {
 		go pipelineRunner.StopPipelineOnCancellation(ctx)
 		cancel()
 		time.Sleep(10 * time.Millisecond)
-		buildLogSteps, _ := pipelineRunner.RunStages(context.Background(), depth, stages, dir, envvars)
+		buildLogSteps, _ := pipelineRunner.RunStages(ctx, depth, stages, dir, envvars)
 
 		if assert.Equal(t, 3, len(buildLogSteps)) {
 			assert.Equal(t, contracts.LogStatusCanceled, buildLogSteps[0].Status)
@@ -2593,7 +2593,7 @@ func getPipelineRunnerAndMocks(ctrl *gomock.Controller, containerRunner Containe
 func setDefaultMockExpectancies(containerRunnerMock *MockContainerRunner) {
 	containerRunnerMock.EXPECT().IsImagePulled(gomock.Any(), gomock.Any(), gomock.Any()).Return(false).AnyTimes()
 	containerRunnerMock.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
-	containerRunnerMock.EXPECT().GetImageSize(gomock.Any()).Return(int64(0), nil).AnyTimes()
+	containerRunnerMock.EXPECT().GetImageSize(gomock.Any(), gomock.Any()).Return(int64(0), nil).AnyTimes()
 	containerRunnerMock.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
 	containerRunnerMock.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
 	containerRunnerMock.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil).AnyTimes()

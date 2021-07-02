@@ -79,18 +79,18 @@ func (mr *MockContainerRunnerMockRecorder) DeleteNetworks(ctx interface{}) *gomo
 }
 
 // GetImageSize mocks base method.
-func (m *MockContainerRunner) GetImageSize(containerImage string) (int64, error) {
+func (m *MockContainerRunner) GetImageSize(ctx context.Context, containerImage string) (int64, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetImageSize", containerImage)
+	ret := m.ctrl.Call(m, "GetImageSize", ctx, containerImage)
 	ret0, _ := ret[0].(int64)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetImageSize indicates an expected call of GetImageSize.
-func (mr *MockContainerRunnerMockRecorder) GetImageSize(containerImage interface{}) *gomock.Call {
+func (mr *MockContainerRunnerMockRecorder) GetImageSize(ctx, containerImage interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetImageSize", reflect.TypeOf((*MockContainerRunner)(nil).GetImageSize), containerImage)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetImageSize", reflect.TypeOf((*MockContainerRunner)(nil).GetImageSize), ctx, containerImage)
 }
 
 // HasInjectedCredentials mocks base method.
@@ -161,20 +161,6 @@ func (m *MockContainerRunner) RunReadinessProbeContainer(ctx context.Context, pa
 func (mr *MockContainerRunnerMockRecorder) RunReadinessProbeContainer(ctx, parentStage, service, readiness interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RunReadinessProbeContainer", reflect.TypeOf((*MockContainerRunner)(nil).RunReadinessProbeContainer), ctx, parentStage, service, readiness)
-}
-
-// RunReadinessProbeExec mocks base method.
-func (m *MockContainerRunner) RunReadinessProbeExec(ctx context.Context, parentStage manifest.EstafetteStage, service manifest.EstafetteService, readiness manifest.ReadinessProbe) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RunReadinessProbeExec", ctx, parentStage, service, readiness)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// RunReadinessProbeExec indicates an expected call of RunReadinessProbeExec.
-func (mr *MockContainerRunnerMockRecorder) RunReadinessProbeExec(ctx, parentStage, service, readiness interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RunReadinessProbeExec", reflect.TypeOf((*MockContainerRunner)(nil).RunReadinessProbeExec), ctx, parentStage, service, readiness)
 }
 
 // StartDockerDaemon mocks base method.
