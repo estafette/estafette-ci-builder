@@ -314,7 +314,7 @@ exec echo "<xml />"`, string(bytes))
 		assert.Equal(t, `#!/bin/sh
 set -e
 
-printf '\033[38;5;250m> exec %s\033[0m\n' 'echo \'<xml />\''
+printf '\033[38;5;250m> exec %s\033[0m\n' 'echo ''<xml />'''
 exec echo '<xml />'`, string(bytes))
 	})
 
