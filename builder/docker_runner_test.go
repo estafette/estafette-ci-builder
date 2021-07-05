@@ -66,7 +66,7 @@ func TestGenerateEntrypointScript(t *testing.T) {
 		assert.Equal(t, `#!/bin/sh
 set -e
 
-printf '\033[38;5;250m> exec %s\033[0m\n' 'go test ./...'
+printf '\033[38;5;250m> exec %s\033[0m\n' $'go test ./...'
 exec go test ./...`, string(bytes))
 	})
 
@@ -85,12 +85,12 @@ exec go test ./...`, string(bytes))
 		assert.Equal(t, `#!/bin/sh
 set -e
 
-printf '\033[38;5;250m> %s &\033[0m\n' 'go test ./...'
+printf '\033[38;5;250m> %s &\033[0m\n' $'go test ./...'
 go test ./... &
 trap "kill $!; wait; exit" 1 2 15
 wait $!
 
-printf '\033[38;5;250m> exec %s\033[0m\n' 'go build'
+printf '\033[38;5;250m> exec %s\033[0m\n' $'go build'
 exec go build`, string(bytes))
 	})
 
@@ -109,20 +109,20 @@ exec go build`, string(bytes))
 		assert.Equal(t, `#!/bin/sh
 set -e
 
-printf '\033[38;5;250m> %s &\033[0m\n' 'go test ./...'
+printf '\033[38;5;250m> %s &\033[0m\n' $'go test ./...'
 go test ./... &
 trap "kill $!; wait; exit" 1 2 15
 wait $!
 
-printf '\033[38;5;250m> %s\033[0m\n' 'export MY_TITLE_2=abc'
+printf '\033[38;5;250m> %s\033[0m\n' $'export MY_TITLE_2=abc'
 export MY_TITLE_2=abc
 
-printf '\033[38;5;250m> %s &\033[0m\n' 'echo $MY_TITLE_2'
+printf '\033[38;5;250m> %s &\033[0m\n' $'echo $MY_TITLE_2'
 echo $MY_TITLE_2 &
 trap "kill $!; wait; exit" 1 2 15
 wait $!
 
-printf '\033[38;5;250m> exec %s\033[0m\n' 'go build'
+printf '\033[38;5;250m> exec %s\033[0m\n' $'go build'
 exec go build`, string(bytes))
 	})
 
@@ -141,10 +141,10 @@ exec go build`, string(bytes))
 		assert.Equal(t, `#!/bin/sh
 set -e
 
-printf '\033[38;5;250m> %s\033[0m\n' 'false || true'
+printf '\033[38;5;250m> %s\033[0m\n' $'false || true'
 false || true
 
-printf '\033[38;5;250m> exec %s\033[0m\n' 'go build'
+printf '\033[38;5;250m> exec %s\033[0m\n' $'go build'
 exec go build`, string(bytes))
 	})
 
@@ -163,10 +163,10 @@ exec go build`, string(bytes))
 		assert.Equal(t, `#!/bin/sh
 set -e
 
-printf '\033[38;5;250m> %s\033[0m\n' 'false && true'
+printf '\033[38;5;250m> %s\033[0m\n' $'false && true'
 false && true
 
-printf '\033[38;5;250m> exec %s\033[0m\n' 'go build'
+printf '\033[38;5;250m> exec %s\033[0m\n' $'go build'
 exec go build`, string(bytes))
 	})
 
@@ -185,10 +185,10 @@ exec go build`, string(bytes))
 		assert.Equal(t, `#!/bin/sh
 set -e
 
-printf '\033[38;5;250m> %s\033[0m\n' 'cat kubernetes.yaml | kubectl apply -f -'
+printf '\033[38;5;250m> %s\033[0m\n' $'cat kubernetes.yaml | kubectl apply -f -'
 cat kubernetes.yaml | kubectl apply -f -
 
-printf '\033[38;5;250m> exec %s\033[0m\n' 'kubectl rollout status deploy/myapp'
+printf '\033[38;5;250m> exec %s\033[0m\n' $'kubectl rollout status deploy/myapp'
 exec kubectl rollout status deploy/myapp`, string(bytes))
 	})
 
@@ -207,10 +207,10 @@ exec kubectl rollout status deploy/myapp`, string(bytes))
 		assert.Equal(t, `#!/bin/sh
 set -e
 
-printf '\033[38;5;250m> %s\033[0m\n' 'cd subdir'
+printf '\033[38;5;250m> %s\033[0m\n' $'cd subdir'
 cd subdir
 
-printf '\033[38;5;250m> exec %s\033[0m\n' 'ls -latr'
+printf '\033[38;5;250m> exec %s\033[0m\n' $'ls -latr'
 exec ls -latr`, string(bytes))
 	})
 
@@ -229,10 +229,10 @@ exec ls -latr`, string(bytes))
 		assert.Equal(t, `#!/bin/sh
 set -e
 
-printf '\033[38;5;250m> %s\033[0m\n' 'export $(python3 requiredenv.py)'
+printf '\033[38;5;250m> %s\033[0m\n' $'export $(python3 requiredenv.py)'
 export $(python3 requiredenv.py)
 
-printf '\033[38;5;250m> exec %s\033[0m\n' 'ls -latr'
+printf '\033[38;5;250m> exec %s\033[0m\n' $'ls -latr'
 exec ls -latr`, string(bytes))
 	})
 
@@ -251,10 +251,10 @@ exec ls -latr`, string(bytes))
 		assert.Equal(t, `#!/bin/sh
 set -e
 
-printf '\033[38;5;250m> %s\033[0m\n' 'shopt -u dotglob'
+printf '\033[38;5;250m> %s\033[0m\n' $'shopt -u dotglob'
 shopt -u dotglob
 
-printf '\033[38;5;250m> exec %s\033[0m\n' 'ls -latr'
+printf '\033[38;5;250m> exec %s\033[0m\n' $'ls -latr'
 exec ls -latr`, string(bytes))
 	})
 
@@ -273,10 +273,10 @@ exec ls -latr`, string(bytes))
 		assert.Equal(t, `#!/bin/sh
 set -e
 
-printf '\033[38;5;250m> %s\033[0m\n' 'if [ "${VARIABLE}" -ne "" ]; then echo $VARIABLE; fi'
+printf '\033[38;5;250m> %s\033[0m\n' $'if [ "${VARIABLE}" -ne "" ]; then echo $VARIABLE; fi'
 if [ "${VARIABLE}" -ne "" ]; then echo $VARIABLE; fi
 
-printf '\033[38;5;250m> exec %s\033[0m\n' 'go build'
+printf '\033[38;5;250m> exec %s\033[0m\n' $'go build'
 exec go build`, string(bytes))
 	})
 
@@ -295,7 +295,7 @@ exec go build`, string(bytes))
 		assert.Equal(t, `#!/bin/sh
 set -e
 
-printf '\033[38;5;250m> exec %s\033[0m\n' 'echo "<xml />"'
+printf '\033[38;5;250m> exec %s\033[0m\n' $'echo "<xml />"'
 exec echo "<xml />"`, string(bytes))
 	})
 
@@ -314,8 +314,27 @@ exec echo "<xml />"`, string(bytes))
 		assert.Equal(t, `#!/bin/sh
 set -e
 
-printf '\033[38;5;250m> exec %s\033[0m\n' 'echo ''<xml />'''
+printf '\033[38;5;250m> exec %s\033[0m\n' $'echo \'<xml />\''
 exec echo '<xml />'`, string(bytes))
+	})
+
+	t.Run("EscapeNewlineInPrintfStatements", func(t *testing.T) {
+
+		dockerRunner := dockerRunnerImpl{
+			entrypointTemplateDir: "../templates",
+		}
+
+		// act
+		hostPath, _, entrypointFile, err := dockerRunner.generateEntrypointScript("/bin/sh", []string{`PR_TITLE=$(echo "${ESTAFETTE_BUILD_VERSION} - ${LOG_MESSAGE}" | tr '\n' ' ')`}, false)
+
+		assert.Nil(t, err)
+		bytes, err := ioutil.ReadFile(path.Join(hostPath, entrypointFile))
+		assert.Nil(t, err)
+		assert.Equal(t, `#!/bin/sh
+set -e
+
+printf '\033[38;5;250m> %s\033[0m\n' $'PR_TITLE=$(echo "${ESTAFETTE_BUILD_VERSION} - ${LOG_MESSAGE}" | tr \'\\n\' \' \')'
+PR_TITLE=$(echo "${ESTAFETTE_BUILD_VERSION} - ${LOG_MESSAGE}" | tr '\n' ' ')`, string(bytes))
 	})
 
 	t.Run("DoesNotRunAnyCommandInBackgroundWhenRunCommandsInForegroundIsTrue", func(t *testing.T) {
@@ -333,10 +352,10 @@ exec echo '<xml />'`, string(bytes))
 		assert.Equal(t, `#!/bin/sh
 set -e
 
-printf '\033[38;5;250m> %s\033[0m\n' 'go test ./...'
+printf '\033[38;5;250m> %s\033[0m\n' $'go test ./...'
 go test ./...
 
-printf '\033[38;5;250m> %s\033[0m\n' 'go build'
+printf '\033[38;5;250m> %s\033[0m\n' $'go build'
 go build`, string(bytes))
 	})
 }
