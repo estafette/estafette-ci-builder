@@ -15,6 +15,7 @@ require (
 	github.com/estafette/estafette-foundation v0.0.69
 	github.com/golang/mock v1.5.0
 	github.com/gorilla/mux v1.7.3 // indirect
+	github.com/logrusorgru/aurora v2.0.3+incompatible
 	github.com/mattn/go-runewidth v0.0.4 // indirect
 	github.com/moby/term v0.0.0-20201216013528-df9cb8a40635 // indirect
 	github.com/morikuni/aec v0.0.0-20170113033406-39771216ff4c // indirect

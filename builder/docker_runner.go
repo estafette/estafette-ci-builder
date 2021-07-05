@@ -29,6 +29,7 @@ import (
 	contracts "github.com/estafette/estafette-ci-contracts"
 	manifest "github.com/estafette/estafette-ci-manifest"
 	foundation "github.com/estafette/estafette-foundation"
+	"github.com/logrusorgru/aurora"
 	"github.com/opentracing/opentracing-go"
 	"github.com/rs/zerolog/log"
 	"gopkg.in/yaml.v2"
@@ -1293,5 +1294,10 @@ func (dr *dockerRunnerImpl) Info(ctx context.Context) string {
 		return err.Error()
 	}
 
-	return fmt.Sprintf("%v", info)
+	infoYAML, err := yaml.Marshal(info)
+	if err != nil {
+		return err.Error()
+	}
+
+	return fmt.Sprintln(aurora.Gray(18, "> docker info")) + string(infoYAML)
 }
