@@ -1112,6 +1112,8 @@ func (dr *dockerRunnerImpl) generateEntrypointScript(shell string, commands []st
 		log.Debug().Str("entrypoint", string(entryPointBytes)).Msgf("Inspecting entrypoint script at %v", entrypointPath)
 	}
 
+	log.Debug().Str("entrypoint", string(entryPointBytes)).Msgf("Inspecting entrypoint script at %v", entrypointPath)
+
 	hostPath = entrypointdir
 	mountPath = "/entrypoint"
 	if runtime.GOOS == "windows" {
