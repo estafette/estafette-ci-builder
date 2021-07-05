@@ -1316,13 +1316,15 @@ func TestRunStages(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		containerRunnerMock := NewMockContainerRunner(ctrl)
+
+		containerRunnerMock.EXPECT().Info(gomock.Any()).Return("docker info").Times(1)
 		_, pipelineRunner := getPipelineRunnerAndMocks(ctrl, containerRunnerMock)
 
 		depth := 0
 		dir := "/estafette-work"
 		envvars := map[string]string{}
 		stages := []*manifest.EstafetteStage{
-			&manifest.EstafetteStage{
+			{
 				Name:           "stage-a",
 				ContainerImage: "alpine:latest",
 				When:           "status == 'succeeded'",
@@ -1338,7 +1340,7 @@ func TestRunStages(t *testing.T) {
 			assert.Equal(t, "builder-info", buildLogSteps[0].Step)
 			assert.Equal(t, contracts.LogStatusSucceeded, buildLogSteps[0].Status)
 			assert.True(t, buildLogSteps[0].AutoInjected)
-			assert.Equal(t, 1, len(buildLogSteps[0].LogLines))
+			assert.Equal(t, 2, len(buildLogSteps[0].LogLines))
 		}
 	})
 

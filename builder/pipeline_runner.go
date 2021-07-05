@@ -310,7 +310,7 @@ func (pr *pipelineRunnerImpl) RunStages(ctx context.Context, depth int, stages [
 
 	// creates first injected stage with builder info
 	if pr.injectBuilderInfoStage {
-		pr.logBuilderInfo(pr.applicationInfo)
+		pr.logBuilderInfo(ctx, pr.applicationInfo)
 	}
 
 	log.Info().Msgf("Running %v stages", len(stages))
@@ -697,7 +697,7 @@ func (pr *pipelineRunnerImpl) tailLogs(ctx context.Context, tailLogsDone chan st
 	}
 }
 
-func (pr *pipelineRunnerImpl) logBuilderInfo(applicationInfo foundation.ApplicationInfo) {
+func (pr *pipelineRunnerImpl) logBuilderInfo(ctx context.Context, applicationInfo foundation.ApplicationInfo) {
 
 	builderVersionMessage := fmt.Sprintf("Starting \x1b[1m%v\x1b[0m version \x1b[1m%v\x1b[0m... \x1b[36mbranch=\x1b[0m%v \x1b[36mbuildDate=\x1b[0m%v \x1b[36mgoVersion=\x1b[0m%v \x1b[36mos=\x1b[0m%v \x1b[36mrevision=\x1b[0m%v", applicationInfo.App, applicationInfo.Version, applicationInfo.Branch, applicationInfo.BuildDate, applicationInfo.GoVersion(), applicationInfo.OperatingSystem(), applicationInfo.Revision)
 
@@ -716,6 +716,20 @@ func (pr *pipelineRunnerImpl) logBuilderInfo(applicationInfo foundation.Applicat
 		LogLine:      &logLineObject,
 		Status:       &status,
 		AutoInjected: &trueValue,
+	}
+
+	info := pr.containerRunner.Info(ctx)
+	if info != "" {
+		pr.tailLogsChannel <- contracts.TailLogLine{
+			Step: "builder-info",
+			Type: contracts.LogTypeStage,
+			LogLine: &contracts.BuildLogLine{
+				LineNumber: 2,
+				Timestamp:  time.Now().UTC(),
+				StreamType: "stdout",
+				Text:       info,
+			},
+		}
 	}
 }
 

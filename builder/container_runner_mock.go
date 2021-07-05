@@ -107,6 +107,20 @@ func (mr *MockContainerRunnerMockRecorder) HasInjectedCredentials(stageName, con
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HasInjectedCredentials", reflect.TypeOf((*MockContainerRunner)(nil).HasInjectedCredentials), stageName, containerImage)
 }
 
+// Info mocks base method.
+func (m *MockContainerRunner) Info(ctx context.Context) string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Info", ctx)
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// Info indicates an expected call of Info.
+func (mr *MockContainerRunnerMockRecorder) Info(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Info", reflect.TypeOf((*MockContainerRunner)(nil).Info), ctx)
+}
+
 // IsImagePulled mocks base method.
 func (m *MockContainerRunner) IsImagePulled(ctx context.Context, stageName, containerImage string) bool {
 	m.ctrl.T.Helper()

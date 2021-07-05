@@ -1285,3 +1285,13 @@ func escapeCharsInCommand(command string) string {
 	command = strings.Replace(command, `'`, `\'`, -1)
 	return command
 }
+
+func (dr *dockerRunnerImpl) Info(ctx context.Context) string {
+
+	info, err := dr.dockerClient.Info(ctx)
+	if err != nil {
+		return err.Error()
+	}
+
+	return fmt.Sprintf("%v", info)
+}

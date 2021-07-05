@@ -27,4 +27,5 @@ type ContainerRunner interface {
 	CreateNetworks(ctx context.Context) error
 	DeleteNetworks(ctx context.Context) error
 	StopAllContainers(ctx context.Context)
+	Info(ctx context.Context) string
 }

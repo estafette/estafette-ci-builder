@@ -1012,3 +1012,7 @@ func (dr *kubernetesRunnerImpl) generateCredentialsFiles(trustedImage *contracts
 
 	return
 }
+
+func (dr *kubernetesRunnerImpl) Info(ctx context.Context) string {
+	return ""
+}
