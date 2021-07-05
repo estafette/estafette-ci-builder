@@ -337,6 +337,25 @@ printf '\033[38;5;250m> %s\033[0m\n' $'PR_TITLE=$(echo "${ESTAFETTE_BUILD_VERSIO
 PR_TITLE=$(echo "${ESTAFETTE_BUILD_VERSION} - ${LOG_MESSAGE}" | tr '\n' ' ')`, string(bytes))
 	})
 
+	t.Run("EscapeBackslashInPrintfStatements", func(t *testing.T) {
+
+		dockerRunner := dockerRunnerImpl{
+			entrypointTemplateDir: "../templates",
+		}
+
+		// act
+		hostPath, _, entrypointFile, err := dockerRunner.generateEntrypointScript("/bin/sh", []string{`curl --fail -H "Accept: application/vnd.github.v3+json" -u ${ESTAFETTE_GIT_URL:8:55} -XPOST https://api.github.com/repos/estafette/estafette.io/pulls -d "{\"title\": \"${PR_TITLE}\", \"head\": \"${ESTAFETTE_BUILD_VERSION}\", \"base\": \"main\"}"`}, false)
+
+		assert.Nil(t, err)
+		bytes, err := ioutil.ReadFile(path.Join(hostPath, entrypointFile))
+		assert.Nil(t, err)
+		assert.Equal(t, `#!/bin/sh
+set -e
+
+printf '\033[38;5;250m> exec %s\033[0m\n' $'curl --fail -H "Accept: application/vnd.github.v3+json" -u ${ESTAFETTE_GIT_URL:8:55} -XPOST https://api.github.com/repos/estafette/estafette.io/pulls -d "{\\"title\\": \\"${PR_TITLE}\\", \\"head\\": \\"${ESTAFETTE_BUILD_VERSION}\\", \\"base\\": \\"main\\"}"'
+exec curl --fail -H "Accept: application/vnd.github.v3+json" -u ${ESTAFETTE_GIT_URL:8:55} -XPOST https://api.github.com/repos/estafette/estafette.io/pulls -d "{\"title\": \"${PR_TITLE}\", \"head\": \"${ESTAFETTE_BUILD_VERSION}\", \"base\": \"main\"}"`, string(bytes))
+	})
+
 	t.Run("DoesNotRunAnyCommandInBackgroundWhenRunCommandsInForegroundIsTrue", func(t *testing.T) {
 
 		dockerRunner := dockerRunnerImpl{
