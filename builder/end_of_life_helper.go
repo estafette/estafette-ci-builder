@@ -25,6 +25,7 @@ type EndOfLifeHelper interface {
 	SendBuildFinishedEvent(ctx context.Context, buildStatus contracts.LogStatus) error
 	SendBuildCleanEvent(ctx context.Context, buildStatus contracts.LogStatus) error
 	SendBuildJobLogEvent(ctx context.Context, buildLog contracts.BuildLog) error
+	CancelJob(ctx context.Context) error
 }
 
 type endOfLifeHelperImpl struct {
@@ -301,4 +302,53 @@ func (elh *endOfLifeHelperImpl) sendBuilderEvent(ctx context.Context, buildStatu
 	}
 
 	return nil
+}
+
+func (elh *endOfLifeHelperImpl) CancelJob(ctx context.Context) error {
+
+	span, _ := opentracing.StartSpanFromContext(ctx, "CancelJob")
+	defer span.Finish()
+
+	ciServerBuilderCancelJobURL := elh.config.CIServer.CancelJobURL
+	jwt := elh.config.CIServer.JWT
+	jobName := *elh.config.JobName
+
+	if ciServerBuilderCancelJobURL != "" && jwt != "" && jobName != "" {
+
+		// create client, in order to add headers
+		client := pester.NewExtendedClient(&http.Client{Transport: &nethttp.Transport{}})
+		client.MaxRetries = 1
+		client.Backoff = pester.DefaultBackoff
+		client.KeepLog = true
+		client.Timeout = time.Second * 60
+		request, err := http.NewRequest("DELETE", ciServerBuilderCancelJobURL, nil)
+		if err != nil {
+			log.Error().Err(err).Msgf("Failed creating http client for job %v", jobName)
+			return err
+		}
+
+		// add tracing context
+		request = request.WithContext(opentracing.ContextWithSpan(request.Context(), span))
+
+		// collect additional information on setting up connections
+		request, ht := nethttp.TraceRequest(span.Tracer(), request)
+
+		// add headers
+		request.Header.Add("Authorization", fmt.Sprintf("Bearer %v", jwt))
+
+		// perform actual request
+		response, err := client.Do(request)
+		if err != nil {
+			log.Error().Err(err).Str("logs", client.LogString()).Msgf("Failed canceling job at %v for job %v: %v", ciServerBuilderCancelJobURL, jobName, client.LogString())
+			return err
+		}
+
+		defer response.Body.Close()
+		ht.Finish()
+
+		log.Debug().Str("logs", client.LogString()).Msgf("Successfully canceled job at %v for job %v", ciServerBuilderCancelJobURL, jobName)
+	}
+
+	return nil
+
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"time"
 
 	contracts "github.com/estafette/estafette-ci-contracts"
 	manifest "github.com/estafette/estafette-ci-manifest"
@@ -72,6 +73,21 @@ func (b *ciBuilderImpl) RunEstafetteBuildJob(ctx context.Context, pipelineRunner
 
 	// set running state, so a restarted job will show up as running once a new pod runs
 	_ = endOfLifeHelper.SendBuildStartedEvent(ctx)
+
+	go func() {
+		// cancel 15 minutes before jwt expires
+		expiryTime := builderConfig.CIServer.JWTExpiry
+		expiryTime.Add(time.Duration(-15) * time.Minute)
+		expiryDuration := expiryTime.Sub(time.Now().UTC())
+		cancelTimer := time.NewTimer(expiryDuration)
+
+		// wait for timer to fire
+		<-cancelTimer.C
+
+		log.Warn().Msgf("Canceling job at %v, before the JWT expires at %v", time.Now().UTC(), builderConfig.CIServer.JWTExpiry)
+
+		endOfLifeHelper.CancelJob(ctx)
+	}()
 
 	// unset all ESTAFETTE_ envvars so they don't get abused by non-estafette components
 	envvarHelper.UnsetEstafetteEnvvars()

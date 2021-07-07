@@ -247,7 +247,9 @@ stages:
             "baseUrl":"https://httpstat.us/200",
             "builderEventsUrl":"https://httpstat.us/200",
             "postLogsUrl":"https://httpstat.us/200",
-            "jwt":""
+            "cancelLogsUrl":"https://httpstat.us/200",
+            "jwt":"",
+            "jwtExpiry":"2031-06-04T15:27:33.397005Z"
           },
           "build":{
             "ID":"391855387650326531"

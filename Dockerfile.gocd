@@ -12,5 +12,9 @@ RUN mkdir -p /estafette-entrypoints \
 COPY ${ESTAFETTE_GIT_NAME} /usr/bin/
 COPY templates /entrypoint-templates
 
+VOLUME /tmp
+VOLUME /var/lib/docker
+VOLUME /var/lib/go-agent/pipelines
+
 ENV ESTAFETTE_CI_SERVER="gocd" \
     ESTAFETTE_LOG_FORMAT="console"
