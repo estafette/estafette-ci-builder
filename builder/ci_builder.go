@@ -86,7 +86,10 @@ func (b *ciBuilderImpl) RunEstafetteBuildJob(ctx context.Context, pipelineRunner
 
 		log.Warn().Msgf("Canceling job at %v, before the JWT expires at %v", time.Now().UTC(), builderConfig.CIServer.JWTExpiry)
 
-		endOfLifeHelper.CancelJob(ctx)
+		err := endOfLifeHelper.CancelJob(ctx)
+		if err != nil {
+			log.Error().Err(err).Msg("Canceling job failed")
+		}
 	}()
 
 	// unset all ESTAFETTE_ envvars so they don't get abused by non-estafette components
