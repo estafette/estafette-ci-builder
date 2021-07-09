@@ -7,7 +7,7 @@ import (
 	"os"
 
 	"github.com/alecthomas/kingpin"
-	"github.com/estafette/estafette-ci-builder/builder"
+	"github.com/estafette/estafette-ci-builder/pkg/builder"
 	contracts "github.com/estafette/estafette-ci-contracts"
 	crypt "github.com/estafette/estafette-ci-crypt"
 	manifest "github.com/estafette/estafette-ci-manifest"

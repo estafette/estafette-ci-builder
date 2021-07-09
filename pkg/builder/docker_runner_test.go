@@ -15,7 +15,7 @@ func TestGenerateEntrypointScript(t *testing.T) {
 	t.Run("ReturnsHostPathStartingWithTempDir", func(t *testing.T) {
 
 		dockerRunner := dockerRunnerImpl{
-			entrypointTemplateDir: "../templates",
+			entrypointTemplateDir: "../../templates",
 		}
 
 		// act
@@ -28,7 +28,7 @@ func TestGenerateEntrypointScript(t *testing.T) {
 	t.Run("ReturnsMountPathToEntrypoint", func(t *testing.T) {
 
 		dockerRunner := dockerRunnerImpl{
-			entrypointTemplateDir: "../templates",
+			entrypointTemplateDir: "../../templates",
 		}
 
 		// act
@@ -41,7 +41,7 @@ func TestGenerateEntrypointScript(t *testing.T) {
 	t.Run("ReturnsEntrypointFileEntrypointScript", func(t *testing.T) {
 
 		dockerRunner := dockerRunnerImpl{
-			entrypointTemplateDir: "../templates",
+			entrypointTemplateDir: "../../templates",
 		}
 
 		// act
@@ -54,7 +54,7 @@ func TestGenerateEntrypointScript(t *testing.T) {
 	t.Run("ReturnsVariablesForOneCommand", func(t *testing.T) {
 
 		dockerRunner := dockerRunnerImpl{
-			entrypointTemplateDir: "../templates",
+			entrypointTemplateDir: "../../templates",
 		}
 
 		// act
@@ -73,7 +73,7 @@ exec go test ./...`, string(bytes))
 	t.Run("ReturnsVariablesForTwoOrMoreCommands", func(t *testing.T) {
 
 		dockerRunner := dockerRunnerImpl{
-			entrypointTemplateDir: "../templates",
+			entrypointTemplateDir: "../../templates",
 		}
 
 		// act
@@ -97,7 +97,7 @@ exec go build`, string(bytes))
 	t.Run("DoesNotRunVariableAssignmentInBackground", func(t *testing.T) {
 
 		dockerRunner := dockerRunnerImpl{
-			entrypointTemplateDir: "../templates",
+			entrypointTemplateDir: "../../templates",
 		}
 
 		// act
@@ -129,7 +129,7 @@ exec go build`, string(bytes))
 	t.Run("DoesNotRunCommandsWithOrInBackground", func(t *testing.T) {
 
 		dockerRunner := dockerRunnerImpl{
-			entrypointTemplateDir: "../templates",
+			entrypointTemplateDir: "../../templates",
 		}
 
 		// act
@@ -151,7 +151,7 @@ exec go build`, string(bytes))
 	t.Run("DoesNotRunCommandsWithAndInBackground", func(t *testing.T) {
 
 		dockerRunner := dockerRunnerImpl{
-			entrypointTemplateDir: "../templates",
+			entrypointTemplateDir: "../../templates",
 		}
 
 		// act
@@ -173,7 +173,7 @@ exec go build`, string(bytes))
 	t.Run("DoesNotRunCommandsWithPipeInBackground", func(t *testing.T) {
 
 		dockerRunner := dockerRunnerImpl{
-			entrypointTemplateDir: "../templates",
+			entrypointTemplateDir: "../../templates",
 		}
 
 		// act
@@ -195,7 +195,7 @@ exec kubectl rollout status deploy/myapp`, string(bytes))
 	t.Run("DoesNotRunCommandsWithChangeDirectoryInBackground", func(t *testing.T) {
 
 		dockerRunner := dockerRunnerImpl{
-			entrypointTemplateDir: "../templates",
+			entrypointTemplateDir: "../../templates",
 		}
 
 		// act
@@ -217,7 +217,7 @@ exec ls -latr`, string(bytes))
 	t.Run("DoesNotRunCommandsWithExportInBackground", func(t *testing.T) {
 
 		dockerRunner := dockerRunnerImpl{
-			entrypointTemplateDir: "../templates",
+			entrypointTemplateDir: "../../templates",
 		}
 
 		// act
@@ -239,7 +239,7 @@ exec ls -latr`, string(bytes))
 	t.Run("DoesNotRunCommandsWithShoptInBackground", func(t *testing.T) {
 
 		dockerRunner := dockerRunnerImpl{
-			entrypointTemplateDir: "../templates",
+			entrypointTemplateDir: "../../templates",
 		}
 
 		// act
@@ -261,7 +261,7 @@ exec ls -latr`, string(bytes))
 	t.Run("DoesNotRunCommandsWithSemicolonInBackground", func(t *testing.T) {
 
 		dockerRunner := dockerRunnerImpl{
-			entrypointTemplateDir: "../templates",
+			entrypointTemplateDir: "../../templates",
 		}
 
 		// act
@@ -283,7 +283,7 @@ exec go build`, string(bytes))
 	t.Run("DoesNotEscapeDoubleQuotesInPrintfStatements", func(t *testing.T) {
 
 		dockerRunner := dockerRunnerImpl{
-			entrypointTemplateDir: "../templates",
+			entrypointTemplateDir: "../../templates",
 		}
 
 		// act
@@ -302,7 +302,7 @@ exec echo "<xml />"`, string(bytes))
 	t.Run("EscapeSingleQuotesInPrintfStatements", func(t *testing.T) {
 
 		dockerRunner := dockerRunnerImpl{
-			entrypointTemplateDir: "../templates",
+			entrypointTemplateDir: "../../templates",
 		}
 
 		// act
@@ -321,7 +321,7 @@ exec echo '<xml />'`, string(bytes))
 	t.Run("EscapeNewlineInPrintfStatements", func(t *testing.T) {
 
 		dockerRunner := dockerRunnerImpl{
-			entrypointTemplateDir: "../templates",
+			entrypointTemplateDir: "../../templates",
 		}
 
 		// act
@@ -340,7 +340,7 @@ PR_TITLE=$(echo "${ESTAFETTE_BUILD_VERSION} - ${LOG_MESSAGE}" | tr '\n' ' ')`, s
 	t.Run("EscapeBackslashInPrintfStatements", func(t *testing.T) {
 
 		dockerRunner := dockerRunnerImpl{
-			entrypointTemplateDir: "../templates",
+			entrypointTemplateDir: "../../templates",
 		}
 
 		// act
@@ -359,7 +359,7 @@ exec curl --fail -H "Accept: application/vnd.github.v3+json" -u ${ESTAFETTE_GIT_
 	t.Run("DoesNotRunAnyCommandInBackgroundWhenRunCommandsInForegroundIsTrue", func(t *testing.T) {
 
 		dockerRunner := dockerRunnerImpl{
-			entrypointTemplateDir: "../templates",
+			entrypointTemplateDir: "../../templates",
 		}
 
 		// act
