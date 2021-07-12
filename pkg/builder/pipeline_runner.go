@@ -12,6 +12,7 @@ import (
 	contracts "github.com/estafette/estafette-ci-contracts"
 	manifest "github.com/estafette/estafette-ci-manifest"
 	foundation "github.com/estafette/estafette-foundation"
+	"github.com/logrusorgru/aurora"
 	"github.com/opentracing/opentracing-go"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/sync/errgroup"
@@ -613,12 +614,13 @@ func (pr *pipelineRunner) tailLogs(ctx context.Context, tailLogsDone chan struct
 				// this provides log streaming capabilities in the web interface
 				log.Info().Interface("tailLogLine", tailLogLine).Msg("")
 			} else if tailLogLine.LogLine != nil {
-				// this is for go.cd
+				// this is for go.cd and local builds with estafette cli
+				prefix := fmt.Sprintf(aurora.BrightYellow("[%v]").String(), tailLogLine.Step)
 				if tailLogLine.ParentStage != "" {
-					log.Info().Msgf("[%v][%v] %v", tailLogLine.ParentStage, tailLogLine.Step, strings.TrimSuffix(tailLogLine.LogLine.Text, "\n"))
-				} else {
-					log.Info().Msgf("[%v] %v", tailLogLine.Step, strings.TrimSuffix(tailLogLine.LogLine.Text, "\n"))
+					prefix = fmt.Sprintf(aurora.BrightYellow("[%v] [%v]").String(), tailLogLine.ParentStage, tailLogLine.Step)
 				}
+
+				log.Info().Msgf("%v %v", prefix, strings.TrimSuffix(tailLogLine.LogLine.Text, "\n"))
 			}
 
 			pr.upsertTailLogLine(tailLogLine)

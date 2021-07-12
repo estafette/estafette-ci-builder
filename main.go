@@ -88,7 +88,7 @@ func loadBuilderConfig(secretHelper crypt.SecretHelper, envvarHelper builder.Env
 	var builderConfigJSON []byte
 	if *builderConfigPath != "" {
 
-		log.Info().Msgf("Reading builder config from file %v...", *builderConfigPath)
+		log.Debug().Msgf("Reading builder config from file %v...", *builderConfigPath)
 
 		var err error
 		builderConfigJSON, err = ioutil.ReadFile(*builderConfigPath)
@@ -98,7 +98,7 @@ func loadBuilderConfig(secretHelper crypt.SecretHelper, envvarHelper builder.Env
 
 	} else if *builderConfigFlag != "" {
 
-		log.Info().Msg("Reading builder config from envvar BUILDER_CONFIG...")
+		log.Debug().Msg("Reading builder config from envvar BUILDER_CONFIG...")
 
 		builderConfigJSON = []byte(*builderConfigFlag)
 		os.Unsetenv("BUILDER_CONFIG")

@@ -693,12 +693,12 @@ func (dr *dockerRunner) TailContainerLogs(ctx context.Context, containerID, pare
 
 func (dr *dockerRunner) StopSingleStageServiceContainers(ctx context.Context, parentStage manifest.EstafetteStage) {
 
-	log.Info().Msgf("[%v] Stopping single-stage service containers...", parentStage.Name)
+	log.Debug().Msgf("[%v] Stopping single-stage service containers...", parentStage.Name)
 
 	// the service containers should be the only ones running, so just stop all containers
 	dr.stopContainers(ctx, dr.runningSingleStageServiceContainerIDs)
 
-	log.Info().Msgf("[%v] Stopped single-stage service containers...", parentStage.Name)
+	log.Debug().Msgf("[%v] Stopped single-stage service containers...", parentStage.Name)
 }
 
 func (dr *dockerRunner) StopMultiStageServiceContainers(ctx context.Context) {
@@ -874,14 +874,14 @@ func (dr *dockerRunner) stopContainer(ctx context.Context, containerID string) e
 		return err
 	}
 
-	log.Info().Msgf("Stopped container with id %v", containerID)
+	log.Debug().Msgf("Stopped container with id %v", containerID)
 	return nil
 }
 
 func (dr *dockerRunner) stopContainers(ctx context.Context, containerIDs []string) {
 
 	if len(containerIDs) > 0 {
-		log.Info().Msgf("Stopping %v containers", len(containerIDs))
+		log.Debug().Msgf("Stopping %v containers", len(containerIDs))
 
 		var wg sync.WaitGroup
 		wg.Add(len(containerIDs))
@@ -898,9 +898,9 @@ func (dr *dockerRunner) stopContainers(ctx context.Context, containerIDs []strin
 
 		wg.Wait()
 
-		log.Info().Msgf("Stopped %v containers", len(containerIDs))
+		log.Debug().Msgf("Stopped %v containers", len(containerIDs))
 	} else {
-		log.Info().Msg("No containers to stop")
+		log.Debug().Msg("No containers to stop")
 	}
 }
 
@@ -965,7 +965,7 @@ func (dr *dockerRunner) CreateNetworks(ctx context.Context) error {
 		}
 
 		if networkExists {
-			log.Info().Msgf("Docker network %v already exists, no need to create it", nw.Name)
+			log.Debug().Msgf("Docker network %v already exists, no need to create it", nw.Name)
 			continue
 		}
 
