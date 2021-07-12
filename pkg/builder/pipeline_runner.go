@@ -254,7 +254,7 @@ func (pr *pipelineRunner) RunStages(ctx context.Context, depth int, stages []*ma
 		pr.logBuilderInfo(ctx, pr.applicationInfo)
 	}
 
-	log.Info().Msgf("Running %v stages", len(stages))
+	log.Debug().Msgf("Running %v stages", len(stages))
 
 	var finalErr error
 	for _, s := range stages {
@@ -322,7 +322,7 @@ func (pr *pipelineRunner) RunParallelStages(ctx context.Context, depth int, dir 
 		return fmt.Errorf("Manifest has no stages, failing the build")
 	}
 
-	log.Info().Msgf("[%v] Running %v parallel stages", parentStage.Name, len(parallelStages))
+	log.Debug().Msgf("[%v] Running %v parallel stages", parentStage.Name, len(parallelStages))
 
 	g, ctx := errgroup.WithContext(ctx)
 	for i, ps := range parallelStages {
@@ -623,11 +623,11 @@ func (pr *pipelineRunner) tailLogs(ctx context.Context, tailLogsDone chan struct
 			} else if tailLogLine.Status != nil && tailLogLine.Duration != nil {
 				switch *tailLogLine.Status {
 				case contracts.LogStatusSucceeded:
-					log.Info().Msgf("%v Succeeded in %v", prefix, aurora.BrightGreen(*tailLogLine.Duration))
+					log.Info().Msgf("%v Succeeded in %v\n", prefix, aurora.BrightGreen(*tailLogLine.Duration))
 				case contracts.LogStatusFailed:
-					log.Info().Msgf("%v Failed in %v", prefix, aurora.BrightRed(*tailLogLine.Duration))
+					log.Info().Msgf("%v Failed in %v\n", prefix, aurora.BrightRed(*tailLogLine.Duration))
 				case contracts.LogStatusCanceled:
-					log.Info().Msgf("%v Succeeded in %v", prefix, aurora.BrightRed(*tailLogLine.Duration))
+					log.Info().Msgf("%v Succeeded in %v\n", prefix, aurora.BrightRed(*tailLogLine.Duration))
 				}
 			} else if tailLogLine.LogLine != nil {
 				log.Info().Msgf("%v %v", prefix, strings.TrimSuffix(tailLogLine.LogLine.Text, "\n"))
