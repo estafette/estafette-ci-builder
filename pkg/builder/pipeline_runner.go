@@ -107,10 +107,10 @@ func (pr *pipelineRunner) RunStage(ctx context.Context, depth int, dir string, e
 
 func (pr *pipelineRunner) initStageVariables(ctx context.Context, depth int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, stage manifest.EstafetteStage) (parentStageName string, stagePlaceholder string, autoInjected *bool) {
 
-	stagePlaceholder = fmt.Sprintf("[%v]", stage.Name)
+	stagePlaceholder = fmt.Sprintf(aurora.BrightYellow("[%v]").String(), stage.Name)
 	if parentStage != nil {
 		parentStageName = parentStage.Name
-		stagePlaceholder = fmt.Sprintf("[%v] [%v]", parentStageName, stage.Name)
+		stagePlaceholder = fmt.Sprintf(aurora.BrightYellow("[%v] [%v]").String(), parentStageName, stage.Name)
 	}
 	if stage.AutoInjected {
 		autoInjected = &stage.AutoInjected
@@ -129,13 +129,13 @@ func (pr *pipelineRunner) handleStageFinish(ctx context.Context, depth int, dir 
 	// finalize stage
 	finalStatus := contracts.LogStatusSucceeded
 	if pr.isCanceled(ctx) {
-		log.Info().Msgf("%v Stage canceled", stagePlaceholder)
+		log.Debug().Msgf("%v Stage canceled", stagePlaceholder)
 		finalStatus = contracts.LogStatusCanceled
 	} else if err != nil {
-		log.Warn().Err(err).Msgf("%v Stage failed", stagePlaceholder)
+		log.Debug().Err(err).Msgf("%v Stage failed", stagePlaceholder)
 		finalStatus = contracts.LogStatusFailed
 	} else {
-		log.Info().Msgf("%v Stage succeeded", stagePlaceholder)
+		log.Debug().Msgf("%v Stage succeeded", stagePlaceholder)
 	}
 
 	if len(stage.Services) > 0 {
@@ -610,16 +610,26 @@ func (pr *pipelineRunner) tailLogs(ctx context.Context, tailLogsDone chan struct
 	for {
 		select {
 		case tailLogLine := <-pr.tailLogsChannel:
+
+			// this is for go.cd and local builds with estafette cli
+			prefix := fmt.Sprintf(aurora.BrightYellow("[%v]").String(), tailLogLine.Step)
+			if tailLogLine.ParentStage != "" {
+				prefix = fmt.Sprintf(aurora.BrightYellow("[%v] [%v]").String(), tailLogLine.ParentStage, tailLogLine.Step)
+			}
+
 			if pr.runAsJob {
 				// this provides log streaming capabilities in the web interface
 				log.Info().Interface("tailLogLine", tailLogLine).Msg("")
-			} else if tailLogLine.LogLine != nil {
-				// this is for go.cd and local builds with estafette cli
-				prefix := fmt.Sprintf(aurora.BrightYellow("[%v]").String(), tailLogLine.Step)
-				if tailLogLine.ParentStage != "" {
-					prefix = fmt.Sprintf(aurora.BrightYellow("[%v] [%v]").String(), tailLogLine.ParentStage, tailLogLine.Step)
+			} else if tailLogLine.Status != nil && tailLogLine.Duration != nil {
+				switch *tailLogLine.Status {
+				case contracts.LogStatusSucceeded:
+					log.Info().Msgf("%v Succeeded in %v", prefix, aurora.BrightGreen(*tailLogLine.Duration))
+				case contracts.LogStatusFailed:
+					log.Info().Msgf("%v Failed in %v", prefix, aurora.BrightRed(*tailLogLine.Duration))
+				case contracts.LogStatusCanceled:
+					log.Info().Msgf("%v Succeeded in %v", prefix, aurora.BrightRed(*tailLogLine.Duration))
 				}
-
+			} else if tailLogLine.LogLine != nil {
 				log.Info().Msgf("%v %v", prefix, strings.TrimSuffix(tailLogLine.LogLine.Text, "\n"))
 			}
 
