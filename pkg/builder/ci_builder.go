@@ -20,7 +20,7 @@ import (
 type CIBuilder interface {
 	RunReadinessProbe(ctx context.Context, scheme, host string, port int, path, hostname string, timeoutSeconds int)
 	RunEstafetteBuildJob(ctx context.Context, pipelineRunner PipelineRunner, containerRunner ContainerRunner, envvarHelper EnvvarHelper, obfuscator Obfuscator, endOfLifeHelper EndOfLifeHelper, builderConfig contracts.BuilderConfig, credentialsBytes []byte, runAsJob bool)
-	RunLocalBuild(ctx context.Context, pipelineRunner PipelineRunner, containerRunner ContainerRunner, envvarHelper EnvvarHelper, builderConfig contracts.BuilderConfig, stagesToRun []string)
+	RunLocalBuild(ctx context.Context, pipelineRunner PipelineRunner, containerRunner ContainerRunner, envvarHelper EnvvarHelper, builderConfig contracts.BuilderConfig, stagesToRun []string) (err error)
 	RunGocdAgentBuild(ctx context.Context, pipelineRunner PipelineRunner, containerRunner ContainerRunner, envvarHelper EnvvarHelper, obfuscator Obfuscator, builderConfig contracts.BuilderConfig, credentialsBytes []byte)
 	RunEstafetteCLIBuild() error
 }
@@ -197,20 +197,18 @@ func (b *ciBuilder) RunEstafetteBuildJob(ctx context.Context, pipelineRunner Pip
 	}
 }
 
-func (b *ciBuilder) RunLocalBuild(ctx context.Context, pipelineRunner PipelineRunner, containerRunner ContainerRunner, envvarHelper EnvvarHelper, builderConfig contracts.BuilderConfig, stagesToRun []string) {
-
-	fatalHandler := NewLocalFatalHandler()
+func (b *ciBuilder) RunLocalBuild(ctx context.Context, pipelineRunner PipelineRunner, containerRunner ContainerRunner, envvarHelper EnvvarHelper, builderConfig contracts.BuilderConfig, stagesToRun []string) (err error) {
 
 	// create docker client
-	err := containerRunner.CreateDockerClient()
+	err = containerRunner.CreateDockerClient()
 	if err != nil {
-		fatalHandler.HandleFatal(err, "Failed creating a docker client")
+		return
 	}
 
 	// read yaml
 	mft, err := manifest.ReadManifestFromFile(manifest.GetDefaultManifestPreferences(), ".estafette.yaml", true)
 	if err != nil {
-		fatalHandler.HandleFatal(err, "Reading .estafette.yaml manifest failed")
+		return
 	}
 
 	// default stages to run to first stage
@@ -231,24 +229,27 @@ func (b *ciBuilder) RunLocalBuild(ctx context.Context, pipelineRunner PipelineRu
 	// get current working directory
 	dir, err := os.Getwd()
 	if err != nil {
-		fatalHandler.HandleFatal(err, "Getting current working directory failed")
+		return
 	}
 
 	// unset all ESTAFETTE_ envvars so they don't get abused by non-estafette components
 	envvarHelper.UnsetEstafetteEnvvars()
 
 	// ensure git variables are set
-	envvarHelper.SetPipelineName(builderConfig)
+	err = envvarHelper.SetPipelineName(builderConfig)
+	if err != nil {
+		return
+	}
 
 	err = envvarHelper.SetEstafetteGlobalEnvvars()
 	if err != nil {
-		fatalHandler.HandleFatal(err, "Setting global environment variables failed")
+		return
 	}
 
 	// collect estafette and 'global' envvars from manifest
 	estafetteEnvvars, err := envvarHelper.CollectEstafetteEnvvarsAndLabels(mft)
 	if err != nil {
-		fatalHandler.HandleFatal(err, "CollectEstafetteEnvvarsAndLabels failed")
+		return
 	}
 
 	globalEnvvars := envvarHelper.CollectGlobalEnvvars(mft)
@@ -262,12 +263,14 @@ func (b *ciBuilder) RunLocalBuild(ctx context.Context, pipelineRunner PipelineRu
 	// run stages
 	buildLogSteps, err := pipelineRunner.RunStages(ctx, 0, stages, dir, envvars)
 	if err != nil {
-		fatalHandler.HandleFatal(err, "Executing stages from manifest failed")
+		return
 	}
 
-	RenderStats(buildLogSteps)
+	if !contracts.HasSucceededStatus(buildLogSteps) {
+		return fmt.Errorf("Failed running stages")
+	}
 
-	HandleExit(buildLogSteps)
+	return nil
 }
 
 func (b *ciBuilder) RunGocdAgentBuild(ctx context.Context, pipelineRunner PipelineRunner, containerRunner ContainerRunner, envvarHelper EnvvarHelper, obfuscator Obfuscator, builderConfig contracts.BuilderConfig, credentialsBytes []byte) {
