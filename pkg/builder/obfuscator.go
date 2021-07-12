@@ -29,6 +29,7 @@ type obfuscator struct {
 func NewObfuscator(secretHelper crypt.SecretHelper) Obfuscator {
 	return &obfuscator{
 		secretHelper: secretHelper,
+		replacer:     strings.NewReplacer(),
 	}
 }
 
