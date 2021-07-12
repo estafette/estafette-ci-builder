@@ -213,6 +213,14 @@ func (b *ciBuilderImpl) RunLocalBuild(ctx context.Context, pipelineRunner Pipeli
 		fatalHandler.HandleFatal(err, "Reading .estafette.yaml manifest failed")
 	}
 
+	// default stages to run to first stage
+	if len(stagesToRun) == 0 {
+		if len(mft.Stages) > 0 {
+			stagesToRun = append(stagesToRun, mft.Stages[0].Name)
+		}
+	}
+
+	// select configured stages to run
 	stages := []*manifest.EstafetteStage{}
 	for _, s := range mft.Stages {
 		if foundation.StringArrayContains(stagesToRun, s.Name) {
