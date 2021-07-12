@@ -28,7 +28,7 @@ type EndOfLifeHelper interface {
 	CancelJob(ctx context.Context) error
 }
 
-type endOfLifeHelperImpl struct {
+type endOfLifeHelper struct {
 	runAsJob bool
 	config   contracts.BuilderConfig
 	podName  string
@@ -36,14 +36,14 @@ type endOfLifeHelperImpl struct {
 
 // NewEndOfLifeHelper returns a new EndOfLifeHelper
 func NewEndOfLifeHelper(runAsJob bool, config contracts.BuilderConfig, podName string) EndOfLifeHelper {
-	return &endOfLifeHelperImpl{
+	return &endOfLifeHelper{
 		runAsJob: runAsJob,
 		config:   config,
 		podName:  podName,
 	}
 }
 
-func (elh *endOfLifeHelperImpl) HandleFatal(ctx context.Context, buildLog contracts.BuildLog, err error, message string) {
+func (elh *endOfLifeHelper) HandleFatal(ctx context.Context, buildLog contracts.BuildLog, err error, message string) {
 
 	// add error messages as step to show in logs
 	fatalStep := contracts.BuildLogStep{
@@ -86,7 +86,7 @@ func (elh *endOfLifeHelperImpl) HandleFatal(ctx context.Context, buildLog contra
 	}
 }
 
-func (elh *endOfLifeHelperImpl) SendBuildJobLogEvent(ctx context.Context, buildLog contracts.BuildLog) (err error) {
+func (elh *endOfLifeHelper) SendBuildJobLogEvent(ctx context.Context, buildLog contracts.BuildLog) (err error) {
 
 	err = elh.SendBuildJobLogEventCore(ctx, buildLog)
 
@@ -118,7 +118,7 @@ func (elh *endOfLifeHelperImpl) SendBuildJobLogEvent(ctx context.Context, buildL
 	return elh.SendBuildJobLogEventCore(ctx, slimBuildLog)
 }
 
-func (elh *endOfLifeHelperImpl) SendBuildJobLogEventCore(ctx context.Context, buildLog contracts.BuildLog) (err error) {
+func (elh *endOfLifeHelper) SendBuildJobLogEventCore(ctx context.Context, buildLog contracts.BuildLog) (err error) {
 
 	span, _ := opentracing.StartSpanFromContext(ctx, "SendLog")
 	defer span.Finish()
@@ -213,20 +213,20 @@ func (elh *endOfLifeHelperImpl) SendBuildJobLogEventCore(ctx context.Context, bu
 	return nil
 }
 
-func (elh *endOfLifeHelperImpl) SendBuildStartedEvent(ctx context.Context) error {
+func (elh *endOfLifeHelper) SendBuildStartedEvent(ctx context.Context) error {
 	buildStatus := contracts.LogStatusRunning
 	return elh.sendBuilderEvent(ctx, buildStatus, contracts.BuildEventTypeUpdateStatus)
 }
 
-func (elh *endOfLifeHelperImpl) SendBuildFinishedEvent(ctx context.Context, buildStatus contracts.LogStatus) error {
+func (elh *endOfLifeHelper) SendBuildFinishedEvent(ctx context.Context, buildStatus contracts.LogStatus) error {
 	return elh.sendBuilderEvent(ctx, buildStatus, contracts.BuildEventTypeUpdateStatus)
 }
 
-func (elh *endOfLifeHelperImpl) SendBuildCleanEvent(ctx context.Context, buildStatus contracts.LogStatus) error {
+func (elh *endOfLifeHelper) SendBuildCleanEvent(ctx context.Context, buildStatus contracts.LogStatus) error {
 	return elh.sendBuilderEvent(ctx, buildStatus, contracts.BuildEventTypeClean)
 }
 
-func (elh *endOfLifeHelperImpl) sendBuilderEvent(ctx context.Context, buildStatus contracts.LogStatus, buildEventType contracts.BuildEventType) (err error) {
+func (elh *endOfLifeHelper) sendBuilderEvent(ctx context.Context, buildStatus contracts.LogStatus, buildEventType contracts.BuildEventType) (err error) {
 
 	span, _ := opentracing.StartSpanFromContext(ctx, "SendBuildStatus")
 	defer span.Finish()
@@ -304,7 +304,7 @@ func (elh *endOfLifeHelperImpl) sendBuilderEvent(ctx context.Context, buildStatu
 	return nil
 }
 
-func (elh *endOfLifeHelperImpl) CancelJob(ctx context.Context) error {
+func (elh *endOfLifeHelper) CancelJob(ctx context.Context) error {
 
 	span, _ := opentracing.StartSpanFromContext(ctx, "CancelJob")
 	defer span.Finish()

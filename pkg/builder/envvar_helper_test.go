@@ -11,16 +11,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var (
-	secretHelper = crypt.NewSecretHelper("SazbwMf3NZxVVbBqQHebPcXCqrVn3DDp", false)
-	envvarHelper = NewEnvvarHelper("TESTPREFIX_", secretHelper, obfuscator)
-)
-
 func TestOverrideEnvvars(t *testing.T) {
 
 	t.Run("CombinesAllEnvvarsFromPassedMaps", func(t *testing.T) {
 
-		envvarHelper.UnsetEstafetteEnvvars()
+		_, _, envvarHelper, _ := getMocks()
 		outerMap := map[string]string{
 			"ENVVAR1": "value1",
 		}
@@ -36,7 +31,7 @@ func TestOverrideEnvvars(t *testing.T) {
 
 	t.Run("OverridesEnvarFromFirstMapWithSecondMap", func(t *testing.T) {
 
-		envvarHelper.UnsetEstafetteEnvvars()
+		_, _, envvarHelper, _ := getMocks()
 		outerMap := map[string]string{
 			"ENVVAR1": "value1",
 		}
@@ -56,7 +51,7 @@ func TestGetEstafetteEnvvarName(t *testing.T) {
 
 	t.Run("ReturnsKeyNameWithEstafetteUnderscoreReplacedWithEstafetteEnvvarPrefixValue", func(t *testing.T) {
 
-		envvarHelper.UnsetEstafetteEnvvars()
+		_, _, envvarHelper, _ := getMocks()
 
 		// act
 		key := envvarHelper.getEstafetteEnvvarName("ESTAFETTE_KEY")
@@ -69,7 +64,7 @@ func TestCollectEstafetteEnvvarsAndLabels(t *testing.T) {
 
 	t.Run("ReturnsEmptyMapIfManifestHasNoLabelsAndNoEnvvarsStartWithEstafette", func(t *testing.T) {
 
-		envvarHelper.UnsetEstafetteEnvvars()
+		_, _, envvarHelper, _ := getMocks()
 		manifest := manifest.EstafetteManifest{}
 
 		// act
@@ -81,7 +76,7 @@ func TestCollectEstafetteEnvvarsAndLabels(t *testing.T) {
 
 	t.Run("ReturnsOneLabelAsEstafetteLabelLabel", func(t *testing.T) {
 
-		envvarHelper.UnsetEstafetteEnvvars()
+		_, _, envvarHelper, _ := getMocks()
 		manifest := manifest.EstafetteManifest{Labels: map[string]string{"app": "estafette-ci-builder"}}
 
 		// act
@@ -95,7 +90,7 @@ func TestCollectEstafetteEnvvarsAndLabels(t *testing.T) {
 
 	t.Run("ReturnsOneLabelAsEstafetteLabelLabelWithSnakeCasing", func(t *testing.T) {
 
-		envvarHelper.UnsetEstafetteEnvvars()
+		_, _, envvarHelper, _ := getMocks()
 		manifest := manifest.EstafetteManifest{Labels: map[string]string{"owningTeam": "estafette-ci-team"}}
 
 		// act
@@ -110,7 +105,7 @@ func TestCollectEstafetteEnvvarsAndLabels(t *testing.T) {
 
 	t.Run("ReturnsTwoLabelsAsEstafetteLabelLabel", func(t *testing.T) {
 
-		envvarHelper.UnsetEstafetteEnvvars()
+		_, _, envvarHelper, _ := getMocks()
 		manifest := manifest.EstafetteManifest{Labels: map[string]string{"app": "estafette-ci-builder", "team": "estafette-ci-team"}}
 
 		// act
@@ -128,7 +123,7 @@ func TestCollectEstafetteEnvvarsAndLabels(t *testing.T) {
 
 	t.Run("ReturnsOneEnvvarStartingWithEstafette", func(t *testing.T) {
 
-		envvarHelper.UnsetEstafetteEnvvars()
+		_, _, envvarHelper, _ := getMocks()
 		manifest := manifest.EstafetteManifest{}
 		os.Setenv("TESTPREFIX_VERSION", "1.0.3")
 
@@ -143,7 +138,7 @@ func TestCollectEstafetteEnvvarsAndLabels(t *testing.T) {
 
 	t.Run("ReturnsOneEnvvarStartingWithEstafetteIfValueContainsIsSymbol", func(t *testing.T) {
 
-		envvarHelper.UnsetEstafetteEnvvars()
+		_, _, envvarHelper, _ := getMocks()
 		manifest := manifest.EstafetteManifest{}
 		os.Setenv("TESTPREFIX_VERSION", "b=c")
 
@@ -158,7 +153,7 @@ func TestCollectEstafetteEnvvarsAndLabels(t *testing.T) {
 
 	t.Run("ReturnsTwoEnvvarsStartingWithEstafette", func(t *testing.T) {
 
-		envvarHelper.UnsetEstafetteEnvvars()
+		_, _, envvarHelper, _ := getMocks()
 		manifest := manifest.EstafetteManifest{}
 		os.Setenv("TESTPREFIX_VERSION", "1.0.3")
 		os.Setenv("TESTPREFIX_GIT_REPOSITORY", "git@github.com:estafette/estafette-ci-builder.git")
@@ -178,7 +173,7 @@ func TestCollectEstafetteEnvvarsAndLabels(t *testing.T) {
 
 	t.Run("ReturnsMixOfLabelsAndEnvvars", func(t *testing.T) {
 
-		envvarHelper.UnsetEstafetteEnvvars()
+		_, _, envvarHelper, _ := getMocks()
 		manifest := manifest.EstafetteManifest{Labels: map[string]string{"app": "estafette-ci-builder"}}
 		os.Setenv("TESTPREFIX_VERSION", "1.0.3")
 
@@ -200,7 +195,7 @@ func TestCollectGlobalEnvvars(t *testing.T) {
 
 	t.Run("ReturnsEmptyMapIfManifestHasNoGlobalEnvvars", func(t *testing.T) {
 
-		envvarHelper.UnsetEstafetteEnvvars()
+		_, _, envvarHelper, _ := getMocks()
 		manifest := manifest.EstafetteManifest{}
 
 		// act
@@ -211,7 +206,7 @@ func TestCollectGlobalEnvvars(t *testing.T) {
 
 	t.Run("ReturnsGlobalEnvvarsIfManifestHasGlobalEnvvars", func(t *testing.T) {
 
-		envvarHelper.UnsetEstafetteEnvvars()
+		_, _, envvarHelper, _ := getMocks()
 		manifest := manifest.EstafetteManifest{GlobalEnvVars: map[string]string{"VAR_A": "Greetings", "VAR_B": "World"}}
 
 		// act
@@ -227,7 +222,7 @@ func TestGetEstafetteEnv(t *testing.T) {
 
 	t.Run("ReturnsEnvironmentVariableValueIfItStartsWithEstafetteUnderscore", func(t *testing.T) {
 
-		envvarHelper.UnsetEstafetteEnvvars()
+		_, _, envvarHelper, _ := getMocks()
 		os.Setenv("TESTPREFIX_BUILD_STATUS", "succeeded")
 
 		// act
@@ -238,7 +233,7 @@ func TestGetEstafetteEnv(t *testing.T) {
 
 	t.Run("ReturnsEnvironmentVariablePlaceholderIfItDoesNotStartWithEstafetteUnderscore", func(t *testing.T) {
 
-		envvarHelper.UnsetEstafetteEnvvars()
+		_, _, envvarHelper, _ := getMocks()
 		os.Setenv("HOME", "/root")
 
 		// act
@@ -253,6 +248,8 @@ func TestDecryptSecret(t *testing.T) {
 
 	t.Run("ReturnsOriginalValueIfDoesNotMatchEstafetteSecret", func(t *testing.T) {
 
+		_, _, envvarHelper, _ := getMocks()
+
 		// act
 		result := envvarHelper.decryptSecret("not a secret", "github.com/estafette/estafette-ci-builder")
 
@@ -261,6 +258,7 @@ func TestDecryptSecret(t *testing.T) {
 
 	t.Run("ReturnsUnencryptedValueIfMatchesEstafetteSecret", func(t *testing.T) {
 
+		_, _, envvarHelper, _ := getMocks()
 		value := "estafette.secret(deFTz5Bdjg6SUe29.oPIkXbze5G9PNEWS2-ZnArl8BCqHnx4MdTdxHg37th9u)"
 
 		// act
@@ -271,6 +269,7 @@ func TestDecryptSecret(t *testing.T) {
 
 	t.Run("ReturnsUnencryptedValueIfMatchesEstafetteSecretWithDoubleEqualSign", func(t *testing.T) {
 
+		_, _, envvarHelper, _ := getMocks()
 		value := "estafette.secret(yOQOYnIJAS1tN5eQ.Xaao3tVnwszu3OJ4XqGO0NMw8Cw0c0V3qA==)"
 
 		// act
@@ -284,6 +283,7 @@ func TestDecryptSecrets(t *testing.T) {
 
 	t.Run("ReturnsOriginalValueIfDoesNotMatchEstafetteSecret", func(t *testing.T) {
 
+		_, _, envvarHelper, _ := getMocks()
 		envvars := map[string]string{
 			"SOME_PLAIN_ENVVAR": "not a secret",
 		}
@@ -297,6 +297,7 @@ func TestDecryptSecrets(t *testing.T) {
 
 	t.Run("ReturnsUnencryptedValueIfMatchesEstafetteSecret", func(t *testing.T) {
 
+		_, _, envvarHelper, _ := getMocks()
 		envvars := map[string]string{
 			"SOME_SECRET": "estafette.secret(deFTz5Bdjg6SUe29.oPIkXbze5G9PNEWS2-ZnArl8BCqHnx4MdTdxHg37th9u)",
 		}
@@ -313,6 +314,8 @@ func TestGetSourceFromOrigin(t *testing.T) {
 
 	t.Run("ReturnsHostFromHttpsUrl", func(t *testing.T) {
 
+		_, _, envvarHelper, _ := getMocks()
+
 		// act
 		source := envvarHelper.getSourceFromOrigin("https://github.com/estafette/estafette-gcloud-mig-scaler.git")
 
@@ -320,6 +323,8 @@ func TestGetSourceFromOrigin(t *testing.T) {
 	})
 
 	t.Run("ReturnsHostFromGitUrl", func(t *testing.T) {
+
+		_, _, envvarHelper, _ := getMocks()
 
 		// act
 		source := envvarHelper.getSourceFromOrigin("git@github.com:estafette/estafette-ci-builder.git")
@@ -332,6 +337,8 @@ func TestGetOwnerFromOrigin(t *testing.T) {
 
 	t.Run("ReturnsOwnerFromHttpsUrl", func(t *testing.T) {
 
+		_, _, envvarHelper, _ := getMocks()
+
 		// act
 		owner := envvarHelper.getOwnerFromOrigin("https://github.com/estafette/estafette-gcloud-mig-scaler.git")
 
@@ -339,6 +346,8 @@ func TestGetOwnerFromOrigin(t *testing.T) {
 	})
 
 	t.Run("ReturnsOwnerFromGitUrl", func(t *testing.T) {
+
+		_, _, envvarHelper, _ := getMocks()
 
 		// act
 		owner := envvarHelper.getOwnerFromOrigin("git@github.com:estafette/estafette-ci-builder.git")
@@ -351,6 +360,8 @@ func TestGetNameFromOrigin(t *testing.T) {
 
 	t.Run("ReturnsNameFromHttpsUrl", func(t *testing.T) {
 
+		_, _, envvarHelper, _ := getMocks()
+
 		// act
 		name := envvarHelper.getNameFromOrigin("https://github.com/estafette/estafette-gcloud-mig-scaler.git")
 
@@ -358,6 +369,8 @@ func TestGetNameFromOrigin(t *testing.T) {
 	})
 
 	t.Run("ReturnsNameFromGitUrl", func(t *testing.T) {
+
+		_, _, envvarHelper, _ := getMocks()
 
 		// act
 		name := envvarHelper.getNameFromOrigin("git@github.com:estafette/estafette-ci-builder.git")
@@ -370,6 +383,7 @@ func TestMakeDNSLabelSafe(t *testing.T) {
 
 	t.Run("ReturnsValueIfAlreadySafeForDNSLabel", func(t *testing.T) {
 
+		_, _, envvarHelper, _ := getMocks()
 		value := "dns-safe-value"
 
 		// act
@@ -380,6 +394,7 @@ func TestMakeDNSLabelSafe(t *testing.T) {
 
 	t.Run("ReturnsAllLowercaseIfHasUppercase", func(t *testing.T) {
 
+		_, _, envvarHelper, _ := getMocks()
 		value := "DNS-safe-value"
 
 		// act
@@ -390,6 +405,7 @@ func TestMakeDNSLabelSafe(t *testing.T) {
 
 	t.Run("ReturnsAllLowercaseIfHasUppercase", func(t *testing.T) {
 
+		_, _, envvarHelper, _ := getMocks()
 		value := "DNS-safe-value"
 
 		// act
@@ -400,6 +416,7 @@ func TestMakeDNSLabelSafe(t *testing.T) {
 
 	t.Run("ReturnsCharactersOtherThanLettersDigitsOrHyphensAsHyphens", func(t *testing.T) {
 
+		_, _, envvarHelper, _ := getMocks()
 		value := "dns-safe.value"
 
 		// act
@@ -410,6 +427,7 @@ func TestMakeDNSLabelSafe(t *testing.T) {
 
 	t.Run("ReturnsMultipleHyphensAsSingleHyphen", func(t *testing.T) {
 
+		_, _, envvarHelper, _ := getMocks()
 		value := "dns-safe--value"
 
 		// act
@@ -420,6 +438,7 @@ func TestMakeDNSLabelSafe(t *testing.T) {
 
 	t.Run("ReturnsStartingWithLetter", func(t *testing.T) {
 
+		_, _, envvarHelper, _ := getMocks()
 		value := "10-dns-safe-value"
 
 		// act
@@ -430,6 +449,7 @@ func TestMakeDNSLabelSafe(t *testing.T) {
 
 	t.Run("ReturnsWithHyphensTrimmed", func(t *testing.T) {
 
+		_, _, envvarHelper, _ := getMocks()
 		value := "-dns-safe-value-"
 
 		// act
@@ -440,6 +460,7 @@ func TestMakeDNSLabelSafe(t *testing.T) {
 
 	t.Run("ReturnsTruncatedTo63Characters", func(t *testing.T) {
 
+		_, _, envvarHelper, _ := getMocks()
 		value := "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijkl"
 
 		// act
@@ -450,6 +471,7 @@ func TestMakeDNSLabelSafe(t *testing.T) {
 
 	t.Run("ReturnsTruncatedTo63CharactersWithHyphensTrimmed", func(t *testing.T) {
 
+		_, _, envvarHelper, _ := getMocks()
 		value := "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghij-l"
 
 		// act
@@ -463,7 +485,7 @@ func TestSetEstafetteEventEnvvars(t *testing.T) {
 
 	t.Run("ReturnsPipelineEventPropertiesAsEnvvars", func(t *testing.T) {
 
-		envvarHelper.UnsetEstafetteEnvvars()
+		_, _, envvarHelper, _ := getMocks()
 		event := manifest.EstafetteEvent{
 			Fired: true,
 			Pipeline: &manifest.EstafettePipelineEvent{
@@ -494,7 +516,7 @@ func TestSetEstafetteEventEnvvars(t *testing.T) {
 
 	t.Run("ReturnsNamedPipelineEventPropertiesAsEnvvars", func(t *testing.T) {
 
-		envvarHelper.UnsetEstafetteEnvvars()
+		_, _, envvarHelper, _ := getMocks()
 		event := manifest.EstafetteEvent{
 			Name:  "upstream",
 			Fired: false,
@@ -525,7 +547,7 @@ func TestSetEstafetteEventEnvvars(t *testing.T) {
 
 	t.Run("ReturnsReleaseEventPropertiesAsEnvvars", func(t *testing.T) {
 
-		envvarHelper.UnsetEstafetteEnvvars()
+		_, _, envvarHelper, _ := getMocks()
 		event := manifest.EstafetteEvent{
 			Fired: true,
 			Release: &manifest.EstafetteReleaseEvent{
@@ -556,7 +578,7 @@ func TestSetEstafetteEventEnvvars(t *testing.T) {
 
 	t.Run("ReturnsGitEventPropertiesAsEnvvars", func(t *testing.T) {
 
-		envvarHelper.UnsetEstafetteEnvvars()
+		_, _, envvarHelper, _ := getMocks()
 		event := manifest.EstafetteEvent{
 			Fired: true,
 			Git: &manifest.EstafetteGitEvent{
@@ -579,7 +601,7 @@ func TestSetEstafetteEventEnvvars(t *testing.T) {
 
 	t.Run("ReturnsCronEventPropertiesAsEnvvars", func(t *testing.T) {
 
-		envvarHelper.UnsetEstafetteEnvvars()
+		_, _, envvarHelper, _ := getMocks()
 		event := manifest.EstafetteEvent{
 			Fired: true,
 			Cron: &manifest.EstafetteCronEvent{
@@ -598,7 +620,7 @@ func TestSetEstafetteEventEnvvars(t *testing.T) {
 
 	t.Run("ReturnsManualEventPropertiesAsEnvvars", func(t *testing.T) {
 
-		envvarHelper.UnsetEstafetteEnvvars()
+		_, _, envvarHelper, _ := getMocks()
 		event := manifest.EstafetteEvent{
 			Fired: true,
 			Manual: &manifest.EstafetteManualEvent{
@@ -614,4 +636,15 @@ func TestSetEstafetteEventEnvvars(t *testing.T) {
 		assert.Equal(t, 1, len(envvars))
 		assert.Equal(t, "user@server.com", envvarHelper.getEstafetteEnv("ESTAFETTE_TRIGGER_MANUAL_USER_ID"))
 	})
+}
+
+func getMocks() (secretHelper crypt.SecretHelper, obfuscator Obfuscator, envvarHelper EnvvarHelper, whenEvaluator WhenEvaluator) {
+	secretHelper = crypt.NewSecretHelper("SazbwMf3NZxVVbBqQHebPcXCqrVn3DDp", false)
+	obfuscator = NewObfuscator(secretHelper)
+	envvarHelper = NewEnvvarHelper("TESTPREFIX_", secretHelper, obfuscator)
+	whenEvaluator = NewWhenEvaluator(envvarHelper)
+
+	envvarHelper.UnsetEstafetteEnvvars()
+
+	return
 }

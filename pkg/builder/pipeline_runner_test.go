@@ -8,7 +8,6 @@ import (
 	"time"
 
 	contracts "github.com/estafette/estafette-ci-contracts"
-	crypt "github.com/estafette/estafette-ci-crypt"
 	manifest "github.com/estafette/estafette-ci-manifest"
 	foundation "github.com/estafette/estafette-foundation"
 	gomock "github.com/golang/mock/gomock"
@@ -1288,7 +1287,7 @@ func TestGetNestedBuildLogService(t *testing.T) {
 
 	t.Run("ReturnsNilIfBuildLogsStepsIsEmpty", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := pipelineRunner{
 			buildLogSteps: make([]*contracts.BuildLogStep, 0),
 		}
 		tailLogLine := contracts.TailLogLine{
@@ -1306,7 +1305,7 @@ func TestGetNestedBuildLogService(t *testing.T) {
 
 	t.Run("ReturnsNilIfDepthIsZero", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := pipelineRunner{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step: "stage-a",
@@ -1328,7 +1327,7 @@ func TestGetNestedBuildLogService(t *testing.T) {
 
 	t.Run("ReturnsNilIfParentStageExistsButNestedStageDoesNot", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := pipelineRunner{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step: "stage-a",
@@ -1355,7 +1354,7 @@ func TestGetNestedBuildLogService(t *testing.T) {
 
 	t.Run("ReturnsNilIfParentStageExistsButNestedStageDoesNotAndServiceWithSameNameExists", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := pipelineRunner{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step: "stage-a",
@@ -1387,7 +1386,7 @@ func TestGetNestedBuildLogService(t *testing.T) {
 
 	t.Run("ReturnsNestedStepIfParentStageAndNestedStageExist", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := pipelineRunner{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step: "stage-a",
@@ -1418,7 +1417,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 
 	t.Run("AddsMainStageIfDoesNotExist", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := pipelineRunner{
 			buildLogSteps: make([]*contracts.BuildLogStep, 0),
 		}
 		tailLogLine := contracts.TailLogLine{
@@ -1434,7 +1433,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 
 	t.Run("DoesNotReaddMainStageIfAlreadyExists", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := pipelineRunner{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step: "stage-a",
@@ -1454,7 +1453,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 
 	t.Run("AddsMainStageIfDoesNotExistWithRunIndex", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := pipelineRunner{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step:     "stage-a",
@@ -1479,7 +1478,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 
 	t.Run("AddsMainStageIfDoesNotExistForNestedStage", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := pipelineRunner{
 			buildLogSteps: []*contracts.BuildLogStep{},
 		}
 		tailLogLine := contracts.TailLogLine{
@@ -1497,7 +1496,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 
 	t.Run("AddsMainStageIfDoesNotExistForNestedService", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := pipelineRunner{
 			buildLogSteps: []*contracts.BuildLogStep{},
 		}
 		tailLogLine := contracts.TailLogLine{
@@ -1515,7 +1514,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 
 	t.Run("AddsMainStageWithDepth0IfServiceContainerStatusComesInFirst", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := pipelineRunner{
 			buildLogSteps: make([]*contracts.BuildLogStep, 0),
 		}
 		tailLogLine := contracts.TailLogLine{
@@ -1535,7 +1534,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 
 	t.Run("AddsNestedStageIfDoesNotExist", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := pipelineRunner{
 			buildLogSteps: []*contracts.BuildLogStep{},
 		}
 		tailLogLine := contracts.TailLogLine{
@@ -1555,7 +1554,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 
 	t.Run("DoesNotReaddNestedStageIfAlreadyExists", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := pipelineRunner{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step: "stage-a",
@@ -1584,7 +1583,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 
 	t.Run("AddsNestedServiceIfDoesNotExist", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := pipelineRunner{
 			buildLogSteps: []*contracts.BuildLogStep{},
 		}
 		tailLogLine := contracts.TailLogLine{
@@ -1604,7 +1603,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 
 	t.Run("DoesNotReaddNestedServiceIfAlreadyExists", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := pipelineRunner{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step: "stage-a",
@@ -1633,7 +1632,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 
 	t.Run("AddLogLineToMainStage", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := pipelineRunner{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step: "stage-a",
@@ -1664,7 +1663,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 
 	t.Run("AddLogLineToNestedStage", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := pipelineRunner{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step: "stage-a",
@@ -1702,7 +1701,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 
 	t.Run("AddLogLineToNestedService", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := pipelineRunner{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step: "stage-a",
@@ -1740,7 +1739,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 
 	t.Run("SetStatusForMainStage", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := pipelineRunner{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step:   "stage-a",
@@ -1762,7 +1761,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 
 	t.Run("SetStatusForNestedStage", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := pipelineRunner{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step: "stage-a",
@@ -1791,7 +1790,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 
 	t.Run("SetStatusForNestedService", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := pipelineRunner{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step: "stage-a",
@@ -1820,7 +1819,7 @@ func TestUpsertTailLogLine(t *testing.T) {
 
 	t.Run("NestsParallelStageMessages", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := pipelineRunner{
 			buildLogSteps: []*contracts.BuildLogStep{},
 		}
 
@@ -1919,7 +1918,7 @@ func TestIsFinalStageComplete(t *testing.T) {
 
 	t.Run("ReturnsFalseIfBuildLogStepsAreEmpty", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := pipelineRunner{
 			buildLogSteps: make([]*contracts.BuildLogStep, 0),
 		}
 		stages := []*manifest.EstafetteStage{}
@@ -1932,7 +1931,7 @@ func TestIsFinalStageComplete(t *testing.T) {
 
 	t.Run("ReturnsFalseIfLastStepHasRunningStatus", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := pipelineRunner{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step:   "last-stage",
@@ -1954,7 +1953,7 @@ func TestIsFinalStageComplete(t *testing.T) {
 
 	t.Run("ReturnsFalseIfLastStepHasPendingStatus", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := pipelineRunner{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step:   "last-stage",
@@ -1976,7 +1975,7 @@ func TestIsFinalStageComplete(t *testing.T) {
 
 	t.Run("ReturnsTrueIfLastStepHasSucceededStatus", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := pipelineRunner{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step:   "last-stage",
@@ -1998,7 +1997,7 @@ func TestIsFinalStageComplete(t *testing.T) {
 
 	t.Run("ReturnsTrueIfLastStepHasFailedStatus", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := pipelineRunner{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step:   "last-stage",
@@ -2020,7 +2019,7 @@ func TestIsFinalStageComplete(t *testing.T) {
 
 	t.Run("ReturnsTrueIfLastStepHasSkippedStatus", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := pipelineRunner{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step:   "last-stage",
@@ -2042,7 +2041,7 @@ func TestIsFinalStageComplete(t *testing.T) {
 
 	t.Run("ReturnsTrueIfLastStepHasCanceledStatus", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := pipelineRunner{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step:   "last-stage",
@@ -2064,7 +2063,7 @@ func TestIsFinalStageComplete(t *testing.T) {
 
 	t.Run("ReturnsFalseIfLastStepHasSucceededStatusButIsNotTheFinalStage", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := pipelineRunner{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step:   "first-stage",
@@ -2089,7 +2088,7 @@ func TestIsFinalStageComplete(t *testing.T) {
 
 	t.Run("ReturnsFalseIfLastStepHasFailedStatusButIsNotTheFinalStage", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := pipelineRunner{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step:   "first-stage",
@@ -2114,7 +2113,7 @@ func TestIsFinalStageComplete(t *testing.T) {
 
 	t.Run("ReturnsFalseIfLastStepHasSkippedStatusButIsNotTheFinalStage", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := pipelineRunner{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step:   "first-stage",
@@ -2139,7 +2138,7 @@ func TestIsFinalStageComplete(t *testing.T) {
 
 	t.Run("ReturnsFalseIfLastStepHasCanceledStatusButIsNotTheFinalStage", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := pipelineRunner{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step:   "first-stage",
@@ -2164,7 +2163,7 @@ func TestIsFinalStageComplete(t *testing.T) {
 
 	t.Run("ReturnsFalseIfLastStageHasParallelStagesButLastStepHasNoEqualAmountOfNestedSteps", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := pipelineRunner{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step:   "last-stage",
@@ -2191,7 +2190,7 @@ func TestIsFinalStageComplete(t *testing.T) {
 
 	t.Run("ReturnsFalseIfLastStepHasSucceededStatusButAnyParallelStagesHavePendingOrRunningStatus", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := pipelineRunner{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step:   "last-stage",
@@ -2224,7 +2223,7 @@ func TestIsFinalStageComplete(t *testing.T) {
 
 	t.Run("ReturnsFalseIfLastStageHasServicesButLastStepHasNoEqualAmountOfServices", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := pipelineRunner{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step:   "last-stage",
@@ -2251,7 +2250,7 @@ func TestIsFinalStageComplete(t *testing.T) {
 
 	t.Run("ReturnsFalseIfLastStepHasSucceededStatusButAnyServicesHavePendingOrRunningStatus", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := pipelineRunner{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step:   "last-stage",
@@ -2284,7 +2283,7 @@ func TestIsFinalStageComplete(t *testing.T) {
 
 	t.Run("ReturnsFalseIfLastStepHasSucceededStatusButMultiStageServicesFromPreviousStagesHaveNotFinished", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := pipelineRunner{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step:   "earlier-stage",
@@ -2316,7 +2315,7 @@ func TestIsFinalStageComplete(t *testing.T) {
 
 	t.Run("ReturnsTrueIfLastStepHasSucceededStatusAndAllServicesFromPreviousStagesHaveFinished", func(t *testing.T) {
 
-		pipelineRunner := pipelineRunnerImpl{
+		pipelineRunner := pipelineRunner{
 			buildLogSteps: []*contracts.BuildLogStep{
 				&contracts.BuildLogStep{
 					Step:   "earlier-stage",
@@ -2349,9 +2348,7 @@ func TestIsFinalStageComplete(t *testing.T) {
 
 func getPipelineRunnerAndMocks(ctrl *gomock.Controller, containerRunner ContainerRunner) (chan contracts.TailLogLine, PipelineRunner) {
 
-	secretHelper := crypt.NewSecretHelper("SazbwMf3NZxVVbBqQHebPcXCqrVn3DDp", false)
-	envvarHelper := NewEnvvarHelper("TESTPREFIX_", secretHelper, obfuscator)
-	whenEvaluator := NewWhenEvaluator(envvarHelper)
+	_, _, envvarHelper, whenEvaluator := getMocks()
 
 	tailLogsChannel := make(chan contracts.TailLogLine, 10000)
 	pipelineRunner := NewPipelineRunner(envvarHelper, whenEvaluator, containerRunner, true, tailLogsChannel, foundation.ApplicationInfo{})

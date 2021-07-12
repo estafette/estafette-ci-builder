@@ -62,7 +62,7 @@ type EnvvarHelper interface {
 	getNameFromOrigin(string) string
 }
 
-type envvarHelperImpl struct {
+type envvarHelper struct {
 	prefix       string
 	ciServer     string
 	workDir      string
@@ -73,7 +73,7 @@ type envvarHelperImpl struct {
 
 // NewEnvvarHelper returns a new EnvvarHelper
 func NewEnvvarHelper(prefix string, secretHelper crypt.SecretHelper, obfuscator Obfuscator) EnvvarHelper {
-	return &envvarHelperImpl{
+	return &envvarHelper{
 		prefix:       prefix,
 		ciServer:     os.Getenv("ESTAFETTE_CI_SERVER"),
 		workDir:      os.Getenv("ESTAFETTE_WORKDIR"),
@@ -83,7 +83,7 @@ func NewEnvvarHelper(prefix string, secretHelper crypt.SecretHelper, obfuscator 
 	}
 }
 
-func (h *envvarHelperImpl) getCommandOutput(name string, arg ...string) (string, error) {
+func (h *envvarHelper) getCommandOutput(name string, arg ...string) (string, error) {
 
 	out, err := exec.Command(name, arg...).Output()
 	if err != nil {
@@ -93,7 +93,7 @@ func (h *envvarHelperImpl) getCommandOutput(name string, arg ...string) (string,
 	return strings.TrimSpace(string(out)), nil
 }
 
-func (h *envvarHelperImpl) SetEstafetteGlobalEnvvars() (err error) {
+func (h *envvarHelper) SetEstafetteGlobalEnvvars() (err error) {
 
 	// initialize build datetime envvar
 	err = h.initBuildDatetime()
@@ -151,7 +151,7 @@ func (h *envvarHelperImpl) SetEstafetteGlobalEnvvars() (err error) {
 	return
 }
 
-func (h *envvarHelperImpl) SetEstafetteBuilderConfigEnvvars(builderConfig contracts.BuilderConfig) (err error) {
+func (h *envvarHelper) SetEstafetteBuilderConfigEnvvars(builderConfig contracts.BuilderConfig) (err error) {
 	// set envvars that can be used by any container
 	err = h.setEstafetteEnv("ESTAFETTE_GIT_SOURCE", builderConfig.Git.RepoSource)
 	if err != nil {
@@ -284,7 +284,7 @@ func (h *envvarHelperImpl) SetEstafetteBuilderConfigEnvvars(builderConfig contra
 	return h.setEstafetteEventEnvvars(builderConfig.Events)
 }
 
-func (h *envvarHelperImpl) setEstafetteEventEnvvars(events []manifest.EstafetteEvent) (err error) {
+func (h *envvarHelper) setEstafetteEventEnvvars(events []manifest.EstafetteEvent) (err error) {
 
 	for _, e := range events {
 		triggerFields := reflect.TypeOf(e)
@@ -345,11 +345,11 @@ func (h *envvarHelperImpl) setEstafetteEventEnvvars(events []manifest.EstafetteE
 	return nil
 }
 
-func (h *envvarHelperImpl) getGitOrigin() (string, error) {
+func (h *envvarHelper) getGitOrigin() (string, error) {
 	return h.getCommandOutput("git", "config", "--get", "remote.origin.url")
 }
 
-func (h *envvarHelperImpl) initGitSource() (err error) {
+func (h *envvarHelper) initGitSource() (err error) {
 	if h.getEstafetteEnv("ESTAFETTE_GIT_SOURCE") == "" {
 		origin, err := h.getGitOrigin()
 		if err != nil {
@@ -361,7 +361,7 @@ func (h *envvarHelperImpl) initGitSource() (err error) {
 	return
 }
 
-func (h *envvarHelperImpl) initGitOwner() (err error) {
+func (h *envvarHelper) initGitOwner() (err error) {
 	if h.getEstafetteEnv("ESTAFETTE_GIT_OWNER") == "" {
 		origin, err := h.getGitOrigin()
 		if err != nil {
@@ -373,7 +373,7 @@ func (h *envvarHelperImpl) initGitOwner() (err error) {
 	return
 }
 
-func (h *envvarHelperImpl) initGitName() (err error) {
+func (h *envvarHelper) initGitName() (err error) {
 	if h.getEstafetteEnv("ESTAFETTE_GIT_NAME") == "" {
 		origin, err := h.getGitOrigin()
 		if err != nil {
@@ -385,7 +385,7 @@ func (h *envvarHelperImpl) initGitName() (err error) {
 	return
 }
 
-func (h *envvarHelperImpl) initGitFullName() (err error) {
+func (h *envvarHelper) initGitFullName() (err error) {
 	if h.getEstafetteEnv("ESTAFETTE_GIT_FULLNAME") == "" {
 		origin, err := h.getGitOrigin()
 		if err != nil {
@@ -398,7 +398,7 @@ func (h *envvarHelperImpl) initGitFullName() (err error) {
 	return
 }
 
-func (h *envvarHelperImpl) SetPipelineName(builderConfig contracts.BuilderConfig) (err error) {
+func (h *envvarHelper) SetPipelineName(builderConfig contracts.BuilderConfig) (err error) {
 
 	if builderConfig.Git == nil {
 		err = h.initGitSource()
@@ -437,7 +437,7 @@ func (h *envvarHelperImpl) SetPipelineName(builderConfig contracts.BuilderConfig
 	return nil
 }
 
-func (h *envvarHelperImpl) GetPipelineName() string {
+func (h *envvarHelper) GetPipelineName() string {
 
 	source := h.getEstafetteEnv("ESTAFETTE_GIT_SOURCE")
 	owner := h.getEstafetteEnv("ESTAFETTE_GIT_OWNER")
@@ -450,7 +450,7 @@ func (h *envvarHelperImpl) GetPipelineName() string {
 	return fmt.Sprintf("%v/%v/%v", source, owner, name)
 }
 
-func (h *envvarHelperImpl) getSourceFromOrigin(origin string) string {
+func (h *envvarHelper) getSourceFromOrigin(origin string) string {
 
 	re := regexp.MustCompile(`^(git@|https://)([^:\/]+)(:|/)([^\/]+)/([^\/]+)\.git`)
 	match := re.FindStringSubmatch(origin)
@@ -462,7 +462,7 @@ func (h *envvarHelperImpl) getSourceFromOrigin(origin string) string {
 	return match[2]
 }
 
-func (h *envvarHelperImpl) getOwnerFromOrigin(origin string) string {
+func (h *envvarHelper) getOwnerFromOrigin(origin string) string {
 
 	re := regexp.MustCompile(`^(git@|https://)([^:\/]+)(:|/)([^\/]+)/([^\/]+)\.git`)
 	match := re.FindStringSubmatch(origin)
@@ -474,7 +474,7 @@ func (h *envvarHelperImpl) getOwnerFromOrigin(origin string) string {
 	return match[4]
 }
 
-func (h *envvarHelperImpl) getNameFromOrigin(origin string) string {
+func (h *envvarHelper) getNameFromOrigin(origin string) string {
 
 	re := regexp.MustCompile(`^(git@|https://)([^:\/]+)(:|/)([^\/]+)/([^\/]+)\.git`)
 	match := re.FindStringSubmatch(origin)
@@ -486,7 +486,7 @@ func (h *envvarHelperImpl) getNameFromOrigin(origin string) string {
 	return match[5]
 }
 
-func (h *envvarHelperImpl) initGitRevision() (err error) {
+func (h *envvarHelper) initGitRevision() (err error) {
 	if h.getEstafetteEnv("ESTAFETTE_GIT_REVISION") == "" {
 		revision, err := h.getCommandOutput("git", "rev-parse", "HEAD")
 		if err != nil {
@@ -497,7 +497,7 @@ func (h *envvarHelperImpl) initGitRevision() (err error) {
 	return
 }
 
-func (h *envvarHelperImpl) initGitBranch() (err error) {
+func (h *envvarHelper) initGitBranch() (err error) {
 	if h.getEstafetteEnv("ESTAFETTE_GIT_BRANCH") == "" {
 		branch, err := h.getCommandOutput("git", "rev-parse", "--abbrev-ref", "HEAD")
 		if err != nil {
@@ -508,18 +508,18 @@ func (h *envvarHelperImpl) initGitBranch() (err error) {
 	return
 }
 
-func (h *envvarHelperImpl) initBuildDatetime() (err error) {
+func (h *envvarHelper) initBuildDatetime() (err error) {
 	if h.getEstafetteEnv("ESTAFETTE_BUILD_DATETIME") == "" {
 		return h.setEstafetteEnv("ESTAFETTE_BUILD_DATETIME", time.Now().UTC().Format(time.RFC3339))
 	}
 	return
 }
 
-func (h *envvarHelperImpl) initBuildStatus() (err error) {
+func (h *envvarHelper) initBuildStatus() (err error) {
 	return h.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
 }
 
-func (h *envvarHelperImpl) initLabels(m manifest.EstafetteManifest) (err error) {
+func (h *envvarHelper) initLabels(m manifest.EstafetteManifest) (err error) {
 
 	// set labels as envvars
 	if m.Labels != nil && len(m.Labels) > 0 {
@@ -535,7 +535,7 @@ func (h *envvarHelperImpl) initLabels(m manifest.EstafetteManifest) (err error) 
 	return
 }
 
-func (h *envvarHelperImpl) CollectEstafetteEnvvarsAndLabels(m manifest.EstafetteManifest) (envvars map[string]string, err error) {
+func (h *envvarHelper) CollectEstafetteEnvvarsAndLabels(m manifest.EstafetteManifest) (envvars map[string]string, err error) {
 
 	// set labels as envvars
 	err = h.initLabels(m)
@@ -547,7 +547,7 @@ func (h *envvarHelperImpl) CollectEstafetteEnvvarsAndLabels(m manifest.Estafette
 	return h.collectEstafetteEnvvars(), nil
 }
 
-func (h *envvarHelperImpl) collectEstafetteEnvvars() (envvars map[string]string) {
+func (h *envvarHelper) collectEstafetteEnvvars() (envvars map[string]string) {
 
 	// return all envvars starting with ESTAFETTE_
 	envvars = map[string]string{}
@@ -568,7 +568,7 @@ func (h *envvarHelperImpl) collectEstafetteEnvvars() (envvars map[string]string)
 	return
 }
 
-func (h *envvarHelperImpl) CollectGlobalEnvvars(m manifest.EstafetteManifest) (envvars map[string]string) {
+func (h *envvarHelper) CollectGlobalEnvvars(m manifest.EstafetteManifest) (envvars map[string]string) {
 
 	envvars = map[string]string{}
 
@@ -580,7 +580,7 @@ func (h *envvarHelperImpl) CollectGlobalEnvvars(m manifest.EstafetteManifest) (e
 }
 
 // only to be used from unit tests
-func (h *envvarHelperImpl) UnsetEstafetteEnvvars() {
+func (h *envvarHelper) UnsetEstafetteEnvvars() {
 
 	envvarsToUnset := h.collectEstafetteEnvvars()
 	for key := range envvarsToUnset {
@@ -591,7 +591,7 @@ func (h *envvarHelperImpl) UnsetEstafetteEnvvars() {
 	}
 }
 
-func (h *envvarHelperImpl) getEstafetteEnv(key string) string {
+func (h *envvarHelper) getEstafetteEnv(key string) string {
 
 	key = h.getEstafetteEnvvarName(key)
 
@@ -602,7 +602,7 @@ func (h *envvarHelperImpl) getEstafetteEnv(key string) string {
 	return fmt.Sprintf("${%v}", key)
 }
 
-func (h *envvarHelperImpl) setEstafetteEnv(key, value string) error {
+func (h *envvarHelper) setEstafetteEnv(key, value string) error {
 
 	key = h.getEstafetteEnvvarName(key)
 
@@ -614,18 +614,18 @@ func (h *envvarHelperImpl) setEstafetteEnv(key, value string) error {
 	return nil
 }
 
-func (h *envvarHelperImpl) unsetEstafetteEnv(key string) error {
+func (h *envvarHelper) unsetEstafetteEnv(key string) error {
 
 	key = h.getEstafetteEnvvarName(key)
 
 	return os.Unsetenv(key)
 }
 
-func (h *envvarHelperImpl) getEstafetteEnvvarName(key string) string {
+func (h *envvarHelper) getEstafetteEnvvarName(key string) string {
 	return strings.Replace(key, "ESTAFETTE_", h.prefix, -1)
 }
 
-func (h *envvarHelperImpl) OverrideEnvvars(envvarMaps ...map[string]string) (envvars map[string]string) {
+func (h *envvarHelper) OverrideEnvvars(envvarMaps ...map[string]string) (envvars map[string]string) {
 
 	envvars = make(map[string]string)
 	for _, envvarMap := range envvarMaps {
@@ -637,7 +637,7 @@ func (h *envvarHelperImpl) OverrideEnvvars(envvarMaps ...map[string]string) (env
 	return
 }
 
-func (h *envvarHelperImpl) decryptSecret(encryptedValue, pipeline string) (decryptedValue string) {
+func (h *envvarHelper) decryptSecret(encryptedValue, pipeline string) (decryptedValue string) {
 
 	decryptedValue, err := h.secretHelper.DecryptAllEnvelopes(encryptedValue, pipeline)
 
@@ -649,7 +649,7 @@ func (h *envvarHelperImpl) decryptSecret(encryptedValue, pipeline string) (decry
 	return
 }
 
-func (h *envvarHelperImpl) decryptSecrets(encryptedEnvvars map[string]string, pipeline string) (envvars map[string]string) {
+func (h *envvarHelper) decryptSecrets(encryptedEnvvars map[string]string, pipeline string) (envvars map[string]string) {
 
 	if len(encryptedEnvvars) == 0 {
 		return encryptedEnvvars
@@ -663,35 +663,35 @@ func (h *envvarHelperImpl) decryptSecrets(encryptedEnvvars map[string]string, pi
 	return
 }
 
-func (h *envvarHelperImpl) GetCiServer() string {
+func (h *envvarHelper) GetCiServer() string {
 	return h.ciServer
 }
 
-func (h *envvarHelperImpl) GetWorkDir() string {
+func (h *envvarHelper) GetWorkDir() string {
 	return h.workDir
 }
 
-func (h *envvarHelperImpl) GetTempDir() string {
+func (h *envvarHelper) GetTempDir() string {
 	return h.tempDir
 }
 
-func (h *envvarHelperImpl) GetPodName() string {
+func (h *envvarHelper) GetPodName() string {
 	return os.Getenv("POD_NAME")
 }
 
-func (h *envvarHelperImpl) GetPodUID() string {
+func (h *envvarHelper) GetPodUID() string {
 	return os.Getenv("POD_UID")
 }
 
-func (h *envvarHelperImpl) GetPodNamespace() string {
+func (h *envvarHelper) GetPodNamespace() string {
 	return os.Getenv("POD_NAMESPACE")
 }
 
-func (h *envvarHelperImpl) GetPodNodeName() string {
+func (h *envvarHelper) GetPodNodeName() string {
 	return os.Getenv("POD_NODE_NAME")
 }
 
-func (h *envvarHelperImpl) makeDNSLabelSafe(value string) string {
+func (h *envvarHelper) makeDNSLabelSafe(value string) string {
 	// in order for the label to be used as a dns label (part between dots) it should only use
 	// lowercase letters, digits and hyphens and have a max length of 63 characters;
 	// also it should start with a letter and not end in a hyphen

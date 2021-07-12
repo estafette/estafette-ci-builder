@@ -20,19 +20,19 @@ type Obfuscator interface {
 	ObfuscateSecrets(input string) string
 }
 
-type obfuscatorImpl struct {
+type obfuscator struct {
 	secretHelper crypt.SecretHelper
 	replacer     *strings.Replacer
 }
 
 // NewObfuscator returns a new Obfuscator
 func NewObfuscator(secretHelper crypt.SecretHelper) Obfuscator {
-	return &obfuscatorImpl{
+	return &obfuscator{
 		secretHelper: secretHelper,
 	}
 }
 
-func (ob *obfuscatorImpl) CollectSecrets(manifest manifest.EstafetteManifest, credentialsBytes []byte, pipeline string) (err error) {
+func (ob *obfuscator) CollectSecrets(manifest manifest.EstafetteManifest, credentialsBytes []byte, pipeline string) (err error) {
 
 	log.Debug().Msgf("Collecting secrets and checking if they're valid for pipeline %v...", pipeline)
 
@@ -68,7 +68,7 @@ func (ob *obfuscatorImpl) CollectSecrets(manifest manifest.EstafetteManifest, cr
 	return nil
 }
 
-func (ob *obfuscatorImpl) getReplacerStrings(values []string) (replacerStrings []string) {
+func (ob *obfuscator) getReplacerStrings(values []string) (replacerStrings []string) {
 
 	replacerStrings = []string{}
 
@@ -117,11 +117,11 @@ func (ob *obfuscatorImpl) getReplacerStrings(values []string) (replacerStrings [
 	return replacerStrings
 }
 
-func (ob *obfuscatorImpl) Obfuscate(input string) string {
+func (ob *obfuscator) Obfuscate(input string) string {
 	return ob.replacer.Replace(input)
 }
 
-func (ob *obfuscatorImpl) ObfuscateSecrets(input string) string {
+func (ob *obfuscator) ObfuscateSecrets(input string) string {
 
 	r, err := regexp.Compile(`estafette\.secret\(([a-zA-Z0-9.=_-]+)\)`)
 	if err != nil {

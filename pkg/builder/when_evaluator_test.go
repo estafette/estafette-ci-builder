@@ -7,15 +7,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var (
-	whenEvaluator = NewWhenEvaluator(envvarHelper)
-)
-
 func TestWhenEvaluator(t *testing.T) {
 
 	t.Run("ReturnsFalseIfInputIsEmpty", func(t *testing.T) {
 
-		envvarHelper.UnsetEstafetteEnvvars()
+		_, _, _, whenEvaluator := getMocks()
 
 		// act
 		result, err := whenEvaluator.Evaluate("name", "", make(map[string]interface{}))
@@ -26,7 +22,7 @@ func TestWhenEvaluator(t *testing.T) {
 
 	t.Run("ReturnsTrueIfInputEvaluatesToTrueWithoutParameters", func(t *testing.T) {
 
-		envvarHelper.UnsetEstafetteEnvvars()
+		_, _, _, whenEvaluator := getMocks()
 
 		// act
 		result, _ := whenEvaluator.Evaluate("name", "3 > 2", make(map[string]interface{}))
@@ -36,7 +32,7 @@ func TestWhenEvaluator(t *testing.T) {
 
 	t.Run("ReturnsTrueIfInputEvaluatesToTrueWithParameters", func(t *testing.T) {
 
-		envvarHelper.UnsetEstafetteEnvvars()
+		_, _, _, whenEvaluator := getMocks()
 		parameters := make(map[string]interface{}, 3)
 		parameters["branch"] = "master"
 		parameters["trigger"] = ""
@@ -50,7 +46,7 @@ func TestWhenEvaluator(t *testing.T) {
 
 	t.Run("ReturnsTrueIfInputEvaluatesToTrueWithParameters", func(t *testing.T) {
 
-		envvarHelper.UnsetEstafetteEnvvars()
+		_, _, _, whenEvaluator := getMocks()
 		parameters := make(map[string]interface{}, 3)
 		parameters["branch"] = "master"
 		parameters["trigger"] = ""
@@ -64,7 +60,7 @@ func TestWhenEvaluator(t *testing.T) {
 
 	t.Run("ReturnsFalseIfInputIsMalformed", func(t *testing.T) {
 
-		envvarHelper.UnsetEstafetteEnvvars()
+		_, _, _, whenEvaluator := getMocks()
 		parameters := make(map[string]interface{}, 3)
 		parameters["action"] = "deploy-canary"
 		parameters["branch"] = "some-branch"
@@ -84,7 +80,7 @@ func TestWhenParameters(t *testing.T) {
 
 	t.Run("ReturnsMapWithBranchEqualToBranchWithoutTrailingNewline", func(t *testing.T) {
 
-		envvarHelper.UnsetEstafetteEnvvars()
+		_, _, envvarHelper, whenEvaluator := getMocks()
 		err := envvarHelper.SetEstafetteGlobalEnvvars()
 		assert.Nil(t, err)
 		err = envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")
@@ -98,7 +94,7 @@ func TestWhenParameters(t *testing.T) {
 
 	t.Run("ReturnsMapWithAction", func(t *testing.T) {
 
-		envvarHelper.UnsetEstafetteEnvvars()
+		_, _, envvarHelper, whenEvaluator := getMocks()
 		err := envvarHelper.SetEstafetteGlobalEnvvars()
 		assert.Nil(t, err)
 		err = envvarHelper.setEstafetteEnv("ESTAFETTE_RELEASE_ACTION", "deploy-canary")
@@ -112,7 +108,7 @@ func TestWhenParameters(t *testing.T) {
 
 	t.Run("ReturnsMapWithStatusSetToSucceededByDefault", func(t *testing.T) {
 
-		envvarHelper.UnsetEstafetteEnvvars()
+		_, _, envvarHelper, whenEvaluator := getMocks()
 		err := envvarHelper.SetEstafetteGlobalEnvvars()
 		assert.Nil(t, err)
 		err = envvarHelper.setEstafetteEnv("ESTAFETTE_BUILD_STATUS", "succeeded")

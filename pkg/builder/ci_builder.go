@@ -20,23 +20,23 @@ import (
 type CIBuilder interface {
 	RunReadinessProbe(ctx context.Context, scheme, host string, port int, path, hostname string, timeoutSeconds int)
 	RunEstafetteBuildJob(ctx context.Context, pipelineRunner PipelineRunner, containerRunner ContainerRunner, envvarHelper EnvvarHelper, obfuscator Obfuscator, endOfLifeHelper EndOfLifeHelper, builderConfig contracts.BuilderConfig, credentialsBytes []byte, runAsJob bool)
-	RunLocalBuild(ctx context.Context, pipelineRunner PipelineRunner, containerRunner ContainerRunner, envvarHelper EnvvarHelper, stagesToRun []string)
+	RunLocalBuild(ctx context.Context, pipelineRunner PipelineRunner, containerRunner ContainerRunner, envvarHelper EnvvarHelper, builderConfig contracts.BuilderConfig, stagesToRun []string)
 	RunGocdAgentBuild(ctx context.Context, pipelineRunner PipelineRunner, containerRunner ContainerRunner, envvarHelper EnvvarHelper, obfuscator Obfuscator, builderConfig contracts.BuilderConfig, credentialsBytes []byte)
 	RunEstafetteCLIBuild() error
 }
 
-type ciBuilderImpl struct {
+type ciBuilder struct {
 	applicationInfo foundation.ApplicationInfo
 }
 
 // NewCIBuilder returns a new CIBuilder
 func NewCIBuilder(applicationInfo foundation.ApplicationInfo) CIBuilder {
-	return &ciBuilderImpl{
+	return &ciBuilder{
 		applicationInfo: applicationInfo,
 	}
 }
 
-func (b *ciBuilderImpl) RunReadinessProbe(ctx context.Context, scheme, host string, port int, path, hostname string, timeoutSeconds int) {
+func (b *ciBuilder) RunReadinessProbe(ctx context.Context, scheme, host string, port int, path, hostname string, timeoutSeconds int) {
 	err := WaitForReadinessHttpGet(ctx, scheme, host, port, path, hostname, timeoutSeconds)
 	if err != nil {
 		log.Fatal().Err(err).Msgf("Readiness probe failed")
@@ -46,7 +46,7 @@ func (b *ciBuilderImpl) RunReadinessProbe(ctx context.Context, scheme, host stri
 	os.Exit(0)
 }
 
-func (b *ciBuilderImpl) RunEstafetteBuildJob(ctx context.Context, pipelineRunner PipelineRunner, containerRunner ContainerRunner, envvarHelper EnvvarHelper, obfuscator Obfuscator, endOfLifeHelper EndOfLifeHelper, builderConfig contracts.BuilderConfig, credentialsBytes []byte, runAsJob bool) {
+func (b *ciBuilder) RunEstafetteBuildJob(ctx context.Context, pipelineRunner PipelineRunner, containerRunner ContainerRunner, envvarHelper EnvvarHelper, obfuscator Obfuscator, endOfLifeHelper EndOfLifeHelper, builderConfig contracts.BuilderConfig, credentialsBytes []byte, runAsJob bool) {
 
 	closer := b.initJaeger(b.applicationInfo.App)
 	defer closer.Close()
@@ -197,7 +197,7 @@ func (b *ciBuilderImpl) RunEstafetteBuildJob(ctx context.Context, pipelineRunner
 	}
 }
 
-func (b *ciBuilderImpl) RunLocalBuild(ctx context.Context, pipelineRunner PipelineRunner, containerRunner ContainerRunner, envvarHelper EnvvarHelper, stagesToRun []string) {
+func (b *ciBuilder) RunLocalBuild(ctx context.Context, pipelineRunner PipelineRunner, containerRunner ContainerRunner, envvarHelper EnvvarHelper, builderConfig contracts.BuilderConfig, stagesToRun []string) {
 
 	fatalHandler := NewLocalFatalHandler()
 
@@ -237,6 +237,9 @@ func (b *ciBuilderImpl) RunLocalBuild(ctx context.Context, pipelineRunner Pipeli
 	// unset all ESTAFETTE_ envvars so they don't get abused by non-estafette components
 	envvarHelper.UnsetEstafetteEnvvars()
 
+	// ensure git variables are set
+	envvarHelper.SetPipelineName(builderConfig)
+
 	err = envvarHelper.SetEstafetteGlobalEnvvars()
 	if err != nil {
 		fatalHandler.HandleFatal(err, "Setting global environment variables failed")
@@ -267,7 +270,7 @@ func (b *ciBuilderImpl) RunLocalBuild(ctx context.Context, pipelineRunner Pipeli
 	HandleExit(buildLogSteps)
 }
 
-func (b *ciBuilderImpl) RunGocdAgentBuild(ctx context.Context, pipelineRunner PipelineRunner, containerRunner ContainerRunner, envvarHelper EnvvarHelper, obfuscator Obfuscator, builderConfig contracts.BuilderConfig, credentialsBytes []byte) {
+func (b *ciBuilder) RunGocdAgentBuild(ctx context.Context, pipelineRunner PipelineRunner, containerRunner ContainerRunner, envvarHelper EnvvarHelper, obfuscator Obfuscator, builderConfig contracts.BuilderConfig, credentialsBytes []byte) {
 
 	fatalHandler := NewLocalFatalHandler()
 
@@ -345,13 +348,13 @@ func (b *ciBuilderImpl) RunGocdAgentBuild(ctx context.Context, pipelineRunner Pi
 	HandleExit(buildLogSteps)
 }
 
-func (b *ciBuilderImpl) RunEstafetteCLIBuild() error {
+func (b *ciBuilder) RunEstafetteCLIBuild() error {
 	return nil
 }
 
 // initJaeger returns an instance of Jaeger Tracer that can be configured with environment variables
 // https://github.com/jaegertracing/jaeger-client-go#environment-variables
-func (b *ciBuilderImpl) initJaeger(service string) io.Closer {
+func (b *ciBuilder) initJaeger(service string) io.Closer {
 
 	cfg, err := jaegercfg.FromEnv()
 	if err != nil {

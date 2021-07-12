@@ -37,7 +37,7 @@ import (
 
 // NewDockerRunner returns a new ContainerRunner to run containers using docker, either with docker-in-docker or docker-outside-docker
 func NewDockerRunner(envvarHelper EnvvarHelper, obfuscator Obfuscator, config contracts.BuilderConfig, tailLogsChannel chan contracts.TailLogLine, runCommandsWithEntrypointScript bool) ContainerRunner {
-	return &dockerRunnerImpl{
+	return &dockerRunner{
 		envvarHelper:                          envvarHelper,
 		obfuscator:                            obfuscator,
 		config:                                config,
@@ -53,7 +53,7 @@ func NewDockerRunner(envvarHelper EnvvarHelper, obfuscator Obfuscator, config co
 	}
 }
 
-type dockerRunnerImpl struct {
+type dockerRunner struct {
 	envvarHelper                    EnvvarHelper
 	obfuscator                      Obfuscator
 	dockerClient                    *client.Client
@@ -73,7 +73,7 @@ type dockerRunnerImpl struct {
 	pulledImagesMutex *MapMutex
 }
 
-func (dr *dockerRunnerImpl) IsImagePulled(ctx context.Context, stageName string, containerImage string) bool {
+func (dr *dockerRunner) IsImagePulled(ctx context.Context, stageName string, containerImage string) bool {
 
 	span, _ := opentracing.StartSpanFromContext(ctx, "IsImagePulled")
 	defer span.Finish()
@@ -99,7 +99,7 @@ func (dr *dockerRunnerImpl) IsImagePulled(ctx context.Context, stageName string,
 	return false
 }
 
-func (dr *dockerRunnerImpl) PullImage(ctx context.Context, stageName string, containerImage string) (err error) {
+func (dr *dockerRunner) PullImage(ctx context.Context, stageName string, containerImage string) (err error) {
 
 	span, _ := opentracing.StartSpanFromContext(ctx, "PullImage")
 	defer span.Finish()
@@ -126,7 +126,7 @@ func (dr *dockerRunnerImpl) PullImage(ctx context.Context, stageName string, con
 	return
 }
 
-func (dr *dockerRunnerImpl) GetImageSize(ctx context.Context, containerImage string) (totalSize int64, err error) {
+func (dr *dockerRunner) GetImageSize(ctx context.Context, containerImage string) (totalSize int64, err error) {
 
 	items, err := dr.dockerClient.ImageHistory(ctx, containerImage)
 	if err != nil {
@@ -140,7 +140,7 @@ func (dr *dockerRunnerImpl) GetImageSize(ctx context.Context, containerImage str
 	return totalSize, nil
 }
 
-func (dr *dockerRunnerImpl) StartStageContainer(ctx context.Context, depth int, dir string, envvars map[string]string, stage manifest.EstafetteStage, stageIndex int) (containerID string, err error) {
+func (dr *dockerRunner) StartStageContainer(ctx context.Context, depth int, dir string, envvars map[string]string, stage manifest.EstafetteStage, stageIndex int) (containerID string, err error) {
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "StartStageContainer")
 	defer span.Finish()
@@ -278,7 +278,7 @@ func (dr *dockerRunnerImpl) StartStageContainer(ctx context.Context, depth int, 
 	return
 }
 
-func (dr *dockerRunnerImpl) StartServiceContainer(ctx context.Context, envvars map[string]string, service manifest.EstafetteService) (containerID string, err error) {
+func (dr *dockerRunner) StartServiceContainer(ctx context.Context, envvars map[string]string, service manifest.EstafetteService) (containerID string, err error) {
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "StartServiceContainer")
 	defer span.Finish()
@@ -418,7 +418,7 @@ func (dr *dockerRunnerImpl) StartServiceContainer(ctx context.Context, envvars m
 	return
 }
 
-func (dr *dockerRunnerImpl) RunReadinessProbeContainer(ctx context.Context, parentStage manifest.EstafetteStage, service manifest.EstafetteService, readiness manifest.ReadinessProbe) (err error) {
+func (dr *dockerRunner) RunReadinessProbeContainer(ctx context.Context, parentStage manifest.EstafetteStage, service manifest.EstafetteService, readiness manifest.ReadinessProbe) (err error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "RunReadinessProbeContainer")
 	defer span.Finish()
 
@@ -578,7 +578,7 @@ func (dr *dockerRunnerImpl) RunReadinessProbeContainer(ctx context.Context, pare
 	return
 }
 
-func (dr *dockerRunnerImpl) TailContainerLogs(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth int, multiStage *bool) (err error) {
+func (dr *dockerRunner) TailContainerLogs(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth int, multiStage *bool) (err error) {
 
 	lineNumber := 1
 
@@ -691,7 +691,7 @@ func (dr *dockerRunnerImpl) TailContainerLogs(ctx context.Context, containerID, 
 	return err
 }
 
-func (dr *dockerRunnerImpl) StopSingleStageServiceContainers(ctx context.Context, parentStage manifest.EstafetteStage) {
+func (dr *dockerRunner) StopSingleStageServiceContainers(ctx context.Context, parentStage manifest.EstafetteStage) {
 
 	log.Info().Msgf("[%v] Stopping single-stage service containers...", parentStage.Name)
 
@@ -701,7 +701,7 @@ func (dr *dockerRunnerImpl) StopSingleStageServiceContainers(ctx context.Context
 	log.Info().Msgf("[%v] Stopped single-stage service containers...", parentStage.Name)
 }
 
-func (dr *dockerRunnerImpl) StopMultiStageServiceContainers(ctx context.Context) {
+func (dr *dockerRunner) StopMultiStageServiceContainers(ctx context.Context) {
 
 	log.Debug().Msg("Stopping multi-stage service containers...")
 
@@ -711,7 +711,7 @@ func (dr *dockerRunnerImpl) StopMultiStageServiceContainers(ctx context.Context)
 	log.Debug().Msg("Stopped multi-stage service containers...")
 }
 
-func (dr *dockerRunnerImpl) StartDockerDaemon() error {
+func (dr *dockerRunner) StartDockerDaemon() error {
 	if dr.config.DockerConfig != nil && dr.config.DockerConfig.RunType != contracts.DockerRunTypeDinD {
 		return nil
 	}
@@ -747,7 +747,7 @@ func (dr *dockerRunnerImpl) StartDockerDaemon() error {
 	return nil
 }
 
-func (dr *dockerRunnerImpl) WaitForDockerDaemon() {
+func (dr *dockerRunner) WaitForDockerDaemon() {
 	if dr.config.DockerConfig != nil && dr.config.DockerConfig.RunType != contracts.DockerRunTypeDinD {
 		return
 	}
@@ -766,7 +766,7 @@ func (dr *dockerRunnerImpl) WaitForDockerDaemon() {
 	log.Debug().Msg("Docker daemon is ready for use")
 }
 
-func (dr *dockerRunnerImpl) CreateDockerClient() error {
+func (dr *dockerRunner) CreateDockerClient() error {
 
 	dockerClient, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
@@ -777,7 +777,7 @@ func (dr *dockerRunnerImpl) CreateDockerClient() error {
 	return err
 }
 
-func (dr *dockerRunnerImpl) getImagePullOptions(containerImage string) types.ImagePullOptions {
+func (dr *dockerRunner) getImagePullOptions(containerImage string) types.ImagePullOptions {
 
 	containerRegistryCredentials := dr.config.GetCredentialsByType("container-registry")
 
@@ -838,7 +838,7 @@ func (dr *dockerRunnerImpl) getImagePullOptions(containerImage string) types.Ima
 	return types.ImagePullOptions{}
 }
 
-func (dr *dockerRunnerImpl) IsTrustedImage(stageName string, containerImage string) bool {
+func (dr *dockerRunner) IsTrustedImage(stageName string, containerImage string) bool {
 
 	log.Debug().Msgf("[%v] Checking if docker image '%v' is trusted...", stageName, containerImage)
 
@@ -848,7 +848,7 @@ func (dr *dockerRunnerImpl) IsTrustedImage(stageName string, containerImage stri
 	return trustedImage != nil
 }
 
-func (dr *dockerRunnerImpl) HasInjectedCredentials(stageName string, containerImage string) bool {
+func (dr *dockerRunner) HasInjectedCredentials(stageName string, containerImage string) bool {
 
 	log.Debug().Msgf("[%v] Checking if docker image '%v' has injected credentials...", stageName, containerImage)
 
@@ -863,7 +863,7 @@ func (dr *dockerRunnerImpl) HasInjectedCredentials(stageName string, containerIm
 	return len(credentialMap) > 0
 }
 
-func (dr *dockerRunnerImpl) stopContainer(ctx context.Context, containerID string) error {
+func (dr *dockerRunner) stopContainer(ctx context.Context, containerID string) error {
 
 	log.Debug().Msgf("Stopping container with id %v", containerID)
 
@@ -878,7 +878,7 @@ func (dr *dockerRunnerImpl) stopContainer(ctx context.Context, containerID strin
 	return nil
 }
 
-func (dr *dockerRunnerImpl) stopContainers(ctx context.Context, containerIDs []string) {
+func (dr *dockerRunner) stopContainers(ctx context.Context, containerIDs []string) {
 
 	if len(containerIDs) > 0 {
 		log.Info().Msgf("Stopping %v containers", len(containerIDs))
@@ -904,7 +904,7 @@ func (dr *dockerRunnerImpl) stopContainers(ctx context.Context, containerIDs []s
 	}
 }
 
-func (dr *dockerRunnerImpl) StopAllContainers(ctx context.Context) {
+func (dr *dockerRunner) StopAllContainers(ctx context.Context) {
 
 	allRunningContainerIDs := append(dr.runningStageContainerIDs, dr.runningSingleStageServiceContainerIDs...)
 	allRunningContainerIDs = append(allRunningContainerIDs, dr.runningMultiStageServiceContainerIDs...)
@@ -913,14 +913,14 @@ func (dr *dockerRunnerImpl) StopAllContainers(ctx context.Context) {
 	dr.stopContainers(ctx, allRunningContainerIDs)
 }
 
-func (dr *dockerRunnerImpl) addRunningContainerID(containerIDs []string, containerID string) []string {
+func (dr *dockerRunner) addRunningContainerID(containerIDs []string, containerID string) []string {
 
 	log.Debug().Msgf("Adding container id %v to containerIDs", containerID)
 
 	return append(containerIDs, containerID)
 }
 
-func (dr *dockerRunnerImpl) removeRunningContainerID(containerIDs []string, containerID string) []string {
+func (dr *dockerRunner) removeRunningContainerID(containerIDs []string, containerID string) []string {
 
 	log.Debug().Msgf("Removing container id %v from containerIDs", containerID)
 
@@ -935,7 +935,7 @@ func (dr *dockerRunnerImpl) removeRunningContainerID(containerIDs []string, cont
 	return purgedContainerIDs
 }
 
-func (dr *dockerRunnerImpl) CreateNetworks(ctx context.Context) error {
+func (dr *dockerRunner) CreateNetworks(ctx context.Context) error {
 	if dr.config.DockerConfig == nil {
 		return nil
 	}
@@ -1002,7 +1002,7 @@ func (dr *dockerRunnerImpl) CreateNetworks(ctx context.Context) error {
 	return nil
 }
 
-func (dr *dockerRunnerImpl) DeleteNetworks(ctx context.Context) error {
+func (dr *dockerRunner) DeleteNetworks(ctx context.Context) error {
 	if dr.config.DockerConfig == nil {
 		return nil
 	}
@@ -1022,7 +1022,7 @@ func (dr *dockerRunnerImpl) DeleteNetworks(ctx context.Context) error {
 	return nil
 }
 
-func (dr *dockerRunnerImpl) generateEntrypointScript(shell string, commands []string, runCommandsInForeground bool) (hostPath, mountPath, entrypointFile string, err error) {
+func (dr *dockerRunner) generateEntrypointScript(shell string, commands []string, runCommandsInForeground bool) (hostPath, mountPath, entrypointFile string, err error) {
 
 	r, _ := regexp.Compile(`[a-zA-Z0-9_]+=|export|shopt|;|cd |\||&&|\|\|`)
 
@@ -1123,7 +1123,7 @@ func (dr *dockerRunnerImpl) generateEntrypointScript(shell string, commands []st
 	return
 }
 
-func (dr *dockerRunnerImpl) initContainerStartVariables(shell string, commands []string, runCommandsInForeground bool, customProperties map[string]interface{}, trustedImage *contracts.TrustedImageConfig) (entrypoint []string, cmds []string, binds []string, err error) {
+func (dr *dockerRunner) initContainerStartVariables(shell string, commands []string, runCommandsInForeground bool, customProperties map[string]interface{}, trustedImage *contracts.TrustedImageConfig) (entrypoint []string, cmds []string, binds []string, err error) {
 	entrypoint = make([]string, 0)
 	cmds = make([]string, 0)
 	binds = make([]string, 0)
@@ -1186,7 +1186,7 @@ func (dr *dockerRunnerImpl) initContainerStartVariables(shell string, commands [
 	return
 }
 
-func (dr *dockerRunnerImpl) generateExtensionEnvvars(customProperties map[string]interface{}, envvars map[string]string) (extensionEnvVars map[string]string) {
+func (dr *dockerRunner) generateExtensionEnvvars(customProperties map[string]interface{}, envvars map[string]string) (extensionEnvVars map[string]string) {
 	extensionEnvVars = map[string]string{}
 	for k, v := range customProperties {
 		extensionkey := dr.envvarHelper.getEstafetteEnvvarName(fmt.Sprintf("ESTAFETTE_EXTENSION_%v", foundation.ToUpperSnakeCase(k)))
@@ -1251,7 +1251,7 @@ func (dr *dockerRunnerImpl) generateExtensionEnvvars(customProperties map[string
 	return
 }
 
-func (dr *dockerRunnerImpl) generateCredentialsFiles(trustedImage *contracts.TrustedImageConfig) (hostPath, mountPath string, err error) {
+func (dr *dockerRunner) generateCredentialsFiles(trustedImage *contracts.TrustedImageConfig) (hostPath, mountPath string, err error) {
 
 	if trustedImage != nil {
 		// create a tempdir to store credential files in and mount into container
@@ -1311,7 +1311,7 @@ func escapeCharsInCommand(command string) string {
 	return command
 }
 
-func (dr *dockerRunnerImpl) Info(ctx context.Context) string {
+func (dr *dockerRunner) Info(ctx context.Context) string {
 
 	info, err := dr.dockerClient.Info(ctx)
 	if err != nil {
