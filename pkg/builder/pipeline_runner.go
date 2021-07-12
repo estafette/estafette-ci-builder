@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -614,9 +615,9 @@ func (pr *pipelineRunner) tailLogs(ctx context.Context, tailLogsDone chan struct
 			} else if tailLogLine.LogLine != nil {
 				// this is for go.cd
 				if tailLogLine.ParentStage != "" {
-					log.Info().Msgf("[%v][%v] %v", tailLogLine.ParentStage, tailLogLine.Step, tailLogLine.LogLine.Text)
+					log.Info().Msgf("[%v][%v] %v", tailLogLine.ParentStage, tailLogLine.Step, strings.TrimSuffix(tailLogLine.LogLine.Text, "\n"))
 				} else {
-					log.Info().Msgf("[%v] %v", tailLogLine.Step, tailLogLine.LogLine.Text)
+					log.Info().Msgf("[%v] %v", tailLogLine.Step, strings.TrimSuffix(tailLogLine.LogLine.Text, "\n"))
 				}
 			}
 
