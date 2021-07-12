@@ -36,12 +36,13 @@ import (
 )
 
 // NewDockerRunner returns a new ContainerRunner to run containers using docker, either with docker-in-docker or docker-outside-docker
-func NewDockerRunner(envvarHelper EnvvarHelper, obfuscator Obfuscator, config contracts.BuilderConfig, tailLogsChannel chan contracts.TailLogLine) ContainerRunner {
+func NewDockerRunner(envvarHelper EnvvarHelper, obfuscator Obfuscator, config contracts.BuilderConfig, tailLogsChannel chan contracts.TailLogLine, runCommandsWithEntrypointScript bool) ContainerRunner {
 	return &dockerRunnerImpl{
 		envvarHelper:                          envvarHelper,
 		obfuscator:                            obfuscator,
 		config:                                config,
 		tailLogsChannel:                       tailLogsChannel,
+		runCommandsWithEntrypointScript:       runCommandsWithEntrypointScript,
 		runningStageContainerIDs:              make([]string, 0),
 		runningSingleStageServiceContainerIDs: make([]string, 0),
 		runningMultiStageServiceContainerIDs:  make([]string, 0),
@@ -53,11 +54,12 @@ func NewDockerRunner(envvarHelper EnvvarHelper, obfuscator Obfuscator, config co
 }
 
 type dockerRunnerImpl struct {
-	envvarHelper    EnvvarHelper
-	obfuscator      Obfuscator
-	dockerClient    *client.Client
-	config          contracts.BuilderConfig
-	tailLogsChannel chan contracts.TailLogLine
+	envvarHelper                    EnvvarHelper
+	obfuscator                      Obfuscator
+	dockerClient                    *client.Client
+	config                          contracts.BuilderConfig
+	tailLogsChannel                 chan contracts.TailLogLine
+	runCommandsWithEntrypointScript bool
 
 	runningStageContainerIDs              []string
 	runningSingleStageServiceContainerIDs []string
@@ -77,7 +79,7 @@ func (dr *dockerRunnerImpl) IsImagePulled(ctx context.Context, stageName string,
 	defer span.Finish()
 	span.SetTag("docker-image", containerImage)
 
-	log.Info().Msgf("[%v] Checking if docker image '%v' exists locally...", stageName, containerImage)
+	log.Debug().Msgf("[%v] Checking if docker image '%v' exists locally...", stageName, containerImage)
 
 	// get read lock
 	dr.pulledImagesMutex.RLock(containerImage)
@@ -138,7 +140,7 @@ func (dr *dockerRunnerImpl) GetImageSize(ctx context.Context, containerImage str
 	return totalSize, nil
 }
 
-func (dr *dockerRunnerImpl) StartStageContainer(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, stage manifest.EstafetteStage, stageIndex int) (containerID string, err error) {
+func (dr *dockerRunnerImpl) StartStageContainer(ctx context.Context, depth int, dir string, envvars map[string]string, stage manifest.EstafetteStage, stageIndex int) (containerID string, err error) {
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "StartStageContainer")
 	defer span.Finish()
@@ -576,7 +578,7 @@ func (dr *dockerRunnerImpl) RunReadinessProbeContainer(ctx context.Context, pare
 	return
 }
 
-func (dr *dockerRunnerImpl) TailContainerLogs(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) (err error) {
+func (dr *dockerRunnerImpl) TailContainerLogs(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth int, multiStage *bool) (err error) {
 
 	lineNumber := 1
 
@@ -650,7 +652,6 @@ func (dr *dockerRunnerImpl) TailContainerLogs(ctx context.Context, containerID, 
 			ParentStage: parentStageName,
 			Type:        stageType,
 			Depth:       depth,
-			RunIndex:    runIndex,
 			LogLine:     &logLineObject,
 		}
 	}
@@ -702,12 +703,12 @@ func (dr *dockerRunnerImpl) StopSingleStageServiceContainers(ctx context.Context
 
 func (dr *dockerRunnerImpl) StopMultiStageServiceContainers(ctx context.Context) {
 
-	log.Info().Msg("Stopping multi-stage service containers...")
+	log.Debug().Msg("Stopping multi-stage service containers...")
 
 	// the service containers should be the only ones running, so just stop all containers
 	dr.stopContainers(ctx, dr.runningMultiStageServiceContainerIDs)
 
-	log.Info().Msg("Stopped multi-stage service containers...")
+	log.Debug().Msg("Stopped multi-stage service containers...")
 }
 
 func (dr *dockerRunnerImpl) StartDockerDaemon() error {
@@ -839,7 +840,7 @@ func (dr *dockerRunnerImpl) getImagePullOptions(containerImage string) types.Ima
 
 func (dr *dockerRunnerImpl) IsTrustedImage(stageName string, containerImage string) bool {
 
-	log.Info().Msgf("[%v] Checking if docker image '%v' is trusted...", stageName, containerImage)
+	log.Debug().Msgf("[%v] Checking if docker image '%v' is trusted...", stageName, containerImage)
 
 	// check if image is trusted image
 	trustedImage := dr.config.GetTrustedImage(containerImage)
@@ -849,7 +850,7 @@ func (dr *dockerRunnerImpl) IsTrustedImage(stageName string, containerImage stri
 
 func (dr *dockerRunnerImpl) HasInjectedCredentials(stageName string, containerImage string) bool {
 
-	log.Info().Msgf("[%v] Checking if docker image '%v' has injected credentials...", stageName, containerImage)
+	log.Debug().Msgf("[%v] Checking if docker image '%v' has injected credentials...", stageName, containerImage)
 
 	// check if image has injected credentials
 	trustedImage := dr.config.GetTrustedImage(containerImage)
@@ -1128,27 +1129,49 @@ func (dr *dockerRunnerImpl) initContainerStartVariables(shell string, commands [
 	binds = make([]string, 0)
 
 	if len(commands) > 0 {
-		// generate entrypoint script
-		entrypointHostPath, entrypointMountPath, entrypointFile, innerErr := dr.generateEntrypointScript(shell, commands, runCommandsInForeground)
-		if innerErr != nil {
-			return entrypoint, cmds, binds, innerErr
-		}
 
-		// use generated entrypoint script for executing commands
-		entrypointFilePath := path.Join(entrypointMountPath, entrypointFile)
-		if runtime.GOOS == "windows" && shell == "powershell" {
-			entrypointFilePath = fmt.Sprintf("C:\\entrypoint\\%v", entrypointFile)
-			entrypoint = []string{"powershell.exe", entrypointFilePath}
-		} else if runtime.GOOS == "windows" && shell == "cmd" {
-			entrypointFilePath = fmt.Sprintf("C:\\entrypoint\\%v", entrypointFile)
-			entrypoint = []string{"cmd.exe", "/C", entrypointFilePath}
+		if dr.runCommandsWithEntrypointScript {
+			// generate entrypoint script
+			entrypointHostPath, entrypointMountPath, entrypointFile, innerErr := dr.generateEntrypointScript(shell, commands, runCommandsInForeground)
+			if innerErr != nil {
+				return entrypoint, cmds, binds, innerErr
+			}
+
+			// use generated entrypoint script for executing commands
+			entrypointFilePath := path.Join(entrypointMountPath, entrypointFile)
+			if runtime.GOOS == "windows" && shell == "powershell" {
+				entrypointFilePath = fmt.Sprintf("C:\\entrypoint\\%v", entrypointFile)
+				entrypoint = []string{"powershell.exe", entrypointFilePath}
+			} else if runtime.GOOS == "windows" && shell == "cmd" {
+				entrypointFilePath = fmt.Sprintf("C:\\entrypoint\\%v", entrypointFile)
+				entrypoint = []string{"cmd.exe", "/C", entrypointFilePath}
+			} else {
+				entrypoint = []string{entrypointFilePath}
+			}
+
+			log.Debug().Interface("entrypoint", entrypoint).Msg("Inspecting entrypoint array")
+
+			binds = append(binds, fmt.Sprintf("%v:%v", entrypointHostPath, entrypointMountPath))
 		} else {
-			entrypoint = []string{entrypointFilePath}
+			commandsArg := []string{"set -e"}
+			for _, c := range commands {
+
+				// escape single quotes and backslashes when printing command
+				escapedCommand := c
+				escapedCommand = strings.Replace(escapedCommand, `\`, `\\`, -1)
+				escapedCommand = strings.Replace(escapedCommand, `'`, `\'`, -1)
+
+				commandsArg = append(commandsArg, fmt.Sprintf(`printf '\033[38;5;244m> %%s\033[0m\n' $'%v'`, escapedCommand))
+				commandsArg = append(commandsArg, c)
+			}
+
+			cmds = append(cmds, []string{
+				"-c",
+				strings.Join(commandsArg, " ; "),
+			}...)
+
+			entrypoint = []string{shell}
 		}
-
-		log.Debug().Interface("entrypoint", entrypoint).Msg("Inspecting entrypoint array")
-
-		binds = append(binds, fmt.Sprintf("%v:%v", entrypointHostPath, entrypointMountPath))
 	}
 
 	// mount injected credentials as files

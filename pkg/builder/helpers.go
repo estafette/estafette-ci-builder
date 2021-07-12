@@ -43,9 +43,6 @@ func RenderStats(buildLogSteps []*contracts.BuildLogStep) {
 
 		// set column values
 		stage := s.Step
-		if s.RunIndex > 0 {
-			stage += fmt.Sprintf(" (retry %v)", s.RunIndex)
-		}
 		image := ""
 		imageSize := ""
 		imagePullDuration := ""

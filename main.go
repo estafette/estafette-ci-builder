@@ -10,11 +10,8 @@ import (
 	"github.com/estafette/estafette-ci-builder/pkg/builder"
 	contracts "github.com/estafette/estafette-ci-contracts"
 	crypt "github.com/estafette/estafette-ci-crypt"
-	manifest "github.com/estafette/estafette-ci-manifest"
 	foundation "github.com/estafette/estafette-foundation"
 	"github.com/rs/zerolog/log"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 )
 
 var (
@@ -71,24 +68,7 @@ func main() {
 	envvarHelper := builder.NewEnvvarHelper("ESTAFETTE_", secretHelper, obfuscator)
 	whenEvaluator := builder.NewWhenEvaluator(envvarHelper)
 	builderConfig, originalEncryptedCredentials := loadBuilderConfig(secretHelper, envvarHelper)
-
-	var containerRunner builder.ContainerRunner
-	if builderConfig.Manifest != nil && builderConfig.Manifest.Builder.BuilderType == manifest.BuilderTypeKubernetes {
-		// creates the in-cluster config
-		kubeClientConfig, err := rest.InClusterConfig()
-		if err != nil {
-			log.Fatal().Err(err).Msg("Failed getting in-cluster kubernetes config")
-		}
-		// creates the clientset
-		kubeClientset, err := kubernetes.NewForConfig(kubeClientConfig)
-		if err != nil {
-			log.Fatal().Err(err).Msg("Failed creating kubernetes clientset")
-		}
-
-		containerRunner = builder.NewKubernetesRunner(envvarHelper, obfuscator, kubeClientset, builderConfig, tailLogsChannel)
-	} else {
-		containerRunner = builder.NewDockerRunner(envvarHelper, obfuscator, builderConfig, tailLogsChannel)
-	}
+	containerRunner := builder.NewDockerRunner(envvarHelper, obfuscator, builderConfig, tailLogsChannel, true)
 	pipelineRunner := builder.NewPipelineRunner(envvarHelper, whenEvaluator, containerRunner, *runAsJob, tailLogsChannel, applicationInfo)
 
 	// detect controlling server

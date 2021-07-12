@@ -31,7 +31,7 @@ func (we *whenEvaluatorImpl) Evaluate(pipelineName, input string, parameters map
 		return false, errors.New("When expression is empty")
 	}
 
-	log.Info().Msgf("[%v] Evaluating when expression \"%v\" with parameters \"%v\"", pipelineName, input, parameters)
+	log.Debug().Msgf("[%v] Evaluating when expression \"%v\" with parameters \"%v\"", pipelineName, input, parameters)
 
 	// replace estafette envvars in when clause
 	input = os.Expand(input, we.envvarHelper.getEstafetteEnv)
@@ -43,7 +43,7 @@ func (we *whenEvaluatorImpl) Evaluate(pipelineName, input string, parameters map
 
 	r, err := expression.Evaluate(parameters)
 
-	log.Info().Msgf("[%v] Result of when expression \"%v\" is \"%v\"", pipelineName, input, r)
+	log.Debug().Msgf("[%v] Result of when expression \"%v\" is \"%v\"", pipelineName, input, r)
 
 	if result, ok := r.(bool); ok {
 		return result, err

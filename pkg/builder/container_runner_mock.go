@@ -207,18 +207,18 @@ func (mr *MockContainerRunnerMockRecorder) StartServiceContainer(ctx, envvars, s
 }
 
 // StartStageContainer mocks base method.
-func (m *MockContainerRunner) StartStageContainer(ctx context.Context, depth, runIndex int, dir string, envvars map[string]string, stage manifest.EstafetteStage, stageIndex int) (string, error) {
+func (m *MockContainerRunner) StartStageContainer(ctx context.Context, depth int, dir string, envvars map[string]string, stage manifest.EstafetteStage, stageIndex int) (string, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "StartStageContainer", ctx, depth, runIndex, dir, envvars, stage, stageIndex)
+	ret := m.ctrl.Call(m, "StartStageContainer", ctx, depth, dir, envvars, stage, stageIndex)
 	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // StartStageContainer indicates an expected call of StartStageContainer.
-func (mr *MockContainerRunnerMockRecorder) StartStageContainer(ctx, depth, runIndex, dir, envvars, stage, stageIndex interface{}) *gomock.Call {
+func (mr *MockContainerRunnerMockRecorder) StartStageContainer(ctx, depth, dir, envvars, stage, stageIndex interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StartStageContainer", reflect.TypeOf((*MockContainerRunner)(nil).StartStageContainer), ctx, depth, runIndex, dir, envvars, stage, stageIndex)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StartStageContainer", reflect.TypeOf((*MockContainerRunner)(nil).StartStageContainer), ctx, depth, dir, envvars, stage, stageIndex)
 }
 
 // StopAllContainers mocks base method.
@@ -258,17 +258,17 @@ func (mr *MockContainerRunnerMockRecorder) StopSingleStageServiceContainers(ctx,
 }
 
 // TailContainerLogs mocks base method.
-func (m *MockContainerRunner) TailContainerLogs(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth, runIndex int, multiStage *bool) error {
+func (m *MockContainerRunner) TailContainerLogs(ctx context.Context, containerID, parentStageName, stageName string, stageType contracts.LogType, depth int, multiStage *bool) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "TailContainerLogs", ctx, containerID, parentStageName, stageName, stageType, depth, runIndex, multiStage)
+	ret := m.ctrl.Call(m, "TailContainerLogs", ctx, containerID, parentStageName, stageName, stageType, depth, multiStage)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // TailContainerLogs indicates an expected call of TailContainerLogs.
-func (mr *MockContainerRunnerMockRecorder) TailContainerLogs(ctx, containerID, parentStageName, stageName, stageType, depth, runIndex, multiStage interface{}) *gomock.Call {
+func (mr *MockContainerRunnerMockRecorder) TailContainerLogs(ctx, containerID, parentStageName, stageName, stageType, depth, multiStage interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TailContainerLogs", reflect.TypeOf((*MockContainerRunner)(nil).TailContainerLogs), ctx, containerID, parentStageName, stageName, stageType, depth, runIndex, multiStage)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TailContainerLogs", reflect.TypeOf((*MockContainerRunner)(nil).TailContainerLogs), ctx, containerID, parentStageName, stageName, stageType, depth, multiStage)
 }
 
 // WaitForDockerDaemon mocks base method.

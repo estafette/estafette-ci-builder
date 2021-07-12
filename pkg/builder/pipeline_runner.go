@@ -18,8 +18,7 @@ import (
 
 // PipelineRunner is the interface for running the pipeline steps
 type PipelineRunner interface {
-	RunStage(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, stage manifest.EstafetteStage, stageIndex int) (err error)
-	RunStageWithRetry(ctx context.Context, depth int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, stage manifest.EstafetteStage, stageIndex int) (err error)
+	RunStage(ctx context.Context, depth int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, stage manifest.EstafetteStage, stageIndex int) (err error)
 	RunService(ctx context.Context, envvars map[string]string, parentStage manifest.EstafetteStage, service manifest.EstafetteService) (err error)
 	RunStages(ctx context.Context, depth int, stages []*manifest.EstafetteStage, dir string, envvars map[string]string) (buildLogSteps []*contracts.BuildLogStep, err error)
 	RunParallelStages(ctx context.Context, depth int, dir string, envvars map[string]string, parentStage manifest.EstafetteStage, parallelStages []*manifest.EstafetteStage) (err error)
@@ -52,21 +51,21 @@ type pipelineRunnerImpl struct {
 	applicationInfo        foundation.ApplicationInfo
 }
 
-func (pr *pipelineRunnerImpl) RunStage(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, stage manifest.EstafetteStage, stageIndex int) (err error) {
+func (pr *pipelineRunnerImpl) RunStage(ctx context.Context, depth int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, stage manifest.EstafetteStage, stageIndex int) (err error) {
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "RunStage")
 	defer span.Finish()
 	span.SetTag("stage", stage.Name)
 
 	// init some variables
-	parentStageName, stagePlaceholder, autoInjected := pr.initStageVariables(ctx, depth, runIndex, dir, envvars, parentStage, stage)
+	parentStageName, stagePlaceholder, autoInjected := pr.initStageVariables(ctx, depth, dir, envvars, parentStage, stage)
 	stage.ContainerImage = os.Expand(stage.ContainerImage, pr.envvarHelper.getEstafetteEnv)
 
-	log.Info().Msgf("%v Starting stage", stagePlaceholder)
+	log.Debug().Msgf("%v Starting stage", stagePlaceholder)
 
 	// pull image, get size and send pending/running status messages
-	err = pr.pullImageIfNeeded(ctx, stage.Name, parentStageName, stage.ContainerImage, contracts.LogTypeStage, depth, runIndex, autoInjected)
-	defer pr.handleStageFinish(ctx, depth, runIndex, dir, envvars, parentStage, stage, time.Now(), &err)
+	err = pr.pullImageIfNeeded(ctx, stage.Name, parentStageName, stage.ContainerImage, contracts.LogTypeStage, depth, autoInjected)
+	defer pr.handleStageFinish(ctx, depth, dir, envvars, parentStage, stage, time.Now(), &err)
 	if pr.isCanceled(ctx) || err != nil {
 		return
 	}
@@ -90,12 +89,12 @@ func (pr *pipelineRunnerImpl) RunStage(ctx context.Context, depth int, runIndex 
 		}
 	} else if stage.ContainerImage != "" {
 		var containerID string
-		containerID, err = pr.containerRunner.StartStageContainer(ctx, depth, runIndex, dir, envvars, stage, stageIndex)
+		containerID, err = pr.containerRunner.StartStageContainer(ctx, depth, dir, envvars, stage, stageIndex)
 		if pr.isCanceled(ctx) || err != nil {
 			return
 		}
 
-		err = pr.containerRunner.TailContainerLogs(ctx, containerID, parentStageName, stage.Name, contracts.LogTypeStage, depth, runIndex, nil)
+		err = pr.containerRunner.TailContainerLogs(ctx, containerID, parentStageName, stage.Name, contracts.LogTypeStage, depth, nil)
 		if pr.isCanceled(ctx) || err != nil {
 			return
 		}
@@ -104,7 +103,7 @@ func (pr *pipelineRunnerImpl) RunStage(ctx context.Context, depth int, runIndex 
 	return
 }
 
-func (pr *pipelineRunnerImpl) initStageVariables(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, stage manifest.EstafetteStage) (parentStageName string, stagePlaceholder string, autoInjected *bool) {
+func (pr *pipelineRunnerImpl) initStageVariables(ctx context.Context, depth int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, stage manifest.EstafetteStage) (parentStageName string, stagePlaceholder string, autoInjected *bool) {
 
 	stagePlaceholder = fmt.Sprintf("[%v]", stage.Name)
 	if parentStage != nil {
@@ -118,12 +117,12 @@ func (pr *pipelineRunnerImpl) initStageVariables(ctx context.Context, depth int,
 	return
 }
 
-func (pr *pipelineRunnerImpl) handleStageFinish(ctx context.Context, depth int, runIndex int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, stage manifest.EstafetteStage, dockerRunStart time.Time, errPointer *error) {
+func (pr *pipelineRunnerImpl) handleStageFinish(ctx context.Context, depth int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, stage manifest.EstafetteStage, dockerRunStart time.Time, errPointer *error) {
 
 	err := *errPointer
 
 	// init some variables
-	parentStageName, stagePlaceholder, autoInjected := pr.initStageVariables(ctx, depth, runIndex, dir, envvars, parentStage, stage)
+	parentStageName, stagePlaceholder, autoInjected := pr.initStageVariables(ctx, depth, dir, envvars, parentStage, stage)
 
 	// finalize stage
 	finalStatus := contracts.LogStatusSucceeded
@@ -145,66 +144,7 @@ func (pr *pipelineRunnerImpl) handleStageFinish(ctx context.Context, depth int, 
 	runDurationValue := time.Since(dockerRunStart)
 	runDuration := &runDurationValue
 
-	pr.sendStatusMessage(stage.Name, parentStageName, contracts.LogTypeStage, depth, runIndex, autoInjected, nil, runDuration, finalStatus)
-}
-
-func (pr *pipelineRunnerImpl) RunStageWithRetry(ctx context.Context, depth int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, stage manifest.EstafetteStage, stageIndex int) (err error) {
-
-	span, ctx := opentracing.StartSpanFromContext(ctx, "RunStageWithRetry")
-	defer span.Finish()
-	span.SetTag("stage", stage.Name)
-
-	runIndex := 0
-	retries := stage.Retries
-	if (len(stage.ParallelStages) > 0 || len(stage.Services) > 0) && retries > 0 {
-		// retries are not supported in combination with parallel stages or services for now
-		retries = 0
-	}
-
-	parentStageName := ""
-	if parentStage != nil {
-		parentStageName = parentStage.Name
-	}
-
-	// retry until successful or number of retries is maxed out
-	for runIndex <= retries {
-		err = pr.RunStage(ctx, depth, runIndex, dir, envvars, parentStage, stage, stageIndex)
-
-		// check if context has been canceled
-		if pr.isCanceled(ctx) {
-			return nil
-		}
-
-		// if execution is successful, we're done
-		if pr.isCanceled(ctx) || err == nil {
-			return
-		}
-
-		// create log line for error
-		logLineObject := contracts.BuildLogLine{
-			LineNumber: 10000,
-			Timestamp:  time.Now().UTC(),
-			StreamType: "stderr",
-			Text:       err.Error(),
-		}
-
-		pr.tailLogsChannel <- contracts.TailLogLine{
-			Step:        stage.Name,
-			ParentStage: parentStageName,
-			Type:        contracts.LogTypeStage,
-			Depth:       depth,
-			RunIndex:    runIndex,
-			LogLine:     &logLineObject,
-		}
-
-		runIndex++
-	}
-
-	if pr.isCanceled(ctx) || err != nil {
-		return
-	}
-
-	return
+	pr.sendStatusMessage(stage.Name, parentStageName, contracts.LogTypeStage, depth, autoInjected, nil, runDuration, finalStatus)
 }
 
 func (pr *pipelineRunnerImpl) RunService(ctx context.Context, envvars map[string]string, parentStage manifest.EstafetteStage, service manifest.EstafetteService) (err error) {
@@ -216,12 +156,11 @@ func (pr *pipelineRunnerImpl) RunService(ctx context.Context, envvars map[string
 	// init some variables
 	service.ContainerImage = os.Expand(service.ContainerImage, pr.envvarHelper.getEstafetteEnv)
 	depth := 1
-	runIndex := 0
 
 	log.Info().Msgf("[%v] [%v] Starting service", parentStage.Name, service.Name)
 
 	// pull image, get size and send pending/running status messages
-	err = pr.pullImageIfNeeded(ctx, service.Name, parentStage.Name, service.ContainerImage, contracts.LogTypeService, depth, runIndex, nil)
+	err = pr.pullImageIfNeeded(ctx, service.Name, parentStage.Name, service.ContainerImage, contracts.LogTypeService, depth, nil)
 	dockerRunStart := time.Now()
 	defer pr.handleServiceFinish(ctx, envvars, parentStage, service, true, dockerRunStart, &err)
 	if pr.isCanceled(ctx) || err != nil {
@@ -238,7 +177,7 @@ func (pr *pipelineRunnerImpl) RunService(ctx context.Context, envvars map[string
 	go func(ctx context.Context, envvars map[string]string, parentStage manifest.EstafetteStage, service manifest.EstafetteService, containerID string) {
 		var err error
 		defer pr.handleServiceFinish(ctx, envvars, parentStage, service, false, dockerRunStart, &err)
-		err = pr.containerRunner.TailContainerLogs(ctx, containerID, parentStage.Name, service.Name, contracts.LogTypeService, 1, 0, service.MultiStage)
+		err = pr.containerRunner.TailContainerLogs(ctx, containerID, parentStage.Name, service.Name, contracts.LogTypeService, 1, service.MultiStage)
 	}(ctx, envvars, parentStage, service, containerID)
 
 	// wait for service to be ready if readiness probe is defined
@@ -277,7 +216,7 @@ func (pr *pipelineRunnerImpl) handleServiceFinish(ctx context.Context, envvars m
 	runDurationValue := time.Since(dockerRunStart)
 	runDuration := &runDurationValue
 
-	pr.sendStatusMessage(service.Name, parentStage.Name, contracts.LogTypeService, 1, 0, nil, nil, runDuration, finalStatus)
+	pr.sendStatusMessage(service.Name, parentStage.Name, contracts.LogTypeService, 1, nil, nil, runDuration, finalStatus)
 }
 
 func (pr *pipelineRunnerImpl) RunStages(ctx context.Context, depth int, stages []*manifest.EstafetteStage, dir string, envvars map[string]string) (buildLogSteps []*contracts.BuildLogStep, err error) {
@@ -345,7 +284,7 @@ func (pr *pipelineRunnerImpl) RunStages(ctx context.Context, depth int, stages [
 			}
 
 			if whenEvaluationResult {
-				err = pr.RunStageWithRetry(ctx, depth, dir, envvars, nil, *stage, 0)
+				err = pr.RunStage(ctx, depth, dir, envvars, nil, *stage, 0)
 				if pr.isCanceled(ctx) {
 					return
 				}
@@ -403,7 +342,7 @@ func (pr *pipelineRunnerImpl) RunParallelStages(ctx context.Context, depth int, 
 			}
 
 			if whenEvaluationResult {
-				err = pr.RunStageWithRetry(ctx, depth, dir, envvars, &parentStage, stage, stageIndex)
+				err = pr.RunStage(ctx, depth, dir, envvars, &parentStage, stage, stageIndex)
 				if pr.isCanceled(ctx) || err != nil {
 					if err != nil {
 						return err
@@ -527,7 +466,7 @@ func (pr *pipelineRunnerImpl) isCanceled(ctx context.Context) bool {
 	return false
 }
 
-func (pr *pipelineRunnerImpl) pullImageIfNeeded(ctx context.Context, stageName, parentStageName, containerImage string, containerType contracts.LogType, depth int, runIndex int, autoInjected *bool) (err error) {
+func (pr *pipelineRunnerImpl) pullImageIfNeeded(ctx context.Context, stageName, parentStageName, containerImage string, containerType contracts.LogType, depth int, autoInjected *bool) (err error) {
 
 	var isPulledImage bool
 	var isTrustedImage bool
@@ -553,7 +492,7 @@ func (pr *pipelineRunnerImpl) pullImageIfNeeded(ctx context.Context, stageName, 
 		if !pr.isCanceled(ctx) && (!isPulledImage || runtime.GOOS == "windows") {
 
 			// start pulling stage
-			pr.sendStatusMessage(stageName, parentStageName, containerType, depth, runIndex, autoInjected, buildLogStepDockerImage, nil, contracts.LogStatusPending)
+			pr.sendStatusMessage(stageName, parentStageName, containerType, depth, autoInjected, buildLogStepDockerImage, nil, contracts.LogStatusPending)
 
 			// pull docker image
 			dockerPullStart := time.Now()
@@ -581,20 +520,19 @@ func (pr *pipelineRunnerImpl) pullImageIfNeeded(ctx context.Context, stageName, 
 
 	if !pr.isCanceled(ctx) && err == nil {
 		// start running stage
-		pr.sendStatusMessage(stageName, parentStageName, containerType, depth, runIndex, autoInjected, buildLogStepDockerImage, nil, contracts.LogStatusRunning)
+		pr.sendStatusMessage(stageName, parentStageName, containerType, depth, autoInjected, buildLogStepDockerImage, nil, contracts.LogStatusRunning)
 	}
 
 	return
 }
 
-func (pr *pipelineRunnerImpl) sendStatusMessage(step, parentStageName string, containerType contracts.LogType, depth int, runIndex int, autoInjected *bool, image *contracts.BuildLogStepDockerImage, runDuration *time.Duration, status contracts.LogStatus) {
+func (pr *pipelineRunnerImpl) sendStatusMessage(step, parentStageName string, containerType contracts.LogType, depth int, autoInjected *bool, image *contracts.BuildLogStepDockerImage, runDuration *time.Duration, status contracts.LogStatus) {
 
 	tailLogLine := contracts.TailLogLine{
 		Step:         step,
 		ParentStage:  parentStageName,
 		Type:         containerType,
 		Depth:        depth,
-		RunIndex:     runIndex,
 		Image:        image,
 		Duration:     runDuration,
 		Status:       &status,
@@ -622,7 +560,7 @@ func (pr *pipelineRunnerImpl) forceStatusForStage(stage manifest.EstafetteStage,
 		autoInjected = &stage.AutoInjected
 	}
 
-	pr.sendStatusMessage(stage.Name, "", contracts.LogTypeStage, 0, 0, autoInjected, image, nil, status)
+	pr.sendStatusMessage(stage.Name, "", contracts.LogTypeStage, 0, autoInjected, image, nil, status)
 
 	// loop through all parallel stages and set status
 	for _, ps := range stage.ParallelStages {
@@ -642,7 +580,7 @@ func (pr *pipelineRunnerImpl) forceStatusForStage(stage manifest.EstafetteStage,
 			autoInjected = &ps.AutoInjected
 		}
 
-		pr.sendStatusMessage(ps.Name, stage.Name, contracts.LogTypeStage, 1, 0, autoInjected, image, nil, status)
+		pr.sendStatusMessage(ps.Name, stage.Name, contracts.LogTypeStage, 1, autoInjected, image, nil, status)
 	}
 
 	// loop through all services and set status
@@ -659,7 +597,7 @@ func (pr *pipelineRunnerImpl) forceStatusForStage(stage manifest.EstafetteStage,
 			}
 		}
 
-		pr.sendStatusMessage(s.Name, stage.Name, contracts.LogTypeService, 1, 0, nil, image, nil, status)
+		pr.sendStatusMessage(s.Name, stage.Name, contracts.LogTypeService, 1, nil, image, nil, status)
 	}
 }
 
