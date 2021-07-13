@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"time"
 
 	contracts "github.com/estafette/estafette-ci-contracts"
@@ -211,19 +212,18 @@ func (b *ciBuilder) RunLocalBuild(ctx context.Context, pipelineRunner PipelineRu
 		return
 	}
 
-	// default stages to run to first stage
-	if len(stagesToRun) == 0 {
-		if len(mft.Stages) > 0 {
-			stagesToRun = append(stagesToRun, mft.Stages[0].Name)
-		}
-	}
-
 	// select configured stages to run
 	stages := []*manifest.EstafetteStage{}
+	stageNames := []string{}
 	for _, s := range mft.Stages {
+		stageNames = append(stageNames, s.Name)
 		if foundation.StringArrayContains(stagesToRun, s.Name) {
 			stages = append(stages, s)
 		}
+	}
+
+	if len(stages) == 0 {
+		return fmt.Errorf("Choose one of the following stages: %v", strings.Join(stageNames, ","))
 	}
 
 	// get current working directory

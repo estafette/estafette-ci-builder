@@ -613,8 +613,10 @@ func (pr *pipelineRunner) tailLogs(ctx context.Context, tailLogsDone chan struct
 
 			// this is for go.cd and local builds with estafette cli
 			prefix := fmt.Sprintf(aurora.BrightYellow("[%v]").String(), tailLogLine.Step)
+			newline := "\n"
 			if tailLogLine.ParentStage != "" {
 				prefix = fmt.Sprintf(aurora.BrightYellow("[%v] [%v]").String(), tailLogLine.ParentStage, tailLogLine.Step)
+				newline = ""
 			}
 
 			if pr.runAsJob {
@@ -623,11 +625,11 @@ func (pr *pipelineRunner) tailLogs(ctx context.Context, tailLogsDone chan struct
 			} else if tailLogLine.Status != nil && tailLogLine.Duration != nil {
 				switch *tailLogLine.Status {
 				case contracts.LogStatusSucceeded:
-					log.Info().Msgf("%v Succeeded in %v\n", prefix, aurora.BrightGreen(*tailLogLine.Duration))
+					log.Info().Msgf("%v Succeeded in %v%v", prefix, aurora.BrightGreen(*tailLogLine.Duration), newline)
 				case contracts.LogStatusFailed:
-					log.Info().Msgf("%v Failed in %v\n", prefix, aurora.BrightRed(*tailLogLine.Duration))
+					log.Info().Msgf("%v Failed in %v%v", prefix, aurora.BrightRed(*tailLogLine.Duration), newline)
 				case contracts.LogStatusCanceled:
-					log.Info().Msgf("%v Succeeded in %v\n", prefix, aurora.BrightRed(*tailLogLine.Duration))
+					log.Info().Msgf("%v Succeeded in %v%v", prefix, aurora.BrightRed(*tailLogLine.Duration), newline)
 				}
 			} else if tailLogLine.LogLine != nil {
 				log.Info().Msgf("%v %v", prefix, strings.TrimSuffix(tailLogLine.LogLine.Text, "\n"))
