@@ -627,8 +627,10 @@ func (pr *pipelineRunner) tailLogs(ctx context.Context, tailLogsDone chan struct
 				case contracts.LogStatusFailed:
 					log.Info().Msgf("%v Failed in %v%v", prefix, aurora.BrightRed(*tailLogLine.Duration), newline)
 				case contracts.LogStatusCanceled:
-					log.Info().Msgf("%v Succeeded in %v%v", prefix, aurora.BrightRed(*tailLogLine.Duration), newline)
+					log.Info().Msgf("%v Canceled in %v%v", prefix, aurora.BrightCyan(*tailLogLine.Duration), newline)
 				}
+			} else if tailLogLine.Image != nil && tailLogLine.Image.PullDuration.Seconds() > 0 {
+				log.Info().Msgf("%v Pulled in %v", prefix, aurora.BrightGreen(tailLogLine.Image.PullDuration))
 			} else if tailLogLine.LogLine != nil {
 				log.Info().Msgf("%v %v", prefix, strings.TrimSuffix(tailLogLine.LogLine.Text, "\n"))
 			}
