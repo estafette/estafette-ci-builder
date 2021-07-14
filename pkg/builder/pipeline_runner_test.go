@@ -34,7 +34,7 @@ func TestRunStage(t *testing.T) {
 		stageIndex := 0
 
 		// set mock responses
-		containerRunnerMock.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("Failed pulling image"))
+		containerRunnerMock.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("Failed pulling image"))
 		setDefaultMockExpectancies(containerRunnerMock)
 
 		// act
@@ -147,7 +147,7 @@ func TestRunStage(t *testing.T) {
 
 		// set mock responses
 		containerRunnerMock.EXPECT().IsImagePulled(gomock.Any(), gomock.Any(), gomock.Any()).Return(false)
-		containerRunnerMock.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+		containerRunnerMock.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 		containerRunnerMock.EXPECT().GetImageSize(gomock.Any(), gomock.Any()).Return(int64(0), nil)
 		containerRunnerMock.EXPECT().StartStageContainer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil)
 		containerRunnerMock.EXPECT().TailContainerLogs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
@@ -398,7 +398,7 @@ func TestRunService(t *testing.T) {
 		}
 
 		// set mock responses
-		containerRunnerMock.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("Failed pulling image"))
+		containerRunnerMock.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("Failed pulling image"))
 		setDefaultMockExpectancies(containerRunnerMock)
 
 		// act
@@ -554,7 +554,7 @@ func TestRunService(t *testing.T) {
 
 		// set mock responses
 		containerRunnerMock.EXPECT().IsImagePulled(gomock.Any(), gomock.Any(), gomock.Any()).Return(false)
-		containerRunnerMock.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+		containerRunnerMock.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 		containerRunnerMock.EXPECT().GetImageSize(gomock.Any(), gomock.Any()).Return(int64(0), nil)
 		containerRunnerMock.EXPECT().StartServiceContainer(gomock.Any(), gomock.Any(), gomock.Any()).Return("abc", nil)
 		var wg sync.WaitGroup
@@ -872,7 +872,7 @@ func TestRunStages(t *testing.T) {
 		}
 
 		// set mock responses
-		containerRunnerMock.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("Failed pulling image"))
+		containerRunnerMock.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("Failed pulling image"))
 		setDefaultMockExpectancies(containerRunnerMock)
 
 		// act
@@ -908,8 +908,8 @@ func TestRunStages(t *testing.T) {
 
 		// set mock responses
 		iteration := 0
-		containerRunnerMock.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).
-			DoAndReturn(func(ctx context.Context, stageName string, containerImage string) (err error) {
+		containerRunnerMock.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+			DoAndReturn(func(ctx context.Context, stageName, parentStageName string, containerImage string) (err error) {
 				defer func() { iteration++ }()
 
 				switch iteration {
@@ -961,8 +961,8 @@ func TestRunStages(t *testing.T) {
 
 		// set mock responses
 		iteration := 0
-		containerRunnerMock.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).
-			DoAndReturn(func(ctx context.Context, stageName string, containerImage string) (err error) {
+		containerRunnerMock.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+			DoAndReturn(func(ctx context.Context, stageName, parentStageName string, containerImage string) (err error) {
 				defer func() { iteration++ }()
 
 				switch iteration {
@@ -1010,8 +1010,8 @@ func TestRunStages(t *testing.T) {
 
 		// set mock responses
 		iteration := 0
-		containerRunnerMock.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).
-			DoAndReturn(func(ctx context.Context, stageName string, containerImage string) (err error) {
+		containerRunnerMock.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+			DoAndReturn(func(ctx context.Context, stageName, parentStageName string, containerImage string) (err error) {
 				defer func() { iteration++ }()
 
 				switch iteration {
@@ -1056,8 +1056,8 @@ func TestRunStages(t *testing.T) {
 		}
 
 		// set mock responses
-		containerRunnerMock.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).
-			DoAndReturn(func(ctx context.Context, stageName string, containerImage string) (err error) {
+		containerRunnerMock.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+			DoAndReturn(func(ctx context.Context, stageName, parentStageName string, containerImage string) (err error) {
 				time.Sleep(50 * time.Millisecond)
 				return nil
 			})
@@ -1188,7 +1188,7 @@ func TestRunStagesWithParallelStages(t *testing.T) {
 		}
 
 		// set mock responses
-		containerRunnerMock.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).Times(2)
+		containerRunnerMock.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).Times(2)
 		setDefaultMockExpectancies(containerRunnerMock)
 
 		// act
@@ -1245,7 +1245,7 @@ func TestRunStagesWithServices(t *testing.T) {
 		}
 
 		// set mock responses
-		containerRunnerMock.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).Times(3)
+		containerRunnerMock.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).Times(3)
 
 		var wg sync.WaitGroup
 		wg.Add(1)
@@ -2358,7 +2358,7 @@ func getPipelineRunnerAndMocks(ctrl *gomock.Controller, containerRunner Containe
 
 func setDefaultMockExpectancies(containerRunnerMock *MockContainerRunner) {
 	containerRunnerMock.EXPECT().IsImagePulled(gomock.Any(), gomock.Any(), gomock.Any()).Return(false).AnyTimes()
-	containerRunnerMock.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+	containerRunnerMock.EXPECT().PullImage(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 	containerRunnerMock.EXPECT().GetImageSize(gomock.Any(), gomock.Any()).Return(int64(0), nil).AnyTimes()
 	containerRunnerMock.EXPECT().IsTrustedImage(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
 	containerRunnerMock.EXPECT().HasInjectedCredentials(gomock.Any(), gomock.Any()).Return(false).AnyTimes()

@@ -107,11 +107,10 @@ func (pr *pipelineRunner) RunStage(ctx context.Context, depth int, dir string, e
 
 func (pr *pipelineRunner) initStageVariables(ctx context.Context, depth int, dir string, envvars map[string]string, parentStage *manifest.EstafetteStage, stage manifest.EstafetteStage) (parentStageName string, stagePlaceholder string, autoInjected *bool) {
 
-	stagePlaceholder = fmt.Sprintf(aurora.BrightYellow("[%v]").String(), stage.Name)
 	if parentStage != nil {
 		parentStageName = parentStage.Name
-		stagePlaceholder = fmt.Sprintf(aurora.BrightYellow("[%v] [%v]").String(), parentStageName, stage.Name)
 	}
+	stagePlaceholder = getLogPrefix(stage.Name, parentStageName)
 	if stage.AutoInjected {
 		autoInjected = &stage.AutoInjected
 	}
@@ -498,7 +497,7 @@ func (pr *pipelineRunner) pullImageIfNeeded(ctx context.Context, stageName, pare
 
 			// pull docker image
 			dockerPullStart := time.Now()
-			err = pr.containerRunner.PullImage(ctx, stageName, containerImage)
+			err = pr.containerRunner.PullImage(ctx, stageName, parentStageName, containerImage)
 			imagePullDuration = time.Since(dockerPullStart)
 
 			// set docker image size
@@ -612,10 +611,9 @@ func (pr *pipelineRunner) tailLogs(ctx context.Context, tailLogsDone chan struct
 		case tailLogLine := <-pr.tailLogsChannel:
 
 			// this is for go.cd and local builds with estafette cli
-			prefix := fmt.Sprintf(aurora.BrightYellow("[%v]").String(), tailLogLine.Step)
+			prefix := getLogPrefix(tailLogLine.Step, tailLogLine.ParentStage)
 			newline := "\n"
 			if tailLogLine.ParentStage != "" {
-				prefix = fmt.Sprintf(aurora.BrightYellow("[%v] [%v]").String(), tailLogLine.ParentStage, tailLogLine.Step)
 				newline = ""
 			}
 

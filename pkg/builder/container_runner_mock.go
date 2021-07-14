@@ -150,17 +150,17 @@ func (mr *MockContainerRunnerMockRecorder) IsTrustedImage(stageName, containerIm
 }
 
 // PullImage mocks base method.
-func (m *MockContainerRunner) PullImage(ctx context.Context, stageName, containerImage string) error {
+func (m *MockContainerRunner) PullImage(ctx context.Context, stageName, parentStageName, containerImage string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "PullImage", ctx, stageName, containerImage)
+	ret := m.ctrl.Call(m, "PullImage", ctx, stageName, parentStageName, containerImage)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // PullImage indicates an expected call of PullImage.
-func (mr *MockContainerRunnerMockRecorder) PullImage(ctx, stageName, containerImage interface{}) *gomock.Call {
+func (mr *MockContainerRunnerMockRecorder) PullImage(ctx, stageName, parentStageName, containerImage interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PullImage", reflect.TypeOf((*MockContainerRunner)(nil).PullImage), ctx, stageName, containerImage)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PullImage", reflect.TypeOf((*MockContainerRunner)(nil).PullImage), ctx, stageName, parentStageName, containerImage)
 }
 
 // RunReadinessProbeContainer mocks base method.

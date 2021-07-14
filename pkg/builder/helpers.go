@@ -8,6 +8,7 @@ import (
 	"time"
 
 	contracts "github.com/estafette/estafette-ci-contracts"
+	"github.com/logrusorgru/aurora"
 
 	"github.com/olekukonko/tablewriter"
 )
@@ -147,4 +148,13 @@ func generateRandomString(n int) string {
 	}
 
 	return string(b)
+}
+
+func getLogPrefix(stageName, parentStageName string) string {
+	prefix := fmt.Sprintf(aurora.BrightYellow("[%v]").String(), stageName)
+	if parentStageName != "" {
+		prefix = fmt.Sprintf(aurora.BrightYellow("[%v] [%v]").String(), parentStageName, stageName)
+	}
+
+	return prefix
 }

@@ -99,7 +99,7 @@ func (dr *dockerRunner) IsImagePulled(ctx context.Context, stageName string, con
 	return false
 }
 
-func (dr *dockerRunner) PullImage(ctx context.Context, stageName string, containerImage string) (err error) {
+func (dr *dockerRunner) PullImage(ctx context.Context, stageName, parentStageName string, containerImage string) (err error) {
 
 	span, _ := opentracing.StartSpanFromContext(ctx, "PullImage")
 	defer span.Finish()
@@ -109,7 +109,7 @@ func (dr *dockerRunner) PullImage(ctx context.Context, stageName string, contain
 	dr.pulledImagesMutex.Lock(containerImage)
 	defer dr.pulledImagesMutex.Unlock(containerImage)
 
-	log.Info().Msgf("[%v] Pulling docker image '%v'", stageName, containerImage)
+	log.Info().Msgf("%v Pulling docker image '%v'", getLogPrefix(stageName, parentStageName), containerImage)
 
 	rc, err := dr.dockerClient.ImagePull(ctx, containerImage, dr.getImagePullOptions(containerImage))
 	if err != nil {
@@ -425,7 +425,7 @@ func (dr *dockerRunner) RunReadinessProbeContainer(ctx context.Context, parentSt
 	readinessProberImage := "estafette/scratch:latest"
 	isPulled := dr.IsImagePulled(ctx, service.Name+"-prober", readinessProberImage)
 	if !isPulled {
-		err = dr.PullImage(ctx, service.Name+"-prober", readinessProberImage)
+		err = dr.PullImage(ctx, service.Name+"-prober", parentStage.Name, readinessProberImage)
 		if err != nil {
 			return err
 		}
