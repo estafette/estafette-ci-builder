@@ -4,11 +4,11 @@ LABEL maintainer="estafette.io" \
       description="The ${ESTAFETTE_GIT_NAME} is the component that runs builds as defined in the .estafette.yaml manifest"
 
 RUN addgroup docker \
-    && apk del libc6-compat \
     && mkdir -p /estafette-entrypoints \
     && apk update \
     && apk add --no-cache --upgrade \
         openssl \
+        apk-tools \
     && rm -rf /var/cache/apk/* \
     && docker version || true
 
