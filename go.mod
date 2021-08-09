@@ -7,7 +7,7 @@ require (
 	github.com/alecthomas/kingpin v2.2.6+incompatible
 	github.com/alecthomas/units v0.0.0-20190910110746-680d30ca3117 // indirect
 	github.com/containerd/containerd v1.5.2 // indirect
-	github.com/docker/docker v20.10.7+incompatible
+	github.com/docker/docker v20.10.8+incompatible
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/estafette/estafette-ci-contracts v0.0.271
 	github.com/estafette/estafette-ci-crypt v0.0.41
