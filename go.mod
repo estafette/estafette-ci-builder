@@ -12,7 +12,7 @@ require (
 	github.com/estafette/estafette-ci-contracts v0.0.272
 	github.com/estafette/estafette-ci-crypt v0.0.43
 	github.com/estafette/estafette-ci-manifest v0.1.200
-	github.com/estafette/estafette-foundation v0.0.69
+	github.com/estafette/estafette-foundation v0.0.73
 	github.com/golang/mock v1.5.0
 	github.com/gorilla/mux v1.7.3 // indirect
 	github.com/kr/text v0.2.0 // indirect

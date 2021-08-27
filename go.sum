@@ -257,8 +257,8 @@ github.com/estafette/estafette-ci-crypt v0.0.43/go.mod h1:1Z4H5QEWJycdU8aUdto7fl
 github.com/estafette/estafette-ci-manifest v0.1.200 h1:wew22pn/DF6NkdZdaMBKnQ1f6DN4kRoeRgfctRwNl8c=
 github.com/estafette/estafette-ci-manifest v0.1.200/go.mod h1:X7OcRjCdADLWIHlOYQVwHEBF21gZx37rqRDn3xDgPgk=
 github.com/estafette/estafette-foundation v0.0.54/go.mod h1:3tosAek4nyGDaWbi9dz2jSb2Wa4dAtLw/7c7mDWwaLA=
-github.com/estafette/estafette-foundation v0.0.69 h1:KzAOoFy6IEBibs8NGDV15jeyWrEf0F5szerjCsPizNQ=
-github.com/estafette/estafette-foundation v0.0.69/go.mod h1:JCPoeHhk9b8Jom1Vf5wwIfkDvrdXCKxEtmDdDc+1ISg=
+github.com/estafette/estafette-foundation v0.0.73 h1:QWnl5A1gbIdzRfE8xIrARfGxTOzuwvip6ze5YNDvXbs=
+github.com/estafette/estafette-foundation v0.0.73/go.mod h1:HahWOVjh1PYdN+fPpq1PgYUUhVAdbFFtNw36HVYJXFE=
 github.com/evanphx/json-patch v4.9.0+incompatible/go.mod h1:50XU6AFN0ol/bzJsmQLiYLvXMP4fmwYFNcr97nuDLSk=
 github.com/fatih/color v1.7.0/go.mod h1:Zm6kSWBoL9eyXnKyktHP6abPY2pDugNf5KwzbycvMj4=
 github.com/form3tech-oss/jwt-go v3.2.2+incompatible/go.mod h1:pbq4aXjuKjdthFRnoDwaVPLA+WlJuPGy+QneDUgJi2k=
