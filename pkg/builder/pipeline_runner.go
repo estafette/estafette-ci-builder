@@ -500,6 +500,23 @@ func (pr *pipelineRunner) pullImageIfNeeded(ctx context.Context, stageName, pare
 			err = pr.containerRunner.PullImage(ctx, stageName, parentStageName, containerImage)
 			imagePullDuration = time.Since(dockerPullStart)
 
+			if err != nil {
+				// log failure to pull image in order to provide helpful message for troubleshooting failed image pull
+				logLineObject := contracts.BuildLogLine{
+					LineNumber: 1,
+					Timestamp:  time.Now().UTC(),
+					StreamType: "stderr",
+					Text:       fmt.Sprintf("Failed pulling image: %v", err.Error()),
+				}
+				pr.tailLogsChannel <- contracts.TailLogLine{
+					Step:        stageName,
+					ParentStage: parentStageName,
+					Type:        contracts.LogTypeStage,
+					Depth:       depth,
+					LogLine:     &logLineObject,
+				}
+			}
+
 			// set docker image size
 			if !pr.isCanceled(ctx) && err == nil {
 				imageSize, err = pr.containerRunner.GetImageSize(ctx, containerImage)
