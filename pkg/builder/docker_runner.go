@@ -243,7 +243,7 @@ func (dr *dockerRunner) StartStageContainer(ctx context.Context, depth int, dir 
 	resp, err := dr.dockerClient.ContainerCreate(ctx, &config, &container.HostConfig{
 		Binds:      binds,
 		Privileged: privileged,
-		AutoRemove: true,
+		AutoRemove: false,
 		LogConfig: container.LogConfig{
 			Type: "local",
 			Config: map[string]string{
@@ -379,7 +379,7 @@ func (dr *dockerRunner) StartServiceContainer(ctx context.Context, envvars map[s
 	resp, err := dr.dockerClient.ContainerCreate(ctx, &config, &container.HostConfig{
 		Binds:      binds,
 		Privileged: privileged,
-		AutoRemove: true,
+		AutoRemove: false,
 		LogConfig: container.LogConfig{
 			Type: "local",
 			Config: map[string]string{
@@ -483,7 +483,7 @@ func (dr *dockerRunner) RunReadinessProbeContainer(ctx context.Context, parentSt
 	// create container
 	resp, err := dr.dockerClient.ContainerCreate(ctx, &config, &container.HostConfig{
 		Binds:      binds,
-		AutoRemove: true,
+		AutoRemove: false,
 		LogConfig: container.LogConfig{
 			Type: "local",
 			Config: map[string]string{
@@ -565,6 +565,7 @@ func (dr *dockerRunner) RunReadinessProbeContainer(ctx context.Context, parentSt
 	case result := <-resultC:
 		exitCode = result.StatusCode
 	case err = <-errC:
+		log.Warn().Err(err).Msgf("Readiness probe container %v exited with error", containerID)
 		return err
 	}
 
