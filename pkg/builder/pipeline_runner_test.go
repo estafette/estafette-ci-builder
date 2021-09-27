@@ -261,6 +261,9 @@ func TestRunStage(t *testing.T) {
 		runningStatusMessage := <-tailLogsChannel
 		assert.Equal(t, contracts.LogStatusRunning, *runningStatusMessage.Status)
 
+		failedStageMessage := <-tailLogsChannel
+		assert.Equal(t, "Failed running stage: Failed tailing container logs", failedStageMessage.LogLine.Text)
+
 		failedStatusMessage := <-tailLogsChannel
 		assert.Equal(t, contracts.LogStatusFailed, *failedStatusMessage.Status)
 	})

@@ -2,6 +2,7 @@ package builder
 
 import (
 	"errors"
+	"fmt"
 	"os"
 
 	"github.com/Knetic/govaluate"
@@ -10,7 +11,8 @@ import (
 
 // WhenEvaluator evaluates when clauses from the manifest
 type WhenEvaluator interface {
-	Evaluate(string, string, map[string]interface{}) (bool, error)
+	Evaluate(pipelineName, input string, parameters map[string]interface{}) (bool, error)
+	Describe(input string, parameters map[string]interface{}) string
 	GetParameters() map[string]interface{}
 }
 
@@ -50,6 +52,10 @@ func (we *whenEvaluator) Evaluate(pipelineName, input string, parameters map[str
 	}
 
 	return false, errors.New("Result of evaluating when expression is not of type boolean")
+}
+
+func (we *whenEvaluator) Describe(input string, parameters map[string]interface{}) string {
+	return fmt.Sprintf("when: %v\nparameters: %v", input, parameters)
 }
 
 func (we *whenEvaluator) GetParameters() map[string]interface{} {

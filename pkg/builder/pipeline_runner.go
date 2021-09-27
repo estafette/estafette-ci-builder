@@ -93,11 +93,45 @@ func (pr *pipelineRunner) RunStage(ctx context.Context, depth int, dir string, e
 		var containerID string
 		containerID, err = pr.containerRunner.StartStageContainer(ctx, depth, dir, envvars, stage, stageIndex)
 		if pr.isCanceled(ctx) || err != nil {
+			if err != nil {
+				// log failure to run stage
+				logLineObject := contracts.BuildLogLine{
+					LineNumber: 10000,
+					Timestamp:  time.Now().UTC(),
+					StreamType: "stderr",
+					Text:       fmt.Sprintf("Failed starting stage: %v", err.Error()),
+				}
+				pr.tailLogsChannel <- contracts.TailLogLine{
+					Step:        stage.Name,
+					ParentStage: parentStageName,
+					Type:        contracts.LogTypeStage,
+					Depth:       depth,
+					LogLine:     &logLineObject,
+				}
+			}
+
 			return
 		}
 
 		err = pr.containerRunner.TailContainerLogs(ctx, containerID, parentStageName, stage.Name, contracts.LogTypeStage, depth, nil)
 		if pr.isCanceled(ctx) || err != nil {
+			if err != nil {
+				// log failure to run stage
+				logLineObject := contracts.BuildLogLine{
+					LineNumber: 10000,
+					Timestamp:  time.Now().UTC(),
+					StreamType: "stderr",
+					Text:       fmt.Sprintf("Failed running stage: %v", err.Error()),
+				}
+				pr.tailLogsChannel <- contracts.TailLogLine{
+					Step:        stage.Name,
+					ParentStage: parentStageName,
+					Type:        contracts.LogTypeStage,
+					Depth:       depth,
+					LogLine:     &logLineObject,
+				}
+			}
+
 			return
 		}
 	}
@@ -355,6 +389,12 @@ func (pr *pipelineRunner) RunParallelStages(ctx context.Context, depth int, dir 
 
 				// if an error has happened in one of the previous steps or the when expression evaluates to false we still want to render the following steps in the result table
 				status := contracts.LogStatusSkipped
+				logLineObject := contracts.BuildLogLine{
+					LineNumber: 10000,
+					Timestamp:  time.Now().UTC(),
+					StreamType: "stdout",
+					Text:       pr.whenEvaluator.Describe(stage.When, pr.whenEvaluator.GetParameters()),
+				}
 				pr.tailLogsChannel <- contracts.TailLogLine{
 					Step:         stage.Name,
 					ParentStage:  parentStage.Name,
@@ -363,6 +403,7 @@ func (pr *pipelineRunner) RunParallelStages(ctx context.Context, depth int, dir 
 					RunIndex:     0,
 					AutoInjected: &stage.AutoInjected,
 					Status:       &status,
+					LogLine:      &logLineObject,
 				}
 			}
 
