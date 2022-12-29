@@ -54,6 +54,7 @@ stages:
         copy:
         - templates
         - daemon.json
+        - .trivyignore
 
       bake-gocd-agent:
         image: extensions/docker:dev
@@ -215,7 +216,7 @@ stages:
                 },
                 {
                   "Name":"buildB",
-                  "ContainerImage":"alpine:3.10",
+                  "ContainerImage":"alpine:3",
                   "Shell":"/bin/sh",
                   "WorkingDirectory":"/estafette-work",
                   "Commands":[
@@ -238,12 +239,12 @@ stages:
               "CustomProperties":{
                 "action":"build",
                 "no-cache":true,
-                "severity":"unknown",
+                "severity":"high",
                 "tag":"testtag",
                 "dontExpand":["ESTAFETTE_WORKDIR"],
                 "path":"./publish",
                 "repositories":["estafette"],
-                "copy":["templates","daemon.json"]
+                "copy":["templates","daemon.json", "./.trivyignore"]
               }
             }
           ],
