@@ -215,7 +215,7 @@ stages:
                 },
                 {
                   "Name":"buildB",
-                  "ContainerImage":"alpine:3.10",
+                  "ContainerImage":"alpine:3",
                   "Shell":"/bin/sh",
                   "WorkingDirectory":"/estafette-work",
                   "Commands":[
@@ -224,27 +224,6 @@ stages:
                   "When":"status == ''succeeded''"
                 }
               ]
-            },
-            {
-              "Name":"bake-estafette",
-              "ContainerImage":"extensions/docker:dev",
-              "Shell":"/bin/sh",
-              "WorkingDirectory":"/estafette-work",
-              "Commands":null,
-              "When":"status == ''succeeded''",
-              "EnvVars":null,
-              "AutoInjected":false,
-              "Retries":0,
-              "CustomProperties":{
-                "action":"build",
-                "no-cache":true,
-                "severity":"unknown",
-                "tag":"testtag",
-                "dontExpand":["ESTAFETTE_WORKDIR"],
-                "path":"./publish",
-                "repositories":["estafette"],
-                "copy":["templates","daemon.json"]
-              }
             }
           ],
 
