@@ -215,7 +215,7 @@ stages:
                 },
                 {
                   "Name":"buildB",
-                  "ContainerImage":"alpine:3.10",
+                  "ContainerImage":"alpine:3",
                   "Shell":"/bin/sh",
                   "WorkingDirectory":"/estafette-work",
                   "Commands":[
