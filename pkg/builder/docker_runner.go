@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"os/user"
@@ -118,7 +117,7 @@ func (dr *dockerRunner) PullImage(ctx context.Context, stageName, parentStageNam
 	defer rc.Close()
 
 	// wait for image pull to finish
-	_, err = ioutil.ReadAll(rc)
+	_, err = io.ReadAll(rc)
 	if err != nil {
 		return err
 	}
@@ -1073,7 +1072,7 @@ func (dr *dockerRunner) generateEntrypointScript(shell string, commands []string
 		entrypointFile = "entrypoint.bat"
 	}
 
-	entrypointdir, err := ioutil.TempDir("", "*-entrypoint")
+	entrypointdir, err := os.MkdirTemp("", "*-entrypoint")
 	if err != nil {
 		return
 	}
@@ -1109,7 +1108,7 @@ func (dr *dockerRunner) generateEntrypointScript(shell string, commands []string
 		return
 	}
 
-	entryPointBytes, innerErr := ioutil.ReadFile(entrypointPath)
+	entryPointBytes, innerErr := os.ReadFile(entrypointPath)
 	if innerErr == nil {
 		log.Debug().Str("entrypoint", string(entryPointBytes)).Msgf("Inspecting entrypoint script at %v", entrypointPath)
 	}
@@ -1256,7 +1255,7 @@ func (dr *dockerRunner) generateCredentialsFiles(trustedImage *contracts.Trusted
 
 	if trustedImage != nil {
 		// create a tempdir to store credential files in and mount into container
-		credentialsdir, innerErr := ioutil.TempDir("", "*-credentials")
+		credentialsdir, innerErr := os.MkdirTemp("", "*-credentials")
 		if innerErr != nil {
 			return hostPath, mountPath, innerErr
 		}
@@ -1287,7 +1286,7 @@ func (dr *dockerRunner) generateCredentialsFiles(trustedImage *contracts.Trusted
 			credentialsForTypeString = os.Expand(credentialsForTypeString, dr.envvarHelper.getEstafetteEnv)
 
 			// write to file
-			err = ioutil.WriteFile(filepath, []byte(credentialsForTypeString), 0666)
+			err = os.WriteFile(filepath, []byte(credentialsForTypeString), 0666)
 			if err != nil {
 				return
 			}
