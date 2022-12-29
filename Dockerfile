@@ -16,6 +16,7 @@ RUN addgroup docker \
 COPY ${ESTAFETTE_GIT_NAME} /
 COPY templates /entrypoint-templates
 COPY daemon.json /
+COPT .trivyignore /
 
 ENV ESTAFETTE_CI_SERVER="estafette" \
     ESTAFETTE_WORKDIR="/estafette-work" \
