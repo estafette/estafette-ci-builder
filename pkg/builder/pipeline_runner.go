@@ -62,8 +62,6 @@ func (pr *pipelineRunner) RunStage(ctx context.Context, depth int, dir string, e
 	// init some variables
 	parentStageName, stagePlaceholder, autoInjected := pr.initStageVariables(ctx, depth, dir, envvars, parentStage, stage)
 	stage.ContainerImage = os.Expand(stage.ContainerImage, pr.envvarHelper.getEstafetteEnv)
-	_ = pr.envvarHelper.setEstafetteEnv("ESTAFETTE_STAGE_BUILD_REVISION", pr.applicationInfo.Revision)
-	_ = pr.envvarHelper.setEstafetteEnv("ESTAFETTE_STAGE_BUILD_BUILD_DATE", pr.applicationInfo.BuildDate)
 
 	log.Debug().Msgf("%v Starting stage", stagePlaceholder)
 
@@ -284,6 +282,8 @@ func (pr *pipelineRunner) RunStages(ctx context.Context, depth int, stages []*ma
 		return buildLogSteps, fmt.Errorf("Manifest has no stages, failing the build")
 	}
 
+	envvars[pr.envvarHelper.getEstafetteEnvvarName("ESTAFETTE_STAGE_BUILD_REVISION")] = pr.applicationInfo.Revision
+	envvars[pr.envvarHelper.getEstafetteEnvvarName("ESTAFETTE_STAGE_BUILD_BUILD_DATE")] = pr.applicationInfo.BuildDate
 	// creates first injected stage with builder info
 	if pr.injectBuilderInfoStage {
 		pr.logBuilderInfo(ctx, pr.applicationInfo)
