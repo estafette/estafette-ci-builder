@@ -8,6 +8,7 @@ import (
 )
 
 // ContainerRunner allows containers to be started
+//
 //go:generate mockgen -package=builder -destination ./container_runner_mock.go -source=container_runner.go
 type ContainerRunner interface {
 	IsImagePulled(ctx context.Context, stageName string, containerImage string) bool
@@ -28,4 +29,5 @@ type ContainerRunner interface {
 	DeleteNetworks(ctx context.Context) error
 	StopAllContainers(ctx context.Context)
 	Info(ctx context.Context) string
+	GetContainerInfo(ctx context.Context, containerID string) (params map[string]string, err error)
 }
