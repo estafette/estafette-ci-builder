@@ -162,6 +162,9 @@ func (dr *dockerRunner) StartStageContainer(ctx context.Context, depth int, dir 
 	}
 	stage.EnvVars["ESTAFETTE_STAGE_NAME"] = stage.Name
 
+	_, err = dr.GetImageID(ctx, stage.ContainerImage)
+	// envvars[pr.envvarHelper.getEstafetteEnvvarName("ESTAFETTE_STAGE_BUILD_REVISION")] = pr.applicationInfo.Revision
+	// envvars[pr.envvarHelper.getEstafetteEnvvarName("ESTAFETTE_STAGE_BUILD_BUILD_DATE")] = pr.applicationInfo.BuildDate
 	// combine and override estafette and global envvars with stage envvars
 	combinedEnvVars := dr.envvarHelper.OverrideEnvvars(envvars, stage.EnvVars, extensionEnvVars)
 
@@ -269,11 +272,11 @@ func (dr *dockerRunner) StartStageContainer(ctx context.Context, depth int, dir 
 	containerID = resp.ID
 	dr.runningStageContainerIDs = dr.addRunningContainerID(dr.runningStageContainerIDs, containerID)
 
+	_, err = dr.GetContainerInfo(ctx, containerID)
 	// start container
 	if err = dr.dockerClient.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{}); err != nil {
 		return
 	}
-
 	return
 }
 
@@ -1305,6 +1308,17 @@ func (dr *dockerRunner) generateCredentialsFiles(trustedImage *contracts.Trusted
 	return
 }
 
+func (dr *dockerRunner) GetContainerInfo(ctx context.Context, containerID string) (params map[string]string, err error) {
+	containerJSON, err := dr.dockerClient.ContainerInspect(ctx, containerID)
+	if err != nil {
+		log.Error().Err(err).Msgf("Failed getting info for container %v", containerID)
+		return
+	}
+	log.Debug().Msgf("Container info %v", containerJSON)
+
+	return
+}
+
 func escapeCharsInCommand(command string) string {
 	command = strings.Replace(command, `\`, `\\`, -1)
 	command = strings.Replace(command, `'`, `\'`, -1)
@@ -1324,4 +1338,11 @@ func (dr *dockerRunner) Info(ctx context.Context) string {
 	}
 
 	return fmt.Sprintln(aurora.Gray(18, "> docker info")) + string(infoYAML)
+}
+
+func (dr *dockerRunner) GetImageID(ctx context.Context, imageID string) (imageSHA string, err error) {
+	imageInfo, data, err := dr.dockerClient.ImageInspectWithRaw(ctx, imageID)
+
+	log.Debug().Msgf("Image info %v, image data %v", imageInfo, data)
+	return "", err
 }
