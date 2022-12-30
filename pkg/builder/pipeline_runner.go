@@ -62,11 +62,11 @@ func (pr *pipelineRunner) RunStage(ctx context.Context, depth int, dir string, e
 	// init some variables
 	parentStageName, stagePlaceholder, autoInjected := pr.initStageVariables(ctx, depth, dir, envvars, parentStage, stage)
 	stage.ContainerImage = os.Expand(stage.ContainerImage, pr.envvarHelper.getEstafetteEnv)
-	_ = pr.envvarHelper.setEstafetteEnv("ESTAFETTE_STAGE_BUILD_REVISION", pr.applicationInfo.Revision)
-	_ = pr.envvarHelper.setEstafetteEnv("ESTAFETTE_STAGE_BUILD_BUILD_DATE", pr.applicationInfo.BuildDate)
 
 	log.Debug().Msgf("%v Starting stage", stagePlaceholder)
 
+	envvars[pr.envvarHelper.getEstafetteEnvvarName("ESTAFETTE_STAGE_BUILD_REVISION")] = pr.applicationInfo.Revision
+	envvars[pr.envvarHelper.getEstafetteEnvvarName("ESTAFETTE_STAGE_BUILD_BUILD_DATE")] = pr.applicationInfo.BuildDate
 	// pull image, get size and send pending/running status messages
 	err = pr.pullImageIfNeeded(ctx, stage.Name, parentStageName, stage.ContainerImage, contracts.LogTypeStage, depth, autoInjected)
 	defer pr.handleStageFinish(ctx, depth, dir, envvars, parentStage, stage, time.Now(), &err)
