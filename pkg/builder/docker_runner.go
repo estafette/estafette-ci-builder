@@ -162,6 +162,13 @@ func (dr *dockerRunner) StartStageContainer(ctx context.Context, depth int, dir 
 	}
 	stage.EnvVars["ESTAFETTE_STAGE_NAME"] = stage.Name
 
+	// get imageID of stage build container
+	imageID, err := dr.GetImageID(ctx, stage.ContainerImage)
+	if err != nil {
+		return
+	}
+	stage.EnvVars["ESTAFETTE_STAGE_IMAGE_SHA"] = imageID
+
 	// combine and override estafette and global envvars with stage envvars
 	combinedEnvVars := dr.envvarHelper.OverrideEnvvars(envvars, stage.EnvVars, extensionEnvVars)
 
@@ -273,7 +280,6 @@ func (dr *dockerRunner) StartStageContainer(ctx context.Context, depth int, dir 
 	if err = dr.dockerClient.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{}); err != nil {
 		return
 	}
-
 	return
 }
 
@@ -1324,4 +1330,15 @@ func (dr *dockerRunner) Info(ctx context.Context) string {
 	}
 
 	return fmt.Sprintln(aurora.Gray(18, "> docker info")) + string(infoYAML)
+}
+
+func (dr *dockerRunner) GetImageID(ctx context.Context, imageID string) (imageSHA string, err error) {
+	imageInfo, _, err := dr.dockerClient.ImageInspectWithRaw(ctx, imageID)
+	if err != nil {
+		log.Error().Msgf("Could not get image info for imageID: %v err: %v", imageID, err)
+		return
+	}
+
+	imageSHA = strings.Split(imageInfo.ID, ":")[1]
+	return
 }

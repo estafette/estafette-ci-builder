@@ -62,8 +62,6 @@ func (pr *pipelineRunner) RunStage(ctx context.Context, depth int, dir string, e
 	// init some variables
 	parentStageName, stagePlaceholder, autoInjected := pr.initStageVariables(ctx, depth, dir, envvars, parentStage, stage)
 	stage.ContainerImage = os.Expand(stage.ContainerImage, pr.envvarHelper.getEstafetteEnv)
-	_ = pr.envvarHelper.setEstafetteEnv("ESTAFETTE_STAGE_BUILD_REVISION", pr.applicationInfo.Revision)
-	_ = pr.envvarHelper.setEstafetteEnv("ESTAFETTE_STAGE_BUILD_BUILD_DATE", pr.applicationInfo.BuildDate)
 
 	log.Debug().Msgf("%v Starting stage", stagePlaceholder)
 
@@ -714,6 +712,7 @@ func (pr *pipelineRunner) logBuilderInfo(ctx context.Context, applicationInfo fo
 
 	builderVersionMessage := fmt.Sprintf("Starting \x1b[1m%v\x1b[0m version \x1b[1m%v\x1b[0m... \x1b[36mbranch=\x1b[0m%v \x1b[36mbuildDate=\x1b[0m%v \x1b[36mgoVersion=\x1b[0m%v \x1b[36mos=\x1b[0m%v \x1b[36mrevision=\x1b[0m%v", applicationInfo.App, applicationInfo.Version, applicationInfo.Branch, applicationInfo.BuildDate, applicationInfo.GoVersion(), applicationInfo.OperatingSystem(), applicationInfo.Revision)
 
+	log.Info().Msgf("logging with info applicationRevision %v", applicationInfo.Revision)
 	logLineObject := contracts.BuildLogLine{
 		LineNumber: 1,
 		Timestamp:  time.Now().UTC(),
