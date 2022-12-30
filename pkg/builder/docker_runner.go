@@ -161,7 +161,10 @@ func (dr *dockerRunner) StartStageContainer(ctx context.Context, depth int, dir 
 		stage.EnvVars = map[string]string{}
 	}
 	stage.EnvVars["ESTAFETTE_STAGE_NAME"] = stage.Name
+	stage.EnvVars["ESTAFETTE_STAGE_BUILD_IMAGE"] = stage.ContainerImage
 
+	// envvars[pr.envvarHelper.getEstafetteEnvvarName("ESTAFETTE_STAGE_BUILD_REVISION")] = pr.applicationInfo.Revision
+	// envvars[pr.envvarHelper.getEstafetteEnvvarName("ESTAFETTE_STAGE_BUILD_BUILD_DATE")] = pr.applicationInfo.BuildDate
 	// combine and override estafette and global envvars with stage envvars
 	combinedEnvVars := dr.envvarHelper.OverrideEnvvars(envvars, stage.EnvVars, extensionEnvVars)
 
