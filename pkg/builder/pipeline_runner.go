@@ -62,8 +62,6 @@ func (pr *pipelineRunner) RunStage(ctx context.Context, depth int, dir string, e
 	// init some variables
 	parentStageName, stagePlaceholder, autoInjected := pr.initStageVariables(ctx, depth, dir, envvars, parentStage, stage)
 	stage.ContainerImage = os.Expand(stage.ContainerImage, pr.envvarHelper.getEstafetteEnv)
-	_ = pr.envvarHelper.setEstafetteEnv("ESTAFETTE_STAGE_BUILD_REVISION", pr.applicationInfo.Revision)
-	_ = pr.envvarHelper.setEstafetteEnv("ESTAFETTE_STAGE_BUILD_BUILD_DATE", pr.applicationInfo.BuildDate)
 
 	log.Debug().Msgf("%v Starting stage", stagePlaceholder)
 
@@ -321,6 +319,13 @@ func (pr *pipelineRunner) RunStages(ctx context.Context, depth int, stages []*ma
 			}
 
 			if whenEvaluationResult {
+				if err = pr.envvarHelper.setEstafetteEnv("ESTAFETTE_STAGE_BUILD_REVISION", pr.applicationInfo.Revision); err != nil {
+					log.Logger.Error().Msgf("env var ESTAFETTE_STAGE_BUILD_REVISION could not be set: %v", err)
+				}
+				if err = pr.envvarHelper.setEstafetteEnv("ESTAFETTE_STAGE_BUILD_BUILD_DATE", pr.applicationInfo.BuildDate); err != nil {
+					log.Logger.Error().Msgf("env var ESTAFETTE_STAGE_BUILD_BUILD_DATE could not be set: %v", err)
+				}
+
 				err = pr.RunStage(ctx, depth, dir, envvars, nil, *stage, 0)
 				if pr.isCanceled(ctx) {
 					return
