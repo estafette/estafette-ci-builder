@@ -162,12 +162,13 @@ func (dr *dockerRunner) StartStageContainer(ctx context.Context, depth int, dir 
 	}
 	stage.EnvVars["ESTAFETTE_STAGE_NAME"] = stage.Name
 
-	// get imageID of stage build container
-	imageID, err := dr.GetImageID(ctx, stage.ContainerImage)
+	// get imageID and imageCreatedDate of stage build container
+	imageSHA, imageCreatedDate, err := dr.GetImageInfo(ctx, stage.ContainerImage)
 	if err != nil {
-		return
+		log.Err(err)
 	}
-	stage.EnvVars["ESTAFETTE_STAGE_IMAGE_SHA"] = imageID
+	stage.EnvVars["ESTAFETTE_STAGE_IMAGE_SHA"] = imageSHA
+	stage.EnvVars["ESTAFETTE_STAGE_IMAGE_CREATED_DATE"] = imageCreatedDate
 
 	// combine and override estafette and global envvars with stage envvars
 	combinedEnvVars := dr.envvarHelper.OverrideEnvvars(envvars, stage.EnvVars, extensionEnvVars)
@@ -305,6 +306,14 @@ func (dr *dockerRunner) StartServiceContainer(ctx context.Context, envvars map[s
 		service.EnvVars = map[string]string{}
 	}
 	service.EnvVars["ESTAFETTE_SERVICE_NAME"] = service.Name
+
+	// get imageID and imageCreatedDate of stage build container
+	imageSHA, imageCreatedDate, err := dr.GetImageInfo(ctx, service.ContainerImage)
+	if err != nil {
+		log.Err(err)
+	}
+	service.EnvVars["ESTAFETTE_SERVICE_IMAGE_SHA"] = imageSHA
+	service.EnvVars["ESTAFETTE_SERVICE_IMAGE_CREATED_DATE"] = imageCreatedDate
 
 	// combine and override estafette and global envvars with pipeline envvars
 	combinedEnvVars := dr.envvarHelper.OverrideEnvvars(envvars, service.EnvVars, extensionEnvVars)
@@ -1332,14 +1341,25 @@ func (dr *dockerRunner) Info(ctx context.Context) string {
 	return fmt.Sprintln(aurora.Gray(18, "> docker info")) + string(infoYAML)
 }
 
-func (dr *dockerRunner) GetImageID(ctx context.Context, imageID string) (imageSHA string, err error) {
+func (dr *dockerRunner) GetImageInfo(ctx context.Context, imageID string) (imageSHA string, imageCreatedDate string, err error) {
 	imageInfo, _, err := dr.dockerClient.ImageInspectWithRaw(ctx, imageID)
-	log.Debug().Msgf("Image info %v", imageInfo)
 	if err != nil {
 		log.Error().Msgf("Could not get image info for imageID: %v err: %v", imageID, err)
 		return
 	}
 
-	imageSHA = strings.Split(imageInfo.ID, ":")[1]
+	if len(imageInfo.RepoDigests) < 1 {
+
+		log.Error().Msgf("Image %v does not contain any digests", imageID)
+		return
+	}
+
+	if len(imageInfo.RepoDigests) > 1 {
+		log.Warn().Msgf("There is more then one digests image %v. Choosing first digest as default", imageID)
+	}
+
+	imageSHA = strings.Split(imageInfo.RepoDigests[0], ":")[1]
+	imageCreatedDate = imageInfo.Created
+
 	return
 }
