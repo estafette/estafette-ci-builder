@@ -1,7 +1,6 @@
 package builder
 
 import (
-	"io/ioutil"
 	"os"
 	"path"
 	"strings"
@@ -61,7 +60,7 @@ func TestGenerateEntrypointScript(t *testing.T) {
 		hostPath, _, entrypointFile, err := dockerRunner.generateEntrypointScript("/bin/sh", []string{"go test ./..."}, false)
 
 		assert.Nil(t, err)
-		bytes, err := ioutil.ReadFile(path.Join(hostPath, entrypointFile))
+		bytes, err := os.ReadFile(path.Join(hostPath, entrypointFile))
 		assert.Nil(t, err)
 		assert.Equal(t, `#!/bin/sh
 set -e
@@ -80,7 +79,7 @@ exec go test ./...`, string(bytes))
 		hostPath, _, entrypointFile, err := dockerRunner.generateEntrypointScript("/bin/sh", []string{"go test ./...", "go build"}, false)
 
 		assert.Nil(t, err)
-		bytes, err := ioutil.ReadFile(path.Join(hostPath, entrypointFile))
+		bytes, err := os.ReadFile(path.Join(hostPath, entrypointFile))
 		assert.Nil(t, err)
 		assert.Equal(t, `#!/bin/sh
 set -e
@@ -104,7 +103,7 @@ exec go build`, string(bytes))
 		hostPath, _, entrypointFile, err := dockerRunner.generateEntrypointScript("/bin/sh", []string{"go test ./...", "export MY_TITLE_2=abc", "echo $MY_TITLE_2", "go build"}, false)
 
 		assert.Nil(t, err)
-		bytes, err := ioutil.ReadFile(path.Join(hostPath, entrypointFile))
+		bytes, err := os.ReadFile(path.Join(hostPath, entrypointFile))
 		assert.Nil(t, err)
 		assert.Equal(t, `#!/bin/sh
 set -e
@@ -136,7 +135,7 @@ exec go build`, string(bytes))
 		hostPath, _, entrypointFile, err := dockerRunner.generateEntrypointScript("/bin/sh", []string{"false || true", "go build"}, false)
 
 		assert.Nil(t, err)
-		bytes, err := ioutil.ReadFile(path.Join(hostPath, entrypointFile))
+		bytes, err := os.ReadFile(path.Join(hostPath, entrypointFile))
 		assert.Nil(t, err)
 		assert.Equal(t, `#!/bin/sh
 set -e
@@ -158,7 +157,7 @@ exec go build`, string(bytes))
 		hostPath, _, entrypointFile, err := dockerRunner.generateEntrypointScript("/bin/sh", []string{"false && true", "go build"}, false)
 
 		assert.Nil(t, err)
-		bytes, err := ioutil.ReadFile(path.Join(hostPath, entrypointFile))
+		bytes, err := os.ReadFile(path.Join(hostPath, entrypointFile))
 		assert.Nil(t, err)
 		assert.Equal(t, `#!/bin/sh
 set -e
@@ -180,7 +179,7 @@ exec go build`, string(bytes))
 		hostPath, _, entrypointFile, err := dockerRunner.generateEntrypointScript("/bin/sh", []string{"cat kubernetes.yaml | kubectl apply -f -", "kubectl rollout status deploy/myapp"}, false)
 
 		assert.Nil(t, err)
-		bytes, err := ioutil.ReadFile(path.Join(hostPath, entrypointFile))
+		bytes, err := os.ReadFile(path.Join(hostPath, entrypointFile))
 		assert.Nil(t, err)
 		assert.Equal(t, `#!/bin/sh
 set -e
@@ -202,7 +201,7 @@ exec kubectl rollout status deploy/myapp`, string(bytes))
 		hostPath, _, entrypointFile, err := dockerRunner.generateEntrypointScript("/bin/sh", []string{"cd subdir", "ls -latr"}, false)
 
 		assert.Nil(t, err)
-		bytes, err := ioutil.ReadFile(path.Join(hostPath, entrypointFile))
+		bytes, err := os.ReadFile(path.Join(hostPath, entrypointFile))
 		assert.Nil(t, err)
 		assert.Equal(t, `#!/bin/sh
 set -e
@@ -224,7 +223,7 @@ exec ls -latr`, string(bytes))
 		hostPath, _, entrypointFile, err := dockerRunner.generateEntrypointScript("/bin/sh", []string{"export $(python3 requiredenv.py)", "ls -latr"}, false)
 
 		assert.Nil(t, err)
-		bytes, err := ioutil.ReadFile(path.Join(hostPath, entrypointFile))
+		bytes, err := os.ReadFile(path.Join(hostPath, entrypointFile))
 		assert.Nil(t, err)
 		assert.Equal(t, `#!/bin/sh
 set -e
@@ -246,7 +245,7 @@ exec ls -latr`, string(bytes))
 		hostPath, _, entrypointFile, err := dockerRunner.generateEntrypointScript("/bin/sh", []string{"shopt -u dotglob", "ls -latr"}, false)
 
 		assert.Nil(t, err)
-		bytes, err := ioutil.ReadFile(path.Join(hostPath, entrypointFile))
+		bytes, err := os.ReadFile(path.Join(hostPath, entrypointFile))
 		assert.Nil(t, err)
 		assert.Equal(t, `#!/bin/sh
 set -e
@@ -268,7 +267,7 @@ exec ls -latr`, string(bytes))
 		hostPath, _, entrypointFile, err := dockerRunner.generateEntrypointScript("/bin/sh", []string{`if [ "${VARIABLE}" -ne "" ]; then echo $VARIABLE; fi`, "go build"}, false)
 
 		assert.Nil(t, err)
-		bytes, err := ioutil.ReadFile(path.Join(hostPath, entrypointFile))
+		bytes, err := os.ReadFile(path.Join(hostPath, entrypointFile))
 		assert.Nil(t, err)
 		assert.Equal(t, `#!/bin/sh
 set -e
@@ -290,7 +289,7 @@ exec go build`, string(bytes))
 		hostPath, _, entrypointFile, err := dockerRunner.generateEntrypointScript("/bin/sh", []string{`echo "<xml />"`}, false)
 
 		assert.Nil(t, err)
-		bytes, err := ioutil.ReadFile(path.Join(hostPath, entrypointFile))
+		bytes, err := os.ReadFile(path.Join(hostPath, entrypointFile))
 		assert.Nil(t, err)
 		assert.Equal(t, `#!/bin/sh
 set -e
@@ -309,7 +308,7 @@ exec echo "<xml />"`, string(bytes))
 		hostPath, _, entrypointFile, err := dockerRunner.generateEntrypointScript("/bin/sh", []string{"echo '<xml />'"}, false)
 
 		assert.Nil(t, err)
-		bytes, err := ioutil.ReadFile(path.Join(hostPath, entrypointFile))
+		bytes, err := os.ReadFile(path.Join(hostPath, entrypointFile))
 		assert.Nil(t, err)
 		assert.Equal(t, `#!/bin/sh
 set -e
@@ -328,7 +327,7 @@ exec echo '<xml />'`, string(bytes))
 		hostPath, _, entrypointFile, err := dockerRunner.generateEntrypointScript("/bin/sh", []string{`PR_TITLE=$(echo "${ESTAFETTE_BUILD_VERSION} - ${LOG_MESSAGE}" | tr '\n' ' ')`}, false)
 
 		assert.Nil(t, err)
-		bytes, err := ioutil.ReadFile(path.Join(hostPath, entrypointFile))
+		bytes, err := os.ReadFile(path.Join(hostPath, entrypointFile))
 		assert.Nil(t, err)
 		assert.Equal(t, `#!/bin/sh
 set -e
@@ -347,7 +346,7 @@ PR_TITLE=$(echo "${ESTAFETTE_BUILD_VERSION} - ${LOG_MESSAGE}" | tr '\n' ' ')`, s
 		hostPath, _, entrypointFile, err := dockerRunner.generateEntrypointScript("/bin/sh", []string{`curl --fail -H "Accept: application/vnd.github.v3+json" -u ${ESTAFETTE_GIT_URL:8:55} -XPOST https://api.github.com/repos/estafette/estafette.io/pulls -d "{\"title\": \"${PR_TITLE}\", \"head\": \"${ESTAFETTE_BUILD_VERSION}\", \"base\": \"main\"}"`}, false)
 
 		assert.Nil(t, err)
-		bytes, err := ioutil.ReadFile(path.Join(hostPath, entrypointFile))
+		bytes, err := os.ReadFile(path.Join(hostPath, entrypointFile))
 		assert.Nil(t, err)
 		assert.Equal(t, `#!/bin/sh
 set -e
@@ -366,7 +365,7 @@ exec curl --fail -H "Accept: application/vnd.github.v3+json" -u ${ESTAFETTE_GIT_
 		hostPath, _, entrypointFile, err := dockerRunner.generateEntrypointScript("/bin/sh", []string{"go test ./...", "go build"}, true)
 
 		assert.Nil(t, err)
-		bytes, err := ioutil.ReadFile(path.Join(hostPath, entrypointFile))
+		bytes, err := os.ReadFile(path.Join(hostPath, entrypointFile))
 		assert.Nil(t, err)
 		assert.Equal(t, `#!/bin/sh
 set -e

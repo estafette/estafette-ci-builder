@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"io/ioutil"
 	"os"
 
 	"github.com/alecthomas/kingpin"
@@ -91,7 +90,7 @@ func loadBuilderConfig(secretHelper crypt.SecretHelper, envvarHelper builder.Env
 		log.Debug().Msgf("Reading builder config from file %v...", *builderConfigPath)
 
 		var err error
-		builderConfigJSON, err = ioutil.ReadFile(*builderConfigPath)
+		builderConfigJSON, err = os.ReadFile(*builderConfigPath)
 		if err != nil {
 			log.Fatal().Err(err).Interface("builderConfigJSON", builderConfigJSON).Msgf("Failed to read builder config file at %v", *builderConfigPath)
 		}
@@ -156,7 +155,7 @@ func getDecryptionKey() string {
 	// support both base64 encoded decryption key and non-encoded or mounted as secret
 	decryptionKey := *secretDecryptionKey
 	if *secretDecryptionKeyPath != "" && foundation.FileExists(*secretDecryptionKeyPath) {
-		secretDecryptionKeyBytes, err := ioutil.ReadFile(*secretDecryptionKeyPath)
+		secretDecryptionKeyBytes, err := os.ReadFile(*secretDecryptionKeyPath)
 		if err != nil {
 			log.Fatal().Err(err).Msgf("Failed reading secret decryption key from path %v", *secretDecryptionKeyPath)
 		}
