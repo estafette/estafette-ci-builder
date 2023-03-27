@@ -8,8 +8,9 @@ labels:
 
 version:
   semver:
-    major: 0
-    minor: 0
+    major: 1
+    minor: 4
+    patch: 0
     releaseBranch: main
 
 stages:
@@ -34,11 +35,12 @@ stages:
         - go build -v -ldflags "-X main.appgroup=${ESTAFETTE_LABEL_APP_GROUP} -X main.app=${ESTAFETTE_GIT_NAME} -X main.version=${ESTAFETTE_BUILD_VERSION} -X main.revision=${ESTAFETTE_GIT_REVISION} -X main.branch=${ESTAFETTE_GIT_BRANCH} -X main.buildDate=${ESTAFETTE_BUILD_DATETIME}" -o ./publish/${ESTAFETTE_GIT_NAME}
 
   tag-revision:
-    image: golang:1.17-alpine
+    image: bitnami/git
     commands:
-    - apk add git
     - git tag v${ESTAFETTE_BUILD_VERSION}
     - git push origin v${ESTAFETTE_BUILD_VERSION}
+    when: status == 'succeeded' &&
+      branch == 'main'
 
   bake-all:
     parallelStages:

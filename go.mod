@@ -10,7 +10,7 @@ require (
 	github.com/docker/docker v20.10.8+incompatible
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/estafette/estafette-ci-contracts v0.0.272
-	github.com/estafette/estafette-ci-crypt v0.0.43
+	github.com/estafette/estafette-ci-crypt v0.0.47
 	github.com/estafette/estafette-ci-manifest v0.1.200
 	github.com/estafette/estafette-foundation v0.0.73
 	github.com/golang/mock v1.5.0
