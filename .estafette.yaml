@@ -39,6 +39,8 @@ stages:
     commands:
     - git tag v${ESTAFETTE_BUILD_VERSION}
     - git push origin v${ESTAFETTE_BUILD_VERSION}
+    when: status == 'succeeded' &&
+      branch == 'main'
 
   bake-all:
     parallelStages:
