@@ -6,15 +6,13 @@ require (
 	github.com/Knetic/govaluate v3.0.0+incompatible
 	github.com/alecthomas/kingpin v2.2.6+incompatible
 	github.com/alecthomas/units v0.0.0-20190910110746-680d30ca3117 // indirect
-	github.com/containerd/containerd v1.5.2 // indirect
-	github.com/docker/docker v20.10.8+incompatible
+	github.com/docker/docker v20.10.24+incompatible
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/estafette/estafette-ci-contracts v0.0.272
 	github.com/estafette/estafette-ci-crypt v0.0.47
 	github.com/estafette/estafette-ci-manifest v0.1.200
 	github.com/estafette/estafette-foundation v0.0.73
 	github.com/golang/mock v1.5.0
-	github.com/gorilla/mux v1.7.3 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/logrusorgru/aurora v2.0.3+incompatible
 	github.com/mattn/go-runewidth v0.0.4 // indirect
@@ -64,8 +62,7 @@ require (
 	golang.org/x/net v0.0.0-20210226172049-e18ecbb05110 // indirect
 	golang.org/x/sys v0.0.0-20210324051608-47abb6519492 // indirect
 	golang.org/x/tools v0.0.0-20210106214847-113979e3529a // indirect
-	google.golang.org/genproto v0.0.0-20201110150050-8816d57aaa9a // indirect
-	google.golang.org/grpc v1.33.2 // indirect
 	google.golang.org/protobuf v1.25.0 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c // indirect
+	gotest.tools/v3 v3.0.3 // indirect
 )
